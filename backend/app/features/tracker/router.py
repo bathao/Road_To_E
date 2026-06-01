@@ -11,7 +11,6 @@ from app.features.tracker import schemas, service
 from app.features.tracker.models import (
     Activity,
     Category,
-    DayRating,
     Event,
     Match,
     PhysicalCheck,
@@ -127,35 +126,6 @@ def update_match(match_id: int, payload: schemas.MatchIn, db: Session = Depends(
 @router.delete("/matches/{match_id}", status_code=204)
 def delete_match(match_id: int, db: Session = Depends(get_db)):
     obj = db.get(Match, match_id)
-    if obj:
-        db.delete(obj)
-        db.commit()
-    return Response(status_code=204)
-
-
-# ---------------------------------------------------------------- ratings
-@router.put("/ratings", response_model=schemas.RatingOut | None)
-def upsert_rating(payload: schemas.RatingIn, db: Session = Depends(get_db)):
-    existing = db.query(DayRating).filter(DayRating.date == payload.date).first()
-    if not payload.rating:
-        if existing:
-            db.delete(existing)
-            db.commit()
-        return None
-    if existing:
-        existing.rating = payload.rating
-        existing.note = payload.note
-    else:
-        existing = DayRating(date=payload.date, rating=payload.rating, note=payload.note)
-        db.add(existing)
-    db.commit()
-    db.refresh(existing)
-    return existing
-
-
-@router.delete("/ratings", status_code=204)
-def delete_rating(date: dt.date = Query(...), db: Session = Depends(get_db)):
-    obj = db.query(DayRating).filter(DayRating.date == date).first()
     if obj:
         db.delete(obj)
         db.commit()

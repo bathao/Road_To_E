@@ -11,7 +11,6 @@ from app.features.tracker import schemas
 from app.features.tracker.models import (
     Activity,
     Category,
-    DayRating,
     Event,
     Match,
     PhysicalCheck,
@@ -232,9 +231,6 @@ def build_week(db: Session, start: dt.date) -> schemas.WeekResponse:
         .order_by(Match.order_index)
         .all()
     )
-    ratings = (
-        db.query(DayRating).filter(DayRating.date >= start, DayRating.date <= end).all()
-    )
     checks = (
         db.query(PhysicalCheck)
         .filter(PhysicalCheck.date >= start, PhysicalCheck.date <= end)
@@ -293,7 +289,6 @@ def build_week(db: Session, start: dt.date) -> schemas.WeekResponse:
         categories=[schemas.CategoryOut.model_validate(c) for c in categories],
         activities=[schemas.ActivityOut.model_validate(a) for a in activities],
         matches=[match_to_out(m) for m in matches],
-        ratings=[schemas.RatingOut.model_validate(r) for r in ratings],
         cells=cells,
         physical_checks=checks_by_date,
     )

@@ -3,7 +3,6 @@
 export type CategoryType = "duration" | "match" | "rating" | "checklist";
 export type ColorGroup = "green" | "yellow" | "none";
 export type Discipline = "singles" | "doubles";
-export type Rating = "green" | "yellow" | "red";
 
 export interface Category {
   id: number;
@@ -38,13 +37,6 @@ export interface Match {
   order_index: number;
 }
 
-export interface DayRating {
-  id: number;
-  date: string;
-  rating: Rating;
-  note: string | null;
-}
-
 export interface CellData {
   display: string;
   color: string | null;
@@ -56,7 +48,6 @@ export interface WeekResponse {
   categories: Category[];
   activities: Activity[];
   matches: Match[];
-  ratings: DayRating[];
   cells: Record<string, CellData>; // key = `${category_id}|${isoDate}`
   physical_checks: Record<string, string[]>; // isoDate -> ticked item keys
 }
@@ -127,12 +118,6 @@ export interface MatchIn {
   nonplaying_label?: string | null;
   note?: string | null;
   order_index?: number;
-}
-
-export interface RatingIn {
-  date: string;
-  rating: Rating;
-  note?: string | null;
 }
 
 export interface EventOut {

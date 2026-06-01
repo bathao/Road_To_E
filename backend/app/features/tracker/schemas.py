@@ -61,21 +61,6 @@ class MatchOut(BaseModel):
     order_index: int
 
 
-# ---------- Day rating (Overall) ----------
-class RatingIn(BaseModel):
-    date: dt.date
-    rating: str  # green | yellow | red
-    note: str | None = None
-
-
-class RatingOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    id: int
-    date: dt.date
-    rating: str
-    note: str | None
-
-
 class EventOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
@@ -147,6 +132,5 @@ class WeekResponse(BaseModel):
     categories: list[CategoryOut]
     activities: list[ActivityOut]
     matches: list[MatchOut]
-    ratings: list[RatingOut]
     cells: dict[str, CellData]  # key = f"{category_id}|{date.isoformat()}"
     physical_checks: dict[str, list[str]]  # iso date -> ticked item keys

@@ -6,8 +6,6 @@ import type {
   Match,
   MatchIn,
   PhysicalItem,
-  RatingIn,
-  DayRating,
   StatsResponse,
   WeekResponse,
 } from "./types";
@@ -26,12 +24,6 @@ export const trackerApi = {
     api.put<Match>(`/tracker/matches/${id}`, payload),
 
   deleteMatch: (id: number) => api.del<void>(`/tracker/matches/${id}`),
-
-  upsertRating: (payload: RatingIn) =>
-    api.put<DayRating | null>("/tracker/ratings", payload),
-
-  deleteRating: (dateIso: string) =>
-    api.del<void>(`/tracker/ratings?date=${dateIso}`),
 
   searchEvents: (q: string) =>
     api.get<EventOut[]>(`/tracker/events?q=${encodeURIComponent(q)}`),

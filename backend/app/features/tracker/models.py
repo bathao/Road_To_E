@@ -17,7 +17,7 @@ class Category(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     key: Mapped[str] = mapped_column(String, unique=True, index=True)
     label: Mapped[str] = mapped_column(String)
-    type: Mapped[str] = mapped_column(String)  # duration | match | rating
+    type: Mapped[str] = mapped_column(String)  # duration | match | checklist | rating
     color_group: Mapped[str] = mapped_column(String, default="none")  # green | yellow | none
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
@@ -62,18 +62,6 @@ class Match(Base):
     order_index: Mapped[int] = mapped_column(Integer, default=0)
 
     event: Mapped[Event | None] = relationship("Event", lazy="joined")
-
-
-class DayRating(Base):
-    """The 'Overall' rating color for a day."""
-
-    __tablename__ = "tracker_day_rating"
-    __table_args__ = (UniqueConstraint("date", name="uq_tracker_day_rating_date"),)
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    date: Mapped[dt.date] = mapped_column(Date, index=True)
-    rating: Mapped[str] = mapped_column(String)  # green | yellow | red
-    note: Mapped[str | None] = mapped_column(String, default=None)
 
 
 class PhysicalCheck(Base):
