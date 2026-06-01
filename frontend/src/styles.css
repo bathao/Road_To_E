@@ -317,6 +317,29 @@ body {
   vertical-align: middle;
 }
 
+/* Future days: not editable yet. */
+.cell.future {
+  cursor: not-allowed;
+  background: repeating-linear-gradient(
+    45deg,
+    #fafbfc,
+    #fafbfc 6px,
+    #f1f3f5 6px,
+    #f1f3f5 12px
+  );
+}
+
+.cell.future:hover {
+  box-shadow: none;
+  background: repeating-linear-gradient(
+    45deg,
+    #fafbfc,
+    #fafbfc 6px,
+    #f1f3f5 6px,
+    #f1f3f5 12px
+  );
+}
+
 .cell.readonly {
   cursor: default;
 }

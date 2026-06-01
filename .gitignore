@@ -3,11 +3,14 @@ backend/.venv/
 **/__pycache__/
 *.pyc
 
-# ---- Database (local data) ----
-backend/data/
-*.db
-*.sqlite
-*.sqlite3
+# ---- Database ----
+# The SQLite DB IS tracked on purpose: it holds the user's personal coaching
+# data, which should be versioned alongside the app. Only transient SQLite
+# side files (WAL / shared-memory) are ignored.
+*.db-wal
+*.db-shm
+*.sqlite-wal
+*.sqlite-shm
 
 # ---- Node / frontend ----
 frontend/node_modules/

@@ -43,9 +43,13 @@ export default function WeekGrid({
                 const cell = week.cells[cellKey(cat.id, iso)];
                 const isToday = iso === today;
                 const isRating = cat.type === "rating";
+                // Future days can't be logged yet — only today and the past.
+                const isFuture = iso > today;
+                const editable = !isRating && !isFuture;
                 const classes = ["cell", `type-${cat.type}`];
                 if (isToday) classes.push("today");
                 if (isRating) classes.push("readonly");
+                if (isFuture) classes.push("future");
                 // Fill the whole cell background with the day's color
                 // (Overall row, and Physical Training when >=70% ticked).
                 if (cell?.color) classes.push(`rating-${cell.color}`);
@@ -53,9 +57,15 @@ export default function WeekGrid({
                   <td
                     key={iso}
                     className={classes.join(" ")}
-                    // The Overall row is auto-generated, so it isn't editable.
-                    onClick={isRating ? undefined : () => onCellClick(cat, iso)}
-                    title={isRating ? "Auto-generated from the day's data" : undefined}
+                    // Overall is auto-generated; future days are not editable.
+                    onClick={editable ? () => onCellClick(cat, iso) : undefined}
+                    title={
+                      isFuture
+                        ? "Future date — you can only log today and past days"
+                        : isRating
+                          ? "Auto-generated from the day's data"
+                          : undefined
+                    }
                   >
                     {!isRating && (
                       <span className="cell-text">{cell?.display ?? ""}</span>
