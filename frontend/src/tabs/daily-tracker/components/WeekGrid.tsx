@@ -64,7 +64,9 @@ export default function WeekGrid({
                         ? "Future date — you can only log today and past days"
                         : isRating
                           ? "Auto-generated from the day's data"
-                          : undefined
+                          : cat.type === "note"
+                            ? week.day_notes[iso] || undefined
+                            : undefined
                     }
                   >
                     {!isRating && (

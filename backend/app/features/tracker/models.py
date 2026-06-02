@@ -75,3 +75,14 @@ class PhysicalCheck(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     date: Mapped[dt.date] = mapped_column(Date, index=True)
     item_key: Mapped[str] = mapped_column(String, index=True)
+
+
+class DayNote(Base):
+    """A free-text note for a day (things to pay attention to)."""
+
+    __tablename__ = "tracker_day_note"
+    __table_args__ = (UniqueConstraint("date", name="uq_tracker_day_note_date"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    date: Mapped[dt.date] = mapped_column(Date, index=True)
+    text: Mapped[str] = mapped_column(String)

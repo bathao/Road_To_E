@@ -1,6 +1,11 @@
 // Mirrors the backend Pydantic schemas (app/features/tracker/schemas.py).
 
-export type CategoryType = "duration" | "match" | "rating" | "checklist";
+export type CategoryType =
+  | "duration"
+  | "match"
+  | "rating"
+  | "checklist"
+  | "note";
 export type ColorGroup = "green" | "yellow" | "none";
 export type Discipline = "singles" | "doubles";
 
@@ -50,6 +55,7 @@ export interface WeekResponse {
   matches: Match[];
   cells: Record<string, CellData>; // key = `${category_id}|${isoDate}`
   physical_checks: Record<string, string[]>; // isoDate -> ticked item keys
+  day_notes: Record<string, string>; // isoDate -> note text
 }
 
 export interface PhysicalItem {

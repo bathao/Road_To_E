@@ -12,6 +12,7 @@ from app.features.tracker import schemas, service
 from app.features.tracker.models import (
     Activity,
     Category,
+    DayNote,
     Event,
     Match,
     PhysicalCheck,
@@ -167,6 +168,25 @@ def set_physical_checks(payload: schemas.PhysicalChecksIn, db: Session = Depends
         db.add(PhysicalCheck(date=payload.date, item_key=key))
     db.commit()
     return {"date": payload.date.isoformat(), "items": wanted}
+
+
+# ---------------------------------------------------------------- day notes
+@router.put("/day-notes")
+def upsert_day_note(payload: schemas.DayNoteIn, db: Session = Depends(get_db)):
+    """Upsert a day's note. Empty text deletes it."""
+    text = (payload.text or "").strip()
+    existing = db.query(DayNote).filter(DayNote.date == payload.date).first()
+    if not text:
+        if existing:
+            db.delete(existing)
+            db.commit()
+        return {"date": payload.date.isoformat(), "text": ""}
+    if existing:
+        existing.text = text
+    else:
+        db.add(DayNote(date=payload.date, text=text))
+    db.commit()
+    return {"date": payload.date.isoformat(), "text": text}
 
 
 # ---------------------------------------------------------------- events

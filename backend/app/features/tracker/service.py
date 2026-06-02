@@ -12,6 +12,7 @@ from app.features.tracker import schemas
 from app.features.tracker.models import (
     Activity,
     Category,
+    DayNote,
     Event,
     Match,
     PhysicalCheck,
@@ -53,6 +54,19 @@ def physical_is_yellow(item_keys: list[str]) -> bool:
     if not PHYSICAL_ITEMS:
         return False
     return len(item_keys) / len(PHYSICAL_ITEMS) >= PHYSICAL_YELLOW_RATIO
+
+
+# Max characters shown for a note in the (compact) grid cell.
+_NOTE_SNIPPET_LEN = 22
+
+
+def note_snippet(text: str) -> str:
+    """A compact one-line preview for the grid cell ('📝 ...'). Full text lives
+    in the editor / export."""
+    s = " ".join((text or "").split())
+    if len(s) > _NOTE_SNIPPET_LEN:
+        s = s[:_NOTE_SNIPPET_LEN].rstrip() + "…"
+    return f"📝 {s}".rstrip()
 
 
 # ---------------------------------------------------------------- formatting
@@ -263,6 +277,10 @@ def build_week(db: Session, start: dt.date) -> schemas.WeekResponse:
         .all()
     )
     checks_by_date = physical_checks_by_date(checks)
+    notes = (
+        db.query(DayNote).filter(DayNote.date >= start, DayNote.date <= end).all()
+    )
+    notes_by_date = {n.date.isoformat(): n.text for n in notes}
 
     cells: dict[str, schemas.CellData] = {}
 
@@ -300,6 +318,14 @@ def build_week(db: Session, start: dt.date) -> schemas.WeekResponse:
                 color="yellow" if physical_is_yellow(keys) else None,
             )
 
+    # Notes cells: compact 📝 preview; full text travels in day_notes.
+    notes_cat = cat_by_key.get("notes")
+    if notes_cat is not None:
+        for iso, text in notes_by_date.items():
+            cells[f"{notes_cat.id}|{iso}"] = schemas.CellData(
+                display=note_snippet(text)
+            )
+
     # Overall cells: auto-generated from the day's data (not a manual rating).
     overall = cat_by_key.get("overall")
     if overall is not None:
@@ -323,6 +349,7 @@ def build_week(db: Session, start: dt.date) -> schemas.WeekResponse:
         matches=[match_to_out(m) for m in matches],
         cells=cells,
         physical_checks=checks_by_date,
+        day_notes=notes_by_date,
     )
 
 
@@ -592,6 +619,9 @@ def _build_grid(db: Session, date_from: dt.date, date_to: dt.date):
         .all()
     )
     checks_by_date = physical_checks_by_date(checks)
+    day_notes = (
+        db.query(DayNote).filter(DayNote.date >= date_from, DayNote.date <= date_to).all()
+    )
 
     text: dict[tuple[int, str], str] = {}
     cell_colors: dict[tuple[int, str], str] = {}
@@ -618,6 +648,12 @@ def _build_grid(db: Session, date_from: dt.date, date_to: dt.date):
             text[(physical.id, iso)] = format_physical_cell(keys)
             if physical_is_yellow(keys):
                 cell_colors[(physical.id, iso)] = "yellow"
+
+    # Notes cells: export the full text (not the truncated grid preview).
+    notes_cat = cat_by_key.get("notes")
+    if notes_cat is not None:
+        for n in day_notes:
+            text[(notes_cat.id, n.date.isoformat())] = n.text
 
     # Overall row colors are auto-generated, matching the on-screen grid.
     rating_by_date = compute_overall_colors(

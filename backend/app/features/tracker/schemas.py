@@ -78,6 +78,12 @@ class PhysicalChecksIn(BaseModel):
     items: list[str]  # the full set of ticked item keys for that day
 
 
+# ---------- Day note ----------
+class DayNoteIn(BaseModel):
+    date: dt.date
+    text: str
+
+
 # ---------- Week aggregate ----------
 class CellData(BaseModel):
     """Pre-rendered display for one (category, date) cell."""
@@ -142,3 +148,4 @@ class WeekResponse(BaseModel):
     matches: list[MatchOut]
     cells: dict[str, CellData]  # key = f"{category_id}|{date.isoformat()}"
     physical_checks: dict[str, list[str]]  # iso date -> ticked item keys
+    day_notes: dict[str, str]  # iso date -> note text

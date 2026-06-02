@@ -10,11 +10,12 @@ from app.features.tracker.models import Activity, Category, Match
 # (key, label, type, color_group). Order here = display order (sort_order).
 DEFAULT_CATEGORIES = [
     ("train_with_coach", "Train with Coach", "duration", "green"),
-    ("backhand_with_partner", "Backhand with Partner", "duration", "green"),
+    ("training_with_partner", "Training with Partner", "duration", "green"),
     ("serve", "Serve", "duration", "green"),
     ("physical_training", "Physical Training", "checklist", "yellow"),
     ("practice_match", "Practice Match", "match", "none"),
     ("official_match", "Official Match", "match", "none"),
+    ("notes", "Notes", "note", "none"),
     ("overall", "Overall", "rating", "none"),
 ]
 

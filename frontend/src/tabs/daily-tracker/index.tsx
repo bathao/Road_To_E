@@ -10,6 +10,7 @@ import Modal from "./components/Modal";
 import DurationEditor from "./components/editors/DurationEditor";
 import MatchEditor from "./components/editors/MatchEditor";
 import ChecklistEditor from "./components/editors/ChecklistEditor";
+import NoteEditor from "./components/editors/NoteEditor";
 import AnalysisPanel from "./components/AnalysisPanel";
 
 interface EditingCell {
@@ -123,6 +124,13 @@ export default function DailyTracker() {
     await afterMutate();
   };
 
+  const saveNote = async (text: string) => {
+    if (!editing) return;
+    await trackerApi.setDayNote(editing.dateIso, text);
+    setEditing(null);
+    await afterMutate();
+  };
+
   // ---- export (the currently selected range) ----
   const download = (format: "xlsx" | "csv") => {
     window.open(
@@ -218,6 +226,12 @@ export default function DailyTracker() {
               category={editing.category}
               checked={editingChecks}
               onSave={savePhysicalChecks}
+            />
+          )}
+          {editing.category.type === "note" && (
+            <NoteEditor
+              current={editing && week ? week.day_notes[editing.dateIso] ?? "" : ""}
+              onSave={saveNote}
             />
           )}
         </Modal>

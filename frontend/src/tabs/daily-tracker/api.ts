@@ -39,6 +39,12 @@ export const trackerApi = {
       items,
     }),
 
+  setDayNote: (date: string, text: string) =>
+    api.put<{ date: string; text: string }>("/tracker/day-notes", {
+      date,
+      text,
+    }),
+
   getStats: (fromIso: string, toIso: string) =>
     api.get<StatsResponse>(`/tracker/stats?from=${fromIso}&to=${toIso}`),
 
