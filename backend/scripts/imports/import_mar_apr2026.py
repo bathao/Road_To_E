@@ -3,7 +3,7 @@
 Idempotent: clears tracker data in 2026-03-23..2026-05-03 first (does NOT touch
 the already-imported May 4-31 block), then re-inserts. Run from backend/:
 
-    .venv\\Scripts\\python import_mar_apr2026.py
+    .venv\\Scripts\\python scripts\\imports\\import_mar_apr2026.py
 
 Mapping decided with the user:
 - Serve is logged as a serve count; ~200 serves ~= 15 min, so 200->15, 100->8.

@@ -3,7 +3,7 @@
 Idempotent: clears any tracker data in 2026-05-04..2026-05-31 first, then
 re-inserts. Run from the backend/ dir:
 
-    .venv\\Scripts\\python import_may2026.py
+    .venv\\Scripts\\python scripts\\imports\\import_may2026.py
 
 Notes on the mapping (decided with the user):
 - "Overall" is auto-generated, so it is not imported.

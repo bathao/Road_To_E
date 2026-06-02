@@ -4,7 +4,7 @@ Only the March days (1-8 Mar) of the 23 Feb - 8 Mar block are imported; the
 February part is skipped per the user. Idempotent for 2026-03-01..2026-03-08
 (does NOT touch the 23-31 Mar block imported earlier). Run from backend/:
 
-    .venv\\Scripts\\python import_mar_early2026.py
+    .venv\\Scripts\\python scripts\\imports\\import_mar_early2026.py
 
 Mapping:
 - "BBTV League Group1 / W1 L4" (7 Mar) -> 5 singles matches (1 win + 4 losses)
