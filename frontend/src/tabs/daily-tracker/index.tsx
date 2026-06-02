@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Category, MatchIn, WeekResponse } from "./types";
 import { trackerApi } from "./api";
-import { addDays, mondayOf, toIso } from "./dates";
-import WeekNav from "./components/WeekNav";
+import { fromIso, startOfMonth, toIso } from "./dates";
+import type { Mode } from "./period";
+import { gridWeekStart, resolveRange, stepAnchor } from "./period";
+import PeriodControl from "./components/PeriodControl";
 import WeekGrid from "./components/WeekGrid";
 import Modal from "./components/Modal";
 import DurationEditor from "./components/editors/DurationEditor";
@@ -16,28 +18,58 @@ interface EditingCell {
 }
 
 export default function DailyTracker() {
-  const [start, setStart] = useState<Date>(() => mondayOf(new Date()));
+  // One shared timeline drives both the grid and the Analysis panel.
+  const [mode, setMode] = useState<Mode>("week");
+  const [anchor, setAnchor] = useState<Date>(() => new Date());
+  const [customFrom, setCustomFrom] = useState<string>(() =>
+    toIso(startOfMonth(new Date()))
+  );
+  const [customTo, setCustomTo] = useState<string>(() => toIso(new Date()));
+
   const [week, setWeek] = useState<WeekResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<EditingCell | null>(null);
   // Bumped after every mutation so the AnalysisPanel re-fetches its stats.
   const [dataVersion, setDataVersion] = useState(0);
 
-  const startIso = toIso(start);
+  const period = { mode, anchor, customFrom, customTo };
+  const range = useMemo(
+    () => resolveRange(period),
+    [mode, anchor, customFrom, customTo]
+  );
+  // The grid always shows a single Mon–Sun week of the shared timeline.
+  const gridStartIso = useMemo(
+    () => toIso(gridWeekStart(period)),
+    [mode, anchor, customFrom, customTo]
+  );
 
   const reload = useCallback(async () => {
     try {
       setError(null);
-      const data = await trackerApi.getWeek(startIso);
-      setWeek(data);
+      setWeek(await trackerApi.getWeek(gridStartIso));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
-  }, [startIso]);
+  }, [gridStartIso]);
 
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  // On first mount, jump the timeline to the most recent day that has data
+  // (today is usually empty until it is logged).
+  useEffect(() => {
+    let alive = true;
+    trackerApi
+      .getLastDate()
+      .then((r) => {
+        if (alive && r.date) setAnchor(fromIso(r.date));
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // ---- mutations (all reload the week afterwards) ----
   const afterMutate = async () => {
@@ -91,10 +123,12 @@ export default function DailyTracker() {
     await afterMutate();
   };
 
-  // ---- export ----
-  const endIso = toIso(addDays(start, 6));
+  // ---- export (the currently selected range) ----
   const download = (format: "xlsx" | "csv") => {
-    window.open(trackerApi.exportUrl(startIso, endIso, format), "_blank");
+    window.open(
+      trackerApi.exportUrl(range.fromIso, range.toIso, format),
+      "_blank"
+    );
   };
 
   // ---- editor selection ----
@@ -118,12 +152,16 @@ export default function DailyTracker() {
   return (
     <div className="daily-tracker">
       <div className="toolbar">
-        <WeekNav
-          startIso={startIso}
-          endIso={endIso}
-          onPrev={() => setStart((s) => addDays(s, -7))}
-          onNext={() => setStart((s) => addDays(s, 7))}
-          onThisWeek={() => setStart(mondayOf(new Date()))}
+        <PeriodControl
+          mode={mode}
+          label={range.label}
+          customFrom={customFrom}
+          customTo={customTo}
+          onMode={setMode}
+          onStep={(dir) => setAnchor((a) => stepAnchor(mode, a, dir))}
+          onToday={() => setAnchor(new Date())}
+          onCustomFrom={setCustomFrom}
+          onCustomTo={setCustomTo}
         />
         <div className="export-btns">
           <button className="btn" onClick={() => download("xlsx")}>
@@ -146,7 +184,13 @@ export default function DailyTracker() {
         !error && <div className="loading">Loading…</div>
       )}
 
-      <AnalysisPanel reloadSignal={dataVersion} />
+      <AnalysisPanel
+        mode={mode}
+        fromIso={range.fromIso}
+        toIso={range.toIso}
+        label={range.label}
+        reloadSignal={dataVersion}
+      />
 
       {editing && (
         <Modal

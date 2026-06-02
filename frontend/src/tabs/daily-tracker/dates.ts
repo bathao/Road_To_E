@@ -67,3 +67,15 @@ export function addMonths(d: Date, n: number): Date {
 export function monthLabel(d: Date): string {
   return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
+
+export function startOfYear(d: Date): Date {
+  return new Date(d.getFullYear(), 0, 1);
+}
+
+export function endOfYear(d: Date): Date {
+  return new Date(d.getFullYear(), 11, 31);
+}
+
+export function addYears(d: Date, n: number): Date {
+  return new Date(d.getFullYear() + n, 0, 1);
+}

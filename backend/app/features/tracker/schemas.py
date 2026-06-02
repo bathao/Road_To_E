@@ -102,14 +102,23 @@ class CategoryMinutes(BaseModel):
     minutes: int
 
 
-class DayStat(BaseModel):
-    date: dt.date
-    weekday: str
-    trained: bool
-    physical: bool
-    physical_count: int
-    matches: int
+class BreakdownBucket(BaseModel):
+    key: str
+    label: str
+    date_from: dt.date
+    date_to: dt.date
     minutes: int
+    days_trained: int
+    days_physical: int
+    matches: int
+    wins: int
+    losses: int
+    win_rate: float | None
+
+
+class BreakdownResponse(BaseModel):
+    unit: str  # month | week | day
+    buckets: list[BreakdownBucket]
 
 
 class StatsResponse(BaseModel):
@@ -123,7 +132,6 @@ class StatsResponse(BaseModel):
     overall: MatchStats
     singles: MatchStats
     doubles: MatchStats
-    days: list[DayStat]
 
 
 class WeekResponse(BaseModel):

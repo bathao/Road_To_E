@@ -74,14 +74,23 @@ export interface CategoryMinutes {
   minutes: number;
 }
 
-export interface DayStat {
-  date: string;
-  weekday: string;
-  trained: boolean;
-  physical: boolean;
-  physical_count: number;
-  matches: number;
+export interface BreakdownBucket {
+  key: string;
+  label: string;
+  date_from: string;
+  date_to: string;
   minutes: number;
+  days_trained: number;
+  days_physical: number;
+  matches: number;
+  wins: number;
+  losses: number;
+  win_rate: number | null;
+}
+
+export interface BreakdownResponse {
+  unit: "month" | "week" | "day";
+  buckets: BreakdownBucket[];
 }
 
 export interface StatsResponse {
@@ -95,7 +104,6 @@ export interface StatsResponse {
   overall: MatchStats;
   singles: MatchStats;
   doubles: MatchStats;
-  days: DayStat[];
 }
 
 // ---- request payloads ----

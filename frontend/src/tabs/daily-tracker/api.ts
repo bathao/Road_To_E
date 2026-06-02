@@ -2,6 +2,7 @@ import { api, apiUrl } from "../../shared/api/client";
 import type {
   ActivityIn,
   Activity,
+  BreakdownResponse,
   EventOut,
   Match,
   MatchIn,
@@ -13,6 +14,8 @@ import type {
 export const trackerApi = {
   getWeek: (startIso: string) =>
     api.get<WeekResponse>(`/tracker/weeks?start=${startIso}`),
+
+  getLastDate: () => api.get<{ date: string | null }>("/tracker/last-date"),
 
   upsertActivity: (payload: ActivityIn) =>
     api.put<Activity | null>("/tracker/activities", payload),
@@ -38,6 +41,11 @@ export const trackerApi = {
 
   getStats: (fromIso: string, toIso: string) =>
     api.get<StatsResponse>(`/tracker/stats?from=${fromIso}&to=${toIso}`),
+
+  getBreakdown: (fromIso: string, toIso: string, unit: "month" | "week" | "day") =>
+    api.get<BreakdownResponse>(
+      `/tracker/breakdown?from=${fromIso}&to=${toIso}&unit=${unit}`
+    ),
 
   exportUrl: (fromIso: string, toIso: string, format: "xlsx" | "csv") =>
     apiUrl(`/tracker/export?from=${fromIso}&to=${toIso}&format=${format}`),

@@ -4,6 +4,7 @@ from __future__ import annotations
 import datetime as dt
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -23,6 +24,20 @@ router = APIRouter(prefix="/api/tracker", tags=["tracker"])
 @router.get("/categories", response_model=list[schemas.CategoryOut])
 def list_categories(db: Session = Depends(get_db)):
     return db.query(Category).order_by(Category.sort_order).all()
+
+
+# ---------------------------------------------------------------- last date
+@router.get("/last-date")
+def last_date(db: Session = Depends(get_db)):
+    """The most recent date that has any data (for opening the grid there)."""
+    candidates = [
+        db.query(func.max(Activity.date)).scalar(),
+        db.query(func.max(Match.date)).scalar(),
+        db.query(func.max(PhysicalCheck.date)).scalar(),
+    ]
+    dates = [d for d in candidates if d is not None]
+    latest = max(dates) if dates else None
+    return {"date": latest.isoformat() if latest else None}
 
 
 # ---------------------------------------------------------------- week
@@ -171,6 +186,16 @@ def stats(
     db: Session = Depends(get_db),
 ):
     return service.build_stats(db, date_from, date_to)
+
+
+@router.get("/breakdown", response_model=schemas.BreakdownResponse)
+def breakdown(
+    date_from: dt.date = Query(..., alias="from"),
+    date_to: dt.date = Query(..., alias="to"),
+    unit: str = Query("month", pattern="^(month|week|day)$"),
+    db: Session = Depends(get_db),
+):
+    return service.build_breakdown(db, date_from, date_to, unit)
 
 
 # ---------------------------------------------------------------- export

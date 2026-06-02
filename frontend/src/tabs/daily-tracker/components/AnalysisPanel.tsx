@@ -1,25 +1,38 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { MatchStats, StatsResponse } from "../types";
+import { useCallback, useEffect, useState } from "react";
+import type { BreakdownBucket, MatchStats, StatsResponse } from "../types";
 import { trackerApi } from "../api";
-import {
-  addDays,
-  addMonths,
-  endOfMonth,
-  monthLabel,
-  mondayOf,
-  prettyDate,
-  startOfMonth,
-  toIso,
-} from "../dates";
+import { fromIso as parseIso, prettyDate } from "../dates";
+import type { Mode, Unit } from "../period";
+import { chartUnitFor } from "../period";
+import BarChart from "./BarChart";
+import type { Bar } from "./BarChart";
+import LineChart from "./LineChart";
 
-type Mode = "day" | "week" | "month" | "custom";
-const MODES: Mode[] = ["day", "week", "month", "custom"];
-const MODE_LABEL: Record<Mode, string> = {
-  day: "Day",
-  week: "Week",
-  month: "Month",
-  custom: "Custom",
+// Metrics the comparison chart can plot.
+type MetricKey =
+  | "minutes"
+  | "matches"
+  | "wins"
+  | "win_rate"
+  | "days_trained"
+  | "days_physical";
+
+const METRICS: { key: MetricKey; label: string }[] = [
+  { key: "minutes", label: "Training time" },
+  { key: "matches", label: "Matches" },
+  { key: "wins", label: "Wins" },
+  { key: "win_rate", label: "Win rate" },
+  { key: "days_trained", label: "Days trained" },
+  { key: "days_physical", label: "Physical days" },
+];
+
+const UNIT_TITLE: Record<Unit, string> = {
+  month: "by month",
+  week: "by week",
+  day: "by day",
 };
+
+const WD_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function fmtMinutes(min: number): string {
   if (!min) return "0m";
@@ -30,6 +43,45 @@ function fmtMinutes(min: number): string {
 
 function pct(rate: number | null): string {
   return rate === null ? "—" : `${Math.round(rate * 100)}%`;
+}
+
+// Map a breakdown bucket to a chart bar for the chosen metric.
+function bucketBar(b: BreakdownBucket, metric: MetricKey): Bar {
+  const range = `${prettyDate(b.date_from)} — ${prettyDate(b.date_to)}`;
+  // Rich-tooltip heading: a full date for single days, else the range.
+  const tip =
+    b.date_from === b.date_to
+      ? `${WD_SHORT[parseIso(b.date_from).getDay()]}, ${prettyDate(b.date_from)}`
+      : `${b.label} · ${range}`;
+  let value: number;
+  let display: string;
+  switch (metric) {
+    case "minutes":
+      value = b.minutes;
+      display = fmtMinutes(b.minutes);
+      break;
+    case "matches":
+      value = b.matches;
+      display = String(b.matches);
+      break;
+    case "wins":
+      value = b.wins;
+      display = `${b.wins}W`;
+      break;
+    case "win_rate":
+      value = b.win_rate === null ? 0 : Math.round(b.win_rate * 100);
+      display = pct(b.win_rate);
+      break;
+    case "days_trained":
+      value = b.days_trained;
+      display = String(b.days_trained);
+      break;
+    case "days_physical":
+      value = b.days_physical;
+      display = String(b.days_physical);
+      break;
+  }
+  return { label: b.label, value, display, title: `${b.label} · ${range}`, tip };
 }
 
 // A summary card for one discipline (or overall).
@@ -56,120 +108,66 @@ function MatchCard({ title, s }: { title: string; s: MatchStats }) {
   );
 }
 
-// Analysis panel shown under the weekly grid. Has its own period selector
-// (Day / Week / Month / Custom) independent of the grid's week.
+// Analysis panel shown under the grid. The period (mode + range) is shared with
+// the grid and passed in as props; only the chart display prefs are local.
 export default function AnalysisPanel({
+  mode,
+  fromIso,
+  toIso: rangeToIso,
+  label,
   reloadSignal,
 }: {
+  mode: Mode;
+  fromIso: string;
+  toIso: string;
+  label: string;
   reloadSignal: number;
 }) {
-  const [mode, setMode] = useState<Mode>("week");
-  const [anchor, setAnchor] = useState<Date>(() => new Date());
-  const [customFrom, setCustomFrom] = useState<string>(() =>
-    toIso(startOfMonth(new Date()))
-  );
-  const [customTo, setCustomTo] = useState<string>(() => toIso(new Date()));
   const [stats, setStats] = useState<StatsResponse | null>(null);
+  const [buckets, setBuckets] = useState<BreakdownBucket[]>([]);
+  const [metric, setMetric] = useState<MetricKey>("minutes");
+  const [chartType, setChartType] = useState<"bar" | "line">("line");
   const [error, setError] = useState<string | null>(null);
 
-  // Resolve the active [from, to] range from the mode + anchor.
-  const { fromIso, toIso: rangeToIso, label } = useMemo(() => {
-    if (mode === "day") {
-      const iso = toIso(anchor);
-      return { fromIso: iso, toIso: iso, label: prettyDate(iso) };
-    }
-    if (mode === "week") {
-      const start = mondayOf(anchor);
-      const end = addDays(start, 6);
-      return {
-        fromIso: toIso(start),
-        toIso: toIso(end),
-        label: `${prettyDate(toIso(start))} — ${prettyDate(toIso(end))}`,
-      };
-    }
-    if (mode === "month") {
-      return {
-        fromIso: toIso(startOfMonth(anchor)),
-        toIso: toIso(endOfMonth(anchor)),
-        label: monthLabel(anchor),
-      };
-    }
-    return {
-      fromIso: customFrom,
-      toIso: customTo,
-      label: `${prettyDate(customFrom)} — ${prettyDate(customTo)}`,
-    };
-  }, [mode, anchor, customFrom, customTo]);
+  const chartUnit: Unit | null = chartUnitFor(
+    mode,
+    chartType,
+    fromIso,
+    rangeToIso
+  );
 
   const load = useCallback(async () => {
     if (fromIso > rangeToIso) {
       setError("'From' date is after 'To' date.");
       setStats(null);
+      setBuckets([]);
       return;
     }
     try {
       setError(null);
-      setStats(await trackerApi.getStats(fromIso, rangeToIso));
+      const [s, b] = await Promise.all([
+        trackerApi.getStats(fromIso, rangeToIso),
+        chartUnit
+          ? trackerApi.getBreakdown(fromIso, rangeToIso, chartUnit)
+          : Promise.resolve(null),
+      ]);
+      setStats(s);
+      setBuckets(b ? b.buckets : []);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
-  }, [fromIso, rangeToIso]);
+  }, [fromIso, rangeToIso, chartUnit]);
 
   useEffect(() => {
     void load();
     // reloadSignal changes when the grid data is mutated.
   }, [load, reloadSignal]);
 
-  const step = (dir: number) => {
-    if (mode === "day") setAnchor((a) => addDays(a, dir));
-    else if (mode === "week") setAnchor((a) => addDays(a, dir * 7));
-    else if (mode === "month") setAnchor((a) => addMonths(a, dir));
-  };
-
   return (
     <section className="analysis">
       <div className="analysis-head">
         <h2>📊 Analysis</h2>
-        <div className="seg">
-          {MODES.map((m) => (
-            <button
-              key={m}
-              className={`seg-btn${mode === m ? " active" : ""}`}
-              onClick={() => setMode(m)}
-            >
-              {MODE_LABEL[m]}
-            </button>
-          ))}
-        </div>
-
-        {mode === "custom" ? (
-          <div className="custom-range">
-            <input
-              type="date"
-              value={customFrom}
-              onChange={(e) => setCustomFrom(e.target.value)}
-            />
-            <span>→</span>
-            <input
-              type="date"
-              value={customTo}
-              onChange={(e) => setCustomTo(e.target.value)}
-            />
-          </div>
-        ) : (
-          <div className="analysis-nav">
-            <button className="btn" onClick={() => step(-1)} aria-label="Previous">
-              ◀
-            </button>
-            <button className="btn" onClick={() => setAnchor(new Date())}>
-              Today
-            </button>
-            <button className="btn" onClick={() => step(1)} aria-label="Next">
-              ▶
-            </button>
-            <span className="analysis-range">{label}</span>
-          </div>
-        )}
+        <span className="analysis-range">{label}</span>
       </div>
 
       {error && <div className="error-banner">⚠ {error}</div>}
@@ -203,6 +201,56 @@ export default function AnalysisPanel({
             <MatchCard title="All matches" s={stats.overall} />
           </div>
 
+          {/* Comparison chart: sub-periods of the selected range */}
+          {chartUnit && buckets.length > 0 && (
+            <div className="stat-block">
+              <div className="comparison-head">
+                <div className="comparison-title">
+                  <h3>Comparison {UNIT_TITLE[chartUnit]}</h3>
+                  <div className="seg">
+                    <button
+                      className={`seg-btn${chartType === "bar" ? " active" : ""}`}
+                      onClick={() => setChartType("bar")}
+                    >
+                      ▦ Columns
+                    </button>
+                    <button
+                      className={`seg-btn${chartType === "line" ? " active" : ""}`}
+                      onClick={() => setChartType("line")}
+                    >
+                      📈 Line
+                    </button>
+                  </div>
+                </div>
+                <div className="seg metric-seg">
+                  {METRICS.map((m) => (
+                    <button
+                      key={m.key}
+                      className={`seg-btn${metric === m.key ? " active" : ""}`}
+                      onClick={() => setMetric(m.key)}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {chartType === "bar" ? (
+                <BarChart bars={buckets.map((b) => bucketBar(b, metric))} />
+              ) : (
+                <LineChart
+                  points={buckets.map((b) => bucketBar(b, metric))}
+                  formatY={(v) =>
+                    metric === "minutes"
+                      ? fmtMinutes(Math.round(v))
+                      : metric === "win_rate"
+                        ? `${Math.round(v)}%`
+                        : String(Math.round(v))
+                  }
+                />
+              )}
+            </div>
+          )}
+
           {/* Minutes by training category */}
           <div className="stat-block">
             <h3>Training time by category</h3>
@@ -228,38 +276,6 @@ export default function AnalysisPanel({
             </div>
           </div>
 
-          {/* Per-day breakdown: which days had training / physical */}
-          <div className="stat-block">
-            <h3>By day</h3>
-            <div className="day-table-wrap">
-              <table className="day-table">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Trained</th>
-                    <th>Physical</th>
-                    <th>Matches</th>
-                    <th>Time</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.days.map((d) => (
-                    <tr key={d.date} className={d.trained ? "" : "rest-day"}>
-                      <td className="day-cell">
-                        {d.weekday} {prettyDate(d.date)}
-                      </td>
-                      <td>{d.trained ? "✅" : "—"}</td>
-                      <td>
-                        {d.physical ? `🟡 ${d.physical_count}` : "—"}
-                      </td>
-                      <td>{d.matches || "—"}</td>
-                      <td>{d.minutes ? fmtMinutes(d.minutes) : "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
         </>
       )}
     </section>

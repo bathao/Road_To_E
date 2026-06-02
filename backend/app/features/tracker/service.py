@@ -5,6 +5,7 @@ import csv
 import datetime as dt
 import io
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.features.tracker import schemas
@@ -172,11 +173,25 @@ def get_or_create_event(db: Session, name: str | None) -> Event | None:
 # ---------------------------------------------------------------- overall color
 
 
+def earliest_data_date(db: Session) -> dt.date | None:
+    """The first day that has any tracked data (for the red 'rest-day' bound)."""
+    candidates = [
+        db.query(func.min(Activity.date)).scalar(),
+        db.query(func.min(Match.date)).scalar(),
+        db.query(func.min(PhysicalCheck.date)).scalar(),
+    ]
+    dates = [d for d in candidates if d is not None]
+    return min(dates) if dates else None
+
+
 def compute_overall_colors(
     categories: list[Category],
     activities: list[Activity],
     matches: list[Match],
     physical_dates: set[str] | None = None,
+    all_days: list[dt.date] | None = None,
+    today: dt.date | None = None,
+    earliest: dt.date | None = None,
 ) -> dict[str, str]:
     """Auto-generate the 'Overall' color per day (no manual rating).
 
@@ -184,9 +199,11 @@ def compute_overall_colors(
       Partner / Serve) has duration data that day.
     - yellow: otherwise, any of the remaining rows (Physical Training, Practice
       Match, Official Match) has data that day.
-    - (absent): no data at all that day.
+    - red: a past day (>= the first tracked day, < today) with no data at all.
+    - (absent): no data, and the day is today, in the future, or before tracking
+      began.
 
-    Returns {iso_date: 'green' | 'yellow'}.
+    Returns {iso_date: 'green' | 'yellow' | 'red'}.
     """
     green_ids = {c.id for c in categories if c.color_group == "green"}
 
@@ -209,6 +226,15 @@ def compute_overall_colors(
     colors: dict[str, str] = {}
     for iso in green_days | other_days:
         colors[iso] = "green" if iso in green_days else "yellow"
+
+    # Empty past days within the tracked range -> red ("didn't train").
+    if all_days and today:
+        for d in all_days:
+            iso = d.isoformat()
+            if iso in colors:
+                continue
+            if earliest is not None and earliest <= d < today:
+                colors[iso] = "red"
     return colors
 
 
@@ -278,7 +304,13 @@ def build_week(db: Session, start: dt.date) -> schemas.WeekResponse:
     overall = cat_by_key.get("overall")
     if overall is not None:
         colors = compute_overall_colors(
-            categories, activities, matches, set(checks_by_date.keys())
+            categories,
+            activities,
+            matches,
+            set(checks_by_date.keys()),
+            all_days=days,
+            today=dt.date.today(),
+            earliest=earliest_data_date(db),
         )
         for iso, color in colors.items():
             cells[f"{overall.id}|{iso}"] = schemas.CellData(display="", color=color)
@@ -373,30 +405,15 @@ def build_stats(db: Session, date_from: dt.date, date_to: dt.date) -> schemas.St
             else:
                 s["ties"] += 1
 
-    # Per-day flags + day-level counts.
-    day_stats: list[schemas.DayStat] = []
-    days_trained = 0
-    days_physical = 0
-    for d, iso in zip(dates, iso_dates):
-        mins = minutes_per_day.get(iso, 0)
-        phys = physical_per_day.get(iso, 0)
-        mtc = matches_per_day.get(iso, 0)
-        trained = mins > 0 or phys > 0 or mtc > 0
-        if trained:
-            days_trained += 1
-        if phys > 0:
-            days_physical += 1
-        day_stats.append(
-            schemas.DayStat(
-                date=d,
-                weekday=_WEEKDAYS[d.weekday()],
-                trained=trained,
-                physical=phys > 0,
-                physical_count=phys,
-                matches=mtc,
-                minutes=mins,
-            )
-        )
+    # Day-level counts.
+    days_trained = sum(
+        1
+        for iso in iso_dates
+        if minutes_per_day[iso] > 0
+        or physical_per_day[iso] > 0
+        or matches_per_day[iso] > 0
+    )
+    days_physical = sum(1 for iso in iso_dates if physical_per_day[iso] > 0)
 
     # In category display order (duration_cats already sorted by sort_order).
     minutes_by_category = [
@@ -417,8 +434,127 @@ def build_stats(db: Session, date_from: dt.date, date_to: dt.date) -> schemas.St
         overall=_finalize_match_stats(overall),
         singles=_finalize_match_stats(singles),
         doubles=_finalize_match_stats(doubles),
-        days=day_stats,
     )
+
+
+# ---------------------------------------------------------------- breakdown
+
+
+def _first_of_month(d: dt.date) -> dt.date:
+    return d.replace(day=1)
+
+
+def _next_month(d: dt.date) -> dt.date:
+    return dt.date(d.year + (d.month // 12), (d.month % 12) + 1, 1)
+
+
+def _last_of_month(d: dt.date) -> dt.date:
+    return _next_month(d) - dt.timedelta(days=1)
+
+
+def _bucket_ranges(date_from: dt.date, date_to: dt.date, unit: str):
+    """Yield (key, label, b_from, b_to) sub-ranges that tile [from, to]."""
+    if unit == "day":
+        for d in _date_range(date_from, date_to):
+            yield (d.isoformat(), f"{_WEEKDAYS[d.weekday()]} {d.day}", d, d)
+        return
+    if unit == "week":
+        cur = date_from - dt.timedelta(days=date_from.weekday())  # Monday
+        n = 0
+        while cur <= date_to:
+            n += 1
+            w_end = cur + dt.timedelta(days=6)
+            b_from = max(cur, date_from)
+            b_to = min(w_end, date_to)
+            yield (cur.isoformat(), f"Week {n}", b_from, b_to)
+            cur = cur + dt.timedelta(days=7)
+        return
+    # default: month
+    cur = _first_of_month(date_from)
+    while cur <= date_to:
+        m_end = _last_of_month(cur)
+        b_from = max(cur, date_from)
+        b_to = min(m_end, date_to)
+        yield (cur.strftime("%Y-%m"), cur.strftime("%b"), b_from, b_to)
+        cur = _next_month(cur)
+
+
+def build_breakdown(
+    db: Session, date_from: dt.date, date_to: dt.date, unit: str
+) -> schemas.BreakdownResponse:
+    """Per-sub-period metrics for the comparison bar chart."""
+    activities = (
+        db.query(Activity)
+        .filter(Activity.date >= date_from, Activity.date <= date_to)
+        .all()
+    )
+    matches = (
+        db.query(Match).filter(Match.date >= date_from, Match.date <= date_to).all()
+    )
+    checks = (
+        db.query(PhysicalCheck)
+        .filter(PhysicalCheck.date >= date_from, PhysicalCheck.date <= date_to)
+        .all()
+    )
+    duration_ids = {c.id for c in db.query(Category).filter(Category.type == "duration")}
+
+    # Per-day aggregates.
+    minutes: dict[str, int] = {}
+    physical: set[str] = set()
+    mcount: dict[str, int] = {}
+    wins: dict[str, int] = {}
+    losses: dict[str, int] = {}
+
+    for a in activities:
+        if a.category_id in duration_ids and (a.duration_minutes or 0) > 0:
+            iso = a.date.isoformat()
+            minutes[iso] = minutes.get(iso, 0) + a.duration_minutes
+    for c in checks:
+        physical.add(c.date.isoformat())
+    for m in matches:
+        if m.is_nonplaying:
+            continue
+        iso = m.date.isoformat()
+        mcount[iso] = mcount.get(iso, 0) + 1
+        if m.my_sets > m.opp_sets:
+            wins[iso] = wins.get(iso, 0) + 1
+        elif m.my_sets < m.opp_sets:
+            losses[iso] = losses.get(iso, 0) + 1
+
+    buckets: list[schemas.BreakdownBucket] = []
+    for key, label, b_from, b_to in _bucket_ranges(date_from, date_to, unit):
+        b_min = b_w = b_l = b_m = b_trained = b_phys = 0
+        for d in _date_range(b_from, b_to):
+            iso = d.isoformat()
+            mins = minutes.get(iso, 0)
+            mc = mcount.get(iso, 0)
+            ph = iso in physical
+            b_min += mins
+            b_m += mc
+            b_w += wins.get(iso, 0)
+            b_l += losses.get(iso, 0)
+            if ph:
+                b_phys += 1
+            if mins > 0 or ph or mc > 0:
+                b_trained += 1
+        decided = b_w + b_l
+        buckets.append(
+            schemas.BreakdownBucket(
+                key=key,
+                label=label,
+                date_from=b_from,
+                date_to=b_to,
+                minutes=b_min,
+                days_trained=b_trained,
+                days_physical=b_phys,
+                matches=b_m,
+                wins=b_w,
+                losses=b_l,
+                win_rate=(b_w / decided) if decided else None,
+            )
+        )
+
+    return schemas.BreakdownResponse(unit=unit, buckets=buckets)
 
 
 # ---------------------------------------------------------------- export
@@ -485,7 +621,13 @@ def _build_grid(db: Session, date_from: dt.date, date_to: dt.date):
 
     # Overall row colors are auto-generated, matching the on-screen grid.
     rating_by_date = compute_overall_colors(
-        categories, activities, matches, set(checks_by_date.keys())
+        categories,
+        activities,
+        matches,
+        set(checks_by_date.keys()),
+        all_days=dates,
+        today=dt.date.today(),
+        earliest=earliest_data_date(db),
     )
     return categories, dates, text, rating_by_date, cell_colors
 

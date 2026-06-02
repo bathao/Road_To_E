@@ -20,13 +20,6 @@ export const TABS: TabDef[] = [
     enabled: true,
   },
   {
-    id: "analysis",
-    label: "Analysis",
-    icon: "📊",
-    component: DailyTracker, // placeholder; replaced by ComingSoon when disabled
-    enabled: false,
-  },
-  {
     id: "training-plan",
     label: "Training Plan",
     icon: "🗂️",

@@ -22,14 +22,19 @@ Press `Ctrl+C` in the terminal to stop the server.
 ## Tabs
 
 - **Daily Tracker** (built) — an Excel-like weekly grid. Click any cell to log:
-  - **Duration** rows (Train with Coach, Serve, …) → one-tap chips (15m/30m/1h…)
-    or a custom value.
+  - **Duration** rows (Train with Coach, Backhand, Serve) → one-tap chips
+    (15m/30m/1h…) or a custom value.
+  - **Physical Training** → a checklist of exercises; the cell turns yellow once
+    ≥70% are ticked.
   - **Match** rows (Practice / Official) → pick Singles/Doubles + BO3/BO5/BO7,
     then tap a final score (wins green, losses red). No score typing. Event
     autocomplete and Travel/Rest quick buttons included.
-  - **Overall** row → three color buttons (🟢 🟡 🔴).
-  - Export the visible range to **Excel** or **CSV** from the toolbar.
-- Analysis / Training Plan / Motivation — placeholders ("coming soon").
+  - **Overall** row → auto-generated color: green (trained a key skill), yellow
+    (other activity), red (a past day with nothing logged).
+  - One shared timeline (Day / Week / Month / Year / Custom) drives the grid and
+    the **Analysis panel** below it (summary cards + comparison Columns/Line chart).
+  - Export the selected range to **Excel** or **CSV** from the toolbar.
+- Training Plan / Motivation — placeholders ("coming soon").
 
 ## Development
 
