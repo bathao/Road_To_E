@@ -1,6 +1,6 @@
 import type { Category, WeekResponse } from "../types";
 import { cellKey } from "../types";
-import { dayHeader, todayIso } from "../dates";
+import { dayHeader, monthGroups, todayIso } from "../dates";
 
 // The Excel-like weekly grid. Rows = categories, columns = 7 days.
 // Clicking any cell opens the matching editor for that (category, date).
@@ -12,13 +12,32 @@ export default function WeekGrid({
   onCellClick: (category: Category, dateIso: string) => void;
 }) {
   const today = todayIso();
+  // Many columns (month / year / long custom range) → narrow, truncated cells
+  // that reveal their full content on hover.
+  const compact = week.days.length > 10;
+  // When the range spans more than one month (Year, long custom), add a
+  // grouping header row labelling each month.
+  const groups = monthGroups(week.days);
+  const showMonths = groups.length > 1;
 
   return (
     <div className="grid-wrap">
-      <table className="week-grid">
+      <table className={compact ? "week-grid compact" : "week-grid"}>
         <thead>
+          {showMonths && (
+            <tr>
+              <th className="corner" rowSpan={2}>
+                Category
+              </th>
+              {groups.map((g, i) => (
+                <th key={i} className="month-head" colSpan={g.span}>
+                  {g.label}
+                </th>
+              ))}
+            </tr>
+          )}
           <tr>
-            <th className="corner">Category</th>
+            {!showMonths && <th className="corner">Category</th>}
             {week.days.map((iso) => {
               const { weekday, dayNum } = dayHeader(iso);
               return (
@@ -53,21 +72,26 @@ export default function WeekGrid({
                 // Fill the whole cell background with the day's color
                 // (Overall row, and Physical Training when >=70% ticked).
                 if (cell?.color) classes.push(`rating-${cell.color}`);
+                // Hovering a cell reveals its full content — useful when narrow
+                // columns truncate the text.
+                const fullText =
+                  cat.type === "note"
+                    ? week.day_notes[iso] || ""
+                    : cell?.display ?? "";
+                const title = isFuture
+                  ? "Future date — you can only log today and past days"
+                  : isRating
+                    ? "Auto-generated from the day's data"
+                    : fullText
+                      ? `${cat.label} · ${iso}\n${fullText}`
+                      : undefined;
                 return (
                   <td
                     key={iso}
                     className={classes.join(" ")}
                     // Overall is auto-generated; future days are not editable.
                     onClick={editable ? () => onCellClick(cat, iso) : undefined}
-                    title={
-                      isFuture
-                        ? "Future date — you can only log today and past days"
-                        : isRating
-                          ? "Auto-generated from the day's data"
-                          : cat.type === "note"
-                            ? week.day_notes[iso] || undefined
-                            : undefined
-                    }
+                    title={title}
                   >
                     {!isRating && (
                       <span className="cell-text">{cell?.display ?? ""}</span>

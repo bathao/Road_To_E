@@ -3,7 +3,7 @@ import type { Category, MatchIn, WeekResponse } from "./types";
 import { trackerApi } from "./api";
 import { fromIso, startOfMonth, toIso } from "./dates";
 import type { Mode } from "./period";
-import { gridWeekStart, resolveRange, stepAnchor } from "./period";
+import { resolveRange, stepAnchor } from "./period";
 import PeriodControl from "./components/PeriodControl";
 import WeekGrid from "./components/WeekGrid";
 import Modal from "./components/Modal";
@@ -38,20 +38,16 @@ export default function DailyTracker() {
     () => resolveRange(period),
     [mode, anchor, customFrom, customTo]
   );
-  // The grid always shows a single Mon–Sun week of the shared timeline.
-  const gridStartIso = useMemo(
-    () => toIso(gridWeekStart(period)),
-    [mode, anchor, customFrom, customTo]
-  );
-
+  // The grid spans the whole selected range: one day, a week, a full month,
+  // a year, or a custom span. Wider ranges render as narrower columns.
   const reload = useCallback(async () => {
     try {
       setError(null);
-      setWeek(await trackerApi.getWeek(gridStartIso));
+      setWeek(await trackerApi.getWeek(range.fromIso, range.toIso));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
-  }, [gridStartIso]);
+  }, [range.fromIso, range.toIso]);
 
   useEffect(() => {
     void reload();
@@ -78,13 +74,18 @@ export default function DailyTracker() {
     setDataVersion((v) => v + 1);
   };
 
-  const saveDuration = async (minutes: number, note: string) => {
+  const saveDuration = async (
+    minutes: number,
+    note: string,
+    isPackageStart: boolean
+  ) => {
     if (!editing) return;
     await trackerApi.upsertActivity({
       date: editing.dateIso,
       category_id: editing.category.id,
       duration_minutes: minutes,
       note: note || null,
+      is_package_start: isPackageStart,
     });
     setEditing(null);
     await afterMutate();
@@ -208,6 +209,7 @@ export default function DailyTracker() {
           {editing.category.type === "duration" && (
             <DurationEditor
               category={editing.category}
+              dateIso={editing.dateIso}
               current={editingActivity}
               onSave={saveDuration}
               onClear={clearDuration}

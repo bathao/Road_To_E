@@ -24,6 +24,7 @@ export interface Activity {
   category_id: number;
   duration_minutes: number;
   note: string | null;
+  is_package_start: boolean; // first session of a coaching package
 }
 
 export interface Match {
@@ -118,6 +119,27 @@ export interface ActivityIn {
   category_id: number;
   duration_minutes: number;
   note?: string | null;
+  is_package_start?: boolean;
+}
+
+// ---- coach packages (10-session blocks) ----
+export type CoachPackageStatus = "ok" | "low" | "done" | "over";
+
+export interface CoachPackage {
+  number: number;
+  start_date: string;
+  end_date: string;
+  used: number;
+  size: number;
+  remaining: number;
+  over: number;
+  is_current: boolean;
+  status: CoachPackageStatus;
+}
+
+export interface CoachPackagesResponse {
+  size: number;
+  packages: CoachPackage[];
 }
 
 export interface MatchIn {

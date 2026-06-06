@@ -1,6 +1,6 @@
 # Progress Log — Table Tennis Coach
 
-## Current status (2026-06-02)
+## Current status (2026-06-06)
 
 **Tab 1 "Daily Tracker" is feature-complete.** Stack: FastAPI + SQLite backend,
 React + Vite + TS frontend, served on one port by `start.bat`.
@@ -21,25 +21,25 @@ Working features:
   Singles / Doubles / All-matches win rates) + a comparison chart (Columns or
   Line, default Line; metric selector) + training-time-by-category bars.
 - Excel / CSV export of the selected range.
+- **Coaching packages**: coaching is bought in 10-session blocks; the first
+  session of a block is marked with ★ (`is_package_start`). `/coach-packages`
+  reports current + historical blocks (used / remaining / over, status
+  ok·low·done·over); `/coach-package-start-allowed` guards which days may open a
+  new block (session 1, or the 11th-or-later of the current block).
 
 **Released:** v0.1 (initial Daily Tracker), v0.2 (block future days + track the
-personal DB in git).
-
-**Not yet committed** (waiting on data verification → will be v0.3): the shared
-timeline, Analysis comparison charts, auto-red Overall, the 3 import scripts +
-imported data, and the dead-code cleanup.
-
-> **Next (check 2026-06-03):** verify the imported data against the original
-> sheets, fix any OCR mistakes, then commit + tag **v0.3**.
+personal DB in git), v0.3 (shared timeline, Analysis comparison charts,
+auto-red Overall, full Mar–Jun import, coaching packages).
 
 ---
 
 ## Data
 
 The DB (`backend/data/tabletennis.db`) is tracked in git on purpose (personal
-data). It currently holds imported history: **1–8 Mar** and **23 Mar – 1 Jun
-2026** (gap 9–22 Mar has no data). Imported via one-off `backend/import_*.py`
-scripts (idempotent, each wipes its own date range; Overall is never imported).
+data). It currently holds continuous imported history **1 Mar – 1 Jun 2026**
+(the former 9–22 Mar gap is now filled). Imported via one-off
+`backend/scripts/imports/import_*.py` scripts (idempotent, each wipes its own
+date range; Overall is never imported).
 
 Import mapping decisions (with the user): matches split by `D:` into doubles,
 W/L from sets; event names kept (Mai Lượng, Giải Vi Mạch, Giải Đồng đội 185,
@@ -50,6 +50,18 @@ Giải FS, BBTV…); Travel/"sets (cty)" → non-playing/skip; Serve counts → 
 ---
 
 ## History
+
+### 2026-06-06 — v0.3
+- Coaching packages: new `Activity.is_package_start` column (+ one-off migration
+  `scripts/migrations/add_coach_package_marker.py` backfilling the old "N" note
+  convention); `compute_coach_packages` / `coach_package_start_allowed` service
+  logic; `/coach-packages` + `/coach-package-start-allowed` endpoints; ★ shown
+  on the first session of each block in the grid.
+- Grid now spans an arbitrary range: `build_week`/`/weeks` take an optional
+  `end` (defaults to a 7-day week); `monthGroups` helper for a month-grouping
+  header row (Year grid). Physical cell uses a `·` divider instead of newlines.
+- Filled the former 9–22 Mar gap (`import_mar_gap2026.py`) → continuous
+  1 Mar – 1 Jun 2026 history.
 
 ### 2026-06-01 — v0.1
 - Backend `tracker` feature (models, seed, schemas, service, router) + `core/`;

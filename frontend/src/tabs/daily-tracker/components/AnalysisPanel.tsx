@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import type { BreakdownBucket, MatchStats, StatsResponse } from "../types";
+import type {
+  BreakdownBucket,
+  CoachPackage,
+  MatchStats,
+  StatsResponse,
+} from "../types";
 import { trackerApi } from "../api";
 import { fromIso as parseIso, prettyDate } from "../dates";
 import type { Mode, Unit } from "../period";
@@ -108,6 +113,35 @@ function MatchCard({ title, s }: { title: string; s: MatchStats }) {
   );
 }
 
+function pkgStatusText(p: CoachPackage): string {
+  switch (p.status) {
+    case "low":
+      return `Almost out — ${p.remaining} session${p.remaining === 1 ? "" : "s"} left, renew soon`;
+    case "done":
+      return "Package used up — time to renew";
+    case "over":
+      return `Trained ${p.used} (over ${p.size}) — mark the new package's start?`;
+    default:
+      return `${p.remaining} session${p.remaining === 1 ? "" : "s"} left`;
+  }
+}
+
+// Coaching package (10-session block) status: how many sessions are left in the
+// current package. Range-independent — it's about "now".
+function CoachPackageCard({ current }: { current: CoachPackage }) {
+  return (
+    <div className={`stat-card pkg-card pkg-${current.status}`}>
+      <div className="stat-card-title">Coach package</div>
+      <div className="stat-big">
+        {current.used}
+        <span className="stat-of">/{current.size}</span>
+      </div>
+      <div className="stat-sub">started {prettyDate(current.start_date)}</div>
+      <div className="pkg-status">{pkgStatusText(current)}</div>
+    </div>
+  );
+}
+
 // Analysis panel shown under the grid. The period (mode + range) is shared with
 // the grid and passed in as props; only the chart display prefs are local.
 export default function AnalysisPanel({
@@ -125,6 +159,7 @@ export default function AnalysisPanel({
 }) {
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [buckets, setBuckets] = useState<BreakdownBucket[]>([]);
+  const [packages, setPackages] = useState<CoachPackage[]>([]);
   const [metric, setMetric] = useState<MetricKey>("minutes");
   const [chartType, setChartType] = useState<"bar" | "line">("line");
   const [error, setError] = useState<string | null>(null);
@@ -163,6 +198,21 @@ export default function AnalysisPanel({
     // reloadSignal changes when the grid data is mutated.
   }, [load, reloadSignal]);
 
+  // Coaching packages are global (not tied to the selected range); refresh them
+  // on mount and after any mutation.
+  useEffect(() => {
+    let alive = true;
+    trackerApi
+      .getCoachPackages()
+      .then((r) => {
+        if (alive) setPackages(r.packages);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [reloadSignal]);
+
   return (
     <section className="analysis">
       <div className="analysis-head">
@@ -199,6 +249,15 @@ export default function AnalysisPanel({
             <MatchCard title="Singles" s={stats.singles} />
             <MatchCard title="Doubles" s={stats.doubles} />
             <MatchCard title="All matches" s={stats.overall} />
+
+            {packages.length > 0 && (
+              <CoachPackageCard
+                current={
+                  packages.find((p) => p.is_current) ??
+                  packages[packages.length - 1]
+                }
+              />
+            )}
           </div>
 
           {/* Comparison chart: sub-periods of the selected range */}

@@ -46,8 +46,8 @@ def physical_checks_by_date(checks: list[PhysicalCheck]) -> dict[str, list[str]]
 
 
 def format_physical_cell(item_keys: list[str]) -> str:
-    """Render ticked items as their labels, one per line."""
-    return "\n".join(PHYSICAL_ITEM_LABELS.get(k, k) for k in item_keys)
+    """Render ticked items as their labels, separated by a middot divider."""
+    return " · ".join(PHYSICAL_ITEM_LABELS.get(k, k) for k in item_keys)
 
 
 def physical_is_yellow(item_keys: list[str]) -> bool:
@@ -58,6 +58,10 @@ def physical_is_yellow(item_keys: list[str]) -> bool:
 
 # Max characters shown for a note in the (compact) grid cell.
 _NOTE_SNIPPET_LEN = 22
+
+# Coaching packages: a block of N sessions; ★ marks the first session of a block.
+COACH_PACKAGE_SIZE = 10
+PACKAGE_MARK = "★"
 
 
 def note_snippet(text: str) -> str:
@@ -255,9 +259,17 @@ def compute_overall_colors(
 # ---------------------------------------------------------------- week
 
 
-def build_week(db: Session, start: dt.date) -> schemas.WeekResponse:
-    days = [start + dt.timedelta(days=i) for i in range(7)]
-    end = days[-1]
+def build_week(
+    db: Session, start: dt.date, end: dt.date | None = None
+) -> schemas.WeekResponse:
+    # The grid can span an arbitrary range (a single day, a week, a whole
+    # month, …). Defaults to a 7-day Mon–Sun week when no end is given.
+    if end is None:
+        end = start + dt.timedelta(days=6)
+    if end < start:
+        end = start
+    span = (end - start).days + 1
+    days = [start + dt.timedelta(days=i) for i in range(span)]
 
     categories = db.query(Category).order_by(Category.sort_order).all()
     cat_by_key = {c.key: c for c in categories}
@@ -289,6 +301,7 @@ def build_week(db: Session, start: dt.date) -> schemas.WeekResponse:
     # Duration cells (sum minutes per category/day).
     minutes: dict[str, int] = {}
     notes: dict[str, str] = {}
+    starts: set[str] = set()  # keys whose day starts a coaching package
     for a in activities:
         if a.category_id not in duration_ids:
             continue
@@ -296,10 +309,14 @@ def build_week(db: Session, start: dt.date) -> schemas.WeekResponse:
         minutes[k] = minutes.get(k, 0) + (a.duration_minutes or 0)
         if a.note:
             notes[k] = a.note
+        if a.is_package_start:
+            starts.add(k)
     for k, mins in minutes.items():
         text = format_duration(mins)
         if k in notes:
             text = f"{text} ({notes[k]})".strip()
+        if k in starts:  # first session of a new 10-session coaching package
+            text = f"{text} {PACKAGE_MARK}".strip()
         cells[k] = schemas.CellData(display=text)
 
     # Match cells.
@@ -351,6 +368,113 @@ def build_week(db: Session, start: dt.date) -> schemas.WeekResponse:
         physical_checks=checks_by_date,
         day_notes=notes_by_date,
     )
+
+
+# ---------------------------------------------------------------- coach packages
+
+
+def compute_coach_packages(db: Session) -> schemas.CoachPackagesResponse:
+    """Group Train-with-Coach sessions into packages of COACH_PACKAGE_SIZE.
+
+    A package opens on each session flagged is_package_start; the earliest
+    session implicitly opens package #1 (covers data older than any marker).
+    """
+    coach = db.query(Category).filter(Category.key == "train_with_coach").first()
+    sessions: list[Activity] = []
+    if coach is not None:
+        sessions = (
+            db.query(Activity)
+            .filter(
+                Activity.category_id == coach.id,
+                Activity.duration_minutes > 0,
+            )
+            .order_by(Activity.date)
+            .all()
+        )
+
+    size = COACH_PACKAGE_SIZE
+    packages: list[schemas.CoachPackage] = []
+    for i, a in enumerate(sessions):
+        opens = a.is_package_start or i == 0 or not packages
+        if opens:
+            packages.append(
+                schemas.CoachPackage(
+                    number=len(packages) + 1,
+                    start_date=a.date,
+                    end_date=a.date,
+                    used=1,
+                    size=size,
+                    remaining=max(0, size - 1),
+                    over=max(0, 1 - size),
+                    is_current=False,
+                    status="ok",
+                )
+            )
+        else:
+            p = packages[-1]
+            p.used += 1
+            p.end_date = a.date
+            p.remaining = max(0, size - p.used)
+            p.over = max(0, p.used - size)
+
+    for p in packages:
+        p.is_current = False
+    if packages:
+        cur = packages[-1]
+        cur.is_current = True
+        if cur.over > 0:
+            cur.status = "over"
+        elif cur.remaining == 0:
+            cur.status = "done"
+        elif cur.remaining <= 2:
+            cur.status = "low"
+        else:
+            cur.status = "ok"
+
+    return schemas.CoachPackagesResponse(size=size, packages=packages)
+
+
+def coach_package_start_allowed(db: Session, date: dt.date) -> bool:
+    """Whether `date` may be marked as the start of a new coaching package.
+
+    Allowed only when the day is the first session of its package (position 1 —
+    so an existing start can be un-marked) or the 11th-or-later session of the
+    current block (i.e. the previous 10 sessions are used up). Sessions 2..10
+    of a block are NOT allowed. Works for a date that has no session yet
+    (e.g. logging the 11th session for the first time).
+    """
+    coach = db.query(Category).filter(Category.key == "train_with_coach").first()
+    if coach is None:
+        return True
+    sessions = (
+        db.query(Activity)
+        .filter(Activity.category_id == coach.id, Activity.duration_minutes > 0)
+        .order_by(Activity.date)
+        .all()
+    )
+    if not sessions:
+        return True  # the very first session can always open package #1
+
+    # Package start dates = flagged sessions, plus an implicit first session.
+    starts = sorted({s.date for s in sessions if s.is_package_start} | {sessions[0].date})
+
+    applicable = [s for s in starts if s <= date]
+    if not applicable:
+        return True  # before the first start -> would become the new earliest start
+    pkg_start = max(applicable)
+    later = [s for s in starts if s > pkg_start]
+    pkg_end = min(later) if later else None  # exclusive upper bound
+
+    # Position of `date` within its block = (sessions in block before `date`) + 1.
+    before = sum(
+        1
+        for s in sessions
+        if s.date >= pkg_start
+        and (pkg_end is None or s.date < pkg_end)
+        and s.date < date
+    )
+    pos = before + 1
+    return pos == 1 or pos >= COACH_PACKAGE_SIZE + 1
 
 
 # ---------------------------------------------------------------- stats

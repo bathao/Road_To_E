@@ -32,6 +32,9 @@ class Activity(Base):
     category_id: Mapped[int] = mapped_column(ForeignKey("tracker_category.id"), index=True)
     duration_minutes: Mapped[int] = mapped_column(Integer, default=0)
     note: Mapped[str | None] = mapped_column(String, default=None)
+    # Marks the first session of a new coaching package (10-session block).
+    # Only meaningful for the 'train_with_coach' category.
+    is_package_start: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class Event(Base):

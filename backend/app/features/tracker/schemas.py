@@ -22,11 +22,34 @@ class ActivityIn(BaseModel):
     category_id: int
     duration_minutes: int
     note: str | None = None
+    is_package_start: bool = False  # first session of a coaching package
 
 
 class ActivityOut(ActivityIn):
     model_config = ConfigDict(from_attributes=True)
     id: int
+
+
+# ---------- Coach packages (10-session blocks) ----------
+class CoachPackage(BaseModel):
+    number: int
+    start_date: dt.date
+    end_date: dt.date
+    used: int
+    size: int
+    remaining: int
+    over: int
+    is_current: bool
+    status: str  # ok | low | done | over
+
+
+class CoachPackagesResponse(BaseModel):
+    size: int
+    packages: list[CoachPackage]
+
+
+class CoachStartAllowedResponse(BaseModel):
+    allowed: bool
 
 
 # ---------- Match ----------

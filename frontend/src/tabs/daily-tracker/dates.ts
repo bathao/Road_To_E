@@ -45,6 +45,27 @@ export function dayHeader(iso: string): { weekday: string; dayNum: number } {
   return { weekday: WEEKDAYS[idx], dayNum: d.getDate() };
 }
 
+// Group a run of ISO days into consecutive month spans, for a month-grouping
+// header row (e.g. the Year grid). Includes the year only when the range spans
+// more than one calendar year, to keep labels short.
+export function monthGroups(
+  daysIso: string[]
+): { label: string; span: number }[] {
+  const years = new Set(daysIso.map((iso) => iso.slice(0, 4)));
+  const showYear = years.size > 1;
+  const groups: { label: string; span: number }[] = [];
+  for (const iso of daysIso) {
+    const d = fromIso(iso);
+    const label = showYear
+      ? `${MONTHS[d.getMonth()]} ${d.getFullYear()}`
+      : MONTHS[d.getMonth()];
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) last.span++;
+    else groups.push({ label, span: 1 });
+  }
+  return groups;
+}
+
 // "2 Jun 2026" for the week range label.
 export function prettyDate(iso: string): string {
   const d = fromIso(iso);

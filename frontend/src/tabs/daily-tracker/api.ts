@@ -3,6 +3,7 @@ import type {
   ActivityIn,
   Activity,
   BreakdownResponse,
+  CoachPackagesResponse,
   EventOut,
   Match,
   MatchIn,
@@ -12,10 +13,20 @@ import type {
 } from "./types";
 
 export const trackerApi = {
-  getWeek: (startIso: string) =>
-    api.get<WeekResponse>(`/tracker/weeks?start=${startIso}`),
+  getWeek: (startIso: string, endIso?: string) =>
+    api.get<WeekResponse>(
+      `/tracker/weeks?start=${startIso}` + (endIso ? `&end=${endIso}` : "")
+    ),
 
   getLastDate: () => api.get<{ date: string | null }>("/tracker/last-date"),
+
+  getCoachPackages: () =>
+    api.get<CoachPackagesResponse>("/tracker/coach-packages"),
+
+  coachPackageStartAllowed: (dateIso: string) =>
+    api.get<{ allowed: boolean }>(
+      `/tracker/coach-package-start-allowed?date=${dateIso}`
+    ),
 
   upsertActivity: (payload: ActivityIn) =>
     api.put<Activity | null>("/tracker/activities", payload),

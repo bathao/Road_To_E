@@ -13,6 +13,7 @@ so re-running it is safe. Run from the `backend/` directory, e.g.:
 | Script | Date range | Source |
 |---|---|---|
 | `import_mar_early2026.py` | 2026-03-01 .. 2026-03-08 | third screenshot (March only) |
+| `import_mar_gap2026.py`   | 2026-03-09 .. 2026-03-22 | fourth screenshot (gap fill) |
 | `import_mar_apr2026.py`   | 2026-03-23 .. 2026-05-03 | second screenshot |
 | `import_may2026.py`       | 2026-05-04 .. 2026-05-31 | first screenshot |
 

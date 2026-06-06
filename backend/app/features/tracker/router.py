@@ -44,10 +44,34 @@ def last_date(db: Session = Depends(get_db)):
 # ---------------------------------------------------------------- week
 @router.get("/weeks", response_model=schemas.WeekResponse)
 def get_week(
-    start: dt.date = Query(..., description="Monday of the week (YYYY-MM-DD)"),
+    start: dt.date = Query(..., description="First day of the grid (YYYY-MM-DD)"),
+    end: dt.date | None = Query(
+        None, description="Last day of the grid; defaults to start+6 (a week)"
+    ),
     db: Session = Depends(get_db),
 ):
-    return service.build_week(db, start)
+    return service.build_week(db, start, end)
+
+
+# --------------------------------------------------------- coach packages
+@router.get("/coach-packages", response_model=schemas.CoachPackagesResponse)
+def get_coach_packages(db: Session = Depends(get_db)):
+    """Current + historical 10-session coaching packages (range-independent)."""
+    return service.compute_coach_packages(db)
+
+
+@router.get(
+    "/coach-package-start-allowed",
+    response_model=schemas.CoachStartAllowedResponse,
+)
+def coach_package_start_allowed(
+    date: dt.date = Query(..., description="Day to test (YYYY-MM-DD)"),
+    db: Session = Depends(get_db),
+):
+    """Whether a given day may be marked as the start of a new coaching package."""
+    return schemas.CoachStartAllowedResponse(
+        allowed=service.coach_package_start_allowed(db, date)
+    )
 
 
 # ---------------------------------------------------------------- activities
@@ -59,7 +83,7 @@ def upsert_activity(payload: schemas.ActivityIn, db: Session = Depends(get_db)):
         .filter(Activity.date == payload.date, Activity.category_id == payload.category_id)
         .first()
     )
-    if payload.duration_minutes <= 0 and not payload.note:
+    if payload.duration_minutes <= 0 and not payload.note and not payload.is_package_start:
         if existing:
             db.delete(existing)
             db.commit()
@@ -67,12 +91,14 @@ def upsert_activity(payload: schemas.ActivityIn, db: Session = Depends(get_db)):
     if existing:
         existing.duration_minutes = payload.duration_minutes
         existing.note = payload.note
+        existing.is_package_start = payload.is_package_start
     else:
         existing = Activity(
             date=payload.date,
             category_id=payload.category_id,
             duration_minutes=payload.duration_minutes,
             note=payload.note,
+            is_package_start=payload.is_package_start,
         )
         db.add(existing)
     db.commit()
