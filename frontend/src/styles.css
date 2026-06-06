@@ -878,11 +878,16 @@ body {
 .modal {
   background: var(--surface);
   border-radius: 10px;
-  width: 440px;
+  width: 460px;
   max-width: calc(100vw - 32px);
   max-height: calc(100vh - 64px);
   overflow: auto;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+/* The playbook tactic form needs a little more breathing room. */
+.modal:has(.pb-editor) {
+  width: 520px;
 }
 
 .modal-head {
@@ -1462,14 +1467,19 @@ input:focus {
 
 /* ---- editor ---- */
 .pb-editor {
-  min-width: min(560px, 80vw);
+  width: 100%;
+  gap: 13px;
 }
 
 .pb-form-row {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
+}
+
+.pb-phase-row .chip-row {
+  margin-top: 2px;
 }
 
 .pb-area-row {

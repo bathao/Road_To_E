@@ -61,7 +61,7 @@ Giải FS, BBTV…); Travel/"sets (cty)" → non-playing/skip; Serve counts → 
 
 ## History
 
-### 2026-06-06 — Tab 2 "Tactical Playbook" (v1)
+### 2026-06-06 — v0.4: Tab 2 "Tactical Playbook"
 - New backend feature `app/features/playbook/` (model `playbook_tactic`, schemas,
   service, router at `/api/playbook`, static `library.py` catalog) wired via the
   registry; table auto-created by `create_all` (no migration).
@@ -71,6 +71,9 @@ Giải FS, BBTV…); Travel/"sets (cty)" → non-playing/skip; Serve counts → 
 - Library content researched from reputable coaching sources (WebSearch/WebFetch
   done inline — the background workflow stalled on tool-permission denial) and
   given per-tactic `source` / `source_url`. Card labels: When / How / Next / Risk.
+- Card/editor polish: 2-column field layout, cards size to content, wider modal
+  for the tactic form, wrapping phase chips (fixed the editor's horizontal
+  overflow).
 
 ### 2026-06-06 — v0.3
 - Coaching packages: new `Activity.is_package_start` column (+ one-off migration

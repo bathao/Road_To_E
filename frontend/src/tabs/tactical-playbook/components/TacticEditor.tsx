@@ -59,20 +59,21 @@ export default function TacticEditor({
 
   return (
     <div className="editor pb-editor">
-      <label className="pb-form-row">
-        <span className="seg-label">Giai đoạn</span>
-        <div className="seg">
+      <div className="pb-area-row pb-phase-row">
+        <span className="editor-sub">Giai đoạn (phase)</span>
+        <div className="chip-row">
           {meta.phases.map((p) => (
             <button
               key={p.key}
-              className={`seg-btn${phase === p.key ? " active" : ""}`}
+              type="button"
+              className={`chip pb-chip-pick${phase === p.key ? " active" : ""}`}
               onClick={() => setPhase(p.key)}
             >
               {p.label}
             </button>
           ))}
         </div>
-      </label>
+      </div>
 
       <input
         className="pb-input"
