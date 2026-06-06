@@ -27,6 +27,22 @@ export interface Activity {
   is_package_start: boolean; // first session of a coaching package
 }
 
+// Skill level of a player relative to me.
+export type PlayerLevel = "below" | "equal" | "above";
+
+export interface Player {
+  id: number;
+  name: string;
+  level: PlayerLevel;
+  note?: string | null;
+}
+
+export interface PlayerIn {
+  name: string;
+  level: PlayerLevel;
+  note?: string | null;
+}
+
 export interface Match {
   id: number;
   date: string;
@@ -41,6 +57,17 @@ export interface Match {
   nonplaying_label: string | null; // "Travel" | "Rest"
   note: string | null;
   order_index: number;
+  // Who played. Singles: opponent_*. Doubles: partner_* + opponent_* + opponent2_*.
+  opponent_id: number | null;
+  opponent_name: string | null;
+  opponent_level: PlayerLevel | null;
+  opponent2_id: number | null;
+  opponent2_name: string | null;
+  opponent2_level: PlayerLevel | null;
+  partner_id: number | null;
+  partner_name: string | null;
+  partner_level: PlayerLevel | null;
+  handicap: number; // signed: +N = I give N points, -N = I receive
 }
 
 export interface CellData {
@@ -154,6 +181,10 @@ export interface MatchIn {
   nonplaying_label?: string | null;
   note?: string | null;
   order_index?: number;
+  opponent_id?: number | null;
+  opponent2_id?: number | null;
+  partner_id?: number | null;
+  handicap?: number;
 }
 
 export interface EventOut {

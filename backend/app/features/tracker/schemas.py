@@ -52,6 +52,21 @@ class CoachStartAllowedResponse(BaseModel):
     allowed: bool
 
 
+# ---------- Player (opponent / partner pool) ----------
+class PlayerIn(BaseModel):
+    name: str
+    level: str = "equal"  # below | equal | above
+    note: str | None = None
+
+
+class PlayerOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str
+    level: str
+    note: str | None = None
+
+
 # ---------- Match ----------
 class MatchIn(BaseModel):
     date: dt.date
@@ -65,6 +80,11 @@ class MatchIn(BaseModel):
     nonplaying_label: str | None = None  # Travel | Rest
     note: str | None = None
     order_index: int = 0
+    # Who played (player ids). Handicap signed: +N = I give N, -N = I receive.
+    opponent_id: int | None = None
+    opponent2_id: int | None = None
+    partner_id: int | None = None
+    handicap: int = 0
 
 
 class MatchOut(BaseModel):
@@ -82,6 +102,16 @@ class MatchOut(BaseModel):
     nonplaying_label: str | None
     note: str | None
     order_index: int
+    opponent_id: int | None = None
+    opponent_name: str | None = None
+    opponent_level: str | None = None
+    opponent2_id: int | None = None
+    opponent2_name: str | None = None
+    opponent2_level: str | None = None
+    partner_id: int | None = None
+    partner_name: str | None = None
+    partner_level: str | None = None
+    handicap: int = 0
 
 
 class EventOut(BaseModel):

@@ -8,6 +8,8 @@ import type {
   Match,
   MatchIn,
   PhysicalItem,
+  Player,
+  PlayerIn,
   StatsResponse,
   WeekResponse,
 } from "./types";
@@ -41,6 +43,15 @@ export const trackerApi = {
 
   searchEvents: (q: string) =>
     api.get<EventOut[]>(`/tracker/events?q=${encodeURIComponent(q)}`),
+
+  searchPlayers: (q: string) =>
+    api.get<Player[]>(`/tracker/players?q=${encodeURIComponent(q)}`),
+
+  createPlayer: (payload: PlayerIn) =>
+    api.post<Player>("/tracker/players", payload),
+
+  updatePlayer: (id: number, payload: PlayerIn) =>
+    api.put<Player>(`/tracker/players/${id}`, payload),
 
   getPhysicalItems: () => api.get<PhysicalItem[]>("/tracker/physical-items"),
 

@@ -137,6 +137,10 @@ def create_match(payload: schemas.MatchIn, db: Session = Depends(get_db)):
         nonplaying_label=payload.nonplaying_label,
         note=payload.note,
         order_index=payload.order_index or next_order,
+        opponent_id=payload.opponent_id,
+        opponent2_id=payload.opponent2_id,
+        partner_id=payload.partner_id,
+        handicap=payload.handicap or 0,
     )
     db.add(match)
     db.commit()
@@ -160,6 +164,10 @@ def update_match(match_id: int, payload: schemas.MatchIn, db: Session = Depends(
     match.is_nonplaying = payload.is_nonplaying
     match.nonplaying_label = payload.nonplaying_label
     match.note = payload.note
+    match.opponent_id = payload.opponent_id
+    match.opponent2_id = payload.opponent2_id
+    match.partner_id = payload.partner_id
+    match.handicap = payload.handicap or 0
     db.commit()
     db.refresh(match)
     return service.match_to_out(match)
@@ -222,6 +230,27 @@ def list_events(q: str = Query("", description="search term"), db: Session = Dep
     if q:
         query = query.filter(Event.name.ilike(f"%{q}%"))
     return query.order_by(Event.name).limit(20).all()
+
+
+# ---------------------------------------------------------------- players
+@router.get("/players", response_model=list[schemas.PlayerOut])
+def list_players(q: str = Query("", description="search term"), db: Session = Depends(get_db)):
+    """Opponent / partner pool, for the match-entry dropdown."""
+    return service.list_players(db, q)
+
+
+@router.post("/players", response_model=schemas.PlayerOut)
+def create_player(payload: schemas.PlayerIn, db: Session = Depends(get_db)):
+    """Add a new player (get-or-create by name) with a relative level."""
+    return service.create_or_get_player(db, payload)
+
+
+@router.put("/players/{player_id}", response_model=schemas.PlayerOut)
+def update_player(player_id: int, payload: schemas.PlayerIn, db: Session = Depends(get_db)):
+    updated = service.update_player(db, player_id, payload)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Player not found")
+    return updated
 
 
 # ---------------------------------------------------------------- stats

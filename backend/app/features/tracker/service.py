@@ -16,6 +16,7 @@ from app.features.tracker.models import (
     Event,
     Match,
     PhysicalCheck,
+    Player,
 )
 
 # ---------------------------------------------------------------- physical items
@@ -170,7 +171,63 @@ def match_to_out(m: Match) -> schemas.MatchOut:
         nonplaying_label=m.nonplaying_label,
         note=m.note,
         order_index=m.order_index,
+        opponent_id=m.opponent_id,
+        opponent_name=m.opponent.name if m.opponent else None,
+        opponent_level=m.opponent.level if m.opponent else None,
+        opponent2_id=m.opponent2_id,
+        opponent2_name=m.opponent2.name if m.opponent2 else None,
+        opponent2_level=m.opponent2.level if m.opponent2 else None,
+        partner_id=m.partner_id,
+        partner_name=m.partner.name if m.partner else None,
+        partner_level=m.partner.level if m.partner else None,
+        handicap=m.handicap or 0,
     )
+
+
+# ---------------------------------------------------------------- players
+
+
+_PLAYER_LEVELS = {"below", "equal", "above"}
+
+
+def player_to_out(p: Player) -> schemas.PlayerOut:
+    return schemas.PlayerOut(id=p.id, name=p.name, level=p.level, note=p.note)
+
+
+def list_players(db: Session, q: str = "") -> list[schemas.PlayerOut]:
+    query = db.query(Player)
+    if q:
+        query = query.filter(Player.name.ilike(f"%{q}%"))
+    rows = query.order_by(Player.name).limit(50).all()
+    return [player_to_out(p) for p in rows]
+
+
+def create_or_get_player(db: Session, payload: schemas.PlayerIn) -> schemas.PlayerOut:
+    """Get-or-create by name. If the player exists, keep it (level unchanged)."""
+    name = (payload.name or "").strip()
+    level = payload.level if payload.level in _PLAYER_LEVELS else "equal"
+    existing = db.query(Player).filter(Player.name == name).first()
+    if existing is None:
+        existing = Player(name=name, level=level, note=payload.note)
+        db.add(existing)
+        db.commit()
+        db.refresh(existing)
+    return player_to_out(existing)
+
+
+def update_player(
+    db: Session, player_id: int, payload: schemas.PlayerIn
+) -> schemas.PlayerOut | None:
+    p = db.get(Player, player_id)
+    if p is None:
+        return None
+    p.name = (payload.name or "").strip() or p.name
+    if payload.level in _PLAYER_LEVELS:
+        p.level = payload.level
+    p.note = payload.note
+    db.commit()
+    db.refresh(p)
+    return player_to_out(p)
 
 
 # ---------------------------------------------------------------- events

@@ -1,19 +1,34 @@
 import { useEffect, useState } from "react";
-import type { Category, Discipline, Match, MatchIn } from "../../types";
+import type { Category, Discipline, Match, MatchIn, Player } from "../../types";
 import { trackerApi } from "../../api";
 import { validScores } from "../../scores";
+import PlayerPicker, { levelShort } from "./PlayerPicker";
 
 const FORMATS = [3, 5, 7];
+type HandicapDir = "none" | "give" | "receive";
 
-function matchLabel(m: Match): string {
-  if (m.is_nonplaying) return m.nonplaying_label ?? "—";
-  const disc = m.discipline === "doubles" ? "Doubles" : "Singles";
-  const res = m.my_sets > m.opp_sets ? "W" : m.my_sets < m.opp_sets ? "L" : "T";
-  return `${disc} ${res} ${m.my_sets}-${m.opp_sets}`;
+function resultLetter(m: Match): string {
+  return m.my_sets > m.opp_sets ? "W" : m.my_sets < m.opp_sets ? "L" : "T";
 }
 
-// Dropdown-driven match entry — no manual score typing. Pick discipline +
-// format, then tap a final score. Plus event autocomplete and Travel/Rest.
+// "vs Nam (Ngang)" for singles, "+ Partner vs A, B" for doubles, plus handicap.
+function playersLabel(m: Match): string {
+  if (m.is_nonplaying) return "";
+  const parts: string[] = [];
+  if (m.discipline === "doubles") {
+    if (m.partner_name) parts.push(`+${m.partner_name}`);
+    const opps = [m.opponent_name, m.opponent2_name].filter(Boolean);
+    if (opps.length) parts.push(`vs ${opps.join(" & ")}`);
+  } else if (m.opponent_name) {
+    parts.push(`vs ${m.opponent_name} (${levelShort(m.opponent_level)})`);
+  }
+  if (m.handicap > 0) parts.push(`chấp ${m.handicap}`);
+  else if (m.handicap < 0) parts.push(`được chấp ${-m.handicap}`);
+  return parts.join(" ");
+}
+
+// Dropdown-driven match entry. Pick discipline + format + the player(s) + an
+// optional handicap, then tap a final score. Plus event autocomplete & Travel/Rest.
 export default function MatchEditor({
   category,
   matches,
@@ -29,6 +44,13 @@ export default function MatchEditor({
   const [bestOf, setBestOf] = useState(5);
   const [eventName, setEventName] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
+
+  const [opponent, setOpponent] = useState<Player | null>(null);
+  const [opponent2, setOpponent2] = useState<Player | null>(null);
+  const [partner, setPartner] = useState<Player | null>(null);
+
+  const [handicapDir, setHandicapDir] = useState<HandicapDir>("none");
+  const [handicapPoints, setHandicapPoints] = useState(2);
 
   // Event autocomplete (debounced).
   useEffect(() => {
@@ -50,6 +72,13 @@ export default function MatchEditor({
 
   const { wins, losses } = validScores(bestOf);
 
+  const handicap =
+    handicapDir === "give"
+      ? handicapPoints
+      : handicapDir === "receive"
+      ? -handicapPoints
+      : 0;
+
   const addScore = (my: number, opp: number) => {
     onAdd({
       discipline,
@@ -57,7 +86,15 @@ export default function MatchEditor({
       my_sets: my,
       opp_sets: opp,
       event_name: eventName.trim() || null,
+      opponent_id: opponent?.id ?? null,
+      opponent2_id: discipline === "doubles" ? opponent2?.id ?? null : null,
+      partner_id: discipline === "doubles" ? partner?.id ?? null : null,
+      handicap,
     });
+    // Clear the opponent(s) so the next person can be picked right away.
+    // Partner + handicap + format are kept (usually the same across a session).
+    setOpponent(null);
+    setOpponent2(null);
   };
 
   const addNonPlaying = (label: string) => {
@@ -74,7 +111,10 @@ export default function MatchEditor({
           {matches.map((m) => (
             <div key={m.id} className="match-item">
               <span>
-                {matchLabel(m)}
+                {m.is_nonplaying
+                  ? m.nonplaying_label ?? "—"
+                  : `${m.discipline === "doubles" ? "D" : "S"} ${resultLetter(m)} ${m.my_sets}-${m.opp_sets}`}
+                {playersLabel(m) ? ` · ${playersLabel(m)}` : ""}
                 {m.event_name ? ` · ${m.event_name}` : ""}
               </span>
               <button
@@ -103,6 +143,59 @@ export default function MatchEditor({
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Players */}
+      {discipline === "doubles" && (
+        <PlayerPicker label="Partner" value={partner} onChange={setPartner} />
+      )}
+      <PlayerPicker
+        label={discipline === "doubles" ? "Đối thủ 1" : "Đối thủ"}
+        value={opponent}
+        onChange={setOpponent}
+      />
+      {discipline === "doubles" && (
+        <PlayerPicker label="Đối thủ 2" value={opponent2} onChange={setOpponent2} />
+      )}
+
+      {/* Handicap (optional) */}
+      <div className="seg-row handicap-row">
+        <span className="seg-label">Chấp</span>
+        <div className="seg">
+          {(
+            [
+              ["none", "Không"],
+              ["give", "Tôi chấp"],
+              ["receive", "Được chấp"],
+            ] as [HandicapDir, string][]
+          ).map(([dir, lbl]) => (
+            <button
+              key={dir}
+              className={`seg-btn${handicapDir === dir ? " active" : ""}`}
+              onClick={() => setHandicapDir(dir)}
+            >
+              {lbl}
+            </button>
+          ))}
+        </div>
+        {handicapDir !== "none" && (
+          <div className="handicap-stepper">
+            <button
+              className="icon-btn"
+              onClick={() => setHandicapPoints((n) => Math.max(1, n - 1))}
+            >
+              −
+            </button>
+            <span className="handicap-num">{handicapPoints}</span>
+            <button
+              className="icon-btn"
+              onClick={() => setHandicapPoints((n) => Math.min(20, n + 1))}
+            >
+              +
+            </button>
+            <span className="handicap-unit">quả</span>
+          </div>
+        )}
       </div>
 
       {/* Format selector */}

@@ -46,6 +46,21 @@ class Event(Base):
     name: Mapped[str] = mapped_column(String, unique=True, index=True)
 
 
+class Player(Base):
+    """A person the user plays — opponent or doubles partner (one shared pool).
+
+    ``level`` is relative to the user (below | equal | above) and lives on the
+    profile (editable), not snapshotted per match.
+    """
+
+    __tablename__ = "tracker_player"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String, unique=True, index=True)
+    level: Mapped[str] = mapped_column(String, default="equal")  # below | equal | above
+    note: Mapped[str | None] = mapped_column(String, default=None)
+
+
 class Match(Base):
     """A single match. W/L is derived from my_sets vs opp_sets."""
 
@@ -64,7 +79,23 @@ class Match(Base):
     note: Mapped[str | None] = mapped_column(String, default=None)
     order_index: Mapped[int] = mapped_column(Integer, default=0)
 
+    # Who played. Singles: opponent_id. Doubles: partner_id + opponent_id (#1) +
+    # opponent2_id (#2). Handicap is signed: +N = I give N points, -N = I receive.
+    opponent_id: Mapped[int | None] = mapped_column(ForeignKey("tracker_player.id"), default=None)
+    opponent2_id: Mapped[int | None] = mapped_column(ForeignKey("tracker_player.id"), default=None)
+    partner_id: Mapped[int | None] = mapped_column(ForeignKey("tracker_player.id"), default=None)
+    handicap: Mapped[int] = mapped_column(Integer, default=0)
+
     event: Mapped[Event | None] = relationship("Event", lazy="joined")
+    opponent: Mapped[Player | None] = relationship(
+        "Player", foreign_keys=[opponent_id], lazy="joined"
+    )
+    opponent2: Mapped[Player | None] = relationship(
+        "Player", foreign_keys=[opponent2_id], lazy="joined"
+    )
+    partner: Mapped[Player | None] = relationship(
+        "Player", foreign_keys=[partner_id], lazy="joined"
+    )
 
 
 class PhysicalCheck(Base):

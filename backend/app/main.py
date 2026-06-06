@@ -59,7 +59,17 @@ if _assets_dir.exists():
 
 @app.get("/{full_path:path}")
 def spa(full_path: str):
-    """Serve the SPA. Unknown client routes fall back to index.html."""
+    """Serve the SPA. Real files in dist (e.g. favicon.svg) are served directly;
+    unknown client routes fall back to index.html."""
+    # Serve a real static file at the root of dist (favicon, manifest, …) when it
+    # exists and stays inside dist (guard against path traversal).
+    if full_path:
+        candidate = (FRONTEND_DIST / full_path).resolve()
+        if (
+            candidate.is_file()
+            and FRONTEND_DIST.resolve() in candidate.parents
+        ):
+            return FileResponse(candidate)
     index = FRONTEND_DIST / "index.html"
     if index.exists():
         return FileResponse(index)

@@ -61,6 +61,21 @@ Giải FS, BBTV…); Travel/"sets (cty)" → non-playing/skip; Serve counts → 
 
 ## History
 
+### 2026-06-06 — Opponents/players DB + match-entry redesign
+- New `tracker_player` table (shared opponent/partner pool: `name`, relative
+  `level` below/equal/above, `note`) + `/players` CRUD (search / get-or-create /
+  update), mirroring the Event idiom. Migration
+  `scripts/migrations/add_match_opponents.py` adds the table + four `tracker_match`
+  columns (`opponent_id`, `opponent2_id`, `partner_id`, signed `handicap`).
+- `MatchEditor` redesigned: a `PlayerPicker` (search + add-new-with-level) for the
+  opponent (singles) or partner + 2 opponents (doubles); a handicap control
+  (Không / Tôi chấp / Được chấp + points). After a score is logged the opponent
+  field auto-clears for quick next entry. Match list shows "vs Name (level)".
+- Backend `spa()` now serves real static files from `dist` (favicon, etc.); added
+  a table-tennis `favicon.svg` + `<link rel=icon>` so the browser tab shows a
+  paddle instead of the default globe.
+- Seeded the user's real opponent roster (20 players) into the DB.
+
 ### 2026-06-06 — v0.4: Tab 2 "Tactical Playbook"
 - New backend feature `app/features/playbook/` (model `playbook_tactic`, schemas,
   service, router at `/api/playbook`, static `library.py` catalog) wired via the
