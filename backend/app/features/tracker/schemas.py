@@ -193,6 +193,95 @@ class StatsResponse(BaseModel):
     doubles: MatchStats
 
 
+# ---------- Match Stats tab (named-opponent matches only) ----------
+class LevelRecord(BaseModel):
+    level: str  # below | equal | above
+    stats: MatchStats
+
+
+class MatchLine(BaseModel):
+    """One played match against an opponent (for the head-to-head detail)."""
+    date: dt.date
+    discipline: str  # singles | doubles
+    my_sets: int
+    opp_sets: int
+    result: str  # W | L | T
+    handicap: int = 0
+    event_name: str | None = None
+
+
+class OpponentRecord(BaseModel):
+    opponent_id: int
+    name: str
+    level: str
+    played: int
+    wins: int
+    losses: int
+    ties: int
+    sets_won: int
+    sets_lost: int
+    win_rate: float | None
+    last_date: dt.date | None
+    last_result: str | None  # W | L | T
+    matches: list[MatchLine] = []
+
+
+class OpponentBrief(BaseModel):
+    """Lightweight entry for the opponent dropdown."""
+    id: int
+    name: str
+    level: str
+    played: int
+
+
+class DoublesRecord(BaseModel):
+    key: str  # stable id for the matchup (partner + opponent pair)
+    partner_id: int | None
+    partner_name: str | None
+    partner_level: str | None
+    opp1_id: int
+    opp1_name: str
+    opp1_level: str
+    opp2_id: int | None
+    opp2_name: str | None
+    opp2_level: str | None
+    played: int
+    wins: int
+    losses: int
+    ties: int
+    sets_won: int
+    sets_lost: int
+    win_rate: float | None
+    last_date: dt.date | None
+    last_result: str | None  # W | L | T
+    matches: list[MatchLine] = []
+
+
+class MatchTrendBucket(BaseModel):
+    key: str
+    label: str
+    date_from: dt.date
+    date_to: dt.date
+    matches: int
+    wins: int
+    losses: int
+    win_rate: float | None
+
+
+class MatchStatsResponse(BaseModel):
+    date_from: dt.date
+    date_to: dt.date
+    discipline: str  # all | singles | doubles
+    category: str  # all | practice | official
+    unit: str  # month | week | day
+    overall: MatchStats
+    by_level: list[LevelRecord]
+    opponents: list[OpponentBrief]  # for the head-to-head dropdown
+    singles_h2h: list[OpponentRecord]
+    doubles_h2h: list[DoublesRecord]
+    trend: list[MatchTrendBucket]
+
+
 class WeekResponse(BaseModel):
     start: dt.date
     days: list[dt.date]

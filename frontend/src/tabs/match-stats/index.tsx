@@ -1,0 +1,290 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import PeriodControl from "../daily-tracker/components/PeriodControl";
+import type { Bar } from "../daily-tracker/components/BarChart";
+import LineChart from "../daily-tracker/components/LineChart";
+import LevelBars from "./components/LevelBars";
+import { startOfMonth, toIso } from "../daily-tracker/dates";
+import type { Mode } from "../daily-tracker/period";
+import { chartUnitFor, resolveRange, stepAnchor } from "../daily-tracker/period";
+import { matchStatsApi } from "./api";
+import { levelShort } from "../daily-tracker/components/editors/PlayerPicker";
+import MatchLines from "./components/MatchLines";
+import type {
+  CategoryFilter,
+  DisciplineFilter,
+  MatchStatsResponse,
+  PlayerLevel,
+} from "./types";
+
+const LEVEL_LABEL: Record<string, string> = {
+  below: "Dưới",
+  equal: "Ngang",
+  above: "Hơn",
+};
+const pct = (r: number | null) => (r === null ? "—" : `${Math.round(r * 100)}%`);
+
+export default function MatchStats() {
+  // Stats benefit from a wide default window → open on the current year.
+  const [mode, setMode] = useState<Mode>("year");
+  const [anchor, setAnchor] = useState<Date>(() => new Date());
+  const [customFrom, setCustomFrom] = useState<string>(() =>
+    toIso(startOfMonth(new Date()))
+  );
+  const [customTo, setCustomTo] = useState<string>(() => toIso(new Date()));
+  const [discipline, setDiscipline] = useState<DisciplineFilter>("all");
+  const [category, setCategory] = useState<CategoryFilter>("all");
+
+  const [data, setData] = useState<MatchStatsResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [selOpp, setSelOpp] = useState<number | "">(""); // head-to-head dropdown
+
+  const period = { mode, anchor, customFrom, customTo };
+  const range = useMemo(
+    () => resolveRange(period),
+    [mode, anchor, customFrom, customTo]
+  );
+  const unit = chartUnitFor(mode, "line", range.fromIso, range.toIso) ?? "day";
+
+  const reload = useCallback(async () => {
+    try {
+      setError(null);
+      setSelOpp(""); // reset the head-to-head pick when the dataset changes
+      setData(
+        await matchStatsApi.get(range.fromIso, range.toIso, discipline, category, unit)
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }, [range.fromIso, range.toIso, discipline, category, unit]);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  const o = data?.overall;
+  const hasMatches = !!o && o.total > 0;
+
+  // Trend: only periods that actually had matches, so the line never crashes
+  // to 0% for months with no games.
+  const trendPoints: Bar[] = (data?.trend ?? [])
+    .filter((b) => b.matches > 0)
+    .map((b) => ({
+      label: b.label,
+      value: b.win_rate === null ? 0 : Math.round(b.win_rate * 100),
+      display: pct(b.win_rate),
+      tip: `${b.label}: ${b.wins}-${b.losses} · ${b.matches} trận`,
+    }));
+
+  return (
+    <div className="stats">
+      <PeriodControl
+        mode={mode}
+        label={range.label}
+        customFrom={customFrom}
+        customTo={customTo}
+        onMode={setMode}
+        onStep={(dir) => setAnchor((a) => stepAnchor(mode, a, dir))}
+        onToday={() => setAnchor(new Date())}
+        onCustomFrom={setCustomFrom}
+        onCustomTo={setCustomTo}
+      />
+
+      <div className="stats-filters">
+        <div className="seg">
+          {(
+            [
+              ["all", "Tất cả"],
+              ["singles", "Singles"],
+              ["doubles", "Doubles"],
+            ] as [DisciplineFilter, string][]
+          ).map(([k, lbl]) => (
+            <button
+              key={k}
+              className={`seg-btn${discipline === k ? " active" : ""}`}
+              onClick={() => setDiscipline(k)}
+            >
+              {lbl}
+            </button>
+          ))}
+        </div>
+        <div className="seg">
+          {(
+            [
+              ["all", "Mọi loại"],
+              ["practice", "Practice"],
+              ["official", "Official"],
+            ] as [CategoryFilter, string][]
+          ).map(([k, lbl]) => (
+            <button
+              key={k}
+              className={`seg-btn${category === k ? " active" : ""}`}
+              onClick={() => setCategory(k)}
+            >
+              {lbl}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {error && <div className="pb-error">{error}</div>}
+
+      {!hasMatches ? (
+        <p className="stats-empty">
+          Chưa có trận nào (có tên đối thủ) trong khoảng này. Tab thống kê chỉ tính
+          các trận đã chọn đối thủ — hãy ghi vài trận ở Daily Tracker, hoặc đổi
+          khoảng thời gian.
+        </p>
+      ) : (
+        <>
+          {/* KPI cards */}
+          <div className="stats-kpis">
+            <div className="kpi">
+              <span className="kpi-value">{o!.total}</span>
+              <span className="kpi-label">Trận</span>
+            </div>
+            <div className="kpi">
+              <span className="kpi-value">
+                {o!.wins}-{o!.losses}
+                {o!.ties ? `-${o!.ties}` : ""}
+              </span>
+              <span className="kpi-label">W-L{o!.ties ? "-T" : ""}</span>
+            </div>
+            <div className="kpi">
+              <span className="kpi-value accent">{pct(o!.win_rate)}</span>
+              <span className="kpi-label">Win rate</span>
+            </div>
+          </div>
+
+          {/* Three analytic blocks side-by-side (≈1/3 each on wide screens). */}
+          <div className="stats-cols">
+          {/* Win rate by opponent level */}
+          <section className="stats-card">
+            <h3>Win rate theo trình đối thủ</h3>
+            <LevelBars levels={data!.by_level} />
+          </section>
+
+          {/* Trend over time */}
+          <section className="stats-card">
+            <h3>
+              Xu hướng win rate (
+              {data!.unit === "month"
+                ? "theo tháng"
+                : data!.unit === "week"
+                ? "theo tuần"
+                : "theo ngày"}
+              )
+            </h3>
+            {trendPoints.length > 1 ? (
+              <LineChart points={trendPoints} formatY={(v) => `${Math.round(v)}%`} />
+            ) : (
+              <p className="stats-muted">
+                Chưa đủ dữ liệu để vẽ xu hướng (cần ≥2 kỳ có trận).
+              </p>
+            )}
+          </section>
+
+          {/* Head-to-head — pick one opponent from the dropdown */}
+          <section className="stats-card">
+            <h3>Đối đầu (chọn đối thủ)</h3>
+            <select
+              className="pb-select stats-opp-select"
+              value={selOpp}
+              onChange={(e) => setSelOpp(e.target.value ? Number(e.target.value) : "")}
+            >
+              <option value="">— Chọn đối thủ ({data!.opponents.length}) —</option>
+              {data!.opponents.map((op) => (
+                <option key={op.id} value={op.id}>
+                  {op.name} · {LEVEL_LABEL[op.level]} · {op.played} trận
+                </option>
+              ))}
+            </select>
+
+            {selOpp !== "" &&
+              (() => {
+                const singlesRec = data!.singles_h2h.find(
+                  (o) => o.opponent_id === selOpp
+                );
+                const doublesRecs = data!.doubles_h2h.filter(
+                  (d) => d.opp1_id === selOpp || d.opp2_id === selOpp
+                );
+                if (!singlesRec && doublesRecs.length === 0) {
+                  return (
+                    <p className="stats-empty">
+                      Chưa có trận nào với đối thủ này trong khoảng đang chọn.
+                    </p>
+                  );
+                }
+                const summary = (
+                  w: number,
+                  l: number,
+                  t: number,
+                  played: number,
+                  wr: number | null
+                ) => (
+                  <span className="h2h-summary">
+                    {played} trận · {w}-{l}
+                    {t ? `-${t}` : ""} · <b>{pct(wr)}</b>
+                  </span>
+                );
+                return (
+                  <div className="stats-h2h-detail">
+                    {singlesRec && (
+                      <div className="h2h-group">
+                        <div className="h2h-head">
+                          <h4>Singles</h4>
+                          {summary(
+                            singlesRec.wins,
+                            singlesRec.losses,
+                            singlesRec.ties,
+                            singlesRec.played,
+                            singlesRec.win_rate
+                          )}
+                        </div>
+                        <MatchLines rows={singlesRec.matches} />
+                      </div>
+                    )}
+                    {doublesRecs.map((d) => {
+                      const pairLabel = (lvl: PlayerLevel | null, name: string | null) =>
+                        name ? (
+                          <span className="dbl-side" key={name}>
+                            {name}{" "}
+                            {lvl && (
+                              <span className={`level-chip level-${lvl}`}>
+                                {levelShort(lvl)}
+                              </span>
+                            )}
+                          </span>
+                        ) : null;
+                      return (
+                        <div className="h2h-group" key={d.key}>
+                          <div className="h2h-head">
+                            <h4 className="h2h-pair">
+                              <span className="dbl-side">
+                                tôi
+                                {d.partner_name ? ` + ${d.partner_name}` : ""}
+                              </span>
+                              <span className="dbl-vs">vs</span>
+                              {pairLabel(d.opp1_level, d.opp1_name)}
+                              {d.opp2_name ? (
+                                <>
+                                  {" & "}
+                                  {pairLabel(d.opp2_level, d.opp2_name)}
+                                </>
+                              ) : null}
+                            </h4>
+                            {summary(d.wins, d.losses, d.ties, d.played, d.win_rate)}
+                          </div>
+                          <MatchLines rows={d.matches} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+          </section>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

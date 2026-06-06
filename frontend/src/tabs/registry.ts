@@ -3,6 +3,7 @@
 import type { ComponentType } from "react";
 import DailyTracker from "./daily-tracker";
 import TacticalPlaybook from "./tactical-playbook";
+import MatchStats from "./match-stats";
 
 export interface TabDef {
   id: string;
@@ -25,6 +26,13 @@ export const TABS: TabDef[] = [
     label: "Tactical Playbook",
     icon: "♟️",
     component: TacticalPlaybook,
+    enabled: true,
+  },
+  {
+    id: "match-stats",
+    label: "Match Stats",
+    icon: "📊",
+    component: MatchStats,
     enabled: true,
   },
   {

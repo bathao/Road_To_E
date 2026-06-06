@@ -273,6 +273,19 @@ def breakdown(
     return service.build_breakdown(db, date_from, date_to, unit)
 
 
+@router.get("/match-stats", response_model=schemas.MatchStatsResponse)
+def match_stats(
+    date_from: dt.date = Query(..., alias="from"),
+    date_to: dt.date = Query(..., alias="to"),
+    discipline: str = Query("all", pattern="^(all|singles|doubles)$"),
+    category: str = Query("all", pattern="^(all|practice|official)$"),
+    unit: str = Query("month", pattern="^(month|week|day)$"),
+    db: Session = Depends(get_db),
+):
+    """Match analytics over named-opponent matches only (for the Match Stats tab)."""
+    return service.build_match_stats(db, date_from, date_to, discipline, category, unit)
+
+
 # ---------------------------------------------------------------- export
 @router.get("/export")
 def export(

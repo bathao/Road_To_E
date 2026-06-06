@@ -765,6 +765,246 @@ def build_breakdown(
     return schemas.BreakdownResponse(unit=unit, buckets=buckets)
 
 
+# ---------------------------------------------------------------- match stats (Tab 3)
+
+_LEVEL_ORDER = ["below", "equal", "above"]
+_CATEGORY_KEY = {"practice": "practice_match", "official": "official_match"}
+# Match tracking with opponents began June 2026; ignore anything before.
+MATCH_STATS_FLOOR = dt.date(2026, 6, 1)
+
+
+def _result_of(m: Match) -> str:
+    return "W" if m.my_sets > m.opp_sets else "L" if m.my_sets < m.opp_sets else "T"
+
+
+def _tally(s: dict, m: Match) -> None:
+    s["total"] += 1
+    s["sets_won"] += m.my_sets
+    s["sets_lost"] += m.opp_sets
+    r = _result_of(m)
+    if r == "W":
+        s["wins"] += 1
+    elif r == "L":
+        s["losses"] += 1
+    else:
+        s["ties"] += 1
+
+
+def build_match_stats(
+    db: Session,
+    date_from: dt.date,
+    date_to: dt.date,
+    discipline: str = "all",
+    category: str = "all",
+    unit: str = "month",
+) -> schemas.MatchStatsResponse:
+    """Stats over *named-opponent* matches only (opponent_id set, playing).
+
+    Unlike build_stats (which counts every match), this tab is opponent-centric,
+    so matches without a recorded opponent are excluded. A match is attributed to
+    its primary opponent_id (opponent #1 in doubles); use the Singles filter for
+    clean 1-v-1 analysis.
+    """
+    # Clamp to the floor — this tab only covers matches from June 2026 on.
+    date_from = max(date_from, MATCH_STATS_FLOOR)
+    q = (
+        db.query(Match)
+        .filter(
+            Match.date >= date_from,
+            Match.date <= date_to,
+            Match.is_nonplaying == False,  # noqa: E712
+            Match.opponent_id.isnot(None),
+        )
+    )
+    if discipline in ("singles", "doubles"):
+        q = q.filter(Match.discipline == discipline)
+    if category in _CATEGORY_KEY:
+        cat = db.query(Category).filter(Category.key == _CATEGORY_KEY[category]).first()
+        q = q.filter(Match.category_id == (cat.id if cat else -1))
+    matches = q.order_by(Match.date).all()
+
+    overall = _blank_match_stats()
+    by_level: dict[str, dict] = {lv: _blank_match_stats() for lv in _LEVEL_ORDER}
+    singles_h2h: dict[int, dict] = {}  # keyed by opponent_id
+    doubles_h2h: dict[str, dict] = {}  # keyed by partner + opponent-pair
+    opp_brief: dict[int, dict] = {}  # every opponent seen -> {name, level, played}
+
+    for m in matches:
+        _tally(overall, m)
+        lvl = m.opponent.level if m.opponent else "equal"
+        if lvl in by_level:
+            _tally(by_level[lvl], m)
+
+        # Dropdown list: count every opponent appearance (opp1 + opp2).
+        for opp in (m.opponent, m.opponent2):
+            if opp is not None:
+                b = opp_brief.get(opp.id)
+                if b is None:
+                    b = opp_brief[opp.id] = {
+                        "id": opp.id, "name": opp.name, "level": opp.level, "played": 0
+                    }
+                b["played"] += 1
+
+        if m.discipline == "doubles":
+            # A doubles matchup = (my partner) vs (their unordered opponent pair).
+            opps = sorted(
+                [
+                    (m.opponent_id, m.opponent.name if m.opponent else "?",
+                     m.opponent.level if m.opponent else "equal"),
+                    (m.opponent2_id, m.opponent2.name if m.opponent2 else None,
+                     m.opponent2.level if m.opponent2 else None),
+                ],
+                key=lambda t: (t[1] is None, (t[1] or "").lower()),
+            )
+            key = f"{m.partner_id}|{opps[0][0]}-{opps[1][0]}"
+            rec = doubles_h2h.get(key)
+            if rec is None:
+                rec = doubles_h2h[key] = {
+                    **_blank_match_stats(),
+                    "key": key,
+                    "partner_id": m.partner_id,
+                    "partner_name": m.partner.name if m.partner else None,
+                    "partner_level": m.partner.level if m.partner else None,
+                    "opp1_id": opps[0][0],
+                    "opp1_name": opps[0][1] or "?",
+                    "opp1_level": opps[0][2] or "equal",
+                    "opp2_id": opps[1][0],
+                    "opp2_name": opps[1][1],
+                    "opp2_level": opps[1][2],
+                    "last_date": None,
+                    "last_result": None,
+                }
+        else:
+            rec = singles_h2h.get(m.opponent_id)
+            if rec is None:
+                rec = singles_h2h[m.opponent_id] = {
+                    **_blank_match_stats(),
+                    "opponent_id": m.opponent_id,
+                    "name": m.opponent.name if m.opponent else "?",
+                    "level": lvl,
+                    "last_date": None,
+                    "last_result": None,
+                    "matches": [],
+                }
+        rec.setdefault("matches", [])
+        _tally(rec, m)
+        # matches are ordered by date, so the last seen is the most recent.
+        rec["last_date"] = m.date
+        rec["last_result"] = _result_of(m)
+        rec["matches"].append(
+            schemas.MatchLine(
+                date=m.date,
+                discipline=m.discipline,
+                my_sets=m.my_sets,
+                opp_sets=m.opp_sets,
+                result=_result_of(m),
+                handicap=m.handicap or 0,
+                event_name=m.event.name if m.event else None,
+            )
+        )
+
+    def _opp_record(rec: dict) -> schemas.OpponentRecord:
+        decided = rec["wins"] + rec["losses"]
+        return schemas.OpponentRecord(
+            opponent_id=rec["opponent_id"],
+            name=rec["name"],
+            level=rec["level"],
+            played=rec["total"],
+            wins=rec["wins"],
+            losses=rec["losses"],
+            ties=rec["ties"],
+            sets_won=rec["sets_won"],
+            sets_lost=rec["sets_lost"],
+            win_rate=(rec["wins"] / decided) if decided else None,
+            last_date=rec["last_date"],
+            last_result=rec["last_result"],
+            matches=list(reversed(rec.get("matches", []))),  # most recent first
+        )
+
+    def _dbl_record(rec: dict) -> schemas.DoublesRecord:
+        decided = rec["wins"] + rec["losses"]
+        return schemas.DoublesRecord(
+            key=rec["key"],
+            partner_id=rec["partner_id"],
+            partner_name=rec["partner_name"],
+            partner_level=rec["partner_level"],
+            opp1_id=rec["opp1_id"],
+            opp1_name=rec["opp1_name"],
+            opp1_level=rec["opp1_level"],
+            opp2_id=rec["opp2_id"],
+            opp2_name=rec["opp2_name"],
+            opp2_level=rec["opp2_level"],
+            played=rec["total"],
+            wins=rec["wins"],
+            losses=rec["losses"],
+            ties=rec["ties"],
+            sets_won=rec["sets_won"],
+            sets_lost=rec["sets_lost"],
+            win_rate=(rec["wins"] / decided) if decided else None,
+            last_date=rec["last_date"],
+            last_result=rec["last_result"],
+            matches=list(reversed(rec.get("matches", []))),  # most recent first
+        )
+
+    singles_list = sorted(
+        (_opp_record(r) for r in singles_h2h.values()),
+        key=lambda o: (-o.played, o.name.lower()),
+    )
+    doubles_list = sorted(
+        (_dbl_record(r) for r in doubles_h2h.values()),
+        key=lambda r: (-r.played, r.opp1_name.lower()),
+    )
+    opponents = sorted(
+        (schemas.OpponentBrief(**b) for b in opp_brief.values()),
+        key=lambda o: (-o.played, o.name.lower()),
+    )
+
+    # Trend buckets (win-rate over time), named-opponent matches only.
+    by_iso: dict[str, list[Match]] = {}
+    for m in matches:
+        by_iso.setdefault(m.date.isoformat(), []).append(m)
+    trend: list[schemas.MatchTrendBucket] = []
+    for key, label, b_from, b_to in _bucket_ranges(date_from, date_to, unit):
+        b_m = b_w = b_l = 0
+        for d in _date_range(b_from, b_to):
+            for m in by_iso.get(d.isoformat(), []):
+                b_m += 1
+                if m.my_sets > m.opp_sets:
+                    b_w += 1
+                elif m.my_sets < m.opp_sets:
+                    b_l += 1
+        decided = b_w + b_l
+        trend.append(
+            schemas.MatchTrendBucket(
+                key=key,
+                label=label,
+                date_from=b_from,
+                date_to=b_to,
+                matches=b_m,
+                wins=b_w,
+                losses=b_l,
+                win_rate=(b_w / decided) if decided else None,
+            )
+        )
+
+    return schemas.MatchStatsResponse(
+        date_from=date_from,
+        date_to=date_to,
+        discipline=discipline,
+        category=category,
+        unit=unit,
+        overall=_finalize_match_stats(overall),
+        by_level=[
+            schemas.LevelRecord(level=lv, stats=_finalize_match_stats(by_level[lv]))
+            for lv in _LEVEL_ORDER
+        ],
+        opponents=opponents,
+        singles_h2h=singles_list,
+        doubles_h2h=doubles_list,
+        trend=trend,
+    )
+
+
 # ---------------------------------------------------------------- export
 
 _RATING_HEX = {"green": "FF63BE7B", "yellow": "FFFFEB84", "red": "FFE06666"}
