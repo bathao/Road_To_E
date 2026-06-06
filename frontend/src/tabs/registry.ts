@@ -2,6 +2,7 @@
 // entry here. Disabled tabs render the ComingSoon placeholder.
 import type { ComponentType } from "react";
 import DailyTracker from "./daily-tracker";
+import TacticalPlaybook from "./tactical-playbook";
 
 export interface TabDef {
   id: string;
@@ -17,6 +18,13 @@ export const TABS: TabDef[] = [
     label: "Daily Tracker",
     icon: "📅",
     component: DailyTracker,
+    enabled: true,
+  },
+  {
+    id: "tactical-playbook",
+    label: "Tactical Playbook",
+    icon: "♟️",
+    component: TacticalPlaybook,
     enabled: true,
   },
   {

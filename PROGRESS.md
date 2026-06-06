@@ -2,8 +2,18 @@
 
 ## Current status (2026-06-06)
 
-**Tab 1 "Daily Tracker" is feature-complete.** Stack: FastAPI + SQLite backend,
-React + Vite + TS frontend, served on one port by `start.bat`.
+**Tab 1 "Daily Tracker" is feature-complete; Tab 2 "Tactical Playbook" v1 is in.**
+Stack: FastAPI + SQLite backend, React + Vite + TS frontend, served on one port
+by `start.bat`.
+
+**Tab 2 "Tactical Playbook"** — a tactic knowledge base with two areas: *My
+Tactics* (the user's own playbook — manual add or copied up from the Library;
+full CRUD, confidence stars, favourite, tags) and a built-in *Library* of ~40
+general tactics (browse-only; "↑ Add to My Tactics" copies one up, tracked via
+`source_key`). Organised by 5 phases (Serve / Return / Third ball / Rally /
+Chung), one phase selector + search / opponent / favourite filters drive both
+areas. 18 Library tactics carry a source link (PingSunday, Tom Lodziak,
+Killerspin, Samson Dubina). Content mixes English jargon with Vietnamese.
 
 Working features:
 - Excel-like weekly grid; one shared timeline (Day / Week / Month / Year /
@@ -50,6 +60,17 @@ Giải FS, BBTV…); Travel/"sets (cty)" → non-playing/skip; Serve counts → 
 ---
 
 ## History
+
+### 2026-06-06 — Tab 2 "Tactical Playbook" (v1)
+- New backend feature `app/features/playbook/` (model `playbook_tactic`, schemas,
+  service, router at `/api/playbook`, static `library.py` catalog) wired via the
+  registry; table auto-created by `create_all` (no migration).
+- New frontend tab `tabs/tactical-playbook/` (My Tactics + Library sections, phase
+  selector, filters, `TacticCard`, `TacticEditor`); promoted `Modal` to
+  `shared/ui/Modal.tsx` and repointed daily-tracker's import.
+- Library content researched from reputable coaching sources (WebSearch/WebFetch
+  done inline — the background workflow stalled on tool-permission denial) and
+  given per-tactic `source` / `source_url`. Card labels: When / How / Next / Risk.
 
 ### 2026-06-06 — v0.3
 - Coaching packages: new `Activity.is_package_start` column (+ one-off migration

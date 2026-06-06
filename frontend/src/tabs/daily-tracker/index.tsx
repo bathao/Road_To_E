@@ -6,7 +6,7 @@ import type { Mode } from "./period";
 import { resolveRange, stepAnchor } from "./period";
 import PeriodControl from "./components/PeriodControl";
 import WeekGrid from "./components/WeekGrid";
-import Modal from "./components/Modal";
+import Modal from "../../shared/ui/Modal";
 import DurationEditor from "./components/editors/DurationEditor";
 import MatchEditor from "./components/editors/MatchEditor";
 import ChecklistEditor from "./components/editors/ChecklistEditor";

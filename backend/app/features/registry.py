@@ -6,12 +6,14 @@ Importing the feature modules also registers their ORM models on Base.metadata.
 """
 from sqlalchemy.orm import Session
 
+from app.features.playbook import router as playbook_router
 from app.features.tracker import router as tracker_router
 from app.features.tracker import seed as tracker_seed
 
 # Routers included by app.main (in order).
 FEATURE_ROUTERS = [
     tracker_router.router,
+    playbook_router.router,
 ]
 
 # Idempotent seed callables run on startup.
