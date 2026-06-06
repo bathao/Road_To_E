@@ -6,7 +6,6 @@ import {
   addYears,
   endOfMonth,
   endOfYear,
-  fromIso,
   monthLabel,
   mondayOf,
   prettyDate,
@@ -75,12 +74,6 @@ export function resolveRange(p: Period): ResolvedRange {
     toIso: customTo,
     label: `${prettyDate(customFrom)} — ${prettyDate(customTo)}`,
   };
-}
-
-// The week the grid shows for a given period (always a single Mon–Sun week).
-export function gridWeekStart(p: Period): Date {
-  if (p.mode === "custom") return mondayOf(fromIso(p.customFrom));
-  return mondayOf(p.anchor);
 }
 
 export function stepAnchor(mode: Mode, anchor: Date, dir: number): Date {

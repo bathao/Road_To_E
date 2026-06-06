@@ -1,17 +1,8 @@
 // Types for the Match Stats tab. Mirror the backend MatchStatsResponse.
-import type { PlayerLevel } from "../daily-tracker/types";
+import type { PlayerLevel } from "../../shared/levels";
+import type { MatchStats } from "../../shared/types";
 
-export type { PlayerLevel };
-
-export interface MatchStats {
-  total: number;
-  wins: number;
-  losses: number;
-  ties: number;
-  sets_won: number;
-  sets_lost: number;
-  win_rate: number | null; // 0..1
-}
+export type { PlayerLevel, MatchStats };
 
 export interface LevelRecord {
   level: PlayerLevel;

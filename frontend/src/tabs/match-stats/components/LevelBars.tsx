@@ -1,10 +1,5 @@
-import type { LevelRecord, PlayerLevel } from "../types";
-
-const LABEL: Record<PlayerLevel, string> = {
-  below: "Dưới tôi",
-  equal: "Ngang tôi",
-  above: "Hơn tôi",
-};
+import type { LevelRecord } from "../types";
+import { levelLabel } from "../../../shared/levels";
 
 // Win-rate by opponent level as horizontal progress bars — reads cleanly and
 // handles "no matches yet" (0-0) gracefully, unlike floating vertical bars.
@@ -18,7 +13,7 @@ export default function LevelBars({ levels }: { levels: LevelRecord[] }) {
         const pctNum = wr === null ? 0 : Math.round(wr * 100);
         return (
           <div className="lvl-row" key={l.level}>
-            <span className="lvl-name">{LABEL[l.level]}</span>
+            <span className="lvl-name">{levelLabel(l.level)}</span>
             <div className="lvl-track">
               <div
                 className={`lvl-fill level-${l.level}`}

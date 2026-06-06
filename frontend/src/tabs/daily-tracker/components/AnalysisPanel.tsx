@@ -6,12 +6,13 @@ import type {
   StatsResponse,
 } from "../types";
 import { trackerApi } from "../api";
-import { fromIso as parseIso, prettyDate } from "../dates";
-import type { Mode, Unit } from "../period";
-import { chartUnitFor } from "../period";
-import BarChart from "./BarChart";
-import type { Bar } from "./BarChart";
-import LineChart from "./LineChart";
+import { fromIso as parseIso, prettyDate } from "../../../shared/dates";
+import type { Mode, Unit } from "../../../shared/period";
+import { chartUnitFor } from "../../../shared/period";
+import BarChart from "../../../shared/ui/BarChart";
+import type { Bar } from "../../../shared/ui/BarChart";
+import LineChart from "../../../shared/ui/LineChart";
+import { fmtMinutes, pct } from "../../../shared/format";
 
 // Metrics the comparison chart can plot.
 type MetricKey =
@@ -39,16 +40,6 @@ const UNIT_TITLE: Record<Unit, string> = {
 
 const WD_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-function fmtMinutes(min: number): string {
-  if (!min) return "0m";
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  return [h ? `${h}h` : "", m ? `${m}m` : ""].filter(Boolean).join(" ");
-}
-
-function pct(rate: number | null): string {
-  return rate === null ? "—" : `${Math.round(rate * 100)}%`;
-}
 
 // Map a breakdown bucket to a chart bar for the chosen metric.
 function bucketBar(b: BreakdownBucket, metric: MetricKey): Bar {

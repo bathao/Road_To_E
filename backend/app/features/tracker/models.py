@@ -70,7 +70,9 @@ class Match(Base):
     date: Mapped[dt.date] = mapped_column(Date, index=True)
     category_id: Mapped[int] = mapped_column(ForeignKey("tracker_category.id"), index=True)
     discipline: Mapped[str] = mapped_column(String, default="singles")  # singles | doubles
-    best_of: Mapped[int] = mapped_column(Integer, default=5)  # 3 | 5 | 7
+    # 3 | 5 | 7. Stored as entry metadata; score validation against it is
+    # client-side only (frontend scores.ts) — the server doesn't enforce it.
+    best_of: Mapped[int] = mapped_column(Integer, default=5)
     my_sets: Mapped[int] = mapped_column(Integer, default=0)
     opp_sets: Mapped[int] = mapped_column(Integer, default=0)
     event_id: Mapped[int | None] = mapped_column(ForeignKey("tracker_event.id"), default=None)
@@ -86,16 +88,13 @@ class Match(Base):
     partner_id: Mapped[int | None] = mapped_column(ForeignKey("tracker_player.id"), default=None)
     handicap: Mapped[int] = mapped_column(Integer, default=0)
 
-    event: Mapped[Event | None] = relationship("Event", lazy="joined")
-    opponent: Mapped[Player | None] = relationship(
-        "Player", foreign_keys=[opponent_id], lazy="joined"
-    )
-    opponent2: Mapped[Player | None] = relationship(
-        "Player", foreign_keys=[opponent2_id], lazy="joined"
-    )
-    partner: Mapped[Player | None] = relationship(
-        "Player", foreign_keys=[partner_id], lazy="joined"
-    )
+    # Default (lazy="select") loading. The bulk readers eager-load these with
+    # selectinload() in service._load_range / build_match_stats to avoid N+1;
+    # single-match CRUD paths just lazy-load on access while the session is open.
+    event: Mapped[Event | None] = relationship("Event")
+    opponent: Mapped[Player | None] = relationship("Player", foreign_keys=[opponent_id])
+    opponent2: Mapped[Player | None] = relationship("Player", foreign_keys=[opponent2_id])
+    partner: Mapped[Player | None] = relationship("Player", foreign_keys=[partner_id])
 
 
 class PhysicalCheck(Base):

@@ -27,8 +27,9 @@ export interface Activity {
   is_package_start: boolean; // first session of a coaching package
 }
 
-// Skill level of a player relative to me.
-export type PlayerLevel = "below" | "equal" | "above";
+// Skill level of a player relative to me (canonical definition in shared/).
+import type { PlayerLevel } from "../../shared/levels";
+export type { PlayerLevel };
 
 export interface Player {
   id: number;
@@ -92,15 +93,8 @@ export interface PhysicalItem {
 }
 
 // ---- stats / analysis ----
-export interface MatchStats {
-  total: number;
-  wins: number;
-  losses: number;
-  ties: number;
-  sets_won: number;
-  sets_lost: number;
-  win_rate: number | null; // 0..1
-}
+import type { MatchStats } from "../../shared/types";
+export type { MatchStats };
 
 export interface CategoryMinutes {
   key: string;

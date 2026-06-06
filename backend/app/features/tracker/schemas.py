@@ -120,6 +120,10 @@ class EventOut(BaseModel):
     name: str
 
 
+class LastDateResponse(BaseModel):
+    date: dt.date | None  # most recent day with any data; None if empty
+
+
 # ---------- Physical Training checklist ----------
 class PhysicalItemOut(BaseModel):
     key: str
@@ -131,10 +135,20 @@ class PhysicalChecksIn(BaseModel):
     items: list[str]  # the full set of ticked item keys for that day
 
 
+class PhysicalChecksOut(BaseModel):
+    date: dt.date
+    items: list[str]  # the ticked items actually stored (unknown keys dropped)
+
+
 # ---------- Day note ----------
 class DayNoteIn(BaseModel):
     date: dt.date
     text: str
+
+
+class DayNoteOut(BaseModel):
+    date: dt.date
+    text: str  # the stored note; empty string when cleared
 
 
 # ---------- Week aggregate ----------

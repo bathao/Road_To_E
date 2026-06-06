@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import PeriodControl from "../daily-tracker/components/PeriodControl";
-import type { Bar } from "../daily-tracker/components/BarChart";
-import LineChart from "../daily-tracker/components/LineChart";
+import PeriodControl from "../../shared/ui/PeriodControl";
+import type { Bar } from "../../shared/ui/BarChart";
+import LineChart from "../../shared/ui/LineChart";
 import LevelBars from "./components/LevelBars";
-import { startOfMonth, toIso } from "../daily-tracker/dates";
-import type { Mode } from "../daily-tracker/period";
-import { chartUnitFor, resolveRange, stepAnchor } from "../daily-tracker/period";
+import { startOfMonth, toIso } from "../../shared/dates";
+import type { Mode } from "../../shared/period";
+import { chartUnitFor, resolveRange, stepAnchor } from "../../shared/period";
+import { levelShort } from "../../shared/levels";
+import { pct } from "../../shared/format";
 import { matchStatsApi } from "./api";
-import { levelShort } from "../daily-tracker/components/editors/PlayerPicker";
 import MatchLines from "./components/MatchLines";
 import type {
   CategoryFilter,
@@ -15,13 +16,6 @@ import type {
   MatchStatsResponse,
   PlayerLevel,
 } from "./types";
-
-const LEVEL_LABEL: Record<string, string> = {
-  below: "Dưới",
-  equal: "Ngang",
-  above: "Hơn",
-};
-const pct = (r: number | null) => (r === null ? "—" : `${Math.round(r * 100)}%`);
 
 export default function MatchStats() {
   // Stats benefit from a wide default window → open on the current year.
@@ -194,7 +188,7 @@ export default function MatchStats() {
               <option value="">— Chọn đối thủ ({data!.opponents.length}) —</option>
               {data!.opponents.map((op) => (
                 <option key={op.id} value={op.id}>
-                  {op.name} · {LEVEL_LABEL[op.level]} · {op.played} trận
+                  {op.name} · {levelShort(op.level)} · {op.played} trận
                 </option>
               ))}
             </select>

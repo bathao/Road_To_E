@@ -1,17 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import type { Player, PlayerLevel } from "../../types";
+import type { Player } from "../../types";
 import { trackerApi } from "../../api";
-
-// Level metadata, shared by the picker and the match list.
-export const LEVELS: { key: PlayerLevel; label: string; short: string }[] = [
-  { key: "below", label: "Dưới tôi", short: "Dưới" },
-  { key: "equal", label: "Ngang tôi", short: "Ngang" },
-  { key: "above", label: "Hơn tôi", short: "Hơn" },
-];
-
-export function levelShort(level: PlayerLevel | null | undefined): string {
-  return LEVELS.find((l) => l.key === level)?.short ?? "";
-}
+// Level metadata lives in shared/; re-export so existing siblings keep importing
+// LEVELS / levelShort from the picker.
+import { LEVELS, levelShort } from "../../../../shared/levels";
+import type { PlayerLevel } from "../../../../shared/levels";
+export { LEVELS, levelShort };
 
 // A combobox to pick a player from the shared pool, or add a new one inline
 // (name + relative level). Returns the selected Player (or null when cleared).

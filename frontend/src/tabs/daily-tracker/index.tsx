@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Category, MatchIn, WeekResponse } from "./types";
 import { trackerApi } from "./api";
-import { fromIso, startOfMonth, toIso } from "./dates";
-import type { Mode } from "./period";
-import { resolveRange, stepAnchor } from "./period";
-import PeriodControl from "./components/PeriodControl";
+import { fromIso, startOfMonth, toIso } from "../../shared/dates";
+import type { Mode } from "../../shared/period";
+import { resolveRange, stepAnchor } from "../../shared/period";
+import PeriodControl from "../../shared/ui/PeriodControl";
 import WeekGrid from "./components/WeekGrid";
 import Modal from "../../shared/ui/Modal";
 import DurationEditor from "./components/editors/DurationEditor";

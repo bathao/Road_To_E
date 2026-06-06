@@ -36,9 +36,6 @@ export const trackerApi = {
   createMatch: (payload: MatchIn) =>
     api.post<Match>("/tracker/matches", payload),
 
-  updateMatch: (id: number, payload: MatchIn) =>
-    api.put<Match>(`/tracker/matches/${id}`, payload),
-
   deleteMatch: (id: number) => api.del<void>(`/tracker/matches/${id}`),
 
   searchEvents: (q: string) =>
@@ -49,9 +46,6 @@ export const trackerApi = {
 
   createPlayer: (payload: PlayerIn) =>
     api.post<Player>("/tracker/players", payload),
-
-  updatePlayer: (id: number, payload: PlayerIn) =>
-    api.put<Player>(`/tracker/players/${id}`, payload),
 
   getPhysicalItems: () => api.get<PhysicalItem[]>("/tracker/physical-items"),
 

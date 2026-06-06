@@ -1,6 +1,6 @@
 import type { Category, WeekResponse } from "../types";
 import { cellKey } from "../types";
-import { dayHeader, monthGroups, todayIso } from "../dates";
+import { dayHeader, monthGroups, todayIso } from "../../../shared/dates";
 
 // The Excel-like weekly grid. Rows = categories, columns = 7 days.
 // Clicking any cell opens the matching editor for that (category, date).

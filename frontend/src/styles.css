@@ -123,18 +123,11 @@ body {
   gap: 10px;
 }
 
-.week-nav,
 .period-control {
   display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-}
-
-.week-range {
-  margin-left: 10px;
-  font-weight: 600;
-  color: var(--text);
 }
 
 .btn {
@@ -1373,11 +1366,6 @@ input:focus {
   text-align: center;
 }
 
-/* Let the head-to-head tables scroll inside their (narrower) column. */
-.stats-h2h-detail {
-  overflow-x: auto;
-}
-
 .stats-filters {
   display: flex;
   flex-wrap: wrap;
@@ -1441,46 +1429,6 @@ input:focus {
 .stats-card h3 {
   margin: 0 0 12px;
   font-size: 15px;
-}
-
-/* head-to-head table */
-.stats-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-.stats-table th,
-.stats-table td {
-  text-align: left;
-  padding: 8px 10px;
-  border-bottom: 1px solid #eef0f3;
-  white-space: nowrap;
-}
-
-.stats-table thead th {
-  font-size: 12px;
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.stats-th {
-  cursor: pointer;
-  user-select: none;
-}
-
-.stats-th:hover {
-  color: var(--accent);
-}
-
-.stats-table td.pos {
-  color: #2e7d32;
-  font-weight: 600;
-}
-
-.stats-table td.neg {
-  color: var(--danger);
-  font-weight: 600;
 }
 
 .res {

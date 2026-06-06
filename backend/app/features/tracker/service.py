@@ -4,9 +4,10 @@ from __future__ import annotations
 import csv
 import datetime as dt
 import io
+from typing import NamedTuple
 
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.features.tracker import schemas
 from app.features.tracker.models import (
@@ -259,6 +260,17 @@ def earliest_data_date(db: Session) -> dt.date | None:
     return min(dates) if dates else None
 
 
+def latest_data_date(db: Session) -> dt.date | None:
+    """The most recent day that has any tracked data (for opening the grid there)."""
+    candidates = [
+        db.query(func.max(Activity.date)).scalar(),
+        db.query(func.max(Match.date)).scalar(),
+        db.query(func.max(PhysicalCheck.date)).scalar(),
+    ]
+    dates = [d for d in candidates if d is not None]
+    return max(dates) if dates else None
+
+
 def compute_overall_colors(
     categories: list[Category],
     activities: list[Activity],
@@ -313,6 +325,64 @@ def compute_overall_colors(
     return colors
 
 
+# ---------------------------------------------------------------- range loading
+
+
+class RangeData(NamedTuple):
+    categories: list[Category]
+    activities: list[Activity]
+    matches: list[Match]  # ordered by order_index
+    checks_by_date: dict[str, list[str]]  # iso date -> ticked item keys
+    notes_by_date: dict[str, str]  # iso date -> day-note text
+
+
+def _load_range(
+    db: Session,
+    date_from: dt.date,
+    date_to: dt.date,
+    with_match_relations: bool = True,
+) -> RangeData:
+    """Load the four range-filtered tables shared by the week / stats /
+    breakdown / export builders, so each one stops re-issuing the same queries.
+
+    ``with_match_relations`` eager-loads each match's event/opponent/partner via
+    selectinload (avoids N+1 where they're rendered); callers that only count
+    matches (stats / breakdown) pass False to skip the extra queries.
+    """
+    categories = db.query(Category).order_by(Category.sort_order).all()
+    activities = (
+        db.query(Activity)
+        .filter(Activity.date >= date_from, Activity.date <= date_to)
+        .all()
+    )
+    match_q = db.query(Match).filter(Match.date >= date_from, Match.date <= date_to)
+    if with_match_relations:
+        match_q = match_q.options(
+            selectinload(Match.event),
+            selectinload(Match.opponent),
+            selectinload(Match.opponent2),
+            selectinload(Match.partner),
+        )
+    matches = match_q.order_by(Match.order_index).all()
+    checks = (
+        db.query(PhysicalCheck)
+        .filter(PhysicalCheck.date >= date_from, PhysicalCheck.date <= date_to)
+        .all()
+    )
+    day_notes = (
+        db.query(DayNote)
+        .filter(DayNote.date >= date_from, DayNote.date <= date_to)
+        .all()
+    )
+    return RangeData(
+        categories=categories,
+        activities=activities,
+        matches=matches,
+        checks_by_date=physical_checks_by_date(checks),
+        notes_by_date={n.date.isoformat(): n.text for n in day_notes},
+    )
+
+
 # ---------------------------------------------------------------- week
 
 
@@ -328,28 +398,13 @@ def build_week(
     span = (end - start).days + 1
     days = [start + dt.timedelta(days=i) for i in range(span)]
 
-    categories = db.query(Category).order_by(Category.sort_order).all()
+    rng = _load_range(db, start, end)
+    categories = rng.categories
     cat_by_key = {c.key: c for c in categories}
-
-    activities = (
-        db.query(Activity).filter(Activity.date >= start, Activity.date <= end).all()
-    )
-    matches = (
-        db.query(Match)
-        .filter(Match.date >= start, Match.date <= end)
-        .order_by(Match.order_index)
-        .all()
-    )
-    checks = (
-        db.query(PhysicalCheck)
-        .filter(PhysicalCheck.date >= start, PhysicalCheck.date <= end)
-        .all()
-    )
-    checks_by_date = physical_checks_by_date(checks)
-    notes = (
-        db.query(DayNote).filter(DayNote.date >= start, DayNote.date <= end).all()
-    )
-    notes_by_date = {n.date.isoformat(): n.text for n in notes}
+    activities = rng.activities
+    matches = rng.matches
+    checks_by_date = rng.checks_by_date
+    notes_by_date = rng.notes_by_date
 
     cells: dict[str, schemas.CellData] = {}
 
@@ -357,7 +412,7 @@ def build_week(
 
     # Duration cells (sum minutes per category/day).
     minutes: dict[str, int] = {}
-    notes: dict[str, str] = {}
+    cell_notes: dict[str, str] = {}  # per-cell activity note (not the day note)
     starts: set[str] = set()  # keys whose day starts a coaching package
     for a in activities:
         if a.category_id not in duration_ids:
@@ -365,13 +420,13 @@ def build_week(
         k = f"{a.category_id}|{a.date.isoformat()}"
         minutes[k] = minutes.get(k, 0) + (a.duration_minutes or 0)
         if a.note:
-            notes[k] = a.note
+            cell_notes[k] = a.note
         if a.is_package_start:
             starts.add(k)
     for k, mins in minutes.items():
         text = format_duration(mins)
-        if k in notes:
-            text = f"{text} ({notes[k]})".strip()
+        if k in cell_notes:
+            text = f"{text} ({cell_notes[k]})".strip()
         if k in starts:  # first session of a new 10-session coaching package
             text = f"{text} {PACKAGE_MARK}".strip()
         cells[k] = schemas.CellData(display=text)
@@ -543,35 +598,43 @@ def _blank_match_stats() -> dict:
     return {"total": 0, "wins": 0, "losses": 0, "ties": 0, "sets_won": 0, "sets_lost": 0}
 
 
+def win_rate(wins: int, losses: int) -> float | None:
+    """Win rate over *decided* matches (ties excluded). None if none decided."""
+    decided = wins + losses
+    return (wins / decided) if decided else None
+
+
+def _result_of(m: Match) -> str:
+    return "W" if m.my_sets > m.opp_sets else "L" if m.my_sets < m.opp_sets else "T"
+
+
+def _tally(s: dict, m: Match) -> None:
+    """Fold one playing match into a _blank_match_stats() accumulator."""
+    s["total"] += 1
+    s["sets_won"] += m.my_sets
+    s["sets_lost"] += m.opp_sets
+    r = _result_of(m)
+    if r == "W":
+        s["wins"] += 1
+    elif r == "L":
+        s["losses"] += 1
+    else:
+        s["ties"] += 1
+
+
 def _finalize_match_stats(s: dict) -> schemas.MatchStats:
-    decided = s["wins"] + s["losses"]
-    win_rate = (s["wins"] / decided) if decided else None
-    return schemas.MatchStats(**s, win_rate=win_rate)
+    return schemas.MatchStats(**s, win_rate=win_rate(s["wins"], s["losses"]))
 
 
 def build_stats(db: Session, date_from: dt.date, date_to: dt.date) -> schemas.StatsResponse:
     dates = _date_range(date_from, date_to)
     iso_dates = [d.isoformat() for d in dates]
 
-    categories = db.query(Category).order_by(Category.sort_order).all()
-    duration_cats = [c for c in categories if c.type == "duration"]
+    rng = _load_range(db, date_from, date_to, with_match_relations=False)
+    duration_cats = [c for c in rng.categories if c.type == "duration"]
     duration_ids = {c.id for c in duration_cats}
-
-    activities = (
-        db.query(Activity)
-        .filter(Activity.date >= date_from, Activity.date <= date_to)
-        .all()
-    )
-    matches = (
-        db.query(Match)
-        .filter(Match.date >= date_from, Match.date <= date_to)
-        .all()
-    )
-    checks = (
-        db.query(PhysicalCheck)
-        .filter(PhysicalCheck.date >= date_from, PhysicalCheck.date <= date_to)
-        .all()
-    )
+    activities = rng.activities
+    matches = rng.matches
 
     # Per-day aggregates.
     minutes_per_day: dict[str, int] = {iso: 0 for iso in iso_dates}
@@ -586,9 +649,8 @@ def build_stats(db: Session, date_from: dt.date, date_to: dt.date) -> schemas.St
         minutes_per_day[iso] = minutes_per_day.get(iso, 0) + a.duration_minutes
         minutes_by_cat[a.category_id] += a.duration_minutes
 
-    for c in checks:
-        iso = c.date.isoformat()
-        physical_per_day[iso] = physical_per_day.get(iso, 0) + 1
+    for iso, keys in rng.checks_by_date.items():
+        physical_per_day[iso] = physical_per_day.get(iso, 0) + len(keys)
 
     # Match stats (playing matches only), split by discipline.
     overall = _blank_match_stats()
@@ -602,16 +664,8 @@ def build_stats(db: Session, date_from: dt.date, date_to: dt.date) -> schemas.St
         matches_per_day[iso] = matches_per_day.get(iso, 0) + 1
 
         bucket = doubles if m.discipline == "doubles" else singles
-        for s in (overall, bucket):
-            s["total"] += 1
-            s["sets_won"] += m.my_sets
-            s["sets_lost"] += m.opp_sets
-            if m.my_sets > m.opp_sets:
-                s["wins"] += 1
-            elif m.my_sets < m.opp_sets:
-                s["losses"] += 1
-            else:
-                s["ties"] += 1
+        _tally(overall, m)
+        _tally(bucket, m)
 
     # Day-level counts.
     days_trained = sum(
@@ -691,24 +745,14 @@ def build_breakdown(
     db: Session, date_from: dt.date, date_to: dt.date, unit: str
 ) -> schemas.BreakdownResponse:
     """Per-sub-period metrics for the comparison bar chart."""
-    activities = (
-        db.query(Activity)
-        .filter(Activity.date >= date_from, Activity.date <= date_to)
-        .all()
-    )
-    matches = (
-        db.query(Match).filter(Match.date >= date_from, Match.date <= date_to).all()
-    )
-    checks = (
-        db.query(PhysicalCheck)
-        .filter(PhysicalCheck.date >= date_from, PhysicalCheck.date <= date_to)
-        .all()
-    )
-    duration_ids = {c.id for c in db.query(Category).filter(Category.type == "duration")}
+    rng = _load_range(db, date_from, date_to, with_match_relations=False)
+    activities = rng.activities
+    matches = rng.matches
+    duration_ids = {c.id for c in rng.categories if c.type == "duration"}
 
     # Per-day aggregates.
     minutes: dict[str, int] = {}
-    physical: set[str] = set()
+    physical: set[str] = set(rng.checks_by_date.keys())
     mcount: dict[str, int] = {}
     wins: dict[str, int] = {}
     losses: dict[str, int] = {}
@@ -717,16 +761,15 @@ def build_breakdown(
         if a.category_id in duration_ids and (a.duration_minutes or 0) > 0:
             iso = a.date.isoformat()
             minutes[iso] = minutes.get(iso, 0) + a.duration_minutes
-    for c in checks:
-        physical.add(c.date.isoformat())
     for m in matches:
         if m.is_nonplaying:
             continue
         iso = m.date.isoformat()
         mcount[iso] = mcount.get(iso, 0) + 1
-        if m.my_sets > m.opp_sets:
+        r = _result_of(m)
+        if r == "W":
             wins[iso] = wins.get(iso, 0) + 1
-        elif m.my_sets < m.opp_sets:
+        elif r == "L":
             losses[iso] = losses.get(iso, 0) + 1
 
     buckets: list[schemas.BreakdownBucket] = []
@@ -745,7 +788,6 @@ def build_breakdown(
                 b_phys += 1
             if mins > 0 or ph or mc > 0:
                 b_trained += 1
-        decided = b_w + b_l
         buckets.append(
             schemas.BreakdownBucket(
                 key=key,
@@ -758,7 +800,7 @@ def build_breakdown(
                 matches=b_m,
                 wins=b_w,
                 losses=b_l,
-                win_rate=(b_w / decided) if decided else None,
+                win_rate=win_rate(b_w, b_l),
             )
         )
 
@@ -771,23 +813,6 @@ _LEVEL_ORDER = ["below", "equal", "above"]
 _CATEGORY_KEY = {"practice": "practice_match", "official": "official_match"}
 # Match tracking with opponents began June 2026; ignore anything before.
 MATCH_STATS_FLOOR = dt.date(2026, 6, 1)
-
-
-def _result_of(m: Match) -> str:
-    return "W" if m.my_sets > m.opp_sets else "L" if m.my_sets < m.opp_sets else "T"
-
-
-def _tally(s: dict, m: Match) -> None:
-    s["total"] += 1
-    s["sets_won"] += m.my_sets
-    s["sets_lost"] += m.opp_sets
-    r = _result_of(m)
-    if r == "W":
-        s["wins"] += 1
-    elif r == "L":
-        s["losses"] += 1
-    else:
-        s["ties"] += 1
 
 
 def build_match_stats(
@@ -809,6 +834,12 @@ def build_match_stats(
     date_from = max(date_from, MATCH_STATS_FLOOR)
     q = (
         db.query(Match)
+        .options(
+            selectinload(Match.event),
+            selectinload(Match.opponent),
+            selectinload(Match.opponent2),
+            selectinload(Match.partner),
+        )
         .filter(
             Match.date >= date_from,
             Match.date <= date_to,
@@ -904,7 +935,6 @@ def build_match_stats(
         )
 
     def _opp_record(rec: dict) -> schemas.OpponentRecord:
-        decided = rec["wins"] + rec["losses"]
         return schemas.OpponentRecord(
             opponent_id=rec["opponent_id"],
             name=rec["name"],
@@ -915,14 +945,13 @@ def build_match_stats(
             ties=rec["ties"],
             sets_won=rec["sets_won"],
             sets_lost=rec["sets_lost"],
-            win_rate=(rec["wins"] / decided) if decided else None,
+            win_rate=win_rate(rec["wins"], rec["losses"]),
             last_date=rec["last_date"],
             last_result=rec["last_result"],
             matches=list(reversed(rec.get("matches", []))),  # most recent first
         )
 
     def _dbl_record(rec: dict) -> schemas.DoublesRecord:
-        decided = rec["wins"] + rec["losses"]
         return schemas.DoublesRecord(
             key=rec["key"],
             partner_id=rec["partner_id"],
@@ -940,7 +969,7 @@ def build_match_stats(
             ties=rec["ties"],
             sets_won=rec["sets_won"],
             sets_lost=rec["sets_lost"],
-            win_rate=(rec["wins"] / decided) if decided else None,
+            win_rate=win_rate(rec["wins"], rec["losses"]),
             last_date=rec["last_date"],
             last_result=rec["last_result"],
             matches=list(reversed(rec.get("matches", []))),  # most recent first
@@ -969,11 +998,11 @@ def build_match_stats(
         for d in _date_range(b_from, b_to):
             for m in by_iso.get(d.isoformat(), []):
                 b_m += 1
-                if m.my_sets > m.opp_sets:
+                r = _result_of(m)
+                if r == "W":
                     b_w += 1
-                elif m.my_sets < m.opp_sets:
+                elif r == "L":
                     b_l += 1
-        decided = b_w + b_l
         trend.append(
             schemas.MatchTrendBucket(
                 key=key,
@@ -983,7 +1012,7 @@ def build_match_stats(
                 matches=b_m,
                 wins=b_w,
                 losses=b_l,
-                win_rate=(b_w / decided) if decided else None,
+                win_rate=win_rate(b_w, b_l),
             )
         )
 
@@ -1019,30 +1048,13 @@ def _date_range(date_from: dt.date, date_to: dt.date) -> list[dt.date]:
 def _build_grid(db: Session, date_from: dt.date, date_to: dt.date):
     """Return (categories, dates, cell_text, rating_by_date, cell_colors)."""
     dates = _date_range(date_from, date_to)
-    categories = db.query(Category).order_by(Category.sort_order).all()
+    rng = _load_range(db, date_from, date_to)
+    categories = rng.categories
     cat_by_key = {c.key: c for c in categories}
     duration_ids = {c.id for c in categories if c.type == "duration"}
-
-    activities = (
-        db.query(Activity)
-        .filter(Activity.date >= date_from, Activity.date <= date_to)
-        .all()
-    )
-    matches = (
-        db.query(Match)
-        .filter(Match.date >= date_from, Match.date <= date_to)
-        .order_by(Match.order_index)
-        .all()
-    )
-    checks = (
-        db.query(PhysicalCheck)
-        .filter(PhysicalCheck.date >= date_from, PhysicalCheck.date <= date_to)
-        .all()
-    )
-    checks_by_date = physical_checks_by_date(checks)
-    day_notes = (
-        db.query(DayNote).filter(DayNote.date >= date_from, DayNote.date <= date_to).all()
-    )
+    activities = rng.activities
+    matches = rng.matches
+    checks_by_date = rng.checks_by_date
 
     text: dict[tuple[int, str], str] = {}
     cell_colors: dict[tuple[int, str], str] = {}
@@ -1073,8 +1085,8 @@ def _build_grid(db: Session, date_from: dt.date, date_to: dt.date):
     # Notes cells: export the full text (not the truncated grid preview).
     notes_cat = cat_by_key.get("notes")
     if notes_cat is not None:
-        for n in day_notes:
-            text[(notes_cat.id, n.date.isoformat())] = n.text
+        for iso, note_text in rng.notes_by_date.items():
+            text[(notes_cat.id, iso)] = note_text
 
     # Overall row colors are auto-generated, matching the on-screen grid.
     rating_by_date = compute_overall_colors(

@@ -4,7 +4,6 @@ from __future__ import annotations
 import datetime as dt
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -28,17 +27,10 @@ def list_categories(db: Session = Depends(get_db)):
 
 
 # ---------------------------------------------------------------- last date
-@router.get("/last-date")
+@router.get("/last-date", response_model=schemas.LastDateResponse)
 def last_date(db: Session = Depends(get_db)):
     """The most recent date that has any data (for opening the grid there)."""
-    candidates = [
-        db.query(func.max(Activity.date)).scalar(),
-        db.query(func.max(Match.date)).scalar(),
-        db.query(func.max(PhysicalCheck.date)).scalar(),
-    ]
-    dates = [d for d in candidates if d is not None]
-    latest = max(dates) if dates else None
-    return {"date": latest.isoformat() if latest else None}
+    return schemas.LastDateResponse(date=service.latest_data_date(db))
 
 
 # ---------------------------------------------------------------- week
@@ -191,7 +183,7 @@ def list_physical_items():
     ]
 
 
-@router.put("/physical-checks")
+@router.put("/physical-checks", response_model=schemas.PhysicalChecksOut)
 def set_physical_checks(payload: schemas.PhysicalChecksIn, db: Session = Depends(get_db)):
     """Replace the full set of ticked items for a day."""
     valid = {key for key, _ in service.PHYSICAL_ITEMS}
@@ -201,11 +193,11 @@ def set_physical_checks(payload: schemas.PhysicalChecksIn, db: Session = Depends
     for key in wanted:
         db.add(PhysicalCheck(date=payload.date, item_key=key))
     db.commit()
-    return {"date": payload.date.isoformat(), "items": wanted}
+    return schemas.PhysicalChecksOut(date=payload.date, items=wanted)
 
 
 # ---------------------------------------------------------------- day notes
-@router.put("/day-notes")
+@router.put("/day-notes", response_model=schemas.DayNoteOut)
 def upsert_day_note(payload: schemas.DayNoteIn, db: Session = Depends(get_db)):
     """Upsert a day's note. Empty text deletes it."""
     text = (payload.text or "").strip()
@@ -214,13 +206,13 @@ def upsert_day_note(payload: schemas.DayNoteIn, db: Session = Depends(get_db)):
         if existing:
             db.delete(existing)
             db.commit()
-        return {"date": payload.date.isoformat(), "text": ""}
+        return schemas.DayNoteOut(date=payload.date, text="")
     if existing:
         existing.text = text
     else:
         db.add(DayNote(date=payload.date, text=text))
     db.commit()
-    return {"date": payload.date.isoformat(), "text": text}
+    return schemas.DayNoteOut(date=payload.date, text=text)
 
 
 # ---------------------------------------------------------------- events
