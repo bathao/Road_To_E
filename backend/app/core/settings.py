@@ -11,6 +11,21 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 DATABASE_PATH = DATA_DIR / "tabletennis.db"
 DATABASE_URL = f"sqlite:///{DATABASE_PATH.as_posix()}"
 
+# Uploaded clips for the Video Analysis tab (raw media is gitignored).
+VIDEOS_DIR = DATA_DIR / "videos"
+VIDEOS_DIR.mkdir(parents=True, exist_ok=True)
+
+# Reference images of the user, for auto-identifying them in clips.
+PROFILE_REFS_DIR = DATA_DIR / "profile_refs"
+PROFILE_REFS_DIR.mkdir(parents=True, exist_ok=True)
+
+# Local AI (Ollama) used by the Video Analysis tab. Ollama runs as a separate
+# process and serves a GPU-backed vision-language model on this port.
+OLLAMA_BASE_URL = "http://localhost:11434"
+DEFAULT_VLM_MODEL = "qwen3-vl:8b"
+# Text-only model used to synthesise the living profile summaries from traits.
+DEFAULT_TEXT_MODEL = "qwen3:14b"
+
 # Built frontend (Vite output). Served as the SPA in production.
 FRONTEND_DIST = PROJECT_DIR / "frontend" / "dist"
 

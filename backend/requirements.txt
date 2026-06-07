@@ -3,3 +3,11 @@ uvicorn[standard]==0.34.0
 SQLAlchemy==2.0.36
 openpyxl==3.1.5
 pydantic==2.10.4
+# Video Analysis tab: HTTP client for local Ollama, multipart uploads,
+# frame decoding + pose estimation. (Pinned for Python 3.12; mediapipe has no
+# 3.13 wheels yet — start.bat builds the venv with py -3.12.)
+httpx==0.28.1
+python-multipart==0.0.20
+opencv-python==4.11.0.86
+mediapipe==0.10.21
+numpy==1.26.4

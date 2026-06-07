@@ -1,0 +1,263 @@
+import { useState } from "react";
+import type { ClipDetail, Side } from "../types";
+import { ASPECT_LABEL, CLIP_TYPE_LABEL, SIDE_LABEL, SIDE_ORDER, STATUS_LABEL } from "../labels";
+import BoxAnnotator, { type Box } from "./BoxAnnotator";
+
+interface Props {
+  detail: ClipDetail;
+  videoUrl: string;
+  previewUrl: string;
+  frameUrl: string;
+  reanalyzing: boolean;
+  identifying: boolean;
+  cropping: boolean;
+  onReanalyze: () => void;
+  onIdentify: (side: Side, appearance: string) => void;
+  onConfirm: () => void;
+  onCropReference: (box: Box) => Promise<boolean>;
+  onDelete: () => void;
+}
+
+type Metric = { mean: number; min: number; max: number } | null | undefined;
+
+function metricText(m: Metric, unit = ""): string {
+  if (!m) return "—";
+  return `${m.mean}${unit} (${m.min}–${m.max}${unit})`;
+}
+
+export default function AnalysisDetail({
+  detail,
+  videoUrl,
+  previewUrl,
+  frameUrl,
+  reanalyzing,
+  identifying,
+  cropping,
+  onReanalyze,
+  onIdentify,
+  onConfirm,
+  onCropReference,
+  onDelete,
+}: Props) {
+  const [side, setSide] = useState<Side>(detail.me_side || "");
+  const [appearance, setAppearance] = useState(detail.me_appearance || "");
+  const [correcting, setCorrecting] = useState(false);
+  const [annotating, setAnnotating] = useState(false);
+  const [savedNote, setSavedNote] = useState(false);
+
+  const toggleAnnotator = () => {
+    setSavedNote(false);
+    setAnnotating((v) => !v);
+  };
+
+  const saveBox = async (box: Box) => {
+    const ok = await onCropReference(box);
+    if (ok) {
+      setAnnotating(false);
+      setSavedNote(true);
+    }
+  };
+  const a = detail.analysis;
+  const raw = a?.raw;
+  const pose = (a?.pose ?? {}) as Record<string, any>;
+  const poseAvailable = pose.available && pose.frames_with_pose > 0;
+
+  return (
+    <section className="va-card va-detail">
+      <div className="va-card-head">
+        <h3>{detail.title || detail.original_name}</h3>
+        <div className="va-row-gap">
+          <button className="btn" disabled={reanalyzing} onClick={onReanalyze}>
+            {reanalyzing ? "Đang phân tích…" : "↻ Phân tích lại"}
+          </button>
+          <button className="btn danger" onClick={onDelete}>Xóa</button>
+        </div>
+      </div>
+
+      <div className="va-detail-grid">
+        <div className="va-video-wrap">
+          <video src={videoUrl} controls className="va-video" />
+          <div className="va-muted va-video-meta">
+            {CLIP_TYPE_LABEL[detail.clip_type]}
+            {detail.fps ? ` · ${detail.fps} fps` : ""}
+            {detail.frames_sampled ? ` · ${detail.frames_sampled} khung phân tích` : ""}
+            {detail.model ? ` · ${detail.model}` : ""}
+          </div>
+        </div>
+
+        <div className="va-analysis">
+          {detail.status === "processing" && (
+            <p className="va-muted">⏳ Bước 1: đang nhận diện bạn trong clip…</p>
+          )}
+          {detail.status === "analyzing" && (
+            <p className="va-muted">⏳ Bước 2: đang phân tích chuyên sâu… (30–120 giây)</p>
+          )}
+          {detail.status === "error" && (
+            <div className="pb-error">Lỗi: {detail.error_msg}</div>
+          )}
+          {detail.status === "pending" && (
+            <p className="va-muted">{STATUS_LABEL.pending}</p>
+          )}
+
+          {detail.subject_desc && detail.status !== "needs_id" && (
+            <p className={`va-subject${detail.identified ? "" : " va-subject-warn"}`}>
+              {detail.identified ? "🎯 Model nhận diện bạn là: " : "❓ Model đoán: "}
+              {detail.subject_desc}
+            </p>
+          )}
+
+          {/* Step-1 result → confirm before deep analysis */}
+          {detail.status === "awaiting_confirm" && (
+            <div className="va-confirm">
+              <h4>Đây có phải là bạn không?</h4>
+              <div className="va-confirm-body">
+                <img className="va-preview" src={previewUrl} alt="người được nhận diện"
+                  onError={(e) => ((e.target as HTMLImageElement).style.display = "none")} />
+                <div>
+                  <p className="va-muted">
+                    Model cho rằng bạn ở <b>{SIDE_LABEL[detail.me_side] ?? detail.me_side}</b>
+                    {detail.me_appearance ? <>, <b>{detail.me_appearance}</b></> : null}. Xác nhận
+                    để bắt đầu phân tích chuyên sâu; ảnh này sẽ được lưu giúp nhận đúng lần sau.
+                  </p>
+                  <div className="va-row-gap">
+                    <button className="btn primary" disabled={identifying} onClick={onConfirm}>
+                      {identifying ? "…" : "✓ Đúng là tôi — phân tích"}
+                    </button>
+                    <button className="btn" onClick={() => setCorrecting((v) => !v)}>
+                      ✗ Không đúng — sửa
+                    </button>
+                    <button className="btn" onClick={toggleAnnotator}>
+                      ✏️ Khoanh vùng là tôi
+                    </button>
+                  </div>
+                  {savedNote && (
+                    <p className="va-saved-note">✓ Đã lưu vào ảnh nhận diện (xem cột Hồ sơ bên trái).</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Ask / correct identity form */}
+          {(detail.status === "needs_id" || (detail.status === "awaiting_confirm" && correcting)) && (
+            <div className="va-needs-id">
+              {detail.status === "needs_id" && <h4>❓ Model chưa nhận ra bạn</h4>}
+              <p className="va-muted">
+                Cho biết bạn ở đâu / mặc gì trong clip này. Sau khi xác nhận, ảnh của bạn được
+                lưu để các lần sau nhận đúng hơn.
+              </p>
+              <div className="va-needs-id-row">
+                <select className="pb-select" value={side}
+                  onChange={(e) => setSide(e.target.value as Side)}>
+                  {SIDE_ORDER.map((s) => (
+                    <option key={s} value={s}>{SIDE_LABEL[s]}</option>
+                  ))}
+                </select>
+                <input className="pb-input" value={appearance} placeholder="áo màu… (tùy chọn)"
+                  onChange={(e) => setAppearance(e.target.value)} />
+                <button className="btn primary" disabled={identifying || !side}
+                  onClick={() => onIdentify(side, appearance)}>
+                  {identifying ? "Đang xử lý…" : "Xác nhận & phân tích"}
+                </button>
+              </div>
+              <button className="btn va-mt" onClick={toggleAnnotator}>
+                ✏️ Hoặc khoanh vùng là tôi trên khung hình
+              </button>
+            </div>
+          )}
+
+          {annotating &&
+            (detail.status === "awaiting_confirm" || detail.status === "needs_id") && (
+              <BoxAnnotator
+                imageUrl={frameUrl}
+                saving={cropping}
+                onSave={saveBox}
+                onCancel={() => setAnnotating(false)}
+              />
+            )}
+
+          {a && raw && detail.status === "done" && (
+            <>
+              {raw.summary && <p className="va-summary-block">{raw.summary}</p>}
+
+              <div className="va-sw-cols">
+                <div>
+                  <h4 className="va-strength-h">✅ Điểm mạnh</h4>
+                  <ul className="va-sw-list">
+                    {(raw.strengths ?? []).map((s, i) => (
+                      <li key={i}>
+                        <span className="va-aspect-tag">{ASPECT_LABEL[s.aspect] ?? s.aspect}</span>
+                        {s.text}
+                      </li>
+                    ))}
+                    {(raw.strengths ?? []).length === 0 && <li className="va-muted">—</li>}
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="va-weakness-h">⚠️ Điểm yếu</h4>
+                  <ul className="va-sw-list">
+                    {(raw.weaknesses ?? []).map((w, i) => (
+                      <li key={i}>
+                        <span className="va-aspect-tag">{ASPECT_LABEL[w.aspect] ?? w.aspect}</span>
+                        {w.text}
+                      </li>
+                    ))}
+                    {(raw.weaknesses ?? []).length === 0 && <li className="va-muted">—</li>}
+                  </ul>
+                </div>
+              </div>
+
+              <div className="va-aspect-blocks">
+                {raw.serve && (raw.serve.type || raw.serve.notes) && (
+                  <div className="va-aspect-block">
+                    <h4>🏓 Giao bóng{raw.serve.type ? `: ${raw.serve.type}` : ""}</h4>
+                    <p>{raw.serve.notes}</p>
+                  </div>
+                )}
+                {raw.footwork?.notes && (
+                  <div className="va-aspect-block">
+                    <h4>👣 Bộ chân</h4>
+                    <p>{raw.footwork.notes}</p>
+                  </div>
+                )}
+                {raw.posture?.notes && (
+                  <div className="va-aspect-block">
+                    <h4>🧍 Tư thế / thân người</h4>
+                    <p>{raw.posture.notes}</p>
+                  </div>
+                )}
+              </div>
+
+              {(raw.recommendations ?? []).length > 0 && (
+                <div className="va-aspect-block">
+                  <h4>🎯 Gợi ý luyện tập</h4>
+                  <ul className="va-rec-list">
+                    {raw.recommendations!.map((r, i) => <li key={i}>{r}</li>)}
+                  </ul>
+                </div>
+              )}
+
+              <div className="va-aspect-block">
+                <h4>📐 Số liệu pose (đo tự động)</h4>
+                {poseAvailable ? (
+                  <table className="va-pose-table">
+                    <tbody>
+                      <tr><td>Độ rộng tấn (so với vai)</td><td>{metricText(pose.stance_width_ratio)}</td></tr>
+                      <tr><td>Góc gập gối</td><td>{metricText(pose.knee_flexion_deg, "°")}</td></tr>
+                      <tr><td>Độ nghiêng thân</td><td>{metricText(pose.torso_lean_deg, "°")}</td></tr>
+                      <tr><td>Biên độ di chuyển ngang (bộ chân)</td><td>{pose.lateral_sway ?? "—"}</td></tr>
+                      <tr><td>Độ cao tay (so với vai)</td><td>{metricText(pose.hand_elevation)}</td></tr>
+                      <tr><td>Khung phát hiện người</td><td>{pose.frames_with_pose}/{pose.frames_analyzed}</td></tr>
+                    </tbody>
+                  </table>
+                ) : (
+                  <p className="va-muted">{pose.reason || "Không có dữ liệu pose."}</p>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}

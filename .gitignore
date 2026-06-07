@@ -12,6 +12,12 @@ backend/.venv/
 *.sqlite-wal
 *.sqlite-shm
 
+# ---- Uploaded videos (Video Analysis tab) ----
+# Clips can be large; keep them out of the repo. The DB still tracks their
+# metadata + AI analysis, so only the raw media files are ignored.
+backend/data/videos/
+backend/data/profile_refs/
+
 # ---- Node / frontend ----
 frontend/node_modules/
 frontend/dist/

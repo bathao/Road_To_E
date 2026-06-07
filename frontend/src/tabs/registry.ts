@@ -4,6 +4,7 @@ import type { ComponentType } from "react";
 import DailyTracker from "./daily-tracker";
 import TacticalPlaybook from "./tactical-playbook";
 import MatchStats from "./match-stats";
+import VideoAnalysis from "./video-analysis";
 
 export interface TabDef {
   id: string;
@@ -33,6 +34,13 @@ export const TABS: TabDef[] = [
     label: "Match Stats",
     icon: "📊",
     component: MatchStats,
+    enabled: true,
+  },
+  {
+    id: "video-analysis",
+    label: "Video Analysis",
+    icon: "🎬",
+    component: VideoAnalysis,
     enabled: true,
   },
   {
