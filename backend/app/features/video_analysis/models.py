@@ -5,8 +5,13 @@ The schema revolves around a single player ("me" = Nguyễn Bá Thảo):
 - ``VAProfile``  – one living profile row (id=1): basics + AI-maintained summaries.
 - ``VAClip``     – one uploaded video clip + processing status.
 - ``VAAnalysis`` – the AI result for a clip (one current row per clip).
-- ``VATrait``    – atomic strength/weakness observations that accumulate across
-                   clips into the profile ("everything about me").
+- ``VATrait``    – atomic strength/weakness *findings* that accumulate across
+                   clips; each carries a review ``status`` (proposed→the user
+                   confirms accepted/rejected) so only confirmed ones count.
+- ``VASkill``    – the systematic skill ledger (one row per aspect): a 1–10
+                   rating + status + assessment, synthesised from accepted
+                   findings and editable by the user. This is the structured
+                   view a future "brain" reads to understand the player.
 
 JSON blobs (``raw_json``, ``pose_json``) are stored as TEXT and (de)serialised
 in the service layer to keep this dependency-free on SQLite.
@@ -76,6 +81,17 @@ class VAClip(Base):
     status: Mapped[str] = mapped_column(String, default="pending")
     error_msg: Mapped[str | None] = mapped_column(Text, default=None)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    # When the current background job (detect or deep analysis) started — used to
+    # show an elapsed timer + estimated progress bar while status is
+    # processing/analyzing. Reset each time a new job is kicked off.
+    processing_started_at: Mapped[dt.datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None
+    )
+    # Set when the user has reviewed this clip's findings (accepted/rejected).
+    # NULL while status=done means "analysed, waiting for the user to confirm".
+    reviewed_at: Mapped[dt.datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None
+    )
 
     # Who in the frame is the user. me_side: where I stand (left|right|top|bottom|
     # alone|""); me_appearance: free text hint ("áo đỏ"); subject_desc: the model's
@@ -129,7 +145,9 @@ class VAProfileImage(Base):
 
 
 class VATrait(Base):
-    """An atomic observation about the player, accumulated across clips."""
+    """An atomic finding about the player, accumulated across clips. Findings
+    start as ``proposed`` (the AI's suggestion) and only count once the user
+    confirms them (``accepted``); rejected ones are kept for provenance."""
 
     __tablename__ = "va_trait"
 
@@ -137,8 +155,15 @@ class VATrait(Base):
     # serve|receive|forehand|backhand|footwork|stance_posture|tactics|mental|physical|other
     aspect: Mapped[str] = mapped_column(String, index=True, default="other")
     polarity: Mapped[str] = mapped_column(String, index=True, default="neutral")  # strength|weakness|neutral
-    text: Mapped[str] = mapped_column(Text)
+    text: Mapped[str] = mapped_column(Text)  # current text (may be user-edited)
+    ai_text: Mapped[str | None] = mapped_column(Text, default=None)  # original AI text
     confidence: Mapped[float | None] = mapped_column(Float, default=None)
+    # proposed = AI suggestion awaiting review; accepted = confirmed by the user
+    # (counts towards the profile); rejected = dismissed.
+    status: Mapped[str] = mapped_column(String, index=True, default="proposed")
+    reviewed_at: Mapped[dt.datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None
+    )
     # NULL = manually added by the user; otherwise the clip it was extracted from.
     source_clip_id: Mapped[int | None] = mapped_column(
         ForeignKey("va_clip.id", ondelete="CASCADE"), default=None, index=True
@@ -146,3 +171,22 @@ class VATrait(Base):
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     source_clip: Mapped[VAClip | None] = relationship("VAClip", back_populates="traits")
+
+
+class VASkill(Base):
+    """The systematic skill ledger: one row per aspect, holding the player's
+    current level. Synthesised from accepted findings by the local text model
+    and editable by the user (the user's edit is authoritative)."""
+
+    __tablename__ = "va_skill"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    aspect: Mapped[str] = mapped_column(String, unique=True, index=True)
+    rating: Mapped[int | None] = mapped_column(Integer, default=None)  # 1..10, NULL = unrated
+    # strength|weakness|improving|needs_work|neutral
+    status: Mapped[str] = mapped_column(String, default="neutral")
+    assessment: Mapped[str] = mapped_column(Text, default="")  # qualitative summary
+    priority: Mapped[int | None] = mapped_column(Integer, default=None)  # improvement order
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
+    )

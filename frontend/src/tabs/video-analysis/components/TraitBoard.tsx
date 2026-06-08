@@ -42,13 +42,14 @@ export default function TraitBoard({ traits, onAdd, onDelete }: Props) {
   return (
     <section className="va-card">
       <div className="va-card-head">
-        <h3>🧬 Điểm mạnh / điểm yếu (tích lũy)</h3>
+        <h3>🧬 Kho nhận xét đã duyệt</h3>
         <span className="va-muted">{traits.length} nhận xét</span>
       </div>
 
       {orderedAspects.length === 0 ? (
         <p className="va-muted">
-          Chưa có nhận xét nào. Tải clip lên để AI rút ra điểm mạnh/yếu, hoặc thêm tay ở dưới.
+          Chưa có nhận xét nào được duyệt. Phân tích một clip rồi <b>Duyệt</b> các nhận xét
+          đúng, hoặc thêm tay ở dưới.
         </p>
       ) : (
         <div className="va-trait-groups">

@@ -5,6 +5,7 @@ import DailyTracker from "./daily-tracker";
 import TacticalPlaybook from "./tactical-playbook";
 import MatchStats from "./match-stats";
 import VideoAnalysis from "./video-analysis";
+import PlayerProfile from "./profile";
 
 export interface TabDef {
   id: string;
@@ -41,6 +42,13 @@ export const TABS: TabDef[] = [
     label: "Video Analysis",
     icon: "🎬",
     component: VideoAnalysis,
+    enabled: true,
+  },
+  {
+    id: "profile",
+    label: "Profile",
+    icon: "🪪",
+    component: PlayerProfile,
     enabled: true,
   },
   {

@@ -1,13 +1,13 @@
 # Progress Log — Table Tennis Coach
 
-## Current status (2026-06-07)
+## Current status (2026-06-08)
 
-**Four tabs in place.** Tab 1 "Daily Tracker" feature-complete; Tab 2 "Tactical
+**Five tabs in place.** Tab 1 "Daily Tracker" feature-complete; Tab 2 "Tactical
 Playbook" v1; Tab 3 "Match Stats" (named-opponent analytics); Tab 4 "Video
-Analysis" — local-AI clip analysis (new, this session). Stack: FastAPI + SQLite
-backend, React + Vite + TS frontend, served on one port by `start.bat`. The
-backend venv is now **Python 3.12** (mediapipe ships no 3.13 wheels); `start.bat`
-builds it with `py -3.12`.
+Analysis" — local-AI clip analysis; Tab 5 "Profile" — a read-only player
+dashboard. Stack: FastAPI + SQLite backend, React + Vite + TS frontend, served
+on one port by `start.bat`. The backend venv is **Python 3.12** (mediapipe ships
+no 3.13 wheels); `start.bat` builds it with `py -3.12`.
 
 **Tab 4 "Video Analysis"** — point the tab at a video file on disk (local-only,
 no browser upload), optionally give a trim range (mm:ss) to cut a short segment
@@ -34,8 +34,39 @@ confirmation does step 2 run the deep analysis. Crops of the confirmed player ar
 saved to `backend/data/profile_refs/` + `va_profile_image`, so later clips are
 identified automatically; if the model is unsure it sets `needs_id` and asks.
 States: `pending → processing(detect) → awaiting_confirm | needs_id →
-analyzing → done | error`. The native file picker is per-monitor-v2 DPI-aware so
-the dialog is crisp on scaled displays.
+analyzing → done | error | stopped`. The native file picker is per-monitor-v2
+DPI-aware so the dialog is crisp on scaled displays.
+
+**Review gate + skill ledger (2026-06-08).** AI findings no longer auto-save: an
+analysis lands as `done` with findings in status `proposed`; the user reviews
+them (tick to keep, edit text, or untick to reject — "duyệt cả clip + sửa lẻ")
+and only `accepted` findings count. A new `va_skill` table is the systematic
+ledger — one row per aspect (serve/receive/forehand/backhand/footwork/
+stance_posture/tactics/mental/physical) with a 1–10 rating + status + assessment
++ priority, synthesised from accepted findings by the local text model and
+hand-editable. `GET /api/video/report` is the machine-readable "brain view"
+(skills + strengths/weaknesses/priorities). Old findings were migrated to
+`proposed` (not auto-accepted). Honest limit: ratings are the model's estimate
+from the written findings, not a calibrated score; the user's edit is canonical.
+
+**Tab 5 "Profile"** — a read-only dashboard centred on Nguyễn Bá Thảo that
+assembles existing endpoints (no new backend): header (avatar from the identity
+gallery + basics + AI overall summary), a hand-rolled SVG **skill radar** (9
+axes) + rating bars, strengths/weaknesses, improvement priorities, plus a
+**competitive snapshot** (win rate overall + by opponent level, from
+`/tracker/match-stats`) and a **training snapshot** (days trained / hours /
+physical days, from `/tracker/stats`) with a 30/90/365-day/all range selector.
+Editing skills/findings stays in Video Analysis; Profile mirrors them read-only.
+
+**Speed + control (2026-06-08).** Clip trimming now uses the GPU: `trim_segment`
+tries full-GPU (NVDEC decode + NVENC encode) → NVENC-only → CPU `libx264`,
+falling back per tier (verified ~9–10× on this RTX 5060 Ti). While a clip is
+processing/analyzing the detail view shows an **elapsed timer + estimated
+progress bar** (start time stored server-side in `va_clip.processing_started_at`,
+so it survives reloads; the bar caps at 95% until the job truly finishes). A
+**Stop** button cancels a running job cooperatively: the clip flips to `stopped`
+immediately and the worker discards its result after the current step (the
+in-flight Ollama call finishes in the background but nothing stale is saved).
 
 **Tab 2 "Tactical Playbook"** — a tactic knowledge base with two areas: *My
 Tactics* (the user's own playbook — manual add or copied up from the Library;
@@ -74,6 +105,42 @@ auto-red Overall, full Mar–Jun import, coaching packages).
 
 ---
 
+## Final goal (north star)
+
+The whole project converges on a **two-tier coaching brain**, and every tab is a
+data source feeding it. This is the design contract — keep new work consistent
+with it.
+
+**Tier 1 — Specialist coaches (data producers).** Each tab is a focused coach
+that observes one slice of the player and writes structured, machine-readable
+data into the DB. They do *not* give the final verdict; they produce evidence.
+- **Video Analysis = the video-analysis specialist coach.** Watches clips, finds
+  strengths/weaknesses, and persists them as systematic records: accepted
+  findings (`va_trait`) + the per-aspect skill ledger (`va_skill`, 9 aspects with
+  1–10 ratings). `GET /api/video/report` is its structured "brain view" output.
+  A deep upgrade of this coach (motion-aware sampling, stroke segmentation,
+  evidence-grounded findings, metric time-series for progress) is designed in
+  `backend/app/features/video_analysis/ANALYSIS_UPGRADE_PLAN.md` — phased,
+  not yet implemented.
+- **Daily Tracker / Match Stats** = the training- and match-load record: what was
+  trained, how much, match results by opponent level, win rates, physical work.
+- **Tactical Playbook** = the player's known tactics and tendencies.
+
+**Tier 2 — Head Coach ("HLV trưởng", the brain) — TO BE BUILT LATER.** A future
+top-level coach/tab that *reads everything* the specialists wrote — all daily
+tracking metrics + the strengths/weaknesses/skill DB from the video-analysis
+coach (and the other tabs) — and synthesises the holistic verdict: overall
+assessment, priorities, and a concrete training plan. It is a *consumer* of the
+specialist data, not a re-collector. It will lean on the same local-AI stack.
+
+**Implication for ongoing work:** anything a specialist coach learns must be
+saved in a structured, queryable form (tables + a `/report`-style endpoint), so
+the Head Coach can later read it without scraping UI or re-running analysis. The
+review/confirm gate matters here — only *accepted* findings should reach the
+brain. Keep the data contract stable; build the Head Coach tab afterwards.
+
+---
+
 ## Data
 
 The DB (`backend/data/tabletennis.db`) is tracked in git on purpose (personal
@@ -91,6 +158,33 @@ Giải FS, BBTV…); Travel/"sets (cty)" → non-playing/skip; Serve counts → 
 ---
 
 ## History
+
+### 2026-06-08 — Review gate + skill ledger, Tab 5 "Profile", GPU trim, progress bar, stop
+- **Review/confirm gate**: `va_trait` gained `status` (proposed|accepted|rejected),
+  `ai_text`, `reviewed_at`; `va_clip` gained `reviewed_at`. `analyze_clip` now
+  writes findings as `proposed`; new `review_clip` + `POST /clips/{id}/review`
+  accept/reject (with inline edits). `regenerate_profile_summary` and the trait
+  board now consider only `accepted`. Idempotent `migrate()` ALTERs the new
+  columns; existing findings → `proposed`.
+- **Skill ledger**: new `va_skill` table (9 aspects, rating 1–10/status/assessment/
+  priority), seeded in `seed.py`. `analyzer.synthesize_skills` (Ollama structured
+  output, text model) fills it from accepted findings; `GET/PUT /skills`,
+  `POST /skills/regenerate`, `GET /report`. Frontend: `SkillBoard` (radar-less bar
+  view with edit + regenerate) in Video Analysis; review panel in `AnalysisDetail`.
+- **Tab 5 "Profile"** (`frontend/src/tabs/profile/`, registered in `registry.ts`,
+  icon 🪪): read-only dashboard — SVG `SkillRadar`, bars, strengths/weaknesses,
+  priorities, competitive snapshot (`/tracker/match-stats`), training snapshot
+  (`/tracker/stats`), range selector. Avatar prefers a manually-added gallery
+  image (`source_clip_id == null`). No backend changes — pure assembly.
+- **GPU trim**: `analyzer.trim_segment` 3-tier (full-GPU NVDEC+NVENC → NVENC-only
+  → CPU libx264), ~9–10× faster on the RTX 5060 Ti.
+- **Progress bar + timer**: `va_clip.processing_started_at` (new column) set when a
+  job starts; `AnalysisProgress` component shows elapsed + estimated bar.
+- **Stop**: in-memory cancel registry + `request_stop` + `POST /clips/{id}/stop`;
+  cooperative checks in `detect_clip`/`analyze_clip`; new `stopped` status.
+- Added a manual portrait `Nguyễn Bá Thảo.jpg` to the identity gallery (avatar).
+- Also recorded the project's **Final goal** (two-tier coaching brain) and the deep
+  **Video Analysis upgrade plan** (`ANALYSIS_UPGRADE_PLAN.md`) — design only.
 
 ### 2026-06-07 — Tab 4 "Video Analysis" (local AI: VLM + pose) + 3 new players
 - New backend feature `app/features/video_analysis/` (models `va_profile`,

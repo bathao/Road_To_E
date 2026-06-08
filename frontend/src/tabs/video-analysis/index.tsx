@@ -1,18 +1,24 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { videoApi } from "./api";
 import ProfilePanel from "./components/ProfilePanel";
+import SkillBoard from "./components/SkillBoard";
 import TraitBoard from "./components/TraitBoard";
 import UploadForm from "./components/UploadForm";
 import ClipList from "./components/ClipList";
 import AnalysisDetail from "./components/AnalysisDetail";
 import type {
+  Aspect,
   Clip,
   ClipDetail,
+  FindingDecision,
   ModelHealth,
   Profile,
   ProfileImage,
   ProfileIn,
+  Report,
   Side,
+  Skill,
+  SkillIn,
   Trait,
   TraitIn,
 } from "./types";
@@ -22,15 +28,20 @@ export default function VideoAnalysis() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [images, setImages] = useState<ProfileImage[]>([]);
   const [traits, setTraits] = useState<Trait[]>([]);
+  const [skills, setSkills] = useState<Skill[]>([]);
+  const [report, setReport] = useState<Report | null>(null);
   const [clips, setClips] = useState<Clip[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detail, setDetail] = useState<ClipDetail | null>(null);
 
   const [uploading, setUploading] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [regeneratingSkills, setRegeneratingSkills] = useState(false);
   const [reanalyzing, setReanalyzing] = useState(false);
   const [identifying, setIdentifying] = useState(false);
   const [cropping, setCropping] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
+  const [stopping, setStopping] = useState(false);
   // Bumped whenever a clip's preview image changes at its (stable) URL, so the
   // browser re-fetches it instead of showing a cached thumbnail.
   const [previewBust, setPreviewBust] = useState(0);
@@ -39,8 +50,14 @@ export default function VideoAnalysis() {
   const fail = (e: unknown) => setError(e instanceof Error ? e.message : String(e));
 
   const reloadClips = useCallback(async () => setClips(await videoApi.listClips()), []);
-  const reloadTraits = useCallback(async () => setTraits(await videoApi.listTraits()), []);
+  // The knowledge base is the *accepted* findings only.
+  const reloadTraits = useCallback(
+    async () => setTraits(await videoApi.listTraits("accepted")),
+    []
+  );
   const reloadImages = useCallback(async () => setImages(await videoApi.listProfileImages()), []);
+  const reloadSkills = useCallback(async () => setSkills(await videoApi.listSkills()), []);
+  const reloadReport = useCallback(async () => setReport(await videoApi.getReport()), []);
   const reloadDetail = useCallback(async (id: number) => {
     setDetail(await videoApi.getClip(id));
   }, []);
@@ -49,18 +66,22 @@ export default function VideoAnalysis() {
   useEffect(() => {
     (async () => {
       try {
-        const [h, p, t, c, im] = await Promise.all([
+        const [h, p, t, c, im, sk, rp] = await Promise.all([
           videoApi.health(),
           videoApi.getProfile(),
-          videoApi.listTraits(),
+          videoApi.listTraits("accepted"),
           videoApi.listClips(),
           videoApi.listProfileImages(),
+          videoApi.listSkills(),
+          videoApi.getReport(),
         ]);
         setHealth(h);
         setProfile(p);
         setTraits(t);
         setClips(c);
         setImages(im);
+        setSkills(sk);
+        setReport(rp);
       } catch (e) {
         fail(e);
       }
@@ -176,6 +197,54 @@ export default function VideoAnalysis() {
     }
   };
 
+  const handleStop = async () => {
+    if (selectedId == null) return;
+    setStopping(true);
+    try {
+      await videoApi.stop(selectedId);
+      await Promise.all([reloadClips(), reloadDetail(selectedId)]);
+    } catch (e) {
+      fail(e);
+    } finally {
+      setStopping(false);
+    }
+  };
+
+  const handleReview = async (decisions: FindingDecision[]) => {
+    if (selectedId == null) return;
+    setReviewing(true);
+    try {
+      await videoApi.review(selectedId, decisions);
+      await Promise.all([reloadDetail(selectedId), reloadClips(), reloadTraits()]);
+    } catch (e) {
+      fail(e);
+    } finally {
+      setReviewing(false);
+    }
+  };
+
+  const handleRegenerateSkills = async () => {
+    setError(null);
+    setRegeneratingSkills(true);
+    try {
+      setSkills(await videoApi.regenerateSkills());
+      await reloadReport();
+    } catch (e) {
+      fail(e);
+    } finally {
+      setRegeneratingSkills(false);
+    }
+  };
+
+  const handleUpdateSkill = async (aspect: Aspect, payload: SkillIn) => {
+    try {
+      await videoApi.updateSkill(aspect, payload);
+      await Promise.all([reloadSkills(), reloadReport()]);
+    } catch (e) {
+      fail(e);
+    }
+  };
+
   // ---- handlers ----
   const handleCreate = async (form: Parameters<typeof videoApi.createClip>[0]) => {
     setError(null);
@@ -249,7 +318,7 @@ export default function VideoAnalysis() {
     try {
       await videoApi.deleteClip(selectedId);
       setSelectedId(null);
-      await Promise.all([reloadClips(), reloadTraits()]);
+      await Promise.all([reloadClips(), reloadTraits(), reloadReport()]);
     } catch (e) {
       fail(e);
     }
@@ -274,6 +343,14 @@ export default function VideoAnalysis() {
               canRegenerate={traits.length > 0}
             />
           )}
+          <SkillBoard
+            skills={skills}
+            report={report}
+            regenerating={regeneratingSkills}
+            canRegenerate={traits.length > 0}
+            onRegenerate={handleRegenerateSkills}
+            onUpdateSkill={handleUpdateSkill}
+          />
           <TraitBoard traits={traits} onAdd={handleAddTrait} onDelete={handleDeleteTrait} />
         </div>
 
@@ -301,10 +378,14 @@ export default function VideoAnalysis() {
               reanalyzing={reanalyzing}
               identifying={identifying}
               cropping={cropping}
+              reviewing={reviewing}
+              stopping={stopping}
               onReanalyze={handleReanalyze}
               onIdentify={handleIdentify}
               onConfirm={handleConfirm}
               onCropReference={handleCropReference}
+              onReview={handleReview}
+              onStop={handleStop}
               onDelete={handleDeleteClip}
             />
           )}

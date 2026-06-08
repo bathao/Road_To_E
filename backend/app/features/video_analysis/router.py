@@ -41,9 +41,10 @@ def regenerate_summary(db: Session = Depends(get_db)):
 def list_traits(
     aspect: str | None = Query(None),
     polarity: str | None = Query(None),
+    status: str | None = Query(None),
     db: Session = Depends(get_db),
 ):
-    return service.list_traits(db, aspect, polarity)
+    return service.list_traits(db, aspect, polarity, status)
 
 
 @router.post("/traits", response_model=schemas.TraitOut)
@@ -63,6 +64,33 @@ def update_trait(trait_id: int, payload: schemas.TraitIn, db: Session = Depends(
 def delete_trait(trait_id: int, db: Session = Depends(get_db)):
     service.delete_trait(db, trait_id)
     return Response(status_code=204)
+
+
+# ------------------------------------------------------- skill ledger + report
+@router.get("/skills", response_model=list[schemas.SkillOut])
+def list_skills(db: Session = Depends(get_db)):
+    return service.list_skills(db)
+
+
+@router.put("/skills/{aspect}", response_model=schemas.SkillOut)
+def update_skill(aspect: str, payload: schemas.SkillIn, db: Session = Depends(get_db)):
+    skill = service.update_skill(db, aspect, payload)
+    if skill is None:
+        raise HTTPException(status_code=404, detail="Skill not found")
+    return skill
+
+
+@router.post("/skills/regenerate", response_model=list[schemas.SkillOut])
+def regenerate_skills(db: Session = Depends(get_db)):
+    try:
+        return service.regenerate_skills(db)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+
+@router.get("/report", response_model=schemas.ReportOut)
+def get_report(db: Session = Depends(get_db)):
+    return service.build_report(db)
 
 
 # ------------------------------------------------------------------- clips
@@ -215,6 +243,24 @@ def reanalyze_clip(
     if clip is None:
         raise HTTPException(status_code=404, detail="Clip not found")
     background.add_task(service.analyze_clip, clip.id, model)
+    return clip
+
+
+@router.post("/clips/{clip_id}/review", response_model=schemas.ClipDetailOut)
+def review_clip(clip_id: int, payload: schemas.ReviewIn, db: Session = Depends(get_db)):
+    """User confirms which findings are correct → only accepted ones count."""
+    clip = service.review_clip(db, clip_id, payload)
+    if clip is None:
+        raise HTTPException(status_code=404, detail="Clip not found")
+    return service.clip_detail_out(db, clip)
+
+
+@router.post("/clips/{clip_id}/stop", response_model=schemas.ClipOut)
+def stop_clip(clip_id: int, db: Session = Depends(get_db)):
+    """Stop a running job (detect/analysis) for this clip."""
+    clip = service.request_stop(db, clip_id)
+    if clip is None:
+        raise HTTPException(status_code=404, detail="Clip not found")
     return clip
 
 

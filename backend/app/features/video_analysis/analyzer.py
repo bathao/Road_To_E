@@ -45,22 +45,35 @@ def _ffmpeg_bin() -> str:
 def trim_segment(src: str, start_sec: float, end_sec: float, dst: str) -> None:
     """Cut [start, end] out of ``src`` into ``dst`` (re-encoded mp4 for frame
     accuracy). Used to extract a short segment from a long recording before
-    analysis. Raises RuntimeError on ffmpeg failure."""
+    analysis.
+
+    Speed: prefer the NVIDIA GPU. We try, in order, (1) full GPU — NVDEC decode +
+    NVENC encode with frames kept in GPU memory; (2) NVENC encode with CPU decode
+    (if the source codec isn't NVDEC-decodable); (3) pure CPU libx264. Each tier
+    falls back to the next on failure, so it works on any machine while using the
+    GPU to the max when available. Raises RuntimeError only if all tiers fail."""
+    ff = _ffmpeg_bin()
     duration = max(0.0, end_sec - start_sec)
-    cmd = [
-        _ffmpeg_bin(), "-y",
-        "-ss", f"{start_sec:.3f}",
-        "-i", src,
-        "-t", f"{duration:.3f}",
-        "-c:v", "libx264", "-preset", "veryfast",
-        "-c:a", "aac",
-        "-movflags", "+faststart",
-        dst,
+    seek_in = ["-ss", f"{start_sec:.3f}", "-i", src, "-t", f"{duration:.3f}"]
+    tail_out = ["-c:a", "aac", "-movflags", "+faststart", dst]
+
+    attempts: list[list[str]] = [
+        # (1) Full GPU: decode on NVDEC, keep frames on the GPU, encode on NVENC.
+        [ff, "-y", "-hwaccel", "cuda", "-hwaccel_output_format", "cuda",
+         *seek_in, "-c:v", "h264_nvenc", "-preset", "p4", *tail_out],
+        # (2) GPU encode only (CPU decode) — for sources NVDEC can't decode.
+        [ff, "-y", *seek_in, "-c:v", "h264_nvenc", "-preset", "p4", *tail_out],
+        # (3) Pure CPU fallback — always available.
+        [ff, "-y", *seek_in, "-c:v", "libx264", "-preset", "veryfast", *tail_out],
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
-    if proc.returncode != 0:
-        tail = (proc.stderr or "")[-600:]
-        raise RuntimeError(f"ffmpeg cắt video thất bại: {tail}")
+
+    last_err = ""
+    for cmd in attempts:
+        proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        if proc.returncode == 0:
+            return
+        last_err = (proc.stderr or "")[-600:]
+    raise RuntimeError(f"ffmpeg cắt video thất bại: {last_err}")
 
 
 # ----------------------------------------------------------------- metadata
@@ -674,6 +687,94 @@ def synthesize_profile(basics: dict[str, Any], traits: list[dict[str, Any]]) -> 
     resp.raise_for_status()
     content = resp.json().get("message", {}).get("content", "{}")
     return json.loads(content)
+
+
+# --------------------------------------------------- skill ledger synthesis
+_SKILLS_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "skills": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "aspect": {"type": "string"},
+                    "rating": {"type": "integer"},  # 1..10
+                    "status": {
+                        "type": "string",
+                        "enum": ["strength", "weakness", "improving", "needs_work", "neutral"],
+                    },
+                    "assessment": {"type": "string"},
+                    "priority": {"type": "integer"},  # 1 = highest, 0 = none
+                },
+                "required": ["aspect", "rating", "status", "assessment", "priority"],
+            },
+        }
+    },
+    "required": ["skills"],
+}
+
+_ASPECT_VI = {
+    "serve": "giao bóng",
+    "receive": "đỡ giao bóng / trả giao",
+    "forehand": "phải tay (forehand)",
+    "backhand": "trái tay (backhand)",
+    "footwork": "bộ chân / di chuyển",
+    "stance_posture": "tư thế / thân người",
+    "tactics": "chiến thuật",
+    "mental": "tâm lý thi đấu",
+    "physical": "thể lực",
+}
+
+
+def synthesize_skills(
+    basics: dict[str, Any], findings_by_aspect: dict[str, list[dict[str, Any]]]
+) -> list[dict[str, Any]]:
+    """Use the local text model to turn the accepted findings into a skill
+    ledger: a 1–10 rating + status + assessment + improvement priority per
+    aspect. Only aspects that have findings are scored. Returns a list of dicts.
+
+    The rating is the model's estimate FROM THE WRITTEN FINDINGS — a reference,
+    not a calibrated score; the user can override it afterwards."""
+    if not findings_by_aspect:
+        raise RuntimeError("Chưa có nhận xét đã duyệt nào để dựng hồ sơ kỹ năng.")
+    blocks = []
+    for aspect, items in findings_by_aspect.items():
+        vi = _ASPECT_VI.get(aspect, aspect)
+        lines = "\n".join(f"  - [{it['polarity']}] {it['text']}" for it in items)
+        blocks.append(f"# {aspect} ({vi}):\n{lines}")
+    body = "\n\n".join(blocks)
+    aspects_list = ", ".join(findings_by_aspect.keys())
+    user_text = (
+        "Đây là các nhận xét ĐÃ ĐƯỢC XÁC NHẬN về vận động viên bóng bàn Nguyễn Bá "
+        f"Thảo (thuận tay {basics.get('handed')}, cầm vợt {basics.get('grip')}, lối "
+        f"đánh {basics.get('style') or 'chưa rõ'}), gom theo từng mảng kỹ năng:\n\n"
+        f"{body}\n\n"
+        "Với MỖI mảng có nhận xét ở trên, hãy đánh giá bằng tiếng Việt:\n"
+        "- rating: điểm 1–10 (ước lượng trình độ mảng đó dựa trên các nhận xét; "
+        "10 = rất tốt, 1 = rất yếu).\n"
+        "- status: strength (điểm mạnh) / weakness (điểm yếu) / improving (đang "
+        "tiến bộ) / needs_work (cần cải thiện nhiều) / neutral.\n"
+        "- assessment: 1–2 câu súc tích mô tả trình độ mảng đó.\n"
+        "- priority: mức ưu tiên cần luyện (1 = ưu tiên cao nhất; 0 = không cần ưu tiên). "
+        "Mảng càng yếu/quan trọng thì priority càng nhỏ (1,2,3...).\n"
+        f"Chỉ chấm các mảng sau: {aspects_list}. Trả về JSON đúng schema."
+    )
+    payload = {
+        "model": DEFAULT_TEXT_MODEL,
+        "messages": [
+            {"role": "system", "content": "Bạn là HLV bóng bàn, đánh giá trình độ học trò bằng tiếng Việt."},
+            {"role": "user", "content": user_text},
+        ],
+        "stream": False,
+        "format": _SKILLS_SCHEMA,
+        "options": {"temperature": 0.2, "num_ctx": 8192},
+    }
+    resp = httpx.post(f"{OLLAMA_BASE_URL}/api/chat", json=payload, timeout=600.0)
+    resp.raise_for_status()
+    content = resp.json().get("message", {}).get("content", "{}")
+    data = json.loads(content)
+    return data.get("skills", []) if isinstance(data, dict) else []
 
 
 # ------------------------------------------------------------------- health

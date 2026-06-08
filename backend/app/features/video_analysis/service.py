@@ -3,6 +3,7 @@ analysis job, trait accumulation and profile synthesis."""
 from __future__ import annotations
 
 import base64
+import datetime as dt
 import json
 import os
 import shutil
@@ -22,8 +23,13 @@ from app.features.video_analysis.models import (
     VAClip,
     VAProfile,
     VAProfileImage,
+    VASkill,
     VATrait,
 )
+
+
+def _utcnow() -> dt.datetime:
+    return dt.datetime.now(dt.timezone.utc)
 
 ALLOWED_SUFFIXES = {".mp4", ".mov", ".m4v", ".avi", ".mkv", ".webm"}
 
@@ -96,11 +102,14 @@ def update_profile(db: Session, payload: schemas.ProfileIn) -> VAProfile:
 
 
 def regenerate_profile_summary(db: Session) -> VAProfile:
-    """Fold all traits into the profile summary fields via the local LLM."""
+    """Fold all *accepted* findings into the profile summary fields via the LLM."""
     profile = get_or_create_profile(db)
     traits = [
         {"aspect": t.aspect, "polarity": t.polarity, "text": t.text}
-        for t in db.query(VATrait).order_by(VATrait.created_at).all()
+        for t in db.query(VATrait)
+        .filter(VATrait.status == "accepted")
+        .order_by(VATrait.created_at)
+        .all()
     ]
     basics = {"handed": profile.handed, "grip": profile.grip, "style": profile.style}
     result = analyzer.synthesize_profile(basics, traits)
@@ -215,22 +224,29 @@ def get_profile_image(db: Session, image_id: int) -> VAProfileImage | None:
     return db.get(VAProfileImage, image_id)
 
 
-# ------------------------------------------------------------------ traits
-def list_traits(db: Session, aspect: str | None, polarity: str | None) -> list[VATrait]:
+# --------------------------------------------------------- traits / findings
+def list_traits(
+    db: Session, aspect: str | None, polarity: str | None, status: str | None = None
+) -> list[VATrait]:
     query = db.query(VATrait)
     if aspect:
         query = query.filter(VATrait.aspect == aspect)
     if polarity:
         query = query.filter(VATrait.polarity == polarity)
+    if status:
+        query = query.filter(VATrait.status == status)
     return query.order_by(VATrait.created_at.desc()).all()
 
 
 def create_trait(db: Session, payload: schemas.TraitIn) -> VATrait:
+    # A manually-entered finding is authoritative → accepted straight away.
     trait = VATrait(
         aspect=payload.aspect,
         polarity=payload.polarity,
         text=payload.text,
         confidence=payload.confidence,
+        status="accepted",
+        reviewed_at=_utcnow(),
         source_clip_id=None,  # manual entry
     )
     db.add(trait)
@@ -331,6 +347,7 @@ def create_clip(db: Session, *, original_name: str, source_path: str,
         height=meta.get("height"),
         model=model or "",
         status="processing",
+        processing_started_at=_utcnow(),
         me_side=me_side if me_side in SIDE_VALUES else "",
         me_appearance=me_appearance or "",
     )
@@ -370,6 +387,7 @@ def confirm_clip(db: Session, clip_id: int) -> VAClip | None:
         return None
     clip.status = "analyzing"
     clip.error_msg = None
+    clip.processing_started_at = _utcnow()
     db.commit()
     db.refresh(clip)
     return clip
@@ -386,6 +404,7 @@ def identify_clip(db: Session, clip_id: int, me_side: str, me_appearance: str) -
     clip.identified = True
     clip.status = "analyzing"
     clip.error_msg = None
+    clip.processing_started_at = _utcnow()
     db.commit()
     db.refresh(clip)
     return clip
@@ -398,6 +417,7 @@ def start_reanalyze(db: Session, clip_id: int, model: str | None) -> VAClip | No
         return None
     clip.status = "analyzing"
     clip.error_msg = None
+    clip.processing_started_at = _utcnow()
     if model:
         clip.model = model
     db.commit()
@@ -422,6 +442,46 @@ def _set_preview(db: Session, clip: VAClip, b64: str | None) -> None:
     clip.preview_path = str(dst)
 
 
+# ------------------------------------------------------------------ stop
+# A background job (detect / deep analysis) runs in a worker thread and may be
+# blocked in a long Ollama call we can't forcibly interrupt. "Stop" works
+# cooperatively: it flips the clip to "stopped" (the UI frees immediately) and
+# records the id here; the worker checks this after its heavy step and discards
+# its result instead of saving — so no stale analysis is written.
+import threading
+
+_STOP_LOCK = threading.Lock()
+_STOP_REQUESTS: set[int] = set()
+_STOPPABLE = {"pending", "processing", "analyzing"}
+
+
+def _stop_requested(clip_id: int) -> bool:
+    with _STOP_LOCK:
+        return clip_id in _STOP_REQUESTS
+
+
+def _clear_stop(clip_id: int) -> None:
+    with _STOP_LOCK:
+        _STOP_REQUESTS.discard(clip_id)
+
+
+def request_stop(db: Session, clip_id: int) -> VAClip | None:
+    """Ask a running job to stop. Only meaningful while pending/processing/
+    analyzing; otherwise returns the clip unchanged."""
+    clip = db.get(VAClip, clip_id)
+    if clip is None:
+        return None
+    if clip.status in _STOPPABLE:
+        with _STOP_LOCK:
+            _STOP_REQUESTS.add(clip_id)
+        clip.status = "stopped"
+        clip.error_msg = None
+        clip.processing_started_at = None
+        db.commit()
+        db.refresh(clip)
+    return clip
+
+
 # ----------------------------------------- step 1: detect (background job)
 def detect_clip(clip_id: int, model: str | None) -> None:
     """Locate the user in the clip (no deep analysis). Ends in awaiting_confirm
@@ -430,6 +490,8 @@ def detect_clip(clip_id: int, model: str | None) -> None:
     try:
         clip = db.get(VAClip, clip_id)
         if clip is None:
+            return
+        if clip.status != "processing":  # stopped before we started
             return
         profile = get_or_create_profile(db)
         refs = latest_reference_b64(db)
@@ -467,6 +529,9 @@ def detect_clip(clip_id: int, model: str | None) -> None:
             db.commit()
             return
 
+        if _stop_requested(clip_id):  # user stopped during detection
+            return
+
         # Found → build a preview crop and wait for the user to confirm.
         try:
             _set_preview(db, clip, analyzer.make_preview_b64(clip.stored_path, side))
@@ -475,6 +540,7 @@ def detect_clip(clip_id: int, model: str | None) -> None:
         clip.status = "awaiting_confirm"
         db.commit()
     finally:
+        _clear_stop(clip_id)
         db.close()
 
 
@@ -486,6 +552,8 @@ def analyze_clip(clip_id: int, model: str | None) -> None:
     try:
         clip = db.get(VAClip, clip_id)
         if clip is None:
+            return
+        if clip.status != "analyzing":  # stopped before we started
             return
         profile = get_or_create_profile(db)
         refs = latest_reference_b64(db)
@@ -499,6 +567,9 @@ def analyze_clip(clip_id: int, model: str | None) -> None:
             clip.status = "error"
             clip.error_msg = str(exc)[:1000]
             db.commit()
+            return
+
+        if _stop_requested(clip_id):  # user stopped during analysis → discard
             return
 
         raw = result["raw"]
@@ -518,6 +589,8 @@ def analyze_clip(clip_id: int, model: str | None) -> None:
             pose_json=json.dumps(result.get("pose", {}), ensure_ascii=False),
         ))
 
+        # Findings start as 'proposed' — they only count once the user reviews
+        # and confirms them (see review_clip). Re-analysing replaces them.
         db.query(VATrait).filter(VATrait.source_clip_id == clip_id).delete()
         for polarity, key in (("strength", "strengths"), ("weakness", "weaknesses")):
             for item in raw.get(key, []) or []:
@@ -528,14 +601,18 @@ def analyze_clip(clip_id: int, model: str | None) -> None:
                     aspect=item.get("aspect", "other"),
                     polarity=polarity,
                     text=text,
+                    ai_text=text,
+                    status="proposed",
                     source_clip_id=clip_id,
                 ))
+        clip.reviewed_at = None  # fresh analysis → needs review again
 
         # Grow the reference gallery from this confirmed-and-cropped clip.
         if clip.me_side in _CONCRETE_SIDES:
             _save_ref_crops(db, result.get("ref_crops_b64", []), clip_id)
         db.commit()
     finally:
+        _clear_stop(clip_id)
         db.close()
 
 
@@ -572,3 +649,163 @@ def clip_detail_out(db: Session, clip: VAClip) -> schemas.ClipDetailOut:
             for t in sorted(clip.traits, key=lambda t: (t.polarity, t.id))
         ],
     )
+
+
+# ----------------------------------------------------------- review a clip
+def review_clip(db: Session, clip_id: int, payload: schemas.ReviewIn) -> VAClip | None:
+    """Apply the user's accept/reject (and edits) to this clip's findings, then
+    mark the clip reviewed. Only accepted findings count towards the profile."""
+    clip = db.get(VAClip, clip_id)
+    if clip is None:
+        return None
+    by_id = {t.id: t for t in clip.traits}
+    now = _utcnow()
+    for d in payload.decisions:
+        trait = by_id.get(d.id)
+        if trait is None:
+            continue
+        trait.status = "accepted" if d.accept else "rejected"
+        trait.reviewed_at = now
+        if d.text is not None and d.text.strip():
+            trait.text = d.text.strip()
+        if d.aspect:
+            trait.aspect = d.aspect
+        if d.polarity:
+            trait.polarity = d.polarity
+    clip.reviewed_at = now
+    db.commit()
+    db.refresh(clip)
+    return clip
+
+
+# ------------------------------------------------------------- skill ledger
+def list_skills(db: Session) -> list[VASkill]:
+    """The skill ledger ordered by the canonical aspect order."""
+    order = {a: i for i, a in enumerate(schemas.SKILL_ASPECTS)}
+    skills = db.query(VASkill).all()
+    return sorted(skills, key=lambda s: order.get(s.aspect, 99))
+
+
+def update_skill(db: Session, aspect: str, payload: schemas.SkillIn) -> VASkill | None:
+    skill = db.query(VASkill).filter(VASkill.aspect == aspect).first()
+    if skill is None:
+        return None
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(skill, field, value)
+    db.commit()
+    db.refresh(skill)
+    return skill
+
+
+def _accepted_findings_by_aspect(db: Session) -> dict[str, list[VATrait]]:
+    grouped: dict[str, list[VATrait]] = {}
+    rows = (
+        db.query(VATrait)
+        .filter(VATrait.status == "accepted")
+        .order_by(VATrait.created_at)
+        .all()
+    )
+    for t in rows:
+        # Fold the catch-all 'other' into the closest skill bucket only if it is
+        # a real skill aspect; otherwise skip it for the ledger.
+        if t.aspect not in schemas.SKILL_ASPECTS:
+            continue
+        grouped.setdefault(t.aspect, []).append(t)
+    return grouped
+
+
+def regenerate_skills(db: Session) -> list[VASkill]:
+    """Synthesise the skill ledger from accepted findings via the local LLM."""
+    profile = get_or_create_profile(db)
+    grouped = _accepted_findings_by_aspect(db)
+    findings_by_aspect = {
+        aspect: [{"polarity": t.polarity, "text": t.text} for t in items]
+        for aspect, items in grouped.items()
+    }
+    basics = {"handed": profile.handed, "grip": profile.grip, "style": profile.style}
+    results = analyzer.synthesize_skills(basics, findings_by_aspect)
+
+    by_aspect = {s.aspect: s for s in db.query(VASkill).all()}
+    now = _utcnow()
+    for item in results:
+        aspect = item.get("aspect")
+        skill = by_aspect.get(aspect)
+        if skill is None or aspect not in schemas.SKILL_ASPECTS:
+            continue
+        rating = item.get("rating")
+        if isinstance(rating, int):
+            skill.rating = max(1, min(10, rating))
+        status = item.get("status")
+        if status in schemas.SKILL_STATUSES:
+            skill.status = status
+        if item.get("assessment"):
+            skill.assessment = item["assessment"]
+        priority = item.get("priority")
+        skill.priority = priority if isinstance(priority, int) and priority > 0 else None
+        skill.updated_at = now
+    db.commit()
+    return list_skills(db)
+
+
+# --------------------------------------------------- structured player report
+def build_report(db: Session) -> schemas.ReportOut:
+    """The systematic, machine-readable view of the player — what a future
+    'brain' module reads: per-skill rating + status + evidence, plus rolled-up
+    strengths / weaknesses / improvement priorities."""
+    profile = get_or_create_profile(db)
+    grouped = _accepted_findings_by_aspect(db)
+    skills = list_skills(db)
+
+    skill_items: list[schemas.SkillReportItem] = []
+    for s in skills:
+        evidence = [t.text for t in grouped.get(s.aspect, [])][:5]
+        if s.rating is None and not evidence and s.status == "neutral":
+            continue  # unrated, no evidence → omit from the report
+        skill_items.append(schemas.SkillReportItem(
+            aspect=s.aspect, rating=s.rating, status=s.status,
+            assessment=s.assessment, priority=s.priority, evidence=evidence,
+        ))
+
+    accepted = (
+        db.query(VATrait)
+        .filter(VATrait.status == "accepted")
+        .order_by(VATrait.created_at)
+        .all()
+    )
+    strengths = [t.text for t in accepted if t.polarity == "strength"]
+    weaknesses = [t.text for t in accepted if t.polarity == "weakness"]
+
+    # Improvement priorities: skills with an explicit priority first (lower =
+    # more urgent), then the lowest-rated skills.
+    rated = [s for s in skills if s.rating is not None or s.priority is not None]
+    rated.sort(key=lambda s: (
+        s.priority if s.priority is not None else 99,
+        s.rating if s.rating is not None else 99,
+    ))
+    priorities = [
+        f"{ _ASPECT_LABEL.get(s.aspect, s.aspect) }: {s.assessment or s.status}"
+        for s in rated
+        if s.status in ("weakness", "needs_work", "improving") or s.priority is not None
+    ][:5]
+
+    reviewed = db.query(VAClip).filter(VAClip.reviewed_at.isnot(None)).count()
+    return schemas.ReportOut(
+        name=profile.name, handed=profile.handed, grip=profile.grip,
+        style=profile.style, overall_summary=profile.overall_summary,
+        skills=skill_items, strengths=strengths, weaknesses=weaknesses,
+        improvement_priorities=priorities,
+        clips_reviewed=reviewed, findings_accepted=len(accepted),
+    )
+
+
+_ASPECT_LABEL = {
+    "serve": "Giao bóng",
+    "receive": "Đỡ giao bóng",
+    "forehand": "Phải tay",
+    "backhand": "Trái tay",
+    "footwork": "Bộ chân",
+    "stance_posture": "Tư thế",
+    "tactics": "Chiến thuật",
+    "mental": "Tâm lý",
+    "physical": "Thể lực",
+}

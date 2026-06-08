@@ -1,4 +1,11 @@
-import type { Aspect, ClipType, Polarity, Side } from "./types";
+import type {
+  Aspect,
+  ClipType,
+  FindingStatus,
+  Polarity,
+  Side,
+  SkillStatus,
+} from "./types";
 
 export const SIDE_LABEL: Record<Side, string> = {
   "": "— Chưa rõ —",
@@ -56,4 +63,19 @@ export const STATUS_LABEL: Record<string, string> = {
   analyzing: "Đang phân tích…",
   done: "Xong",
   error: "Lỗi",
+  stopped: "Đã dừng",
+};
+
+export const SKILL_STATUS_LABEL: Record<SkillStatus, string> = {
+  strength: "Điểm mạnh",
+  weakness: "Điểm yếu",
+  improving: "Đang tiến bộ",
+  needs_work: "Cần cải thiện",
+  neutral: "Chưa rõ",
+};
+
+export const FINDING_STATUS_LABEL: Record<FindingStatus, string> = {
+  proposed: "Chờ duyệt",
+  accepted: "Đã duyệt",
+  rejected: "Đã bỏ",
 };

@@ -17,7 +17,12 @@ ASPECTS = [
     "physical",
     "other",
 ]
+# Aspects that get a row in the skill ledger ("other" is a catch-all for
+# findings, not a skill to rate).
+SKILL_ASPECTS = [a for a in ASPECTS if a != "other"]
 POLARITIES = ["strength", "weakness", "neutral"]
+FINDING_STATUSES = ["proposed", "accepted", "rejected"]
+SKILL_STATUSES = ["strength", "weakness", "improving", "needs_work", "neutral"]
 
 
 # ----------------------------------------------------------------- profile
@@ -57,7 +62,7 @@ class ProfileIn(BaseModel):
     overall_summary: str | None = None
 
 
-# ------------------------------------------------------------------ traits
+# ------------------------------------------------------- traits / findings
 class TraitOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -65,7 +70,9 @@ class TraitOut(BaseModel):
     aspect: str
     polarity: str
     text: str
+    ai_text: str | None = None
     confidence: float | None
+    status: str = "proposed"
     source_clip_id: int | None
     created_at: dt.datetime
 
@@ -75,6 +82,70 @@ class TraitIn(BaseModel):
     polarity: str = "neutral"
     text: str
     confidence: float | None = None
+
+
+# --------------------------------------------------------- review a clip
+class FindingDecisionIn(BaseModel):
+    """One reviewed finding: keep it (accept) or drop it (reject), optionally
+    with user edits to the text/aspect/polarity."""
+
+    id: int
+    accept: bool = True
+    text: str | None = None
+    aspect: str | None = None
+    polarity: str | None = None
+
+
+class ReviewIn(BaseModel):
+    decisions: list[FindingDecisionIn] = []
+
+
+# ------------------------------------------------------------- skill ledger
+class SkillOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    aspect: str
+    rating: int | None
+    status: str
+    assessment: str
+    priority: int | None
+    updated_at: dt.datetime
+
+
+class SkillIn(BaseModel):
+    """Manual edit of a skill (all optional → partial update)."""
+
+    rating: int | None = None
+    status: str | None = None
+    assessment: str | None = None
+    priority: int | None = None
+
+
+# --------------------------------------------------- structured player report
+class SkillReportItem(BaseModel):
+    aspect: str
+    rating: int | None
+    status: str
+    assessment: str
+    priority: int | None
+    evidence: list[str] = []  # short text of accepted findings backing this skill
+
+
+class ReportOut(BaseModel):
+    """The systematic, machine-readable view of the player a future module reads."""
+
+    name: str
+    handed: str
+    grip: str
+    style: str
+    overall_summary: str
+    skills: list[SkillReportItem] = []
+    strengths: list[str] = []
+    weaknesses: list[str] = []
+    improvement_priorities: list[str] = []
+    clips_reviewed: int = 0
+    findings_accepted: int = 0
 
 
 # ------------------------------------------------------------------- clips
@@ -108,6 +179,8 @@ class ClipOut(BaseModel):
     status: str
     error_msg: str | None
     created_at: dt.datetime
+    processing_started_at: dt.datetime | None = None
+    reviewed_at: dt.datetime | None = None
     me_side: str = ""
     me_appearance: str = ""
     subject_desc: str | None = None

@@ -2525,3 +2525,358 @@ input:focus {
 .va-pose-table td:first-child {
   color: var(--muted);
 }
+
+/* ---------------- Findings review gate ---------------- */
+.va-review {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fafbfc;
+}
+
+.va-review-list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.va-review-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border-left: 3px solid var(--border);
+  background: var(--surface);
+}
+
+.va-review-item.va-strength {
+  border-left-color: var(--green);
+}
+
+.va-review-item.va-weakness {
+  border-left-color: var(--red);
+}
+
+.va-review-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.va-review-aspect,
+.va-review-pol {
+  flex: none;
+}
+
+.va-review-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.va-reviewed {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #f6fbf2;
+}
+
+/* ---------------- Skill ledger ---------------- */
+.va-skill-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.va-skill-row {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
+}
+
+.va-skill-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.va-skill-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.va-skill-name {
+  font-weight: 600;
+  min-width: 92px;
+}
+
+.va-skill-rating {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.va-skill-rating-input {
+  width: 56px;
+}
+
+.va-skill-head .va-x {
+  margin-left: auto;
+}
+
+.va-sk-chip {
+  font-size: 11.5px;
+  color: #fff;
+  border: none;
+}
+
+.va-sk-strong {
+  background: var(--green);
+}
+.va-sk-improving {
+  background: #4aa3df;
+}
+.va-sk-neutral {
+  background: #9aa0a6;
+}
+.va-sk-needswork {
+  background: var(--yellow);
+  color: #5a4500;
+}
+.va-sk-weak {
+  background: var(--red);
+}
+
+.va-skill-bar {
+  height: 7px;
+  border-radius: 4px;
+  background: #e6e8eb;
+  overflow: hidden;
+  margin: 6px 0;
+}
+
+.va-skill-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.2s;
+}
+
+.va-skill-assess {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.va-skill-assess-edit {
+  width: 100%;
+  margin-top: 6px;
+  min-height: 48px;
+  resize: vertical;
+}
+
+.va-skill-evidence {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.va-priorities {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.va-priority-list {
+  margin: 6px 0 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+/* ---------------- Analysis progress ---------------- */
+.va-progress {
+  margin: 4px 0 10px;
+}
+
+.va-progbar {
+  height: 10px;
+  border-radius: 6px;
+  background: #e6e8eb;
+  overflow: hidden;
+  margin: 6px 0 4px;
+}
+
+.va-progbar-fill {
+  height: 100%;
+  border-radius: 6px;
+  background: var(--accent);
+  transition: width 1s linear;
+}
+
+/* Once past the estimate, stop implying a known end and gently pulse. */
+.va-progbar-fill.over {
+  background: linear-gradient(90deg, var(--accent), #7aa7f5, var(--accent));
+  background-size: 200% 100%;
+  animation: va-prog-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes va-prog-pulse {
+  0% { background-position: 0% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.va-prog-meta {
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.va-stop-btn {
+  margin-top: 4px;
+}
+
+/* ---------------- Profile dashboard ---------------- */
+.prof-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.prof-header {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.prof-avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  flex: none;
+}
+
+.prof-avatar-blank {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 44px;
+  background: var(--today);
+}
+
+.prof-header-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.prof-name {
+  margin: 0 0 8px;
+}
+
+.prof-overall {
+  margin: 10px 0 0;
+  line-height: 1.5;
+}
+
+.prof-asof {
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.prof-skill-grid {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 18px;
+  align-items: center;
+}
+
+@media (max-width: 860px) {
+  .prof-skill-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.prof-skill-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.prof-bar-row {
+  display: grid;
+  grid-template-columns: 96px 1fr 44px auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.prof-bar-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.prof-bar-val {
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--muted);
+}
+
+.prof-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.prof-cat-list {
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
+/* radar / spider chart */
+.radar {
+  width: 100%;
+  max-width: 380px;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  overflow: visible;
+}
+
+.radar-ring {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.radar-axis {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.radar-area {
+  fill: rgba(37, 99, 235, 0.22);
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.radar-dot {
+  fill: var(--accent);
+}
+
+.radar-label {
+  font-size: 11px;
+  fill: var(--text);
+}
+
+.radar-label-val {
+  font-weight: 700;
+  fill: var(--accent);
+}

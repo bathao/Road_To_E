@@ -3,11 +3,15 @@ import type {
   Clip,
   ClipDetail,
   ClipType,
+  FindingDecision,
   ModelHealth,
   Profile,
   ProfileImage,
   ProfileIn,
+  Report,
   Side,
+  Skill,
+  SkillIn,
   Trait,
   TraitIn,
 } from "./types";
@@ -32,12 +36,20 @@ export const videoApi = {
   updateProfile: (payload: ProfileIn) => api.put<Profile>("/video/profile", payload),
   regenerateSummary: () => api.post<Profile>("/video/profile/regenerate-summary", {}),
 
-  // ---- traits ----
-  listTraits: () => api.get<Trait[]>("/video/traits"),
+  // ---- traits / findings ----
+  listTraits: (status?: string) =>
+    api.get<Trait[]>(`/video/traits${status ? `?status=${status}` : ""}`),
   createTrait: (payload: TraitIn) => api.post<Trait>("/video/traits", payload),
   updateTrait: (id: number, payload: TraitIn) =>
     api.put<Trait>(`/video/traits/${id}`, payload),
   deleteTrait: (id: number) => api.del<void>(`/video/traits/${id}`),
+
+  // ---- skill ledger + report ----
+  listSkills: () => api.get<Skill[]>("/video/skills"),
+  updateSkill: (aspect: string, payload: SkillIn) =>
+    api.put<Skill>(`/video/skills/${aspect}`, payload),
+  regenerateSkills: () => api.post<Skill[]>("/video/skills/regenerate", {}),
+  getReport: () => api.get<Report>("/video/report"),
 
   // ---- clips ----
   listClips: () => api.get<Clip[]>("/video/clips"),
@@ -47,6 +59,9 @@ export const videoApi = {
   identify: (id: number, me_side: Side, me_appearance: string) =>
     api.post<Clip>(`/video/clips/${id}/identify`, { me_side, me_appearance }),
   confirm: (id: number) => api.post<Clip>(`/video/clips/${id}/confirm`, {}),
+  stop: (id: number) => api.post<Clip>(`/video/clips/${id}/stop`, {}),
+  review: (id: number, decisions: FindingDecision[]) =>
+    api.post<ClipDetail>(`/video/clips/${id}/review`, { decisions }),
   deleteClip: (id: number) => api.del<void>(`/video/clips/${id}`),
   videoUrl: (id: number) => apiUrl(`/video/clips/${id}/video`),
   previewUrl: (id: number) => apiUrl(`/video/clips/${id}/preview`),

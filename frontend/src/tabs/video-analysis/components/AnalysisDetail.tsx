@@ -1,7 +1,15 @@
-import { useState } from "react";
-import type { ClipDetail, Side } from "../types";
-import { ASPECT_LABEL, CLIP_TYPE_LABEL, SIDE_LABEL, SIDE_ORDER, STATUS_LABEL } from "../labels";
+import { useEffect, useMemo, useState } from "react";
+import type { Aspect, ClipDetail, FindingDecision, Polarity, Side } from "../types";
+import {
+  ASPECT_LABEL,
+  ASPECT_ORDER,
+  CLIP_TYPE_LABEL,
+  SIDE_LABEL,
+  SIDE_ORDER,
+  STATUS_LABEL,
+} from "../labels";
 import BoxAnnotator, { type Box } from "./BoxAnnotator";
+import AnalysisProgress from "./AnalysisProgress";
 
 interface Props {
   detail: ClipDetail;
@@ -11,11 +19,23 @@ interface Props {
   reanalyzing: boolean;
   identifying: boolean;
   cropping: boolean;
+  reviewing: boolean;
+  stopping: boolean;
   onReanalyze: () => void;
   onIdentify: (side: Side, appearance: string) => void;
   onConfirm: () => void;
   onCropReference: (box: Box) => Promise<boolean>;
+  onReview: (decisions: FindingDecision[]) => Promise<void>;
+  onStop: () => void;
   onDelete: () => void;
+}
+
+// Local editable state for one finding under review.
+interface Draft {
+  accept: boolean;
+  text: string;
+  aspect: Aspect;
+  polarity: Polarity;
 }
 
 type Metric = { mean: number; min: number; max: number } | null | undefined;
@@ -33,10 +53,14 @@ export default function AnalysisDetail({
   reanalyzing,
   identifying,
   cropping,
+  reviewing,
+  stopping,
   onReanalyze,
   onIdentify,
   onConfirm,
   onCropReference,
+  onReview,
+  onStop,
   onDelete,
 }: Props) {
   const [side, setSide] = useState<Side>(detail.me_side || "");
@@ -44,6 +68,48 @@ export default function AnalysisDetail({
   const [correcting, setCorrecting] = useState(false);
   const [annotating, setAnnotating] = useState(false);
   const [savedNote, setSavedNote] = useState(false);
+
+  // ---- findings review state ----
+  const [drafts, setDrafts] = useState<Record<number, Draft>>({});
+  const [reEditing, setReEditing] = useState(false);
+  const reviewed = detail.reviewed_at != null;
+
+  useEffect(() => {
+    const init: Record<number, Draft> = {};
+    for (const t of detail.traits) {
+      init[t.id] = {
+        accept: t.status !== "rejected",
+        text: t.text,
+        aspect: t.aspect,
+        polarity: t.polarity,
+      };
+    }
+    setDrafts(init);
+    setReEditing(false);
+  }, [detail.id, detail.reviewed_at, detail.analysis?.created_at]);
+
+  const setDraft = (id: number, patch: Partial<Draft>) =>
+    setDrafts((d) => ({ ...d, [id]: { ...d[id], ...patch } }));
+
+  const acceptedCount = useMemo(
+    () => Object.values(drafts).filter((d) => d.accept).length,
+    [drafts]
+  );
+
+  const submitReview = async () => {
+    const decisions: FindingDecision[] = detail.traits.map((t) => {
+      const d = drafts[t.id];
+      return {
+        id: t.id,
+        accept: d?.accept ?? true,
+        text: d?.text,
+        aspect: d?.aspect,
+        polarity: d?.polarity,
+      };
+    });
+    await onReview(decisions);
+    setReEditing(false);
+  };
 
   const toggleAnnotator = () => {
     setSavedNote(false);
@@ -61,6 +127,9 @@ export default function AnalysisDetail({
   const raw = a?.raw;
   const pose = (a?.pose ?? {}) as Record<string, any>;
   const poseAvailable = pose.available && pose.frames_with_pose > 0;
+
+  const showEditor = detail.status === "done" && (!reviewed || reEditing);
+  const acceptedTraits = detail.traits.filter((t) => t.status === "accepted");
 
   return (
     <section className="va-card va-detail">
@@ -86,11 +155,18 @@ export default function AnalysisDetail({
         </div>
 
         <div className="va-analysis">
-          {detail.status === "processing" && (
-            <p className="va-muted">⏳ Bước 1: đang nhận diện bạn trong clip…</p>
+          {(detail.status === "processing" || detail.status === "analyzing") && (
+            <>
+              <AnalysisProgress status={detail.status} startedAt={detail.processing_started_at} />
+              <button className="btn danger va-stop-btn" disabled={stopping} onClick={onStop}>
+                {stopping ? "Đang dừng…" : "■ Dừng"}
+              </button>
+            </>
           )}
-          {detail.status === "analyzing" && (
-            <p className="va-muted">⏳ Bước 2: đang phân tích chuyên sâu… (30–120 giây)</p>
+          {detail.status === "stopped" && (
+            <p className="va-muted">
+              ■ Đã dừng. Bấm <b>↻ Phân tích lại</b> ở trên để chạy lại.
+            </p>
           )}
           {detail.status === "error" && (
             <div className="pb-error">Lỗi: {detail.error_msg}</div>
@@ -180,32 +256,107 @@ export default function AnalysisDetail({
             <>
               {raw.summary && <p className="va-summary-block">{raw.summary}</p>}
 
-              <div className="va-sw-cols">
-                <div>
-                  <h4 className="va-strength-h">✅ Điểm mạnh</h4>
-                  <ul className="va-sw-list">
-                    {(raw.strengths ?? []).map((s, i) => (
-                      <li key={i}>
-                        <span className="va-aspect-tag">{ASPECT_LABEL[s.aspect] ?? s.aspect}</span>
-                        {s.text}
-                      </li>
-                    ))}
-                    {(raw.strengths ?? []).length === 0 && <li className="va-muted">—</li>}
-                  </ul>
+              {/* ---- Findings review gate ---- */}
+              {showEditor ? (
+                <div className="va-review">
+                  <div className="va-card-head">
+                    <h4>📝 Duyệt nhận xét trước khi lưu vào hồ sơ</h4>
+                    <span className="va-muted">{acceptedCount}/{detail.traits.length} giữ lại</span>
+                  </div>
+                  <p className="va-muted">
+                    Bỏ tick ý nào sai, sửa chữ nếu cần, rồi bấm Duyệt. Chỉ các nhận xét được
+                    giữ mới tính vào hồ sơ kỹ năng.
+                  </p>
+                  {detail.traits.length === 0 ? (
+                    <p className="va-muted">Phân tích này không rút ra nhận xét nào.</p>
+                  ) : (
+                    <ul className="va-review-list">
+                      {detail.traits.map((t) => {
+                        const d = drafts[t.id];
+                        if (!d) return null;
+                        return (
+                          <li key={t.id} className={`va-review-item va-${d.polarity}`}>
+                            <input
+                              type="checkbox"
+                              checked={d.accept}
+                              onChange={(e) => setDraft(t.id, { accept: e.target.checked })}
+                            />
+                            <select
+                              className="pb-select va-review-aspect"
+                              value={d.aspect}
+                              onChange={(e) => setDraft(t.id, { aspect: e.target.value as Aspect })}
+                            >
+                              {ASPECT_ORDER.map((asp) => (
+                                <option key={asp} value={asp}>{ASPECT_LABEL[asp]}</option>
+                              ))}
+                            </select>
+                            <select
+                              className="pb-select va-review-pol"
+                              value={d.polarity}
+                              onChange={(e) => setDraft(t.id, { polarity: e.target.value as Polarity })}
+                            >
+                              <option value="strength">✅ Mạnh</option>
+                              <option value="weakness">⚠️ Yếu</option>
+                            </select>
+                            <input
+                              className="pb-input va-review-text"
+                              value={d.text}
+                              onChange={(e) => setDraft(t.id, { text: e.target.value })}
+                            />
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                  <div className="va-row-gap va-mt">
+                    <button className="btn primary" disabled={reviewing} onClick={submitReview}>
+                      {reviewing ? "Đang lưu…" : "✓ Duyệt & lưu vào hồ sơ"}
+                    </button>
+                    {reEditing && (
+                      <button className="btn" disabled={reviewing} onClick={() => setReEditing(false)}>
+                        Hủy
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <h4 className="va-weakness-h">⚠️ Điểm yếu</h4>
-                  <ul className="va-sw-list">
-                    {(raw.weaknesses ?? []).map((w, i) => (
-                      <li key={i}>
-                        <span className="va-aspect-tag">{ASPECT_LABEL[w.aspect] ?? w.aspect}</span>
-                        {w.text}
-                      </li>
-                    ))}
-                    {(raw.weaknesses ?? []).length === 0 && <li className="va-muted">—</li>}
-                  </ul>
+              ) : (
+                <div className="va-reviewed">
+                  <div className="va-card-head">
+                    <h4>✓ Đã duyệt — {acceptedTraits.length} nhận xét vào hồ sơ</h4>
+                    <button className="btn" onClick={() => setReEditing(true)}>Sửa lại</button>
+                  </div>
+                  <div className="va-sw-cols">
+                    <div>
+                      <h4 className="va-strength-h">✅ Điểm mạnh</h4>
+                      <ul className="va-sw-list">
+                        {acceptedTraits.filter((t) => t.polarity === "strength").map((t) => (
+                          <li key={t.id}>
+                            <span className="va-aspect-tag">{ASPECT_LABEL[t.aspect] ?? t.aspect}</span>
+                            {t.text}
+                          </li>
+                        ))}
+                        {acceptedTraits.filter((t) => t.polarity === "strength").length === 0 && (
+                          <li className="va-muted">—</li>
+                        )}
+                      </ul>
+                    </div>
+                    <div>
+                      <h4 className="va-weakness-h">⚠️ Điểm yếu</h4>
+                      <ul className="va-sw-list">
+                        {acceptedTraits.filter((t) => t.polarity === "weakness").map((t) => (
+                          <li key={t.id}>
+                            <span className="va-aspect-tag">{ASPECT_LABEL[t.aspect] ?? t.aspect}</span>
+                            {t.text}
+                          </li>
+                        ))}
+                        {acceptedTraits.filter((t) => t.polarity === "weakness").length === 0 && (
+                          <li className="va-muted">—</li>
+                        )}
+                      </ul>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="va-aspect-blocks">
                 {raw.serve && (raw.serve.type || raw.serve.notes) && (

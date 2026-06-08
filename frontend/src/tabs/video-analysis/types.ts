@@ -6,7 +6,8 @@ export type Status =
   | "needs_id"
   | "analyzing"
   | "done"
-  | "error";
+  | "error"
+  | "stopped";
 export type Side = "" | "left" | "right" | "top" | "bottom" | "alone";
 export type Polarity = "strength" | "weakness" | "neutral";
 export type Aspect =
@@ -40,12 +41,16 @@ export interface Profile {
 
 export type ProfileIn = Partial<Omit<Profile, "id" | "updated_at">>;
 
+export type FindingStatus = "proposed" | "accepted" | "rejected";
+
 export interface Trait {
   id: number;
   aspect: Aspect;
   polarity: Polarity;
   text: string;
+  ai_text: string | null;
   confidence: number | null;
+  status: FindingStatus;
   source_clip_id: number | null;
   created_at: string;
 }
@@ -55,6 +60,62 @@ export interface TraitIn {
   polarity: Polarity;
   text: string;
   confidence?: number | null;
+}
+
+// One reviewed finding sent back to the server.
+export interface FindingDecision {
+  id: number;
+  accept: boolean;
+  text?: string;
+  aspect?: Aspect;
+  polarity?: Polarity;
+}
+
+export type SkillStatus =
+  | "strength"
+  | "weakness"
+  | "improving"
+  | "needs_work"
+  | "neutral";
+
+export interface Skill {
+  id: number;
+  aspect: Aspect;
+  rating: number | null;
+  status: SkillStatus;
+  assessment: string;
+  priority: number | null;
+  updated_at: string;
+}
+
+export interface SkillIn {
+  rating?: number | null;
+  status?: SkillStatus;
+  assessment?: string;
+  priority?: number | null;
+}
+
+export interface SkillReportItem {
+  aspect: Aspect;
+  rating: number | null;
+  status: SkillStatus;
+  assessment: string;
+  priority: number | null;
+  evidence: string[];
+}
+
+export interface Report {
+  name: string;
+  handed: string;
+  grip: string;
+  style: string;
+  overall_summary: string;
+  skills: SkillReportItem[];
+  strengths: string[];
+  weaknesses: string[];
+  improvement_priorities: string[];
+  clips_reviewed: number;
+  findings_accepted: number;
 }
 
 export interface ProfileImage {
@@ -103,6 +164,8 @@ export interface Clip {
   status: Status;
   error_msg: string | null;
   created_at: string;
+  processing_started_at: string | null;
+  reviewed_at: string | null;
   me_side: Side;
   me_appearance: string;
   subject_desc: string | null;
