@@ -166,6 +166,47 @@ def detect_impacts(path: str, sr: int = AUDIO_SR) -> list[float]:
     return impacts
 
 
+# --------------------------------- audio cross-validation / activity (S2 + B)
+def motion_energy(frames_ts: list[tuple[float, Any]]) -> list[tuple[float, float]]:
+    """Per-frame motion energy (mean absolute frame-difference) within the given
+    region — fed the player-cropped frames so it reflects the player moving, not
+    the whole hall. Returns [(t, energy), ...] for the 2nd..Nth frames. Cheap CPU;
+    frames are downscaled to a fixed size so differencing is shape-stable."""
+    import cv2
+    import numpy as np
+
+    out: list[tuple[float, float]] = []
+    prev = None
+    for t, frame in frames_ts:
+        g = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+        g = cv2.resize(g, (128, 128))
+        if prev is not None:
+            out.append((t, float(np.abs(g.astype(np.int16) - prev.astype(np.int16)).mean())))
+        prev = g
+    return out
+
+
+def corroborate_impacts(impacts: list[float], energy: list[tuple[float, float]],
+                        *, window: float = 0.2) -> list[float]:
+    """Keep only audio impacts that coincide with elevated motion in the player's
+    region — a real contact by the subject moves their body, whereas a neighbour
+    table's 'tock' lands while the subject is comparatively still. Rejects that
+    cross-talk in noisy multi-table halls. Best-effort: with no energy signal it
+    returns the impacts unchanged (never blocks)."""
+    if not impacts or not energy:
+        return impacts
+    import statistics
+
+    vals = [e for _, e in energy]
+    thr = statistics.median(vals) + 0.5 * (statistics.pstdev(vals) if len(vals) > 1 else 0.0)
+    kept: list[float] = []
+    for t in impacts:
+        near = [e for tt, e in energy if abs(tt - t) <= window]
+        if near and max(near) >= thr:
+            kept.append(t)
+    return kept
+
+
 def _even_indices(total: int, want: int) -> list[int]:
     """Evenly-spaced frame indices across [0, total)."""
     if total <= 0:
@@ -412,6 +453,16 @@ def pose_to_text(pose: dict[str, Any]) -> str:
         "(theo tỉ lệ khung hình; càng lớn = di chuyển chân càng nhiều).",
         f"- Độ cao tay (so với vai, theo độ rộng vai): {fmt(pose.get('hand_elevation'))}.",
     ]
+    dyn = pose.get("dynamics") or {}
+    if dyn:
+        parts = [f"{dyn.get('n_strokes', 0)} cú đánh tách được"]
+        if dyn.get("swing_speed"):
+            parts.append(f"tốc độ vung (đỉnh cổ tay, tương đối) TB {dyn['swing_speed']['mean']}")
+        if dyn.get("tempo_sec") is not None:
+            parts.append(f"nhịp ~{dyn['tempo_sec']}s/cú")
+        if dyn.get("recovery_sec") is not None:
+            parts.append(f"thời gian hồi vị giữa các cú TB ~{dyn['recovery_sec']}s")
+        lines.append("- Động lực cú đánh: " + "; ".join(parts) + ".")
     return "\n".join(lines)
 
 
@@ -435,6 +486,13 @@ def pose_to_metrics(pose: dict[str, Any]) -> list[dict[str, Any]]:
     add_mean("hand_elevation_mean", pose.get("hand_elevation"))
     if pose.get("lateral_sway") is not None:
         out.append({"name": "lateral_sway", "value": float(pose["lateral_sway"]), "unit": "frac"})
+    dyn = pose.get("dynamics") or {}
+    if dyn.get("swing_speed") and dyn["swing_speed"].get("mean") is not None:
+        out.append({"name": "swing_speed_mean", "value": float(dyn["swing_speed"]["mean"]), "unit": "norm/s"})
+    if dyn.get("tempo_sec") is not None:
+        out.append({"name": "tempo_sec", "value": float(dyn["tempo_sec"]), "unit": "s"})
+    if dyn.get("recovery_sec") is not None:
+        out.append({"name": "recovery_sec", "value": float(dyn["recovery_sec"]), "unit": "s"})
     return out
 
 
@@ -660,6 +718,33 @@ def _mean_std(xs: list[float]) -> tuple[float, float]:
     m = sum(xs) / len(xs)
     var = sum((x - m) ** 2 for x in xs) / len(xs)
     return m, math.sqrt(var)
+
+
+def stroke_dynamics(strokes: list[dict[str, Any]]) -> dict[str, Any]:
+    """Dynamic, stroke-level biomechanics derived from the segmented strokes —
+    the things a coach actually talks about, beyond static posture:
+    - swing_speed: peak playing-wrist speed per stroke (normalised coords/sec; a
+      RELATIVE measure, comparable across this player's clips, not an absolute m/s).
+    - tempo_sec: mean time between consecutive ball contacts.
+    - recovery_sec: mean gap between a stroke ending and the next one starting
+      (readiness / how fast they reset between shots).
+    Empty dict when there aren't enough strokes."""
+    if not strokes:
+        return {}
+    ordered = sorted(strokes, key=lambda s: s["t_contact"])
+    out: dict[str, Any] = {
+        "n_strokes": len(strokes),
+        "swing_speed": _stats([s["peak_speed"] for s in strokes]),
+    }
+    contacts = [s["t_contact"] for s in ordered]
+    if len(contacts) >= 2:
+        tempos = [contacts[i] - contacts[i - 1] for i in range(1, len(contacts))]
+        out["tempo_sec"] = round(sum(tempos) / len(tempos), 2)
+    gaps = [ordered[i]["t_start"] - ordered[i - 1]["t_end"] for i in range(1, len(ordered))]
+    gaps = [g for g in gaps if g >= 0]
+    if gaps:
+        out["recovery_sec"] = round(sum(gaps) / len(gaps), 2)
+    return out
 
 
 # ----------------------------------------------------- stroke montages (S6)
@@ -976,7 +1061,11 @@ def analyze_file(path: str, clip_type: str, model: str | None = None, *,
     records, _detected, pose_ok, pose_reason = analyze_pose(player_ts, handed)
 
     # Motion stages — best-effort (empty on failure → graceful fallback).
-    impacts = detect_impacts(path)
+    # Cross-validate audio against player-region motion to drop neighbour-table
+    # 'tock' cross-talk (noisy multi-table halls), then use the kept impacts
+    # everywhere (stroke-contact snapping + the impact-anchored fallback).
+    impacts_raw = detect_impacts(path)
+    impacts = corroborate_impacts(impacts_raw, motion_energy(player_ts))
     series = [r for r in records if r["wvis"] > 0.3]
     strokes = segment_strokes(series, impacts, handed=handed)
 
@@ -984,6 +1073,7 @@ def analyze_file(path: str, clip_type: str, model: str | None = None, *,
     if pose_ok:
         intervals = [(s["t_start"], s["t_end"]) for s in strokes]
         pose = aggregate_pose(records, len(player_ts), intervals)
+        pose["dynamics"] = stroke_dynamics(strokes)
         scope = "các cú đánh" if pose.get("measured_on") == "strokes" else "toàn clip"
         where = _SIDE_VI[me_side] if cropped else "người nổi bật trong khung"
         pose["note"] = f"đo trên {scope}, vùng {where}"
@@ -1031,7 +1121,8 @@ def analyze_file(path: str, clip_type: str, model: str | None = None, *,
 
     # Visible signal (backend console) of which path the analysis took.
     print(f"[video_analysis] motion: path={motion_path} strokes={len(strokes)} "
-          f"impacts={len(impacts)} images={len(images_b64)} montage={montage}", flush=True)
+          f"impacts={len(impacts_raw)}->{len(impacts)} images={len(images_b64)} "
+          f"montage={montage}", flush=True)
 
     raw = call_vlm(
         images_b64, pose_to_text(pose), clip_type, model,
