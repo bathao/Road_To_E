@@ -22,7 +22,9 @@ from app.core.settings import DEFAULT_TEXT_MODEL, DEFAULT_VLM_MODEL, OLLAMA_BASE
 # How many frames to feed each stage. The VLM set is a subset (token/VRAM
 # budget); pose can look at more frames since it is cheap on CPU.
 VLM_MAX_FRAMES = 14
-POSE_MAX_FRAMES = 32
+POSE_MAX_FRAMES = 48      # denser sampling → cleaner wrist trajectory / strokes
+VLM_MAX_STROKES = 4       # per-stroke montages sent to the VLM (token budget)
+VLM_CONTEXT_FRAMES = 2    # whole-frame context shots alongside the montages
 FRAME_MAX_DIM = 768  # downscale longest side before sending to the VLM
 # Each frame costs ~1k vision tokens, so 14 frames + prompt + output blows past
 # Ollama's 4096 default. Give the VLM a large window; an 8B model + this KV
@@ -99,6 +101,71 @@ def probe(path: str) -> dict[str, Any]:
     }
 
 
+# ------------------------------------------------------------- audio (S2)
+AUDIO_SR = 16000  # mono sample rate for impact detection
+
+
+def extract_audio_pcm(path: str, sr: int = AUDIO_SR):
+    """Decode the clip's audio to mono float32 PCM in [-1, 1] via ffmpeg. Returns
+    a numpy array, or None if the clip has no audio / ffmpeg fails. Raw s16le over
+    a pipe — no header parsing, no temp file."""
+    import numpy as np
+
+    ff = _ffmpeg_bin()
+    cmd = [ff, "-v", "error", "-i", path, "-vn", "-ac", "1", "-ar", str(sr),
+           "-f", "s16le", "-acodec", "pcm_s16le", "pipe:1"]
+    proc = subprocess.run(cmd, capture_output=True)  # binary stdout (no text=True)
+    if proc.returncode != 0 or not proc.stdout:
+        return None
+    pcm = np.frombuffer(proc.stdout, dtype=np.int16).astype(np.float32) / 32768.0
+    return pcm if pcm.size else None
+
+
+def detect_impacts(path: str, sr: int = AUDIO_SR) -> list[float]:
+    """S2 — detect ball-contact 'tock' onsets from the clip audio: a cheap,
+    vision-independent timing anchor for stroke phasing (S4) and tempo. Returns
+    impact times in seconds (ascending), or [] if there is no audio / none found.
+    Best-effort: any failure → [] so it never blocks analysis.
+
+    Method: emphasise high-frequency transients (first difference ≈ high-pass),
+    take short-time energy, then onset = positive energy flux; keep adaptive-
+    threshold peaks at least 80 ms apart."""
+    try:
+        pcm = extract_audio_pcm(path, sr)
+    except Exception:
+        return []
+    if pcm is None or pcm.size < sr // 5:  # < 0.2 s of audio → nothing useful
+        return []
+    import numpy as np
+
+    emph = np.diff(pcm, prepend=pcm[:1])          # crude high-pass
+    hop = max(1, sr // 100)                        # 10 ms frames
+    win = hop * 2
+    n = (len(emph) - win) // hop
+    if n <= 2:
+        return []
+    sq = emph.astype(np.float64) ** 2
+    csum = np.concatenate(([0.0], np.cumsum(sq)))  # prefix sums → fast windows
+    starts = np.arange(n) * hop
+    energy = (csum[starts + win] - csum[starts]).astype(np.float64)
+
+    flux = np.diff(energy, prepend=energy[:1])
+    flux[flux < 0] = 0.0
+    if flux.max() <= 0:
+        return []
+    thr = flux.mean() + 2.5 * flux.std()
+    min_gap = max(1, int(0.08 * sr / hop))         # ≥ 80 ms between impacts
+
+    impacts: list[float] = []
+    last = -(10 ** 9)
+    for i in range(1, n - 1):
+        if flux[i] >= thr and flux[i] >= flux[i - 1] and flux[i] >= flux[i + 1]:
+            if i - last >= min_gap:
+                impacts.append(round(i * hop / sr, 3))
+                last = i
+    return impacts
+
+
 def _even_indices(total: int, want: int) -> list[int]:
     """Evenly-spaced frame indices across [0, total)."""
     if total <= 0:
@@ -109,22 +176,30 @@ def _even_indices(total: int, want: int) -> list[int]:
     return [min(total - 1, int(i * step)) for i in range(want)]
 
 
-def _sample_frames(path: str) -> tuple[list, list]:
-    """Return (pose_frames_rgb, vlm_frames_rgb). Both are lists of RGB numpy
-    arrays; the VLM list is a subset of the pose list."""
+def sample_timestamped(path: str, max_frames: int) -> list[tuple[float, Any]]:
+    """S1 — the single decode primitive. One pass over the video, evenly sampling
+    up to ``max_frames`` frames, each paired with its timestamp in seconds
+    (frame index / fps). This is the *only* place frames are read off disk; every
+    downstream stage (pose, VLM sampling, previews) reuses the result, so the
+    whole pipeline speaks in real seconds. Returns [(t_sec, frame_rgb), ...]."""
     import cv2
 
     cap = cv2.VideoCapture(path)
-    frames_rgb: list = []
+    out: list[tuple[float, Any]] = []
     try:
+        fps = cap.get(cv2.CAP_PROP_FPS) or 0.0
+
+        def t_of(idx: int) -> float:
+            return round(idx / fps, 3) if fps else 0.0
+
         total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
-        idxs = _even_indices(total, POSE_MAX_FRAMES) if total else []
+        idxs = _even_indices(total, max_frames) if total else []
         if idxs:
             for idx in idxs:
                 cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
                 ok, frame = cap.read()
                 if ok and frame is not None:
-                    frames_rgb.append(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                    out.append((t_of(idx), cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)))
         else:
             # Unknown frame count: read sequentially, keep every Nth.
             grabbed = []
@@ -133,14 +208,45 @@ def _sample_frames(path: str) -> tuple[list, list]:
                 if not ok:
                     break
                 grabbed.append(frame)
-            for idx in _even_indices(len(grabbed), POSE_MAX_FRAMES):
-                frames_rgb.append(cv2.cvtColor(grabbed[idx], cv2.COLOR_BGR2RGB))
+            for idx in _even_indices(len(grabbed), max_frames):
+                out.append((t_of(idx), cv2.cvtColor(grabbed[idx], cv2.COLOR_BGR2RGB)))
     finally:
         cap.release()
+    return out
 
+
+def decode_at_times(path: str, times: list[float]) -> list[tuple[float, Any]]:
+    """Decode the frames nearest specific timestamps (seconds). Used to grab a
+    tight window around each audio impact for impact-anchored montages, when
+    pose-based stroke segmentation failed. Returns [(t_sec, frame_rgb), ...]."""
+    import cv2
+
+    cap = cv2.VideoCapture(path)
+    out: list[tuple[float, Any]] = []
+    try:
+        fps = cap.get(cv2.CAP_PROP_FPS) or 0.0
+        total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+        for t in times:
+            idx = int(round(t * fps)) if fps else 0
+            if total:
+                idx = max(0, min(total - 1, idx))
+            cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
+            ok, frame = cap.read()
+            if ok and frame is not None:
+                out.append((t, cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)))
+    finally:
+        cap.release()
+    return out
+
+
+def _sample_frames(path: str) -> tuple[list, list]:
+    """Return (pose_frames_rgb, vlm_frames_rgb). Both are lists of RGB numpy
+    arrays; the VLM list is an even subset of the pose list. Thin wrapper over
+    :func:`sample_timestamped` (S1) — selection is identical to before."""
+    pose_frames = [f for _, f in sample_timestamped(path, POSE_MAX_FRAMES)]
     # VLM subset: evenly pick from the pose frames.
-    vlm = [frames_rgb[i] for i in _even_indices(len(frames_rgb), VLM_MAX_FRAMES)]
-    return frames_rgb, vlm
+    vlm = [pose_frames[i] for i in _even_indices(len(pose_frames), VLM_MAX_FRAMES)]
+    return pose_frames, vlm
 
 
 def _to_jpeg_b64(frame_rgb) -> str:
@@ -291,18 +397,325 @@ def pose_to_text(pose: dict[str, Any]) -> str:
             return "n/a"
         return f"trung bình {metric['mean']}{unit} (từ {metric['min']} đến {metric['max']}{unit})"
 
+    measured = pose.get("measured_on")
+    scope = ("(số dưới đây ĐO TRONG LÚC đánh bóng)" if measured == "strokes"
+             else "(số đo trên toàn clip, gồm cả lúc đứng nghỉ — chỉ tham khảo)"
+             if measured == "whole_clip" else "")
     lines = [
-        f"- Số khung phát hiện được người: {pose['frames_with_pose']}/{pose['frames_analyzed']}",
+        f"- Số khung phát hiện được người: {pose['frames_with_pose']}/{pose['frames_analyzed']} {scope}",
         f"- Độ rộng tấn (khoảng cách 2 cổ chân / độ rộng vai): {fmt(pose.get('stance_width_ratio'))} "
         "(>1.4 = tấn rộng, vững; <1.0 = tấn hẹp).",
         f"- Góc gập gối: {fmt(pose.get('knee_flexion_deg'), '°')} (180° = chân thẳng đứng; "
         "càng nhỏ càng khuỵu gối/hạ trọng tâm tốt).",
         f"- Độ nghiêng thân so với phương thẳng đứng: {fmt(pose.get('torso_lean_deg'), '°')}.",
-        f"- Biên độ di chuyển ngang của hông (bộ chân): {pose.get('lateral_sway')} "
+        f"- Biên độ di chuyển ngang của hông (bộ chân, đo trên CẢ clip): {pose.get('lateral_sway')} "
         "(theo tỉ lệ khung hình; càng lớn = di chuyển chân càng nhiều).",
         f"- Độ cao tay (so với vai, theo độ rộng vai): {fmt(pose.get('hand_elevation'))}.",
     ]
     return "\n".join(lines)
+
+
+def pose_to_metrics(pose: dict[str, Any]) -> list[dict[str, Any]]:
+    """Flatten aggregate pose metrics into the flat ``{name, value, unit}`` rows
+    the time-series store (``va_metric``) will hold. Additive scaffolding: not
+    persisted yet, but the canonical shape so progress tracking (Phase 3) can
+    compare clips over time. Only the mean of each metric is emitted here (the
+    min/max stay in ``pose_json``)."""
+    if not pose.get("available") or not pose.get("frames_with_pose"):
+        return []
+    out: list[dict[str, Any]] = []
+
+    def add_mean(name: str, metric: dict | None, unit: str = "") -> None:
+        if metric and metric.get("mean") is not None:
+            out.append({"name": name, "value": float(metric["mean"]), "unit": unit})
+
+    add_mean("stance_width_ratio_mean", pose.get("stance_width_ratio"))
+    add_mean("knee_flexion_deg_mean", pose.get("knee_flexion_deg"), "deg")
+    add_mean("torso_lean_deg_mean", pose.get("torso_lean_deg"), "deg")
+    add_mean("hand_elevation_mean", pose.get("hand_elevation"))
+    if pose.get("lateral_sway") is not None:
+        out.append({"name": "lateral_sway", "value": float(pose["lateral_sway"]), "unit": "frac"})
+    return out
+
+
+# ------------------------------------------- unified pose pass (S3, one MediaPipe run)
+def analyze_pose(frames_ts: list[tuple[float, Any]], handed: str = "right"
+                 ) -> tuple[list[dict[str, Any]], int, bool, str]:
+    """ONE MediaPipe pass over (t, frame): produces per-frame records used for
+    BOTH stroke segmentation (wrist trajectory) and aggregate biomechanics —
+    replacing the old run_pose + pose_track double pass. Each record holds
+    ``{t, wx, wy, wvis, cx, stance, knee, lean, hip_x, hand_elev}`` (metric fields
+    are None when their landmarks aren't visible). Returns
+    ``(records, frames_with_pose, available, reason)``."""
+    try:
+        import mediapipe as mp
+    except Exception as exc:  # pragma: no cover - install guard
+        return [], 0, False, f"mediapipe unavailable: {exc}"
+    if not frames_ts:
+        return [], 0, False, "no frames"
+
+    wrist_i = playing_wrist_index(handed)
+    pose = mp.solutions.pose.Pose(
+        static_image_mode=True, model_complexity=1, min_detection_confidence=0.5
+    )
+    records: list[dict[str, Any]] = []
+    try:
+        for t, frame in frames_ts:
+            res = pose.process(frame)
+            lm = getattr(res, "pose_landmarks", None)
+            if not lm:
+                continue
+            pts = lm.landmark
+
+            def vis(i: int) -> bool:
+                return pts[i].visibility is None or pts[i].visibility > 0.3
+
+            shoulder_w = _dist(pts[L_SHOULDER], pts[R_SHOULDER]) or 1e-6
+            sh_mid_y = (pts[L_SHOULDER].y + pts[R_SHOULDER].y) / 2
+            hip_mid_x = (pts[L_HIP].x + pts[R_HIP].x) / 2
+            hip_mid_y = (pts[L_HIP].y + pts[R_HIP].y) / 2
+            sh_mid_x = (pts[L_SHOULDER].x + pts[R_SHOULDER].x) / 2
+
+            w = pts[wrist_i]
+            knees = [
+                _angle(pts[hip], pts[knee], pts[ankle])
+                for hip, knee, ankle in ((L_HIP, L_KNEE, L_ANKLE), (R_HIP, R_KNEE, R_ANKLE))
+                if vis(hip) and vis(knee) and vis(ankle)
+            ]
+            hand_el = [(sh_mid_y - pts[wr].y) / shoulder_w for wr in (L_WRIST, R_WRIST) if vis(wr)]
+            records.append({
+                "t": round(t, 3),
+                "wx": w.x, "wy": w.y,
+                "wvis": w.visibility if w.visibility is not None else 1.0,
+                "cx": sh_mid_x,
+                "stance": (_dist(pts[L_ANKLE], pts[R_ANKLE]) / shoulder_w)
+                          if vis(L_ANKLE) and vis(R_ANKLE) else None,
+                "knee": (sum(knees) / len(knees)) if knees else None,
+                "lean": abs(math.degrees(math.atan2(sh_mid_x - hip_mid_x, -(sh_mid_y - hip_mid_y)))),
+                "hip_x": hip_mid_x,
+                "hand_elev": (sum(hand_el) / len(hand_el)) if hand_el else None,
+            })
+    finally:
+        pose.close()
+    return records, len(records), True, ""
+
+
+def aggregate_pose(records: list[dict[str, Any]], total_frames: int,
+                   intervals: list[tuple[float, float]] | None = None) -> dict[str, Any]:
+    """Aggregate per-frame pose records into the metric dict (same shape as the
+    old run_pose). When ``intervals`` (stroke [t_start, t_end] windows) are given,
+    metrics are measured ONLY on frames inside them — i.e. during actual strokes,
+    not idle standing, which otherwise drags e.g. knee angle toward "legs straight".
+    Falls back to all frames when there's no usable overlap."""
+    if not records:
+        return {"available": True, "frames_analyzed": total_frames,
+                "frames_with_pose": 0, "reason": "no body detected in sampled frames"}
+    use, scoped = records, False
+    if intervals:
+        inside = [r for r in records if any(t0 <= r["t"] <= t1 for t0, t1 in intervals)]
+        if len(inside) >= 3:
+            use, scoped = inside, True
+    # Posture metrics (stance/knee/lean/hand) reflect the moment of the stroke →
+    # measure on the scoped frames. But lateral sway is FOOTWORK RANGE, which
+    # happens BETWEEN strokes (moving to the ball) — measuring it only within a
+    # stroke window makes it tiny and falsely flags footwork as weak. So sway is
+    # always measured across the whole clip.
+    all_hip_xs = [r["hip_x"] for r in records if r["hip_x"] is not None]
+    return {
+        "available": True,
+        "frames_analyzed": total_frames,
+        "frames_with_pose": len(records),
+        "frames_measured": len(use),
+        "measured_on": "strokes" if scoped else "whole_clip",
+        "stance_width_ratio": _stats([r["stance"] for r in use if r["stance"] is not None]),
+        "knee_flexion_deg": _stats([r["knee"] for r in use if r["knee"] is not None]),
+        "torso_lean_deg": _stats([r["lean"] for r in use if r["lean"] is not None]),
+        "lateral_sway": round(max(all_hip_xs) - min(all_hip_xs), 3) if all_hip_xs else None,
+        "hand_elevation": _stats([r["hand_elev"] for r in use if r["hand_elev"] is not None]),
+    }
+
+
+# ----------------------------------------- stroke segmentation + phasing (S4)
+def playing_wrist_index(handed: str) -> int:
+    return L_WRIST if handed == "left" else R_WRIST
+
+
+def pose_track(frames_ts: list[tuple[float, Any]], handed: str = "right") -> list[dict[str, Any]]:
+    """Per-frame playing-hand trajectory used by :func:`segment_strokes`. Each
+    entry is ``{t, wx, wy, cx}`` — the playing wrist (normalised 0..1) plus the
+    body-centre x (shoulder midpoint). Frames with no confident body are skipped.
+    Denser sampling → better strokes, so feed it the full sampled set, not the
+    VLM subset. Returns [] if mediapipe is unavailable."""
+    try:
+        import mediapipe as mp
+    except Exception:
+        return []
+    if not frames_ts:
+        return []
+    wrist_i = playing_wrist_index(handed)
+    pose = mp.solutions.pose.Pose(static_image_mode=True, model_complexity=1,
+                                  min_detection_confidence=0.5)
+    series: list[dict[str, Any]] = []
+    try:
+        for t, frame in frames_ts:
+            res = pose.process(frame)
+            lm = getattr(res, "pose_landmarks", None)
+            if not lm:
+                continue
+            pts = lm.landmark
+            w = pts[wrist_i]
+            if w.visibility is not None and w.visibility < 0.3:
+                continue
+            cx = (pts[L_SHOULDER].x + pts[R_SHOULDER].x) / 2
+            series.append({"t": round(t, 3), "wx": w.x, "wy": w.y, "cx": cx})
+    finally:
+        pose.close()
+    return series
+
+
+def _guess_hand(wx: float, cx: float, handed: str) -> str:
+    """Best-effort forehand/backhand from wrist-x vs body centre. Camera
+    orientation is unknown, so this is a guess, not ground truth — callers should
+    treat it as a hint and let the VLM/user correct it."""
+    off = wx - cx
+    if abs(off) < 0.05:
+        return "unknown"
+    # For a right-hander the forehand wing sits to body-right in a front view;
+    # mirror for left-handers.
+    return "forehand" if (off > 0) == (handed != "left") else "backhand"
+
+
+def segment_strokes(series: list[dict[str, Any]], impacts: list[float] | None = None,
+                    *, handed: str = "right", min_gap_s: float = 0.3,
+                    k: float = 0.7) -> list[dict[str, Any]]:
+    """S4 — split the playing-wrist trajectory into strokes and canonical phases.
+    A stroke is a burst of high wrist speed; its **contact instant snaps to the
+    nearest audio impact** (S2) when one is within 150 ms, else the speed peak.
+    Phase boundaries are the speed valleys around the peak. Returns ordered
+    strokes: ``{idx, t_start, t_contact, t_end, hand, peak_speed, phases}``.
+
+    Heuristic and resolution-bound: coarse frame sampling caps timing precision,
+    and ``hand`` is a best-effort guess (see :func:`_guess_hand`)."""
+    if len(series) < 3:
+        return []
+    spd: list[tuple[float, float, int]] = []  # (t, speed, index into series)
+    for i in range(1, len(series)):
+        dt = series[i]["t"] - series[i - 1]["t"]
+        if dt <= 0:
+            continue
+        d = math.hypot(series[i]["wx"] - series[i - 1]["wx"],
+                       series[i]["wy"] - series[i - 1]["wy"])
+        spd.append((series[i]["t"], d / dt, i))
+    if len(spd) < 3:
+        return []
+    speeds = [s for _, s, _ in spd]
+    mean, std = _mean_std(speeds)
+    thr = mean + k * std
+    valley = mean  # below the mean ≈ between strokes
+    impacts = impacts or []
+
+    strokes: list[dict[str, Any]] = []
+    last_contact = -1e9
+    for j in range(1, len(spd) - 1):
+        t, s, i = spd[j]
+        if not (s >= thr and s >= spd[j - 1][1] and s >= spd[j + 1][1]):
+            continue
+        if t - last_contact < min_gap_s:
+            continue
+        a = j
+        while a > 0 and spd[a][1] > valley:
+            a -= 1
+        b = j
+        while b < len(spd) - 1 and spd[b][1] > valley:
+            b += 1
+        t_start, t_end = spd[a][0], spd[b][0]
+        t_contact = t
+        if impacts:
+            near = min(impacts, key=lambda im: abs(im - t))
+            if abs(near - t) <= 0.15:
+                t_contact = near
+        hand = _guess_hand(series[i]["wx"], series[i]["cx"], handed)
+        mid = (t_start + t_contact) / 2
+        strokes.append({
+            "idx": len(strokes),
+            "t_start": round(t_start, 3),
+            "t_contact": round(t_contact, 3),
+            "t_end": round(t_end, 3),
+            "hand": hand,
+            "peak_speed": round(s, 4),
+            "phases": {
+                "backswing": [round(t_start, 3), round(mid, 3)],
+                "forward_swing": [round(mid, 3), round(t_contact, 3)],
+                "contact": [round(t_contact, 3), round(t_contact, 3)],
+                "follow_through": [round(t_contact, 3), round(t_end, 3)],
+            },
+        })
+        last_contact = t_contact
+    return strokes
+
+
+def _mean_std(xs: list[float]) -> tuple[float, float]:
+    if not xs:
+        return 0.0, 0.0
+    m = sum(xs) / len(xs)
+    var = sum((x - m) ** 2 for x in xs) / len(xs)
+    return m, math.sqrt(var)
+
+
+# ----------------------------------------------------- stroke montages (S6)
+MONTAGE_CELL_MAX = 384  # longest side of each cell in a montage strip
+
+
+def frame_at_time(frames_ts: list[tuple[float, Any]], t: float):
+    """Nearest sampled frame to timestamp ``t`` (or None if no frames)."""
+    if not frames_ts:
+        return None
+    return min(frames_ts, key=lambda ft: abs(ft[0] - t))[1]
+
+
+def montage_strip(frames_rgb: list, cell_max: int = MONTAGE_CELL_MAX) -> str | None:
+    """Concatenate frames left→right into one image (a swing read in a single
+    picture), returned as JPEG base64. Cells are scaled to ``cell_max`` on their
+    longest side and bottom-padded to a common height. None if no frames."""
+    import cv2
+    import numpy as np
+
+    cells = []
+    for f in frames_rgb:
+        if f is None or getattr(f, "size", 0) == 0:
+            continue
+        h, w = f.shape[:2]
+        scale = cell_max / max(h, w)
+        if scale < 1:
+            f = cv2.resize(f, (int(w * scale), int(h * scale)))
+        cells.append(f)
+    if not cells:
+        return None
+    height = max(c.shape[0] for c in cells)
+    padded = []
+    for c in cells:
+        if c.shape[0] < height:
+            pad = np.zeros((height - c.shape[0], c.shape[1], 3), dtype=c.dtype)
+            c = np.vstack([c, pad])
+        padded.append(c)
+    strip = np.hstack(padded)
+    bgr = cv2.cvtColor(strip, cv2.COLOR_RGB2BGR)
+    ok, buf = cv2.imencode(".jpg", bgr, [cv2.IMWRITE_JPEG_QUALITY, 85])
+    return base64.b64encode(buf.tobytes()).decode("ascii") if ok else None
+
+
+def stroke_montage_b64(frames_ts: list[tuple[float, Any]],
+                       stroke: dict[str, Any]) -> str | None:
+    """One montage per stroke: backswing → forward-swing → contact → follow-
+    through frames (nearest sampled frames to each phase time)."""
+    times = [
+        stroke["t_start"],
+        stroke["phases"]["forward_swing"][0],
+        stroke["t_contact"],
+        stroke["t_end"],
+    ]
+    frames = [frame_at_time(frames_ts, t) for t in times]
+    return montage_strip([f for f in frames if f is not None])
 
 
 # ---------------------------------------------------------------------- VLM
@@ -316,7 +729,10 @@ SYSTEM_PROMPT = (
     "Khi chắc chắn, phân tích điểm mạnh/yếu về: giao bóng, thuận tay (forehand), trái tay "
     "(backhand), bộ chân (footwork), tư thế/thân người, chiến thuật; dựa cả vào số liệu pose. "
     "Trả lời HOÀN TOÀN bằng tiếng Việt, cụ thể, mang tính huấn luyện. Chỉ trả JSON đúng schema, "
-    "không thêm chữ nào ngoài JSON. Mục nào không quan sát rõ thì ghi 'không quan sát rõ', không bịa."
+    "không thêm chữ nào ngoài JSON. Mục nào không quan sát rõ thì ghi 'không quan sát rõ', không bịa. "
+    "KHÔNG liệt kê cùng một mảng (vd bộ chân, thuận tay) vừa là điểm mạnh vừa là điểm yếu với cùng "
+    "một lý do. Số liệu pose chỉ là THAM KHẢO (đo tự động, có thể nhiễu); ưu tiên quan sát diễn tiến "
+    "động tác trong các ảnh ghép, nếu số pose mâu thuẫn với hình thì tin vào hình."
 )
 
 # Ollama structured-output JSON schema (constrains the model's response).
@@ -402,13 +818,30 @@ def _identity_block(reference_images_b64: list[str], me_side: str,
 
 def call_vlm(images_b64: list[str], pose_text: str, clip_type: str, model: str, *,
              reference_images_b64: list[str] | None = None, me_side: str = "",
-             me_appearance: str = "", handed: str = "right") -> dict[str, Any]:
-    """Send reference images + frames + pose context to Ollama; return parsed JSON."""
+             me_appearance: str = "", handed: str = "right",
+             stroke_context: str = "", montage: bool = False) -> dict[str, Any]:
+    """Send reference images + frames + pose context to Ollama; return parsed JSON.
+    When ``montage`` is set, the leading images are per-stroke montages (a swing
+    read left→right) rather than evenly-spaced stills, and ``stroke_context`` adds
+    the auto-detected stroke/tempo facts to the prompt."""
     refs = (reference_images_b64 or [])[:REF_MAX]
+    if montage:
+        intro = (
+            f"Có {len(refs)} ảnh tham chiếu (nếu >0), rồi đến {len(images_b64)} ẢNH. "
+            "Phần đầu là các ẢNH GHÉP — mỗi ảnh ghép là MỘT KHOẢNH KHẮC ĐÁNH BÓNG gồm nhiều khung "
+            "hình xếp trái→phải theo thời gian (trước → lúc → sau khi tiếp xúc bóng); phần sau là "
+            "vài khung toàn cảnh. Hãy phân tích kỹ thuật theo diễn tiến động tác trong mỗi ảnh ghép."
+        )
+    else:
+        intro = (
+            f"Có {len(refs)} ảnh tham chiếu (nếu >0) rồi đến {len(images_b64)} khung hình trích đều "
+            f"từ một {_CLIP_TYPE_VI.get(clip_type, 'clip')} (theo thứ tự thời gian)."
+        )
+    context_block = f"Bối cảnh cú đánh (tự động phát hiện, có thể sai):\n{stroke_context}\n\n" if stroke_context else ""
     user_text = (
-        f"Có {len(refs)} ảnh tham chiếu (nếu >0) rồi đến {len(images_b64)} khung hình trích đều "
-        f"từ một {_CLIP_TYPE_VI.get(clip_type, 'clip')} (theo thứ tự thời gian).\n\n"
+        f"{intro}\n\n"
         f"Thông tin nhận diện Thảo:\n{_identity_block(refs, me_side, me_appearance, handed)}\n\n"
+        f"{context_block}"
         f"Số liệu pose đo được (của người được cho là Thảo):\n{pose_text}\n\n"
         "Xác định Thảo, CHỈ phân tích Thảo, rồi trả JSON đúng schema."
     )
@@ -488,40 +921,136 @@ def subject_crops(frames_rgb: list, side: str, want: int = 3) -> list[str]:
     return out
 
 
+_HAND_VI = {"forehand": "thuận tay (FH)", "backhand": "trái tay (BH)", "unknown": "chưa rõ"}
+
+
+def _stroke_context_text(shown: list[dict[str, Any]], strokes: list[dict[str, Any]],
+                         impacts: list[float]) -> str:
+    """Vietnamese facts about the auto-detected strokes/tempo, for the VLM prompt.
+    ``shown`` are the strokes whose montages are attached (in image order)."""
+    lines = [f"- Tự động phát hiện {len(strokes)} cú đánh trong clip."]
+    if len(impacts) >= 2:
+        gaps = [impacts[i] - impacts[i - 1] for i in range(1, len(impacts))]
+        avg = sum(gaps) / len(gaps)
+        lines.append(f"- ~{len(impacts)} lần chạm bóng (âm thanh), nhịp trung bình {avg:.2f}s/lần.")
+    elif impacts:
+        lines.append(f"- {len(impacts)} lần chạm bóng (âm thanh).")
+    lines.append(f"- {len(shown)} ảnh ghép dưới đây tương ứng các cú đánh sau (theo thứ tự):")
+    for n, s in enumerate(shown, 1):
+        lines.append(f"  • Ảnh ghép #{n}: cú lúc {s['t_contact']}s, loại (đoán): {_HAND_VI.get(s['hand'], s['hand'])}.")
+    return "\n".join(lines)
+
+
+def _impact_context_text(picks: list[float], impacts: list[float]) -> str:
+    """Prompt facts for the impact-anchored path (pose strokes unavailable)."""
+    lines = [f"- Tự động phát hiện ~{len(impacts)} lần chạm bóng (theo âm thanh)."]
+    if len(impacts) >= 2:
+        gaps = [impacts[i] - impacts[i - 1] for i in range(1, len(impacts))]
+        lines.append(f"- Nhịp đánh trung bình {sum(gaps) / len(gaps):.2f}s/lần.")
+    lines.append(f"- {len(picks)} ảnh ghép dưới đây là khoảnh khắc quanh lúc chạm bóng tại các thời "
+                 f"điểm {', '.join(f'{t:.1f}s' for t in picks)} (trái→phải: trước → lúc → sau chạm). "
+                 "Chưa tách được cú đánh từ tư thế (người chơi ở xa), hãy phân tích dựa trên các ảnh ghép này.")
+    return "\n".join(lines)
+
+
 def analyze_file(path: str, clip_type: str, model: str | None = None, *,
                  me_side: str = "", me_appearance: str = "", handed: str = "right",
                  reference_images_b64: list[str] | None = None) -> dict[str, Any]:
-    """Full pipeline for one clip. Returns
-    {model, frames_sampled, pose, raw, summary, ref_crops_b64}."""
+    """Full pipeline for one clip. Motion-aware (S1/S2/S4/S6): sample once with
+    timestamps, detect ball-contact impacts (audio) + strokes (pose), and feed the
+    VLM per-stroke montages + stroke context. Falls back to evenly-spaced stills
+    when no strokes are found, so behaviour is never worse than before. Returns
+    {model, frames_sampled, pose, raw, summary, ref_crops_b64, strokes, impacts,
+    metrics}."""
     model = model or DEFAULT_VLM_MODEL
-    pose_frames, vlm_frames = _sample_frames(path)
-    if not vlm_frames:
+    track_ts = sample_timestamped(path, POSE_MAX_FRAMES)
+    if not track_ts:
         raise RuntimeError("Không đọc được khung hình nào từ clip (file hỏng hoặc định dạng lạ).")
 
-    # Pose locks onto the user only when we know their side; else best-effort.
+    # Pose/strokes lock onto the user only when we know their side; else best-effort.
     cropped = me_side in _SIDE_VI
-    pose_input = [crop_side(f, me_side) for f in pose_frames] if cropped else pose_frames
-    pose = run_pose(pose_input)
-    if cropped and pose.get("available"):
-        pose["note"] = f"đo trên vùng {_SIDE_VI[me_side]} (đã cắt về phía Thảo)"
-    elif not cropped:
-        pose["note"] = "đo trên người nổi bật trong khung (chưa biết phía Thảo)"
+    player_ts = [(t, crop_side(f, me_side)) for t, f in track_ts] if cropped else track_ts
+    player_frames = [f for _, f in player_ts]
 
-    images_b64 = [_to_jpeg_b64(f) for f in vlm_frames]
+    # One MediaPipe pass → per-frame records (wrist trajectory + biomechanics).
+    records, _detected, pose_ok, pose_reason = analyze_pose(player_ts, handed)
+
+    # Motion stages — best-effort (empty on failure → graceful fallback).
+    impacts = detect_impacts(path)
+    series = [r for r in records if r["wvis"] > 0.3]
+    strokes = segment_strokes(series, impacts, handed=handed)
+
+    # Measure biomechanics DURING the strokes (not idle standing) when possible.
+    if pose_ok:
+        intervals = [(s["t_start"], s["t_end"]) for s in strokes]
+        pose = aggregate_pose(records, len(player_ts), intervals)
+        scope = "các cú đánh" if pose.get("measured_on") == "strokes" else "toàn clip"
+        where = _SIDE_VI[me_side] if cropped else "người nổi bật trong khung"
+        pose["note"] = f"đo trên {scope}, vùng {where}"
+    else:
+        pose = {"available": False, "reason": pose_reason}
+
+    # Build montages, preferring pose-segmented strokes; if pose failed but we have
+    # audio impacts, anchor montages on the contact times instead (robust when the
+    # player is far/small and pose is weak). Fall back to even stills otherwise.
+    ctx = [_to_jpeg_b64(player_frames[i])
+           for i in _even_indices(len(player_frames), VLM_CONTEXT_FRAMES)]
+    montages: list[str] = []
+    stroke_context = ""
+    motion_path = "stills"
+    if strokes:
+        shown = sorted(strokes, key=lambda s: s["peak_speed"], reverse=True)[:VLM_MAX_STROKES]
+        shown = sorted(shown, key=lambda s: s["t_contact"])
+        montages = [m for m in (stroke_montage_b64(player_ts, s) for s in shown) if m]
+        if montages:
+            motion_path = "pose"
+            stroke_context = _stroke_context_text(shown, strokes, impacts)
+    elif impacts:
+        picks = [impacts[i] for i in _even_indices(len(impacts), VLM_MAX_STROKES)]
+        for t in picks:
+            win = decode_at_times(path, [t - 0.12, t, t + 0.12])
+            frames = [crop_side(f, me_side) if cropped else f for _, f in win]
+            m = montage_strip(frames)
+            if m:
+                montages.append(m)
+        if montages:
+            motion_path = "impact"
+            stroke_context = _impact_context_text(picks, impacts)
+
+    if montages:
+        images_b64 = montages + ctx
+        montage = True
+    else:
+        # Even-stills fallback (original behaviour).
+        images_b64 = [_to_jpeg_b64(player_frames[i])
+                      for i in _even_indices(len(player_frames), VLM_MAX_FRAMES)]
+        montage = False
+
+    if not images_b64:
+        raise RuntimeError("Không tạo được khung hình để phân tích.")
+
+    # Visible signal (backend console) of which path the analysis took.
+    print(f"[video_analysis] motion: path={motion_path} strokes={len(strokes)} "
+          f"impacts={len(impacts)} images={len(images_b64)} montage={montage}", flush=True)
+
     raw = call_vlm(
         images_b64, pose_to_text(pose), clip_type, model,
         reference_images_b64=reference_images_b64, me_side=me_side,
         me_appearance=me_appearance, handed=handed,
+        stroke_context=stroke_context, montage=montage,
     )
     # Auto-build references only from labelled clips (we trust the side here).
-    ref_crops_b64 = subject_crops(pose_frames, me_side) if cropped else []
+    ref_crops_b64 = subject_crops([f for _, f in track_ts], me_side) if cropped else []
     return {
         "model": model,
-        "frames_sampled": len(vlm_frames),
+        "frames_sampled": len(images_b64),
         "pose": pose,
         "raw": raw,
         "summary": raw.get("summary", ""),
         "ref_crops_b64": ref_crops_b64,
+        "strokes": strokes,
+        "impacts": impacts,
+        "metrics": pose_to_metrics(pose),
     }
 
 

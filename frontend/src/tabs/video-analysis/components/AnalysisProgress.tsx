@@ -23,6 +23,14 @@ function mmss(sec: number): string {
   return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
 }
 
+// The server stores UTC but SQLite drops the tz, so the timestamp arrives with no
+// designator (e.g. "2026-06-08T10:00:00"). Date.parse() would treat that as LOCAL
+// time — off by the UTC offset (e.g. +7h in VN → a bogus 420-min "elapsed"). Treat
+// a designator-less string as UTC.
+function parseServerTime(s: string): number {
+  return Date.parse(/[zZ]|[+-]\d{2}:?\d{2}$/.test(s) ? s : `${s}Z`);
+}
+
 export default function AnalysisProgress({ status, startedAt }: Props) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -32,7 +40,7 @@ export default function AnalysisProgress({ status, startedAt }: Props) {
 
   // Elapsed is derived from the server start time, so it survives re-renders
   // and page reloads (no client-side accumulation).
-  const start = startedAt ? Date.parse(startedAt) : now;
+  const start = startedAt ? parseServerTime(startedAt) : now;
   const elapsed = Math.max(0, (now - start) / 1000);
   const est = ESTIMATE_SEC[status] ?? 60;
   const over = elapsed >= est;
