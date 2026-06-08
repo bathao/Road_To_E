@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Aspect, ClipDetail, FindingDecision, Polarity, Side } from "../types";
 import {
   ASPECT_LABEL,
@@ -45,6 +45,27 @@ function metricText(m: Metric, unit = ""): string {
   return `${m.mean}${unit} (${m.min}–${m.max}${unit})`;
 }
 
+function fmtTime(s: number): string {
+  const x = Math.max(0, Math.floor(s));
+  return `${Math.floor(x / 60)}:${(x % 60).toString().padStart(2, "0")}`;
+}
+
+// A clickable evidence chip: jumps the clip video to the moment the finding was
+// observed (t_ref, seconds) and shows the model's confidence.
+function TimeChip({ t, conf, onSeek }: {
+  t: number | null;
+  conf: number | null;
+  onSeek: (t: number) => void;
+}) {
+  if (t == null || t <= 0) return null;
+  return (
+    <button type="button" className="va-tref" onClick={() => onSeek(t)}
+      title="Nhảy tới khoảnh khắc này trong clip">
+      ▶ {fmtTime(t)}{conf != null ? ` · ${Math.round(conf * 100)}%` : ""}
+    </button>
+  );
+}
+
 export default function AnalysisDetail({
   detail,
   videoUrl,
@@ -63,6 +84,15 @@ export default function AnalysisDetail({
   onStop,
   onDelete,
 }: Props) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const seekTo = (t: number) => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.currentTime = t;
+    v.play().catch(() => {});
+    v.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  };
+
   const [side, setSide] = useState<Side>(detail.me_side || "");
   const [appearance, setAppearance] = useState(detail.me_appearance || "");
   const [correcting, setCorrecting] = useState(false);
@@ -145,7 +175,7 @@ export default function AnalysisDetail({
 
       <div className="va-detail-grid">
         <div className="va-video-wrap">
-          <video src={videoUrl} controls className="va-video" />
+          <video ref={videoRef} src={videoUrl} controls className="va-video" />
           <div className="va-muted va-video-meta">
             {CLIP_TYPE_LABEL[detail.clip_type]}
             {detail.fps ? ` · ${detail.fps} fps` : ""}
@@ -303,6 +333,7 @@ export default function AnalysisDetail({
                               value={d.text}
                               onChange={(e) => setDraft(t.id, { text: e.target.value })}
                             />
+                            <TimeChip t={t.t_ref} conf={t.confidence} onSeek={seekTo} />
                           </li>
                         );
                       })}
@@ -333,6 +364,7 @@ export default function AnalysisDetail({
                           <li key={t.id}>
                             <span className="va-aspect-tag">{ASPECT_LABEL[t.aspect] ?? t.aspect}</span>
                             {t.text}
+                            <TimeChip t={t.t_ref} conf={t.confidence} onSeek={seekTo} />
                           </li>
                         ))}
                         {acceptedTraits.filter((t) => t.polarity === "strength").length === 0 && (
@@ -347,6 +379,7 @@ export default function AnalysisDetail({
                           <li key={t.id}>
                             <span className="va-aspect-tag">{ASPECT_LABEL[t.aspect] ?? t.aspect}</span>
                             {t.text}
+                            <TimeChip t={t.t_ref} conf={t.confidence} onSeek={seekTo} />
                           </li>
                         ))}
                         {acceptedTraits.filter((t) => t.polarity === "weakness").length === 0 && (

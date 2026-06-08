@@ -125,6 +125,8 @@ class VAAnalysis(Base):
     summary: Mapped[str] = mapped_column(Text, default="")
     raw_json: Mapped[str] = mapped_column(Text, default="{}")  # full VLM output
     pose_json: Mapped[str] = mapped_column(Text, default="{}")  # aggregated pose metrics
+    strokes_json: Mapped[str] = mapped_column(Text, default="[]")  # segmented strokes + phases
+    metrics_json: Mapped[str] = mapped_column(Text, default="[]")  # flat {name,value,unit} list
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     clip: Mapped[VAClip] = relationship("VAClip", back_populates="analysis")
@@ -158,6 +160,7 @@ class VATrait(Base):
     text: Mapped[str] = mapped_column(Text)  # current text (may be user-edited)
     ai_text: Mapped[str | None] = mapped_column(Text, default=None)  # original AI text
     confidence: Mapped[float | None] = mapped_column(Float, default=None)
+    t_ref: Mapped[float | None] = mapped_column(Float, default=None)  # evidence time (sec) in the clip
     # proposed = AI suggestion awaiting review; accepted = confirmed by the user
     # (counts towards the profile); rejected = dismissed.
     status: Mapped[str] = mapped_column(String, index=True, default="proposed")
@@ -190,3 +193,20 @@ class VASkill(Base):
     updated_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
     )
+
+
+class VAMetric(Base):
+    """One numeric pose/stroke metric for a clip — the flat time-series spine the
+    future Head Coach reads to track progress over time (e.g. 'knee_flexion_deg_mean',
+    'swing_speed_mean', 'tempo_sec'). Re-analysing a clip replaces its rows."""
+
+    __tablename__ = "va_metric"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    clip_id: Mapped[int] = mapped_column(
+        ForeignKey("va_clip.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String, index=True)
+    value: Mapped[float] = mapped_column(Float)
+    unit: Mapped[str] = mapped_column(String, default="")
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)

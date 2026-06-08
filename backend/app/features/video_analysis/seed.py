@@ -24,6 +24,14 @@ _VA_TRAIT_COLUMNS = {
     "status": "VARCHAR DEFAULT 'proposed'",
     "ai_text": "TEXT",
     "reviewed_at": "DATETIME",
+    "t_ref": "FLOAT",  # evidence timestamp (sec) for the finding
+}
+
+_VA_ANALYSIS_COLUMNS = {
+    # Motion pipeline (Phase 1+): segmented strokes and the flat metric list, kept
+    # on the analysis row alongside raw_json/pose_json. Old rows default to "[]".
+    "strokes_json": "TEXT DEFAULT '[]'",
+    "metrics_json": "TEXT DEFAULT '[]'",
 }
 
 
@@ -40,6 +48,7 @@ def _add_missing_columns(db: Session, table: str, columns: dict[str, str]) -> bo
 def migrate(db: Session) -> None:
     changed = _add_missing_columns(db, "va_clip", _VA_CLIP_COLUMNS)
     changed = _add_missing_columns(db, "va_trait", _VA_TRAIT_COLUMNS) or changed
+    changed = _add_missing_columns(db, "va_analysis", _VA_ANALYSIS_COLUMNS) or changed
     if changed:
         db.commit()
 

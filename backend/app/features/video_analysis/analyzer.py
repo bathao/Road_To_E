@@ -817,7 +817,11 @@ SYSTEM_PROMPT = (
     "không thêm chữ nào ngoài JSON. Mục nào không quan sát rõ thì ghi 'không quan sát rõ', không bịa. "
     "KHÔNG liệt kê cùng một mảng (vd bộ chân, thuận tay) vừa là điểm mạnh vừa là điểm yếu với cùng "
     "một lý do. Số liệu pose chỉ là THAM KHẢO (đo tự động, có thể nhiễu); ưu tiên quan sát diễn tiến "
-    "động tác trong các ảnh ghép, nếu số pose mâu thuẫn với hình thì tin vào hình."
+    "động tác trong các ảnh ghép, nếu số pose mâu thuẫn với hình thì tin vào hình. "
+    "Nếu một mảng KHÔNG quan sát rõ thì ĐỪNG đưa vào strengths/weaknesses; chỉ ghi 'không quan sát rõ' "
+    "ở trường notes tương ứng (serve/footwork/posture) hoặc bỏ trống. "
+    "Với MỖI điểm mạnh/yếu, điền t_ref = giây trong clip nơi bạn quan sát thấy (dựa vào thời điểm các "
+    "cú đánh đã cung cấp; để 0 nếu không xác định được) và confidence = độ chắc chắn 0..1."
 )
 
 # Ollama structured-output JSON schema (constrains the model's response).
@@ -830,8 +834,10 @@ _TRAIT_ITEM = {
     "properties": {
         "aspect": {"type": "string", "enum": _ASPECT_ENUM},
         "text": {"type": "string"},
+        "t_ref": {"type": "number"},       # giây trong clip nơi quan sát thấy (0 nếu không rõ)
+        "confidence": {"type": "number"},  # độ chắc chắn 0..1
     },
-    "required": ["aspect", "text"],
+    "required": ["aspect", "text", "t_ref", "confidence"],
 }
 RESPONSE_SCHEMA: dict[str, Any] = {
     "type": "object",

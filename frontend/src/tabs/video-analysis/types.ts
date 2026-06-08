@@ -50,6 +50,7 @@ export interface Trait {
   text: string;
   ai_text: string | null;
   confidence: number | null;
+  t_ref: number | null;
   status: FindingStatus;
   source_clip_id: number | null;
   created_at: string;

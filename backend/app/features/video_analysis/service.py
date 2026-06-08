@@ -21,6 +21,7 @@ from app.features.video_analysis import analyzer, schemas
 from app.features.video_analysis.models import (
     VAAnalysis,
     VAClip,
+    VAMetric,
     VAProfile,
     VAProfileImage,
     VASkill,
@@ -35,6 +36,37 @@ ALLOWED_SUFFIXES = {".mp4", ".mov", ".m4v", ".avi", ".mkv", ".webm"}
 
 
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
+
+
+# A finding the model returns as "not observed" carries no signal — don't store it
+# as a trait (it clutters review and would pollute the skill ledger if accepted).
+# The aspect's detail note still shows "không quan sát rõ" for context. Only short,
+# bare non-observations are dropped; a longer text that happens to start this way
+# (e.g. "không quan sát rõ trái tay, cần luyện thêm…") still carries advice → kept.
+_NOT_OBSERVED_PREFIXES = (
+    "không quan sát", "chưa quan sát", "không có thông tin",
+    "không rõ", "không có khung hình", "không đủ",
+)
+
+
+def _is_not_observed(text: str) -> bool:
+    t = text.strip().lower()
+    return len(t) < 40 and any(t.startswith(p) for p in _NOT_OBSERVED_PREFIXES)
+
+
+def _clamp01(v: object) -> float | None:
+    try:
+        return max(0.0, min(1.0, float(v)))  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+
+
+def _nonneg(v: object) -> float | None:
+    try:
+        f = float(v)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+    return round(f, 3) if f > 0 else None
 
 
 # --------------------------------------------------------- native file picker
@@ -579,6 +611,8 @@ def analyze_clip(clip_id: int, model: str | None) -> None:
             clip.subject_desc = raw["subject"][:500]
         clip.status = "done"
 
+        strokes = result.get("strokes", []) or []
+        metrics = result.get("metrics", []) or []
         db.query(VAAnalysis).filter(VAAnalysis.clip_id == clip_id).delete()
         db.add(VAAnalysis(
             clip_id=clip_id,
@@ -587,7 +621,18 @@ def analyze_clip(clip_id: int, model: str | None) -> None:
             summary=result.get("summary", ""),
             raw_json=json.dumps(raw, ensure_ascii=False),
             pose_json=json.dumps(result.get("pose", {}), ensure_ascii=False),
+            strokes_json=json.dumps(strokes, ensure_ascii=False),
+            metrics_json=json.dumps(metrics, ensure_ascii=False),
         ))
+
+        # Flat metric time-series (the Head Coach reads these to track progress).
+        db.query(VAMetric).filter(VAMetric.clip_id == clip_id).delete()
+        for m in metrics:
+            try:
+                db.add(VAMetric(clip_id=clip_id, name=str(m["name"]),
+                                value=float(m["value"]), unit=str(m.get("unit", ""))))
+            except (KeyError, TypeError, ValueError):
+                continue
 
         # Findings start as 'proposed' — they only count once the user reviews
         # and confirms them (see review_clip). Re-analysing replaces them.
@@ -595,13 +640,15 @@ def analyze_clip(clip_id: int, model: str | None) -> None:
         for polarity, key in (("strength", "strengths"), ("weakness", "weaknesses")):
             for item in raw.get(key, []) or []:
                 text = (item.get("text") or "").strip()
-                if not text:
+                if not text or _is_not_observed(text):
                     continue
                 db.add(VATrait(
                     aspect=item.get("aspect", "other"),
                     polarity=polarity,
                     text=text,
                     ai_text=text,
+                    confidence=_clamp01(item.get("confidence")),
+                    t_ref=_nonneg(item.get("t_ref")),
                     status="proposed",
                     source_clip_id=clip_id,
                 ))

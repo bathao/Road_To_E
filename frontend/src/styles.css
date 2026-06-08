@@ -2577,6 +2577,25 @@ input:focus {
   min-width: 0;
 }
 
+/* Clickable evidence timestamp chip on a finding (seeks the clip video). */
+.va-tref {
+  flex: none;
+  margin-left: 6px;
+  padding: 1px 7px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent, #2563eb);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.va-tref:hover {
+  background: var(--accent, #2563eb);
+  color: #fff;
+}
+
 .va-reviewed {
   border: 1px solid var(--border);
   border-radius: 8px;
