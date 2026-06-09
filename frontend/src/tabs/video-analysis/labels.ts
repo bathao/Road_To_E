@@ -48,7 +48,7 @@ export const ASPECT_ORDER: Aspect[] = [
 export const POLARITY_LABEL: Record<Polarity, string> = {
   strength: "Điểm mạnh",
   weakness: "Điểm yếu",
-  neutral: "Trung tính",
+  neutral: "Chưa quan sát",
 };
 
 export const CLIP_TYPE_LABEL: Record<ClipType, string> = {

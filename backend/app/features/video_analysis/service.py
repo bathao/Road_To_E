@@ -39,20 +39,22 @@ ALLOWED_SUFFIXES = {".mp4", ".mov", ".m4v", ".avi", ".mkv", ".webm"}
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
 
 
-# A finding the model returns as "not observed" carries no signal — don't store it
-# as a trait (it clutters review and would pollute the skill ledger if accepted).
-# The aspect's detail note still shows "không quan sát rõ" for context. Only short,
-# bare non-observations are dropped; a longer text that happens to start this way
-# (e.g. "không quan sát rõ trái tay, cần luyện thêm…") still carries advice → kept.
+# A finding the model returns as "not observed" carries no strength/weakness signal.
+# Instead of dropping it (the aspect silently vanishes) or mis-filing it as a
+# weakness, we keep it as a third polarity — "neutral" = **Chưa quan sát** — so the
+# user can SEE which aspects weren't assessable. Neutral findings never count toward
+# strengths/weaknesses or the skill ratings (they're skipped).
 _NOT_OBSERVED_PREFIXES = (
     "không quan sát", "chưa quan sát", "không có thông tin",
-    "không rõ", "không có khung hình", "không đủ",
+    "không rõ", "không có khung hình", "không đủ", "thiếu",
 )
 
 
-def _is_not_observed(text: str) -> bool:
+def _unobserved(text: str) -> bool:
+    """True when a finding is really a 'couldn't observe this' note (any length),
+    so it should be filed as neutral/Chưa quan sát rather than a strength/weakness."""
     t = text.strip().lower()
-    return len(t) < 40 and any(t.startswith(p) for p in _NOT_OBSERVED_PREFIXES)
+    return any(t.startswith(p) for p in _NOT_OBSERVED_PREFIXES)
 
 
 def _clamp01(v: object) -> float | None:
@@ -192,6 +194,7 @@ def regenerate_profile_summary(db: Session) -> VAProfile:
         {"aspect": t.aspect, "polarity": t.polarity, "text": t.text}
         for t in db.query(VATrait)
         .filter(VATrait.status == "accepted")
+        .filter(VATrait.polarity.in_(["strength", "weakness"]))  # skip "Chưa quan sát"
         .order_by(VATrait.created_at)
         .all()
     ]
@@ -700,13 +703,16 @@ def analyze_clip(clip_id: int, model: str | None) -> None:
         for polarity, key in (("strength", "strengths"), ("weakness", "weaknesses")):
             for item in raw.get(key, []) or []:
                 text = (item.get("text") or "").strip()
-                if not text or _is_not_observed(text):
+                if not text:
                     continue
+                # Non-observations are kept as neutral ("Chưa quan sát"), not as the
+                # array's strength/weakness — visible but excluded from the profile.
+                pol = "neutral" if _unobserved(text) else polarity
                 t_ref = _nonneg(item.get("t_ref"))
                 ev = _nearest_evidence(t_ref, ev_saved)
                 db.add(VATrait(
                     aspect=item.get("aspect", "other"),
-                    polarity=polarity,
+                    polarity=pol,
                     text=text,
                     ai_text=text,
                     confidence=_clamp01(item.get("confidence")),
@@ -917,8 +923,9 @@ def _accepted_findings_by_aspect(db: Session) -> dict[str, list[VATrait]]:
     )
     for t in rows:
         # Fold the catch-all 'other' into the closest skill bucket only if it is
-        # a real skill aspect; otherwise skip it for the ledger.
-        if t.aspect not in schemas.SKILL_ASPECTS:
+        # a real skill aspect; otherwise skip it for the ledger. "Chưa quan sát"
+        # (neutral) findings carry no rating signal → never feed the skill ledger.
+        if t.aspect not in schemas.SKILL_ASPECTS or t.polarity not in ("strength", "weakness"):
             continue
         grouped.setdefault(t.aspect, []).append(t)
     return grouped

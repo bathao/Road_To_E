@@ -410,6 +410,7 @@ export default function AnalysisDetail({
                             >
                               <option value="strength">✅ Mạnh</option>
                               <option value="weakness">⚠️ Yếu</option>
+                              <option value="neutral">➖ Chưa quan sát</option>
                             </select>
                             <input
                               className="pb-input va-review-text"
@@ -437,7 +438,7 @@ export default function AnalysisDetail({
               ) : (
                 <div className="va-reviewed">
                   <div className="va-card-head">
-                    <h4>✓ Đã duyệt — {acceptedTraits.length} nhận xét vào hồ sơ</h4>
+                    <h4>✓ Đã duyệt — {acceptedTraits.filter((t) => t.polarity !== "neutral").length} nhận xét vào hồ sơ</h4>
                     <button className="btn" onClick={() => setReEditing(true)}>Sửa lại</button>
                   </div>
                   <div className="va-sw-cols">
@@ -474,6 +475,15 @@ export default function AnalysisDetail({
                       </ul>
                     </div>
                   </div>
+                  {acceptedTraits.some((t) => t.polarity === "neutral") && (
+                    <p className="va-muted va-unobserved-note">
+                      ➖ Chưa quan sát (không tính vào hồ sơ):{" "}
+                      {acceptedTraits
+                        .filter((t) => t.polarity === "neutral")
+                        .map((t) => ASPECT_LABEL[t.aspect] ?? t.aspect)
+                        .join(", ")}
+                    </p>
+                  )}
                 </div>
               )}
 

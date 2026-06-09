@@ -2639,6 +2639,16 @@ input:focus {
   border-left-color: var(--red);
 }
 
+.va-review-item.va-neutral {
+  border-left-color: var(--border);
+  opacity: 0.72;
+}
+
+.va-unobserved-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+
 .va-review-item input[type="checkbox"] {
   width: 16px;
   height: 16px;
