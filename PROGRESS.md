@@ -10,23 +10,31 @@ Analysis" — local-AI clip analysis (now **motion-aware**, see below); Tab 5
 **Python 3.12** (mediapipe ships no 3.13 wheels); `start.bat` builds it with
 `py -3.12`.
 
-> **Resume (2026-06-09):** Video Analysis Phases 0–1 + B + evidence/persistence
-> are committed (`ad94665`, `9c4ceeb`, `3e35bda`); **Phase 2 self-critique + clip
-> `focus` tag** is now committed too. Verified by a direct pipeline run on an
-> existing clip: `self-critique: reviewed=6 dropped=1`, `focus` block confirmed
-> injected into the VLM prompt, migration added `va_clip.focus` to the live DB.
-> Not yet driven through the browser UI (optional). Phases 1–3 done, and **Phase 4
-> (ball + table tracking, NC1) is now implemented best-effort** — classical motion
-> detector + table homography → 3×3 placement zones, with an optional TrackNet ONNX
-> tier (used only if a model file + onnxruntime are present; never required). It
-> degrades honestly: classical only "counts" when a table is found (verified:
-> zones on clips #3/#10, graceful skip on #8). All metric deltas + ball data only
-> populate on a **fresh re-analysis** (older clips predate these). Remaining:
-> Phase 5 (split-step sync + experiments) — advanced/optional. Drop a TrackNet
-> model at `backend/data/models/ball_tracknet.onnx` to upgrade ball tracking.
-> **Table ROI now uses the user's trained YOLOv8-seg model** (reused from
-> video_studio_v3, `data/models/roi_seg.pt`, needs `ultralytics`) instead of
-> fragile colour detection — re-run `pip install -r backend/requirements.txt`.
+> **Resume (2026-06-09 evening — user will continue tonight).** This session
+> shipped Video Analysis **Phases 2–4 + the table-ROI model swap + a metric-quality
+> fix**, all committed (`10e3f47` self-critique+focus, `0dd6b8f` evidence thumbnails,
+> `5c1b8e9` progress trends, `b6d393d` ball/table, `f04b229` YOLO table-ROI model,
+> `fc2be62` pose-metric fix). Phases 1–4 of `ANALYSIS_UPGRADE_PLAN.md` are done;
+> Phase 5 (split-step) is the only one left and is advanced/experimental.
+>
+> **What's CONFIRMED:** one full real-VLM run on clip #10 — pipeline end-to-end OK
+> (findings cite real strokes/`t_ref`, self-critique dropped 1/4, 4/4 evidence
+> thumbnails, YOLO table conf 0.93, all stages fire). A real **quality bug was found
+> and fixed**: pose ratios exploded when the player turns side-on (stance_width was
+> 4.0, max 14.2) → rotation guard + IQR trim → now ~1.4–1.6, side-on clips honestly
+> report "not measurable" (`fc2be62`).
+>
+> **What's NOT yet confirmed (do this tonight):** drive it through the **browser UI**.
+> Re-analyse ≥2 clips so the new data actually populates (older clips predate
+> `va_metric`/evidence/ball → trends, evidence thumbnails, placement grid only appear
+> after a fresh re-analysis). Then judge quality live. Known soft spots to watch:
+> the VLM still over-claims sometimes (called a near-straight knee 162° "chuẩn");
+> the ball *trajectory* is still the classical noisy detector (only the table ROI was
+> upgraded to the trained YOLO). Setup note: `ultralytics` is now in
+> `backend/requirements.txt` (already installed in the current venv; a fresh
+> `start.bat` build will pull it). Decision pending: after confirming live, either
+> tune quality further, do Phase 5, or build the Tier-2 **Head Coach** (north star —
+> all specialist data is now ready to consume).
 
 **Tab 4 "Video Analysis"** — point the tab at a video file on disk (local-only,
 no browser upload), optionally give a trim range (mm:ss) to cut a short segment
