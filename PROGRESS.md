@@ -10,31 +10,40 @@ Analysis" — local-AI clip analysis (now **motion-aware**, see below); Tab 5
 **Python 3.12** (mediapipe ships no 3.13 wheels); `start.bat` builds it with
 `py -3.12`.
 
-> **Resume (2026-06-09 evening — user will continue tonight).** This session
-> shipped Video Analysis **Phases 2–4 + the table-ROI model swap + a metric-quality
-> fix**, all committed (`10e3f47` self-critique+focus, `0dd6b8f` evidence thumbnails,
-> `5c1b8e9` progress trends, `b6d393d` ball/table, `f04b229` YOLO table-ROI model,
-> `fc2be62` pose-metric fix). Phases 1–4 of `ANALYSIS_UPGRADE_PLAN.md` are done;
-> Phase 5 (split-step) is the only one left and is advanced/experimental.
+> **Resume (2026-06-09, latest).** Big Video Analysis session — `ANALYSIS_UPGRADE_PLAN.md`
+> **Phases 1–4 done** (Phase 5 split-step is the only one left, advanced/experimental),
+> plus the table-ROI model swap and a round of **live-verified quality fixes**. All
+> committed. The qualitative analysis is now trustworthy and strict; the remaining
+> work is point-level counting (deferred, see below) and the Tier-2 Head Coach.
 >
-> **What's CONFIRMED:** one full real-VLM run on clip #10 — pipeline end-to-end OK
-> (findings cite real strokes/`t_ref`, self-critique dropped 1/4, 4/4 evidence
-> thumbnails, YOLO table conf 0.93, all stages fire). A real **quality bug was found
-> and fixed**: pose ratios exploded when the player turns side-on (stance_width was
-> 4.0, max 14.2) → rotation guard + IQR trim → now ~1.4–1.6, side-on clips honestly
-> report "not measurable" (`fc2be62`).
+> **Shipped this session (in order):** self-critique pass + clip `focus`
+> (`10e3f47`); evidence thumbnails w/ skeleton (`0dd6b8f`); progress trends
+> (`5c1b8e9`); ball/table tracking (`b6d393d`); **table ROI = user's trained
+> YOLOv8-seg** reused from video_studio_v3 → `data/models/roi_seg.pt`, needs
+> `ultralytics` (`f04b229`); pose-metric rotation fix (`fc2be62`); PROGRESS
+> (`2828b99`); **pre-interpret pose numbers** so the VLM stops misreading angles
+> (`39b9f64`); **duration-scaled sampling + honest cross-clip trends** (`f2ad75a`);
+> **third finding state "Chưa quan sát"** (`4ee92a9`); **qualitative tactical
+> analysis** — serve variety + tendencies, no counting (`e3964d1`); **strict,
+> no-flattery coaching prompt** (this commit).
 >
-> **What's NOT yet confirmed (do this tonight):** drive it through the **browser UI**.
-> Re-analyse ≥2 clips so the new data actually populates (older clips predate
-> `va_metric`/evidence/ball → trends, evidence thumbnails, placement grid only appear
-> after a fresh re-analysis). Then judge quality live. Known soft spots to watch:
-> the VLM still over-claims sometimes (called a near-straight knee 162° "chuẩn");
-> the ball *trajectory* is still the classical noisy detector (only the table ROI was
-> upgraded to the trained YOLO). Setup note: `ultralytics` is now in
-> `backend/requirements.txt` (already installed in the current venv; a fresh
-> `start.bat` build will pull it). Decision pending: after confirming live, either
-> tune quality further, do Phase 5, or build the Tier-2 **Head Coach** (north star —
-> all specialist data is now ready to consume).
+> **CONFIRMED live (browser):** end-to-end run works — self-critique note, evidence
+> thumbnails (skeleton drawn) with jump-to-time, focus, YOLO table zones, progress
+> table all render. The knee-misread + sparse-long-clip + nonsense-trend bugs the
+> user spotted are fixed.
+>
+> **DEFERRED on the user's call (don't build until asked):** counting winners /
+> unforced errors / short-vs-long-serve win% — needs human-confirmed point logging
+> to be trustworthy (auto-detection from sparse video is unreliable). The agreed
+> shape when resumed: *AI proposes points (audio-gap segmentation + serve-zone guess)
+> → user confirms in a review gate → compute stats*. Also Phase 5 (split-step, needs
+> ≥60 fps + opponent tracking) and a TrackNet ball model (drop at
+> `data/models/ball_tracknet.onnx`) stay optional.
+>
+> **Next big milestone:** the Tier-2 **Head Coach** (north star) — all specialist
+> data (skills, traits, metrics/trends, tactical notes, tracker/match stats) is now
+> ready to consume. Note: re-analysing a clip is required for the new data
+> (evidence/metrics/ball/tactical) to populate — older clips predate it.
 
 **Tab 4 "Video Analysis"** — point the tab at a video file on disk (local-only,
 no browser upload), optionally give a trim range (mm:ss) to cut a short segment
@@ -204,9 +213,13 @@ plus a new tactical read.
   the skill ledger, and profile synthesis. Review dropdown gains the option.
 - **Qualitative tactical analysis** (user chose qualitative-only, no counting): VLM now
   fills `serve_variety.notes` (serve diversity — short/long/spin/placement, varied vs
-  predictable) and `tactics.notes` (tactical tendencies), shown as "🎲 Đa dạng giao
-  bóng" + "♟️ Chiến thuật" blocks. The prompt forbids inventing win/loss or
-  winner/error counts (insufficient data).
+  predictable) and `tactics.notes` (tactical tendencies + tactical gaps), shown as
+  "🎲 Đa dạng giao bóng" + "♟️ Chiến thuật" blocks. The prompt forbids inventing
+  win/loss or winner/error counts (insufficient data).
+- **Strict, no-flattery prompt**: SYSTEM_PROMPT now mandates a demanding-coach stance —
+  no social praise / generic "tốt/ổn/chuẩn", default to finding faults + concrete
+  fixes, only call something a strength if it's genuinely notable with visible
+  evidence (else leave blank), and the tactics note must call out gaps, not just praise.
 
 ### 2026-06-09 — Table ROI: reuse the trained YOLOv8-seg model from video_studio_v3
 Replaced the fragile classical blue/green table detection with the user's
