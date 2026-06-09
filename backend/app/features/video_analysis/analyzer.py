@@ -881,6 +881,43 @@ _CLIP_TYPE_VI = {
     "match_points": "vài điểm trong một trận đấu",
 }
 
+# Clip focus (L8) → what the coach should concentrate on. Steers attention so a
+# serve-practice clip isn't graded on footwork it never shows, and a match clip
+# gets a tactical/decision read, not just posture. "" / "free" → no steer.
+FOCUS_VALUES = ("serve_practice", "footwork_drill", "rally", "match", "free", "")
+
+_FOCUS_VI = {
+    "serve_practice": (
+        "TRỌNG TÂM CLIP: GIAO BÓNG. Soi kỹ động tác tung bóng (độ cao, ổn định), điểm tiếp xúc, "
+        "cổ tay tạo xoáy, độ thấp/ngắn của bóng, sự đa dạng & che giấu xoáy, điểm rơi. Các mảng "
+        "khác (bộ chân, rally) ÍT liên quan ở clip này — chỉ nhận xét nếu thật sự nhìn thấy rõ."
+    ),
+    "footwork_drill": (
+        "TRỌNG TÂM CLIP: BỘ CHÂN / DI CHUYỂN. Soi kỹ bước chân, trọng tâm, split-step, tốc độ & "
+        "biên độ di chuyển, hồi vị sau mỗi cú, giữ thăng bằng. Giao bóng ít liên quan ở clip này."
+    ),
+    "rally": (
+        "TRỌNG TÂM CLIP: CÁC PHA BÓNG QUA LẠI (rally). Soi độ ổn định, chọn cú đánh, luân chuyển "
+        "thuận/trái tay, nhịp độ, khả năng duy trì bóng và chuyển từ thủ sang công."
+    ),
+    "match": (
+        "TRỌNG TÂM CLIP: ĐIỂM TRONG TRẬN ĐẤU. Ngoài kỹ thuật, hãy đọc CHIẾN THUẬT: chọn điểm rơi, "
+        "ý đồ ghi điểm, xử lý dưới áp lực, tâm lý thi đấu. Đánh giá cả quyết định, không chỉ động tác."
+    ),
+}
+
+
+def _focus_block(focus: str) -> str:
+    """Vietnamese 'what to focus on' line for the prompt (empty for free/unknown)."""
+    return _FOCUS_VI.get(focus, "")
+
+
+def _clamp01(v: Any) -> float | None:
+    try:
+        return max(0.0, min(1.0, float(v)))
+    except (TypeError, ValueError):
+        return None
+
 
 REF_MAX = 4  # reference images sent per analysis (token budget)
 
@@ -910,7 +947,7 @@ def _identity_block(reference_images_b64: list[str], me_side: str,
 def call_vlm(images_b64: list[str], pose_text: str, clip_type: str, model: str, *,
              reference_images_b64: list[str] | None = None, me_side: str = "",
              me_appearance: str = "", handed: str = "right",
-             stroke_context: str = "", montage: bool = False) -> dict[str, Any]:
+             stroke_context: str = "", montage: bool = False, focus: str = "") -> dict[str, Any]:
     """Send reference images + frames + pose context to Ollama; return parsed JSON.
     When ``montage`` is set, the leading images are per-stroke montages (a swing
     read left→right) rather than evenly-spaced stills, and ``stroke_context`` adds
@@ -929,9 +966,12 @@ def call_vlm(images_b64: list[str], pose_text: str, clip_type: str, model: str, 
             f"từ một {_CLIP_TYPE_VI.get(clip_type, 'clip')} (theo thứ tự thời gian)."
         )
     context_block = f"Bối cảnh cú đánh (tự động phát hiện, có thể sai):\n{stroke_context}\n\n" if stroke_context else ""
+    fb = _focus_block(focus)
+    focus_block = f"{fb}\n\n" if fb else ""
     user_text = (
         f"{intro}\n\n"
         f"Thông tin nhận diện Thảo:\n{_identity_block(refs, me_side, me_appearance, handed)}\n\n"
+        f"{focus_block}"
         f"{context_block}"
         f"Số liệu pose đo được (của người được cho là Thảo):\n{pose_text}\n\n"
         "Xác định Thảo, CHỈ phân tích Thảo, rồi trả JSON đúng schema."
@@ -953,6 +993,152 @@ def call_vlm(images_b64: list[str], pose_text: str, clip_type: str, model: str, 
         return json.loads(content)
     except json.JSONDecodeError as exc:
         raise RuntimeError(f"VLM trả về JSON không hợp lệ: {exc}: {content[:500]}")
+
+
+# ------------------------------------------------ self-critique (Pass C, S7)
+# A general 8B VLM over-claims technique it can't actually see. Pass C re-shows it
+# the SAME frames + pose numbers and its own draft findings, and asks it to judge,
+# per finding, whether the claim is grounded in what's visible. Unsupported claims
+# are dropped and shaky ones are downgraded BEFORE they become proposed traits —
+# the human review gate then has a cleaner, more honest list to confirm.
+SELF_CRITIQUE = True  # config knob: an extra VLM pass (slower, but more honest)
+
+_CRITIQUE_SYSTEM_PROMPT = (
+    "Bạn là một HLV bóng bàn khó tính ĐANG KIỂM TRA LẠI bản nháp nhận xét do một AI khác viết về "
+    "học trò Nguyễn Bá Thảo. Bạn chỉ được dựa vào CHÍNH các ảnh (mỗi ảnh ghép = một cú đánh, xếp "
+    "trái→phải theo thời gian) và số liệu pose kèm theo — ĐỪNG tin lời, chỉ tin thứ NHÌN THẤY. "
+    "Với MỖI nhận xét (theo idx), đánh giá khắt khe mức độ có căn cứ:\n"
+    "- supported='yes': nhìn rõ bằng chứng trong ảnh hoặc số liệu.\n"
+    "- supported='partly': có thể đúng nhưng mờ/không chắc/khó thấy rõ.\n"
+    "- supported='no': KHÔNG có căn cứ (suy diễn, nói chung chung, hoặc mâu thuẫn với ảnh).\n"
+    "Khi phân vân hãy nghiêng về 'partly' hoặc 'no'. confidence = độ chắc 0..1 SAU khi kiểm tra. "
+    "Trả về verdicts cho TỪNG idx. Chỉ trả JSON đúng schema, không thêm chữ nào."
+)
+
+_CRITIQUE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "verdicts": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "idx": {"type": "integer"},
+                    "supported": {"type": "string", "enum": ["yes", "partly", "no"]},
+                    "confidence": {"type": "number"},
+                    "reason": {"type": "string"},
+                },
+                "required": ["idx", "supported", "confidence"],
+            },
+        }
+    },
+    "required": ["verdicts"],
+}
+
+
+def self_critique(images_b64: list[str], pose_text: str,
+                  findings: list[dict[str, Any]], model: str, *,
+                  stroke_context: str = "", montage: bool = False) -> dict[int, dict[str, Any]]:
+    """Pass C — re-examine each draft finding against the same frames + pose and
+    return a verdict per finding (keyed by ``idx``). ``findings`` is a flat list of
+    ``{idx, polarity, aspect, text}``. Returns ``{idx: {supported, confidence}}``,
+    or {} on any failure (caller then keeps every finding unchanged)."""
+    if not findings:
+        return {}
+    lines = []
+    for f in findings:
+        pol = "điểm mạnh" if f.get("polarity") == "strength" else "điểm yếu"
+        lines.append(f"  [{f['idx']}] ({pol} / {f.get('aspect', 'other')}) {f['text']}")
+    ctx = f"Bối cảnh cú đánh:\n{stroke_context}\n\n" if stroke_context else ""
+    kind = "ảnh ghép cú đánh" if montage else "khung hình"
+    user_text = (
+        f"{len(images_b64)} {kind} dưới đây là tư liệu để kiểm chứng (đúng tư liệu AI kia đã xem).\n\n"
+        f"{ctx}"
+        f"Số liệu pose đo được:\n{pose_text}\n\n"
+        f"Các nhận xét cần kiểm tra:\n" + "\n".join(lines) + "\n\n"
+        "Hãy chấm verdict cho TỪNG nhận xét theo idx. Trả JSON đúng schema."
+    )
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": _CRITIQUE_SYSTEM_PROMPT},
+            {"role": "user", "content": user_text, "images": images_b64},
+        ],
+        "stream": False,
+        "format": _CRITIQUE_SCHEMA,
+        "options": {"temperature": 0.1, "num_ctx": VLM_NUM_CTX},
+    }
+    resp = httpx.post(f"{OLLAMA_BASE_URL}/api/chat", json=payload, timeout=900.0)
+    resp.raise_for_status()
+    content = resp.json().get("message", {}).get("content", "{}")
+    data = json.loads(content)
+    out: dict[int, dict[str, Any]] = {}
+    for v in (data.get("verdicts", []) if isinstance(data, dict) else []):
+        try:
+            out[int(v["idx"])] = v
+        except (KeyError, TypeError, ValueError):
+            continue
+    return out
+
+
+def _apply_self_critique(raw: dict[str, Any], images_b64: list[str], pose_text: str,
+                         model: str, *, stroke_context: str = "",
+                         montage: bool = False) -> dict[str, Any]:
+    """Run Pass C over ``raw``'s strengths/weaknesses, then drop unsupported
+    findings and downgrade shaky ones in place. Records a small ``critique``
+    summary on ``raw`` for the UI. Best-effort — never raises (the analysis is
+    still useful without the critique)."""
+    flat: list[dict[str, Any]] = []
+    for polarity, key in (("strength", "strengths"), ("weakness", "weaknesses")):
+        for item in raw.get(key, []) or []:
+            text = (item.get("text") or "").strip()
+            if not text:
+                continue
+            flat.append({"idx": len(flat), "polarity": polarity, "key": key,
+                         "aspect": item.get("aspect", "other"), "text": text, "item": item})
+    if not flat:
+        return raw
+
+    try:
+        verdicts = self_critique(
+            images_b64, pose_text,
+            [{k: f[k] for k in ("idx", "polarity", "aspect", "text")} for f in flat],
+            model, stroke_context=stroke_context, montage=montage,
+        )
+    except Exception as exc:  # pragma: no cover - network/parse guard
+        print(f"[video_analysis] self-critique skipped: {exc}", flush=True)
+        return raw
+    if not verdicts:
+        return raw
+
+    kept: dict[str, list[Any]] = {"strengths": [], "weaknesses": []}
+    dropped = downgraded = 0
+    for f in flat:
+        item, v = f["item"], verdicts.get(f["idx"])
+        if v is None:  # model said nothing about this one → keep as-is
+            kept[f["key"]].append(item)
+            continue
+        supported = str(v.get("supported", "partly")).lower()
+        revised = _clamp01(v.get("confidence"))
+        orig = _clamp01(item.get("confidence"))
+        if supported == "no":
+            dropped += 1
+            continue
+        if supported == "partly":
+            # Shaky → take the most conservative confidence and cap it.
+            cands = [c for c in (orig, revised, 0.6) if c is not None]
+            item["confidence"] = round(min(cands), 2) if cands else 0.5
+            downgraded += 1
+        else:  # yes → trust the re-checked confidence
+            item["confidence"] = revised if revised is not None else orig
+        kept[f["key"]].append(item)
+
+    raw["strengths"] = kept["strengths"]
+    raw["weaknesses"] = kept["weaknesses"]
+    raw["critique"] = {"reviewed": len(flat), "dropped": dropped, "downgraded": downgraded}
+    print(f"[video_analysis] self-critique: reviewed={len(flat)} dropped={dropped} "
+          f"downgraded={downgraded}", flush=True)
+    return raw
 
 
 def _pose_bbox(frame_rgb):
@@ -1046,7 +1232,7 @@ def _impact_context_text(picks: list[float], impacts: list[float]) -> str:
 
 def analyze_file(path: str, clip_type: str, model: str | None = None, *,
                  me_side: str = "", me_appearance: str = "", handed: str = "right",
-                 reference_images_b64: list[str] | None = None) -> dict[str, Any]:
+                 reference_images_b64: list[str] | None = None, focus: str = "") -> dict[str, Any]:
     """Full pipeline for one clip. Motion-aware (S1/S2/S4/S6): sample once with
     timestamps, detect ball-contact impacts (audio) + strokes (pose), and feed the
     VLM per-stroke montages + stroke context. Falls back to evenly-spaced stills
@@ -1130,12 +1316,18 @@ def analyze_file(path: str, clip_type: str, model: str | None = None, *,
           f"impacts={len(impacts_raw)}->{len(impacts)} images={len(images_b64)} "
           f"montage={montage}", flush=True)
 
+    pose_text = pose_to_text(pose)
     raw = call_vlm(
-        images_b64, pose_to_text(pose), clip_type, model,
+        images_b64, pose_text, clip_type, model,
         reference_images_b64=reference_images_b64, me_side=me_side,
         me_appearance=me_appearance, handed=handed,
-        stroke_context=stroke_context, montage=montage,
+        stroke_context=stroke_context, montage=montage, focus=focus,
     )
+    # Pass C: re-check the draft findings against the same frames; drop unsupported
+    # claims and downgrade shaky ones before they reach the human review gate.
+    if SELF_CRITIQUE:
+        raw = _apply_self_critique(raw, images_b64, pose_text, model,
+                                   stroke_context=stroke_context, montage=montage)
     # Auto-build references only from labelled clips (we trust the side here).
     ref_crops_b64 = subject_crops([f for _, f in track_ts], me_side) if cropped else []
     return {

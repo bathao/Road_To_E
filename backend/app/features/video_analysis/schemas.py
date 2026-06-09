@@ -21,6 +21,8 @@ ASPECTS = [
 # findings, not a skill to rate).
 SKILL_ASPECTS = [a for a in ASPECTS if a != "other"]
 POLARITIES = ["strength", "weakness", "neutral"]
+# Drill focus — steers the analysis prompt. "" / "free" = no steer.
+FOCUS_VALUES = ["", "serve_practice", "footwork_drill", "rally", "match", "free"]
 FINDING_STATUSES = ["proposed", "accepted", "rejected"]
 SKILL_STATUSES = ["strength", "weakness", "improving", "needs_work", "neutral"]
 
@@ -169,6 +171,7 @@ class ClipOut(BaseModel):
     id: int
     original_name: str
     clip_type: str
+    focus: str = ""
     title: str
     note: str | None
     duration_sec: float | None
@@ -199,6 +202,7 @@ class ClipCreateIn(BaseModel):
 
     local_path: str
     clip_type: str = "training"
+    focus: str = ""
     title: str = ""
     note: str | None = None
     model: str | None = None

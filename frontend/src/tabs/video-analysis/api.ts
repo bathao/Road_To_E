@@ -4,6 +4,7 @@ import type {
   ClipDetail,
   ClipType,
   FindingDecision,
+  Focus,
   ModelHealth,
   Profile,
   ProfileImage,
@@ -74,6 +75,7 @@ export const videoApi = {
   createClip: (form: {
     local_path: string;
     clip_type: ClipType;
+    focus?: Focus;
     title: string;
     note?: string;
     model?: string;

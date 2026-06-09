@@ -1,13 +1,24 @@
 # Progress Log — Table Tennis Coach
 
-## Current status (2026-06-08)
+## Current status (2026-06-09)
 
 **Five tabs in place.** Tab 1 "Daily Tracker" feature-complete; Tab 2 "Tactical
 Playbook" v1; Tab 3 "Match Stats" (named-opponent analytics); Tab 4 "Video
-Analysis" — local-AI clip analysis; Tab 5 "Profile" — a read-only player
-dashboard. Stack: FastAPI + SQLite backend, React + Vite + TS frontend, served
-on one port by `start.bat`. The backend venv is **Python 3.12** (mediapipe ships
-no 3.13 wheels); `start.bat` builds it with `py -3.12`.
+Analysis" — local-AI clip analysis (now **motion-aware**, see below); Tab 5
+"Profile" — a read-only player dashboard. Stack: FastAPI + SQLite backend, React
++ Vite + TS frontend, served on one port by `start.bat`. The backend venv is
+**Python 3.12** (mediapipe ships no 3.13 wheels); `start.bat` builds it with
+`py -3.12`.
+
+> **Resume (2026-06-09):** Video Analysis Phases 0–1 + B + evidence/persistence
+> are committed (`ad94665`, `9c4ceeb`, `3e35bda`); **Phase 2 self-critique + clip
+> `focus` tag** is now committed too. Verified by a direct pipeline run on an
+> existing clip: `self-critique: reviewed=6 dropped=1`, `focus` block confirmed
+> injected into the VLM prompt, migration added `va_clip.focus` to the live DB.
+> Not yet driven through the browser UI (optional). Next Phase 2 items being built:
+> **NC4(a) annotated evidence thumbnails** (skeleton/angle drawn on the contact
+> frame, served + shown next to a finding); then Phase 3 progress tracking off
+> `va_metric`. See `ANALYSIS_UPGRADE_PLAN.md`.
 
 **Tab 4 "Video Analysis"** — point the tab at a video file on disk (local-only,
 no browser upload), optionally give a trim range (mm:ss) to cut a short segment
@@ -158,6 +169,59 @@ Giải FS, BBTV…); Travel/"sets (cty)" → non-playing/skip; Serve counts → 
 ---
 
 ## History
+
+### 2026-06-09 — Video Analysis Phase 2 (part): self-critique pass + clip focus tag
+Both target *trustworthier* findings, per `ANALYSIS_UPGRADE_PLAN.md` Phase 2.
+Verified by a direct pipeline run on clip #10 (`reviewed=6 dropped=1`; focus block
+confirmed in the VLM prompt; `va_clip.focus` migrated into the live DB).
+- **Clip `focus` tag (L8):** new `va_clip.focus` column (`serve_practice |
+  footwork_drill | rally | match | free | ""`), added idempotently via
+  `seed._VA_CLIP_COLUMNS`. A "Trọng tâm phân tích" dropdown in `UploadForm` →
+  `ClipCreateIn.focus` → `service.create_clip` (validated) →
+  `analyzer.analyze_file(focus=…)` → `call_vlm`, which injects a focus-specific
+  Vietnamese instruction block (`_FOCUS_VI`/`_focus_block`) so the VLM concentrates
+  on the right aspect (a serve clip isn't graded on footwork; a match clip gets a
+  tactical read). Focus shown in `ClipList` + `AnalysisDetail` meta lines.
+- **Self-critique pass (Pass C, S7):** after the main VLM call, `analyzer.self_critique`
+  re-sends the SAME montages/frames + pose numbers + the draft findings and asks the
+  model to judge each one `supported = yes|partly|no`. `_apply_self_critique` then
+  **drops** unsupported findings and **downgrades** shaky ones (caps confidence ≤0.6)
+  before they become `proposed` traits, and writes a `raw["critique"]` summary
+  `{reviewed, dropped, downgraded}`. Best-effort (any failure → keep all unchanged);
+  gated by `SELF_CRITIQUE` config knob. UI shows a "🔍 AI tự kiểm tra…" note. Backend
+  logs `[video_analysis] self-critique: reviewed=… dropped=… downgraded=…`.
+- Honest limit: the critique is the same 8B VLM grading itself — it reduces, not
+  eliminates, over-claiming; the human review gate stays the final word.
+
+### 2026-06-09 — Video Analysis deep upgrade: motion-aware pipeline (Phases 0–1, B, evidence, persistence)
+Executed the `ANALYSIS_UPGRADE_PLAN.md` first phases. Three commits, all additive
+and idempotent; existing data preserved. **Committed but not yet verified live.**
+- **`ad94665` Phase 0–1 (motion):** `analyzer.py` reworked to *see motion* instead
+  of evenly-spaced stills. `sample_timestamped` (one timestamped decode) +
+  `decode_at_times`; `detect_impacts` (audio ball-contact onsets); unified
+  `analyze_pose` (one MediaPipe pass, replaces run_pose+pose_track) +
+  `aggregate_pose` measuring posture **during strokes** (lateral_sway stays
+  whole-clip — footwork range is between strokes); `segment_strokes` + canonical
+  phasing; per-stroke montages (`montage_strip`/`stroke_montage_b64`). `analyze_file`
+  feeds the VLM montages + stroke context with a fallback chain: pose-stroke
+  montages → impact-anchored montages → even stills. Fixed the progress-timer
+  timezone bug (`parseServerTime`, was showing +7h).
+- **`9c4ceeb` Phase B + dynamics:** `motion_energy` + `corroborate_impacts` reject
+  neighbour-table audio cross-talk (keep only impacts coinciding with player
+  motion — verified 7→6 on a hall clip). `stroke_dynamics`: swing speed / tempo /
+  recovery time, surfaced to the VLM + metrics.
+- **`3e35bda` evidence + persistence + clean findings:** per-finding `t_ref`
+  (timestamp) + `confidence` in the VLM schema/prompt → `va_trait.t_ref` →
+  clickable "▶ m:ss · %" chip in `AnalysisDetail` that seeks the clip video. New
+  `va_metric` table + `va_analysis.strokes_json`/`metrics_json` (the structured
+  spine the future Head Coach reads). Empty "không quan sát rõ" non-observations
+  are dropped before becoming traits.
+- Verified end-to-end during the session: near-camera clip → `path=pose strokes=4
+  impacts=7→6 montage=True`, clean non-contradictory findings; far clip falls back.
+- Honest limits carried forward: hand FH/BH is a heuristic guess; phasing window is
+  valley-to-valley (knee angle still a bit high); motion-energy cross-talk filter is
+  best-effort (half-crop). Pipeline language note: **VLM prompts stay Vietnamese**
+  (content); code comments/logs in English (see memory).
 
 ### 2026-06-08 — Review gate + skill ledger, Tab 5 "Profile", GPU trim, progress bar, stop
 - **Review/confirm gate**: `va_trait` gained `status` (proposed|accepted|rejected),

@@ -67,6 +67,8 @@ class VAClip(Base):
     original_name: Mapped[str] = mapped_column(String)
     stored_path: Mapped[str] = mapped_column(String)  # absolute path on disk
     clip_type: Mapped[str] = mapped_column(String, default="training")  # training | match_points
+    # Drill focus, steers the analysis prompt: serve_practice|footwork_drill|rally|match|free|""
+    focus: Mapped[str] = mapped_column(String, default="")
     title: Mapped[str] = mapped_column(String, default="")
     note: Mapped[str | None] = mapped_column(Text, default=None)
 

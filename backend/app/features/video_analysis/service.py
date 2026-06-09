@@ -330,13 +330,14 @@ def parse_time(s: str | None) -> float | None:
 
 
 SIDE_VALUES = {"left", "right", "top", "bottom", "alone", ""}
+FOCUS_VALUES = {"", "serve_practice", "footwork_drill", "rally", "match", "free"}
 
 
 def create_clip(db: Session, *, original_name: str, source_path: str,
                 clip_type: str, title: str, note: str | None,
                 model: str | None, trim_start: str | None = None,
                 trim_end: str | None = None, me_side: str = "",
-                me_appearance: str = "") -> VAClip:
+                me_appearance: str = "", focus: str = "") -> VAClip:
     """Persist a clip from ``source_path`` (a file on disk). When a trim range
     is given, cut that segment out and keep only the short cut as material;
     otherwise copy the whole file. The source file is never modified."""
@@ -371,6 +372,7 @@ def create_clip(db: Session, *, original_name: str, source_path: str,
         original_name=original_name,
         stored_path=str(stored),
         clip_type=clip_type if clip_type in ("training", "match_points") else "training",
+        focus=focus if focus in FOCUS_VALUES else "",
         title=label,
         note=note,
         duration_sec=meta.get("duration_sec"),
@@ -594,6 +596,7 @@ def analyze_clip(clip_id: int, model: str | None) -> None:
                 clip.stored_path, clip.clip_type, model or (clip.model or None),
                 me_side=clip.me_side, me_appearance=clip.me_appearance,
                 handed=profile.handed, reference_images_b64=refs,
+                focus=clip.focus or "",
             )
         except Exception as exc:
             clip.status = "error"

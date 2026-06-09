@@ -9,6 +9,7 @@ from app.features.video_analysis.schemas import SKILL_ASPECTS
 # Columns added to existing tables after they first shipped. create_all() never
 # alters existing tables, so add any missing ones by hand (SQLite ADD COLUMN).
 _VA_CLIP_COLUMNS = {
+    "focus": "VARCHAR DEFAULT ''",
     "me_side": "VARCHAR DEFAULT ''",
     "me_appearance": "VARCHAR DEFAULT ''",
     "subject_desc": "TEXT",

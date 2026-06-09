@@ -173,6 +173,7 @@ def create_clip(
             original_name=p.name,
             source_path=str(p),
             clip_type=payload.clip_type,
+            focus=payload.focus,
             title=payload.title,
             note=payload.note,
             model=payload.model,

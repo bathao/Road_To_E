@@ -329,11 +329,16 @@ segmentation **& phasing (NC3)**, S6 stroke montages; switch the VLM input from 
 stills → montages + context. Verify on a real training clip: findings reference
 actual strokes/phases; dead time excluded.
 
-**Phase 2 — Depth, trust & overlays.**
+**Phase 2 — Depth, trust & overlays.** *(partly done)*
 S5 dynamic + per-phase metrics; S7 evidence+timestamp+confidence per finding +
 self-critique pass; clip `focus` tag → targeted prompts; **NC4(a) user-facing
 annotated evidence thumbnails** + UI jump-to-timestamp. Verify: every proposed
 finding has a `t_ref`; self-critique demonstrably drops an unsupported claim.
+- ✅ evidence `t_ref` + confidence + UI jump-to-timestamp (commit `3e35bda`).
+- ✅ clip `focus` tag → targeted prompts (`_FOCUS_VI`/`call_vlm(focus=…)`).
+- ✅ self-critique pass (`self_critique`/`_apply_self_critique`, `SELF_CRITIQUE`).
+- ⏳ remaining: NC4(a) annotated (skeleton/angle) evidence thumbnails; richer
+  per-phase metrics beyond the current stroke dynamics.
 
 **Phase 3 — Progress over time.**
 `va_metric` persistence + baseline comparison (S9); surface deltas in analysis and

@@ -2,6 +2,7 @@ import type {
   Aspect,
   ClipType,
   FindingStatus,
+  Focus,
   Polarity,
   Side,
   SkillStatus,
@@ -54,6 +55,24 @@ export const CLIP_TYPE_LABEL: Record<ClipType, string> = {
   training: "Clip tập",
   match_points: "Điểm trong trận",
 };
+
+// Drill focus — what the AI should concentrate its analysis on.
+export const FOCUS_LABEL: Record<Focus, string> = {
+  "": "— Tổng quát —",
+  serve_practice: "Tập giao bóng",
+  footwork_drill: "Tập bộ chân",
+  rally: "Bóng qua lại (rally)",
+  match: "Điểm trận đấu",
+  free: "Tự do / tổng quát",
+};
+
+export const FOCUS_ORDER: Focus[] = [
+  "",
+  "serve_practice",
+  "footwork_drill",
+  "rally",
+  "match",
+];
 
 export const STATUS_LABEL: Record<string, string> = {
   pending: "Chờ xử lý",

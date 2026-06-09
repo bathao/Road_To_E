@@ -1,5 +1,5 @@
 import type { Clip } from "../types";
-import { CLIP_TYPE_LABEL, STATUS_LABEL } from "../labels";
+import { CLIP_TYPE_LABEL, FOCUS_LABEL, STATUS_LABEL } from "../labels";
 
 interface Props {
   clips: Clip[];
@@ -23,6 +23,7 @@ export default function ClipList({ clips, selectedId, onSelect }: Props) {
             <span className="va-clip-title">{c.title || c.original_name}</span>
             <span className="va-muted va-clip-meta">
               {CLIP_TYPE_LABEL[c.clip_type]}
+              {c.focus ? ` · 🎯 ${FOCUS_LABEL[c.focus]}` : ""}
               {c.duration_sec ? ` · ${Math.round(c.duration_sec)}s` : ""}
             </span>
           </div>

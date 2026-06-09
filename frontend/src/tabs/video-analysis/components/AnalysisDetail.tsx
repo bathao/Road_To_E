@@ -4,6 +4,7 @@ import {
   ASPECT_LABEL,
   ASPECT_ORDER,
   CLIP_TYPE_LABEL,
+  FOCUS_LABEL,
   SIDE_LABEL,
   SIDE_ORDER,
   STATUS_LABEL,
@@ -178,6 +179,7 @@ export default function AnalysisDetail({
           <video ref={videoRef} src={videoUrl} controls className="va-video" />
           <div className="va-muted va-video-meta">
             {CLIP_TYPE_LABEL[detail.clip_type]}
+            {detail.focus ? ` · 🎯 ${FOCUS_LABEL[detail.focus]}` : ""}
             {detail.fps ? ` · ${detail.fps} fps` : ""}
             {detail.frames_sampled ? ` · ${detail.frames_sampled} khung phân tích` : ""}
             {detail.model ? ` · ${detail.model}` : ""}
@@ -285,6 +287,15 @@ export default function AnalysisDetail({
           {a && raw && detail.status === "done" && (
             <>
               {raw.summary && <p className="va-summary-block">{raw.summary}</p>}
+
+              {raw.critique && (raw.critique.dropped > 0 || raw.critique.downgraded > 0) && (
+                <p className="va-muted va-critique-note">
+                  🔍 AI tự kiểm tra lại {raw.critique.reviewed} nhận xét:
+                  {raw.critique.dropped > 0 ? ` loại ${raw.critique.dropped} ý thiếu căn cứ` : ""}
+                  {raw.critique.dropped > 0 && raw.critique.downgraded > 0 ? "," : ""}
+                  {raw.critique.downgraded > 0 ? ` hạ độ tin cậy ${raw.critique.downgraded} ý chưa chắc` : ""}.
+                </p>
+              )}
 
               {/* ---- Findings review gate ---- */}
               {showEditor ? (

@@ -1,6 +1,12 @@
 import { useState } from "react";
-import type { ClipType, ModelHealth, Side } from "../types";
-import { CLIP_TYPE_LABEL, SIDE_LABEL, SIDE_ORDER } from "../labels";
+import type { ClipType, Focus, ModelHealth, Side } from "../types";
+import {
+  CLIP_TYPE_LABEL,
+  FOCUS_LABEL,
+  FOCUS_ORDER,
+  SIDE_LABEL,
+  SIDE_ORDER,
+} from "../labels";
 
 interface Props {
   health: ModelHealth | null;
@@ -9,6 +15,7 @@ interface Props {
   onCreate: (form: {
     local_path: string;
     clip_type: ClipType;
+    focus?: Focus;
     title: string;
     note?: string;
     model?: string;
@@ -23,6 +30,7 @@ export default function UploadForm({ health, uploading, onBrowse, onCreate }: Pr
   const [localPath, setLocalPath] = useState("");
   const [browsing, setBrowsing] = useState(false);
   const [clipType, setClipType] = useState<ClipType>("training");
+  const [focus, setFocus] = useState<Focus>("");
   const [title, setTitle] = useState("");
   const [note, setNote] = useState("");
   const [model, setModel] = useState("");
@@ -51,6 +59,7 @@ export default function UploadForm({ health, uploading, onBrowse, onCreate }: Pr
     await onCreate({
       local_path: localPath.trim(),
       clip_type: clipType,
+      focus: focus || undefined,
       title,
       note: note || undefined,
       model: model || undefined,
@@ -102,6 +111,15 @@ export default function UploadForm({ health, uploading, onBrowse, onCreate }: Pr
           </select>
         </label>
 
+        <label>Trọng tâm phân tích
+          <select className="pb-select" value={focus}
+            onChange={(e) => setFocus(e.target.value as Focus)}>
+            {FOCUS_ORDER.map((f) => (
+              <option key={f} value={f}>{FOCUS_LABEL[f]}</option>
+            ))}
+          </select>
+        </label>
+
         <label>Model AI
           <select className="pb-select" value={model || defaultModel}
             onChange={(e) => setModel(e.target.value)}>
@@ -138,8 +156,9 @@ export default function UploadForm({ health, uploading, onBrowse, onCreate }: Pr
 
       <p className="va-muted">
         Dán/chọn file video trên máy. Nhập 2 ô thời gian để cắt đúng đoạn cần phân tích
-        (chỉ đoạn cắt được lưu làm tư liệu, file gốc giữ nguyên). Với clip trận đấu, khai
-        “Tôi đứng ở đâu” + màu áo giúp model nhận đúng bạn và tự tích lũy ảnh nhận diện cho
+        (chỉ đoạn cắt được lưu làm tư liệu, file gốc giữ nguyên). Chọn “Trọng tâm phân tích”
+        để AI soi đúng mảng (vd clip tập giao bóng sẽ không bị chấm bộ chân). Với clip trận đấu,
+        khai “Tôi đứng ở đâu” + màu áo giúp model nhận đúng bạn và tự tích lũy ảnh nhận diện cho
         các clip sau.
       </p>
 

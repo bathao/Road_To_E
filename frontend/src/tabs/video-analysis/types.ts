@@ -1,4 +1,11 @@
 export type ClipType = "training" | "match_points";
+export type Focus =
+  | ""
+  | "serve_practice"
+  | "footwork_drill"
+  | "rally"
+  | "match"
+  | "free";
 export type Status =
   | "pending"
   | "processing"
@@ -137,6 +144,9 @@ export interface RawAnalysis {
   footwork?: { notes?: string };
   posture?: { notes?: string };
   recommendations?: string[];
+  // Self-critique (Pass C) summary: how many draft findings were re-checked,
+  // dropped (unsupported) and downgraded (shaky) before review.
+  critique?: { reviewed: number; dropped: number; downgraded: number };
 }
 
 export interface Analysis {
@@ -154,6 +164,7 @@ export interface Clip {
   id: number;
   original_name: string;
   clip_type: ClipType;
+  focus: Focus;
   title: string;
   note: string | null;
   duration_sec: number | null;
