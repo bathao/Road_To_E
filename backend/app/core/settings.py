@@ -26,6 +26,12 @@ DEFAULT_VLM_MODEL = "qwen3-vl:8b"
 # Text-only model used to synthesise the living profile summaries from traits.
 DEFAULT_TEXT_MODEL = "qwen3:14b"
 
+# Optional TrackNet-style ball-detection ONNX model (Phase 4 / NC1). When this
+# file exists AND onnxruntime is importable, ball tracking uses the CNN; otherwise
+# it falls back to a classical motion detector, and ball metrics simply degrade to
+# "not available" when nothing is trackable. Never a hard dependency.
+BALL_MODEL_PATH = DATA_DIR / "models" / "ball_tracknet.onnx"
+
 # Built frontend (Vite output). Served as the SPA in production.
 FRONTEND_DIST = PROJECT_DIR / "frontend" / "dist"
 

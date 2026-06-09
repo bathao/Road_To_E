@@ -166,6 +166,23 @@ export interface RawAnalysis {
   critique?: { reviewed: number; dropped: number; downgraded: number };
 }
 
+// Ball + table tracking (Phase 4 / NC1). Best-effort: `available` may be false.
+export interface BallZone {
+  zone: string;
+  gx: number;
+  gy: number;
+  count: number;
+}
+export interface BallTracking {
+  available?: boolean;
+  method?: string;
+  zones?: BallZone[];
+  table?: { area_frac: number; color: string } | null;
+  n_points?: number;
+  mean_conf?: number;
+  note?: string;
+}
+
 export interface Analysis {
   id: number;
   clip_id: number;
@@ -174,6 +191,7 @@ export interface Analysis {
   summary: string;
   raw: RawAnalysis;
   pose: Record<string, unknown>;
+  ball?: BallTracking;
   progress: MetricTrend[];
   created_at: string;
 }

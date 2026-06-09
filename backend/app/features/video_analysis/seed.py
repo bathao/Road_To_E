@@ -34,6 +34,7 @@ _VA_ANALYSIS_COLUMNS = {
     # on the analysis row alongside raw_json/pose_json. Old rows default to "[]".
     "strokes_json": "TEXT DEFAULT '[]'",
     "metrics_json": "TEXT DEFAULT '[]'",
+    "ball_json": "TEXT DEFAULT '{}'",  # ball/table tracking (Phase 4 / NC1)
 }
 
 

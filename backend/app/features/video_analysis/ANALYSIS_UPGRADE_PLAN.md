@@ -350,11 +350,17 @@ finding has a `t_ref`; self-critique demonstrably drops an unsupported claim.
   `report_metric_trends` (latest vs history) → `ReportOut.metric_trends` + SkillBoard.
 - Note: deltas are empty until ≥2 clips are re-analysed (older clips predate `va_metric`).
 
-**Phase 4 — Ball + table tracking (NC1, committed core, best-effort).**
+**Phase 4 — Ball + table tracking (NC1, committed core, best-effort).** *(done)*
 S10 table homography + TrackNet-style ball tracking (onnxruntime-GPU) + placement
 zones/tempo; ball-derived contact instant sharpens phasing. Verify: placement zones
 plausible on a rally clip; graceful skip when the ball isn't trackable; accuracy
 documented honestly.
+- ✅ `ball.py`: classical detector + optional TrackNet-ONNX tier (`BALL_MODEL_PATH`),
+  `detect_table` homography (approxPolyDP→minAreaRect fallback), `placement_zones`
+  (3×3 grid), `va_analysis.ball_json`, "🏓 Bóng & điểm rơi" UI with `PlacementGrid`.
+  Honesty gate: classical only counts with a table; no speed/spin claimed.
+- ⏳ not yet: ball-derived contact instant feeding back into stroke phasing (S4);
+  a bundled TrackNet model (drop one at `data/models/ball_tracknet.onnx` to enable).
 
 **Phase 5 — Split-step sync (NC2) + experiments.**
 S5 split-step synchronisation (needs Phase 4's contact anchor + opponent tracking +

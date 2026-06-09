@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { videoApi } from "../api";
 import type {
   Aspect,
+  BallTracking,
   ClipDetail,
   FindingDecision,
   MetricTrend,
@@ -73,6 +74,31 @@ function TimeChip({ t, conf, onSeek }: {
       title="Nhảy tới khoảnh khắc này trong clip">
       ▶ {fmtTime(t)}{conf != null ? ` · ${Math.round(conf * 100)}%` : ""}
     </button>
+  );
+}
+
+// A 3×3 placement heat-grid of where the ball landed on the table (best-effort).
+// gx 0..2 = left/center/right, gy 0..2 = near-net/mid/far-end.
+function PlacementGrid({ ball }: { ball: BallTracking }) {
+  const zones = ball.zones ?? [];
+  if (!zones.length) return null;
+  const max = Math.max(...zones.map((z) => z.count), 1);
+  const count = (gx: number, gy: number) =>
+    zones.find((z) => z.gx === gx && z.gy === gy)?.count ?? 0;
+  return (
+    <div className="va-placement">
+      {[0, 1, 2].map((gy) =>
+        [0, 1, 2].map((gx) => {
+          const n = count(gx, gy);
+          return (
+            <div key={`${gx}-${gy}`} className="va-placement-cell"
+              style={{ background: `rgba(74,144,217,${n ? 0.15 + 0.65 * (n / max) : 0.04})` }}>
+              {n || ""}
+            </div>
+          );
+        })
+      )}
+    </div>
   );
 }
 
@@ -524,6 +550,24 @@ export default function AnalysisDetail({
                   <p className="va-muted">{pose.reason || "Không có dữ liệu pose."}</p>
                 )}
               </div>
+
+              {a.ball?.available && (a.ball.zones?.length ?? 0) > 0 && (
+                <div className="va-aspect-block">
+                  <h4>🏓 Bóng & điểm rơi (thử nghiệm)</h4>
+                  <div className="va-placement-wrap">
+                    <PlacementGrid ball={a.ball} />
+                    <div className="va-muted va-placement-legend">
+                      <div>Lưới 3×3 mặt bàn: hàng trên = gần lưới, dưới = cuối bàn.</div>
+                      <div>{a.ball.note}</div>
+                      <div>
+                        {a.ball.n_points} điểm · độ tin cậy TB{" "}
+                        {Math.round((a.ball.mean_conf ?? 0) * 100)}% · cách{" "}
+                        {a.ball.method === "tracknet" ? "TrackNet" : "chuyển động"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>

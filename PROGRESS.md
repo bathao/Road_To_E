@@ -15,13 +15,15 @@ Analysis" — local-AI clip analysis (now **motion-aware**, see below); Tab 5
 > `focus` tag** is now committed too. Verified by a direct pipeline run on an
 > existing clip: `self-critique: reviewed=6 dropped=1`, `focus` block confirmed
 > injected into the VLM prompt, migration added `va_clip.focus` to the live DB.
-> Not yet driven through the browser UI (optional). NC4(a) annotated evidence
-> thumbnails are done; **Phase 3 progress tracking is now done too** (per-clip +
-> whole-history metric deltas vs the player's own baseline, in the analysis view
-> and `/report`). Trends only populate once **≥2 clips are re-analysed** (existing
-> clips predate `va_metric`, so they show 0 deltas until re-run). Phases 1–3 (the
-> committed core) are complete. Remaining is **Phase 4 (ball/table tracking)** —
-> a heavy optional GPU dependency (TrackNet ONNX). See `ANALYSIS_UPGRADE_PLAN.md`.
+> Not yet driven through the browser UI (optional). Phases 1–3 done, and **Phase 4
+> (ball + table tracking, NC1) is now implemented best-effort** — classical motion
+> detector + table homography → 3×3 placement zones, with an optional TrackNet ONNX
+> tier (used only if a model file + onnxruntime are present; never required). It
+> degrades honestly: classical only "counts" when a table is found (verified:
+> zones on clips #3/#10, graceful skip on #8). All metric deltas + ball data only
+> populate on a **fresh re-analysis** (older clips predate these). Remaining:
+> Phase 5 (split-step sync + experiments) — advanced/optional. Drop a TrackNet
+> model at `backend/data/models/ball_tracknet.onnx` to upgrade ball tracking.
 
 **Tab 4 "Video Analysis"** — point the tab at a video file on disk (local-only,
 no browser upload), optionally give a trim range (mm:ss) to cut a short segment
@@ -172,6 +174,29 @@ Giải FS, BBTV…); Travel/"sets (cty)" → non-playing/skip; Serve counts → 
 ---
 
 ## History
+
+### 2026-06-09 — Video Analysis Phase 4: ball + table tracking (NC1, best-effort)
+New `ball.py` module, wired into `analyze_file` and persisted to `va_analysis.ball_json`
+(new column, migrated). Strictly best-effort — never blocks analysis, degrades to
+`available: False` with an honest note.
+- **Two detector tiers, auto-picked.** Tier 1 **TrackNet ONNX** — used only if
+  `settings.BALL_MODEL_PATH` (`backend/data/models/ball_tracknet.onnx`) exists AND
+  `onnxruntime` imports; loaded once, CUDA provider preferred. Optional, pluggable,
+  not bundled. Tier 2 **classical** — frame-difference + small round bright blobs
+  (the documented fallback; noisy).
+- **Table homography**: `detect_table` segments the blue/green table region, takes
+  the largest contour → 4 corners (`approxPolyDP`, else `minAreaRect` fallback) →
+  `getPerspectiveTransform` to a unit rectangle. `placement_zones` maps ball points
+  through it into a 3×3 grid (near-net/mid/far × left/center/right).
+- **Honesty gate**: the classical tier only reports `available` when a table
+  homography turns its points into real on-table zones (raw noisy image-plane points
+  alone tell the user nothing); TrackNet trajectories are trusted on their own. Single
+  uncalibrated camera ⇒ placement zones only — **no speed/spin claimed.**
+- Frontend: `AnalysisOut.ball`; a "🏓 Bóng & điểm rơi (thử nghiệm)" block in
+  `AnalysisDetail` with a 3×3 `PlacementGrid` heat-grid + method/confidence/note.
+- Verified on real clips (no model present → classical): table found on #3 (green,
+  area 0.15) and #10 → 5–6 placement zones; #8 no table → graceful skip. Full
+  `analyze_file` integration (stubbed VLM) produces JSON-serializable ball data.
 
 ### 2026-06-09 — Video Analysis Phase 3: progress tracking (metric deltas vs baseline)
 Closes the committed core (Phases 1–3) of `ANALYSIS_UPGRADE_PLAN.md`. The

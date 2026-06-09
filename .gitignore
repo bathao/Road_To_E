@@ -18,6 +18,9 @@ backend/.venv/
 backend/data/videos/
 backend/data/profile_refs/
 
+# ---- Optional ball-tracking ONNX model (Phase 4); large, user-supplied ----
+backend/data/models/
+
 # ---- Node / frontend ----
 frontend/node_modules/
 frontend/dist/

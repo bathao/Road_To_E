@@ -129,6 +129,7 @@ class VAAnalysis(Base):
     pose_json: Mapped[str] = mapped_column(Text, default="{}")  # aggregated pose metrics
     strokes_json: Mapped[str] = mapped_column(Text, default="[]")  # segmented strokes + phases
     metrics_json: Mapped[str] = mapped_column(Text, default="[]")  # flat {name,value,unit} list
+    ball_json: Mapped[str] = mapped_column(Text, default="{}")  # ball/table tracking (NC1)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     clip: Mapped[VAClip] = relationship("VAClip", back_populates="analysis")

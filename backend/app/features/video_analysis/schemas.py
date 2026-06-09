@@ -180,6 +180,7 @@ class AnalysisOut(BaseModel):
     summary: str
     raw: dict  # parsed raw_json
     pose: dict  # parsed pose_json
+    ball: dict = {}  # ball/table tracking (parsed ball_json)
     progress: list[MetricTrend] = []  # this clip's metrics vs the player's baseline
     created_at: dt.datetime
 

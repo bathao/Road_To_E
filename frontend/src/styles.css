@@ -2484,6 +2484,38 @@ input:focus {
   padding: 2px 0;
 }
 
+.va-placement-wrap {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.va-placement {
+  display: grid;
+  grid-template-columns: repeat(3, 34px);
+  grid-template-rows: repeat(3, 34px);
+  gap: 2px;
+  border: 2px solid #1a9c4e;
+  border-radius: 4px;
+  padding: 2px;
+  background: #1a6c3e;
+  flex: 0 0 auto;
+}
+.va-placement-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  border-radius: 2px;
+}
+.va-placement-legend {
+  font-size: 12px;
+  line-height: 1.5;
+  flex: 1 1 200px;
+}
+
 .va-sw-cols {
   display: grid;
   grid-template-columns: 1fr 1fr;

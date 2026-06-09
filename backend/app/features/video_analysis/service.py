@@ -682,6 +682,7 @@ def analyze_clip(clip_id: int, model: str | None) -> None:
             pose_json=json.dumps(result.get("pose", {}), ensure_ascii=False),
             strokes_json=json.dumps(strokes, ensure_ascii=False),
             metrics_json=json.dumps(metrics, ensure_ascii=False),
+            ball_json=json.dumps(result.get("ball", {}) or {}, ensure_ascii=False),
         ))
 
         # Flat metric time-series (the Head Coach reads these to track progress).
@@ -828,6 +829,7 @@ def analysis_to_out(a: VAAnalysis, progress: list[schemas.MetricTrend] | None = 
         summary=a.summary,
         raw=_load(a.raw_json),
         pose=_load(a.pose_json),
+        ball=_load(a.ball_json),
         progress=progress or [],
         created_at=a.created_at,
     )

@@ -18,6 +18,7 @@ from typing import Any
 import httpx
 
 from app.core.settings import DEFAULT_TEXT_MODEL, DEFAULT_VLM_MODEL, OLLAMA_BASE_URL
+from app.features.video_analysis import ball as ball_tracker
 
 # How many frames to feed each stage. The VLM set is a subset (token/VRAM
 # budget); pose can look at more frames since it is cheap on CPU.
@@ -1419,6 +1420,15 @@ def analyze_file(path: str, clip_type: str, model: str | None = None, *,
             evidence.append({"stroke_idx": s["idx"], "t": round(s["t_contact"], 3),
                              "hand": s["hand"], "thumb_b64": thumb})
 
+    # Ball + table tracking (Phase 4 / NC1) — best-effort over the full frames
+    # (the ball can be anywhere, not just the player's side). Never blocks.
+    table_frame = track_ts[len(track_ts) // 2][1] if track_ts else None
+    ball = ball_tracker.analyze_ball(track_ts, table_frame=table_frame)
+    print(f"[video_analysis] ball: method={ball.get('method')} "
+          f"points={ball.get('n_points')} conf={ball.get('mean_conf')} "
+          f"table={'yes' if ball.get('table') else 'no'} available={ball.get('available')}",
+          flush=True)
+
     # Auto-build references only from labelled clips (we trust the side here).
     ref_crops_b64 = subject_crops([f for _, f in track_ts], me_side) if cropped else []
     return {
@@ -1432,6 +1442,7 @@ def analyze_file(path: str, clip_type: str, model: str | None = None, *,
         "impacts": impacts,
         "metrics": pose_to_metrics(pose),
         "evidence": evidence,
+        "ball": ball,
     }
 
 
