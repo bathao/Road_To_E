@@ -457,17 +457,51 @@ def pose_to_text(pose: dict[str, Any]) -> str:
             return "n/a"
         return f"trung bình {metric['mean']}{unit} (từ {metric['min']} đến {metric['max']}{unit})"
 
+    def mean_of(metric: dict | None) -> float | None:
+        return metric.get("mean") if metric else None
+
     measured = pose.get("measured_on")
     scope = ("(số dưới đây ĐO TRONG LÚC đánh bóng)" if measured == "strokes"
              else "(số đo trên toàn clip, gồm cả lúc đứng nghỉ — chỉ tham khảo)"
              if measured == "whole_clip" else "")
+
+    # Pre-interpret the numbers in CODE and hand the VLM the verdict. An 8B VLM
+    # reliably MISREADS raw pose numbers (e.g. it called knee 162.8° — nearly
+    # straight — "khuỵu gối tốt, trọng tâm thấp", the exact opposite). We know the
+    # thresholds, so we state the conclusion; the prompt tells the model to defer
+    # to these verdicts rather than re-judge the number itself.
+    knee = mean_of(pose.get("knee_flexion_deg"))
+    if knee is None:
+        knee_v = ""
+    elif knee >= 160:
+        knee_v = (" → ĐÁNH GIÁ: gối gần như THẲNG, KHÔNG hạ được trọng tâm — đây là ĐIỂM YẾU "
+                  "cần khuỵu gối nhiều hơn, TUYỆT ĐỐI không khen là 'trọng tâm thấp/khuỵu gối tốt'.")
+    elif knee >= 148:
+        knee_v = " → ĐÁNH GIÁ: gối khuỵu VỪA PHẢI, trọng tâm trung bình."
+    else:
+        knee_v = " → ĐÁNH GIÁ: gối khuỵu TỐT, trọng tâm thấp (điểm mạnh)."
+
+    stance = mean_of(pose.get("stance_width_ratio"))
+    if stance is None:
+        stance_v = " (không đo được — người chơi xoay nghiêng, đừng nhận xét độ rộng tấn)."
+    elif stance >= 1.4:
+        stance_v = " → ĐÁNH GIÁ: tấn RỘNG, vững (điểm mạnh)."
+    elif stance >= 1.0:
+        stance_v = " → ĐÁNH GIÁ: tấn trung bình."
+    else:
+        stance_v = " → ĐÁNH GIÁ: tấn HẸP (nên đứng rộng chân hơn)."
+
+    lean = mean_of(pose.get("torso_lean_deg"))
+    lean_v = ""
+    if lean is not None:
+        lean_v = (" → ĐÁNH GIÁ: thân khá thẳng đứng." if lean < 12
+                  else " → ĐÁNH GIÁ: thân nghiêng nhiều.")
+
     lines = [
         f"- Số khung phát hiện được người: {pose['frames_with_pose']}/{pose['frames_analyzed']} {scope}",
-        f"- Độ rộng tấn (khoảng cách 2 cổ chân / độ rộng vai): {fmt(pose.get('stance_width_ratio'))} "
-        "(>1.4 = tấn rộng, vững; <1.0 = tấn hẹp).",
-        f"- Góc gập gối: {fmt(pose.get('knee_flexion_deg'), '°')} (180° = chân thẳng đứng; "
-        "càng nhỏ càng khuỵu gối/hạ trọng tâm tốt).",
-        f"- Độ nghiêng thân so với phương thẳng đứng: {fmt(pose.get('torso_lean_deg'), '°')}.",
+        f"- Độ rộng tấn (cổ chân / vai): {fmt(pose.get('stance_width_ratio'))}{stance_v}",
+        f"- Góc gập gối: {fmt(pose.get('knee_flexion_deg'), '°')} (180°=thẳng){knee_v}",
+        f"- Độ nghiêng thân: {fmt(pose.get('torso_lean_deg'), '°')}{lean_v}",
         f"- Biên độ di chuyển ngang của hông (bộ chân, đo trên CẢ clip): {pose.get('lateral_sway')} "
         "(theo tỉ lệ khung hình; càng lớn = di chuyển chân càng nhiều).",
         f"- Độ cao tay (so với vai, theo độ rộng vai): {fmt(pose.get('hand_elevation'))}.",
@@ -924,6 +958,9 @@ SYSTEM_PROMPT = (
     "KHÔNG liệt kê cùng một mảng (vd bộ chân, thuận tay) vừa là điểm mạnh vừa là điểm yếu với cùng "
     "một lý do. Số liệu pose chỉ là THAM KHẢO (đo tự động, có thể nhiễu); ưu tiên quan sát diễn tiến "
     "động tác trong các ảnh ghép, nếu số pose mâu thuẫn với hình thì tin vào hình. "
+    "QUAN TRỌNG: khi phần số liệu pose có dòng 'ĐÁNH GIÁ: ...' thì đó là kết luận ĐÚNG về hình học "
+    "cơ thể (đã tính sẵn bằng công thức), bạn PHẢI tuân theo và KHÔNG được nói ngược lại — ví dụ nếu "
+    "ĐÁNH GIÁ nói gối gần thẳng/trọng tâm cao thì TUYỆT ĐỐI không được khen 'khuỵu gối tốt, trọng tâm thấp'. "
     "Nếu một mảng KHÔNG quan sát rõ thì ĐỪNG đưa vào strengths/weaknesses; chỉ ghi 'không quan sát rõ' "
     "ở trường notes tương ứng (serve/footwork/posture) hoặc bỏ trống. "
     "Với MỖI điểm mạnh/yếu, điền t_ref = giây trong clip nơi bạn quan sát thấy (dựa vào thời điểm các "
