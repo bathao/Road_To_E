@@ -730,15 +730,21 @@ def analyze_clip(clip_id: int, model: str | None) -> None:
 # Per-metric coaching knowledge: a Vietnamese label, the display unit, and which
 # direction is an IMPROVEMENT. "up" = higher is better, "down" = lower is better,
 # "neutral" = just a change, no good/bad. The Head Coach reads the same trends.
-METRIC_META: dict[str, dict[str, str]] = {
-    "stance_width_ratio_mean": {"label": "Độ rộng tấn", "unit": "", "better": "up"},
-    "knee_flexion_deg_mean": {"label": "Góc gập gối", "unit": "°", "better": "down"},
-    "torso_lean_deg_mean": {"label": "Độ nghiêng thân", "unit": "°", "better": "neutral"},
-    "hand_elevation_mean": {"label": "Độ cao tay", "unit": "", "better": "neutral"},
-    "lateral_sway": {"label": "Biên độ di chuyển ngang (bộ chân)", "unit": "", "better": "up"},
-    "swing_speed_mean": {"label": "Tốc độ vung tay", "unit": "", "better": "up"},
-    "tempo_sec": {"label": "Nhịp đánh", "unit": "s", "better": "neutral"},
-    "recovery_sec": {"label": "Thời gian hồi vị", "unit": "s", "better": "down"},
+# ``trend``: whether this metric is comparable ACROSS clips. The geometric angle
+# means (knee/lean/stance/hand) are per-frame and independent of clip length or
+# sample rate → trendable. The dynamic/range metrics (swing speed, tempo, recovery,
+# lateral sway) depend on how densely/long the clip was sampled — comparing a 5 s
+# clip to a 3 min one yields nonsense (e.g. "swing speed −95%"), so they are shown
+# per-clip but kept OUT of the progress comparison.
+METRIC_META: dict[str, dict] = {
+    "stance_width_ratio_mean": {"label": "Độ rộng tấn", "unit": "", "better": "up", "trend": True},
+    "knee_flexion_deg_mean": {"label": "Góc gập gối", "unit": "°", "better": "down", "trend": True},
+    "torso_lean_deg_mean": {"label": "Độ nghiêng thân", "unit": "°", "better": "neutral", "trend": True},
+    "hand_elevation_mean": {"label": "Độ cao tay", "unit": "", "better": "neutral", "trend": True},
+    "lateral_sway": {"label": "Biên độ di chuyển ngang (bộ chân)", "unit": "", "better": "up", "trend": False},
+    "swing_speed_mean": {"label": "Tốc độ vung tay", "unit": "", "better": "up", "trend": False},
+    "tempo_sec": {"label": "Nhịp đánh", "unit": "s", "better": "neutral", "trend": False},
+    "recovery_sec": {"label": "Thời gian hồi vị", "unit": "s", "better": "down", "trend": False},
 }
 _FLAT_PCT = 3.0  # |%| change below this counts as "no real change"
 
@@ -788,7 +794,9 @@ def clip_progress(db: Session, clip: VAClip) -> list[schemas.MetricTrend]:
         if cid != clip.id and created < clip.created_at:
             prior.setdefault(name, []).append(val)
     out: list[schemas.MetricTrend] = []
-    for name in METRIC_META:
+    for name, meta in METRIC_META.items():
+        if not meta.get("trend"):  # skip sample-rate/length-dependent metrics
+            continue
         if name in current and prior.get(name):
             base = sum(prior[name]) / len(prior[name])
             out.append(_make_trend(name, current[name], base, len(prior[name])))
@@ -803,7 +811,9 @@ def report_metric_trends(db: Session) -> list[schemas.MetricTrend]:
     for name, val, _cid, _created in hist:
         series.setdefault(name, []).append(val)  # already clip-date ordered
     out: list[schemas.MetricTrend] = []
-    for name in METRIC_META:
+    for name, meta in METRIC_META.items():
+        if not meta.get("trend"):  # skip sample-rate/length-dependent metrics
+            continue
         vals = series.get(name) or []
         if len(vals) >= 2:
             latest, earlier = vals[-1], vals[:-1]

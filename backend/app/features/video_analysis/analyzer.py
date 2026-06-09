@@ -23,9 +23,16 @@ from app.features.video_analysis import ball as ball_tracker
 # How many frames to feed each stage. The VLM set is a subset (token/VRAM
 # budget); pose can look at more frames since it is cheap on CPU.
 VLM_MAX_FRAMES = 14
-POSE_MAX_FRAMES = 48      # denser sampling → cleaner wrist trajectory / strokes
-VLM_MAX_STROKES = 4       # per-stroke montages sent to the VLM (token budget)
+POSE_MAX_FRAMES = 48      # default frame budget (detect step; short clips)
+VLM_MAX_STROKES = 5       # per-stroke montages sent to the VLM (token budget)
 VLM_CONTEXT_FRAMES = 2    # whole-frame context shots alongside the montages
+# Deep analysis samples by DURATION, not a fixed count: a fixed 48 frames over a
+# 3-min clip is ~0.27 fps — far too sparse to see strokes (and makes fps-dependent
+# metrics meaningless). Aim for ~this many fps, between a floor and a CPU-bounded
+# cap (MediaPipe pose runs per frame on CPU).
+SAMPLE_TARGET_FPS = 6.0
+POSE_MIN_FRAMES = 48
+POSE_CAP_FRAMES = 220
 FRAME_MAX_DIM = 768  # downscale longest side before sending to the VLM
 # Each frame costs ~1k vision tokens, so 14 frames + prompt + output blows past
 # Ollama's 4096 default. Give the VLM a large window; an 8B model + this KV
@@ -1383,9 +1390,17 @@ def analyze_file(path: str, clip_type: str, model: str | None = None, *,
     {model, frames_sampled, pose, raw, summary, ref_crops_b64, strokes, impacts,
     metrics}."""
     model = model or DEFAULT_VLM_MODEL
-    track_ts = sample_timestamped(path, POSE_MAX_FRAMES)
+    # Sample by duration so a long clip isn't reduced to a handful of stills.
+    try:
+        duration = (probe(path) or {}).get("duration_sec") or 0.0
+    except Exception:
+        duration = 0.0
+    n_sample = (max(POSE_MIN_FRAMES, min(POSE_CAP_FRAMES, int(duration * SAMPLE_TARGET_FPS)))
+                if duration else POSE_MAX_FRAMES)
+    track_ts = sample_timestamped(path, n_sample)
     if not track_ts:
         raise RuntimeError("Không đọc được khung hình nào từ clip (file hỏng hoặc định dạng lạ).")
+    eff_fps = round(len(track_ts) / duration, 2) if duration else None
 
     # Pose/strokes lock onto the user only when we know their side; else best-effort.
     cropped = me_side in _SIDE_VI
@@ -1425,8 +1440,10 @@ def analyze_file(path: str, clip_type: str, model: str | None = None, *,
     motion_path = "stills"
     shown: list[dict[str, Any]] = []
     if strokes:
-        shown = sorted(strokes, key=lambda s: s["peak_speed"], reverse=True)[:VLM_MAX_STROKES]
-        shown = sorted(shown, key=lambda s: s["t_contact"])
+        # Spread the montages ACROSS the clip (even over time) rather than taking the
+        # few fastest swings, so a long clip is sampled broadly, not in one cluster.
+        ordered = sorted(strokes, key=lambda s: s["t_contact"])
+        shown = [ordered[i] for i in _even_indices(len(ordered), VLM_MAX_STROKES)]
         montages = [m for m in (stroke_montage_b64(player_ts, s) for s in shown) if m]
         if montages:
             motion_path = "pose"
@@ -1456,7 +1473,8 @@ def analyze_file(path: str, clip_type: str, model: str | None = None, *,
         raise RuntimeError("Không tạo được khung hình để phân tích.")
 
     # Visible signal (backend console) of which path the analysis took.
-    print(f"[video_analysis] motion: path={motion_path} strokes={len(strokes)} "
+    print(f"[video_analysis] motion: path={motion_path} sampled={len(track_ts)} "
+          f"(~{eff_fps}fps, {round(duration,1)}s) strokes={len(strokes)} "
           f"impacts={len(impacts_raw)}->{len(impacts)} images={len(images_b64)} "
           f"montage={montage}", flush=True)
 
