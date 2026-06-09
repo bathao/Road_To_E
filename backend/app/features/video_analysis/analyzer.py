@@ -40,6 +40,10 @@ L_KNEE, R_KNEE = 25, 26
 L_ANKLE, R_ANKLE = 27, 28
 L_WRIST, R_WRIST = 15, 16
 
+# Min shoulder-width / torso-length for a frame to count as "front-facing enough"
+# to trust width ratios (below this the player is too side-on → ratios explode).
+_FRONT_FACING_MIN = 0.33
+
 
 # ------------------------------------------------------------------- ffmpeg
 def _ffmpeg_bin() -> str:
@@ -340,13 +344,26 @@ def _angle(a, b, c) -> float:
 
 
 def _stats(values: list[float]) -> dict[str, float] | None:
+    """Mean/min/max after trimming outliers via a 1.5×IQR fence. Pose ratios still
+    carry the odd bad-frame spike even after the front-facing guard; trimming keeps
+    the reported mean/range honest rather than letting one 14× frame dominate."""
     if not values:
         return None
-    mean = sum(values) / len(values)
+    xs = sorted(values)
+    if len(xs) >= 4:
+        n = len(xs)
+        q1 = xs[n // 4]
+        q3 = xs[(3 * n) // 4]
+        iqr = q3 - q1
+        lo, hi = q1 - 1.5 * iqr, q3 + 1.5 * iqr
+        trimmed = [x for x in xs if lo <= x <= hi]
+        if trimmed:
+            xs = trimmed
+    mean = sum(xs) / len(xs)
     return {
         "mean": round(mean, 1),
-        "min": round(min(values), 1),
-        "max": round(max(values), 1),
+        "min": round(min(xs), 1),
+        "max": round(max(xs), 1),
     }
 
 
@@ -542,6 +559,14 @@ def analyze_pose(frames_ts: list[tuple[float, Any]], handed: str = "right"
                 for hip, knee, ankle in ((L_HIP, L_KNEE, L_ANKLE), (R_HIP, R_KNEE, R_ANKLE))
                 if vis(hip) and vis(knee) and vis(ankle)
             ]
+            # Rotation guard: ratios normalised by 2D shoulder width blow up when the
+            # player turns side-on (shoulder width collapses toward 0 → stance/hand
+            # ratios explode, e.g. 14×). Torso length (shoulder-mid → hip-mid) barely
+            # changes under that yaw, so when shoulders are narrow relative to the
+            # torso the frame is too side-on to measure width ratios → record None
+            # (knee angle and lean are rotation-stable, so they're always kept).
+            torso = math.hypot(sh_mid_x - hip_mid_x, sh_mid_y - hip_mid_y) or 1e-6
+            front_facing = (shoulder_w / torso) >= _FRONT_FACING_MIN
             hand_el = [(sh_mid_y - pts[wr].y) / shoulder_w for wr in (L_WRIST, R_WRIST) if vis(wr)]
             records.append({
                 "t": round(t, 3),
@@ -549,11 +574,11 @@ def analyze_pose(frames_ts: list[tuple[float, Any]], handed: str = "right"
                 "wvis": w.visibility if w.visibility is not None else 1.0,
                 "cx": sh_mid_x,
                 "stance": (_dist(pts[L_ANKLE], pts[R_ANKLE]) / shoulder_w)
-                          if vis(L_ANKLE) and vis(R_ANKLE) else None,
+                          if (front_facing and vis(L_ANKLE) and vis(R_ANKLE)) else None,
                 "knee": (sum(knees) / len(knees)) if knees else None,
                 "lean": abs(math.degrees(math.atan2(sh_mid_x - hip_mid_x, -(sh_mid_y - hip_mid_y)))),
                 "hip_x": hip_mid_x,
-                "hand_elev": (sum(hand_el) / len(hand_el)) if hand_el else None,
+                "hand_elev": (sum(hand_el) / len(hand_el)) if (front_facing and hand_el) else None,
             })
     finally:
         pose.close()
