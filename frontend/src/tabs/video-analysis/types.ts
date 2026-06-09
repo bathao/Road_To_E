@@ -160,6 +160,8 @@ export interface RawAnalysis {
   serve?: { type?: string; notes?: string };
   footwork?: { notes?: string };
   posture?: { notes?: string };
+  serve_variety?: { notes?: string };
+  tactics?: { notes?: string };
   recommendations?: string[];
   // Self-critique (Pass C) summary: how many draft findings were re-checked,
   // dropped (unsupported) and downgraded (shaky) before review.

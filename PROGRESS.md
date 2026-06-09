@@ -186,6 +186,28 @@ Giải FS, BBTV…); Travel/"sets (cty)" → non-playing/skip; Serve counts → 
 
 ## History
 
+### 2026-06-09 — Video Analysis: live-verify fixes + qualitative tactical analysis
+Driven through the browser by the user; several real quality issues found and fixed,
+plus a new tactical read.
+- **Pose numbers pre-interpreted** (`pose_to_text` "ĐÁNH GIÁ: …", SYSTEM_PROMPT): the
+  8B VLM had read knee 162.8° (near-straight) as "khuỵu gối tốt, trọng tâm thấp" —
+  now code states the verdict and the model must follow it.
+- **Duration-scaled sampling**: was a fixed 48 frames over any length (3-min clip =
+  0.27 fps). Now ~6 fps between a 48-floor and 220-cap; montages spread across the
+  timeline. Fixes "output hạn chế" on long clips.
+- **Honest cross-clip trends**: only the geometric angle means (knee/lean/stance/hand)
+  are comparable across clips; the length/sample-rate-dependent ones (swing speed,
+  tempo, recovery, lateral sway) were producing nonsense deltas (−95%, +4077%) →
+  excluded from the progress table (`METRIC_META.trend`).
+- **Third finding state "Chưa quan sát"** (neutral): non-observations are kept as this
+  state (not dropped, not mis-filed as weakness); excluded from strengths/weaknesses,
+  the skill ledger, and profile synthesis. Review dropdown gains the option.
+- **Qualitative tactical analysis** (user chose qualitative-only, no counting): VLM now
+  fills `serve_variety.notes` (serve diversity — short/long/spin/placement, varied vs
+  predictable) and `tactics.notes` (tactical tendencies), shown as "🎲 Đa dạng giao
+  bóng" + "♟️ Chiến thuật" blocks. The prompt forbids inventing win/loss or
+  winner/error counts (insufficient data).
+
 ### 2026-06-09 — Table ROI: reuse the trained YOLOv8-seg model from video_studio_v3
 Replaced the fragile classical blue/green table detection with the user's
 fine-tuned **YOLOv8-seg ROI model** (`video_studio_v3/assets/models/roi_seg.pt`,

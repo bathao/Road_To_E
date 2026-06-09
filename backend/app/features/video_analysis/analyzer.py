@@ -970,6 +970,11 @@ SYSTEM_PROMPT = (
     "ĐÁNH GIÁ nói gối gần thẳng/trọng tâm cao thì TUYỆT ĐỐI không được khen 'khuỵu gối tốt, trọng tâm thấp'. "
     "Nếu một mảng KHÔNG quan sát rõ thì ĐỪNG đưa vào strengths/weaknesses; chỉ ghi 'không quan sát rõ' "
     "ở trường notes tương ứng (serve/footwork/posture) hoặc bỏ trống. "
+    "Ngoài kỹ thuật, hãy nhận xét ĐỊNH TÍNH (không cần đếm con số): trường 'serve_variety'.notes = "
+    "độ ĐA DẠNG giao bóng (có thay đổi giao ngắn/dài, xoáy, điểm rơi hay đơn điệu/dễ đoán); "
+    "'tactics'.notes = xu hướng CHIẾN THUẬT quan sát được (chọn cú, dựng điểm, hay tấn công/phòng thủ, "
+    "điểm rơi ưa dùng). Chỉ mô tả những gì THẤY trong các ảnh ghép; KHÔNG bịa số liệu thắng/thua, "
+    "KHÔNG đếm winner/lỗi (không đủ dữ liệu). Mảng nào không thấy rõ thì ghi 'không quan sát rõ'. "
     "Với MỖI điểm mạnh/yếu, điền t_ref = giây trong clip nơi bạn quan sát thấy (dựa vào thời điểm các "
     "cú đánh đã cung cấp; để 0 nếu không xác định được) và confidence = độ chắc chắn 0..1."
 )
@@ -1013,11 +1018,22 @@ RESPONSE_SCHEMA: dict[str, Any] = {
             "properties": {"notes": {"type": "string"}},
             "required": ["notes"],
         },
+        "serve_variety": {  # qualitative serve-diversity read (no counting)
+            "type": "object",
+            "properties": {"notes": {"type": "string"}},
+            "required": ["notes"],
+        },
+        "tactics": {  # qualitative tactical tendencies / patterns (no counting)
+            "type": "object",
+            "properties": {"notes": {"type": "string"}},
+            "required": ["notes"],
+        },
         "recommendations": {"type": "array", "items": {"type": "string"}},
     },
     "required": [
         "identified", "confidence", "subject", "summary", "strengths",
-        "weaknesses", "serve", "footwork", "posture", "recommendations",
+        "weaknesses", "serve", "footwork", "posture", "serve_variety", "tactics",
+        "recommendations",
     ],
 }
 

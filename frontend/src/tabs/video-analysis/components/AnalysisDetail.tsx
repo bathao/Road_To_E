@@ -506,6 +506,18 @@ export default function AnalysisDetail({
                     <p>{raw.posture.notes}</p>
                   </div>
                 )}
+                {raw.serve_variety?.notes && (
+                  <div className="va-aspect-block">
+                    <h4>🎲 Đa dạng giao bóng</h4>
+                    <p>{raw.serve_variety.notes}</p>
+                  </div>
+                )}
+                {raw.tactics?.notes && (
+                  <div className="va-aspect-block">
+                    <h4>♟️ Chiến thuật</h4>
+                    <p>{raw.tactics.notes}</p>
+                  </div>
+                )}
               </div>
 
               {(raw.recommendations ?? []).length > 0 && (
