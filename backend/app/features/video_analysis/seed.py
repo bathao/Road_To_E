@@ -26,6 +26,7 @@ _VA_TRAIT_COLUMNS = {
     "ai_text": "TEXT",
     "reviewed_at": "DATETIME",
     "t_ref": "FLOAT",  # evidence timestamp (sec) for the finding
+    "evidence_json": "TEXT",  # annotated evidence thumbnail {stroke_idx,t,thumb}
 }
 
 _VA_ANALYSIS_COLUMNS = {

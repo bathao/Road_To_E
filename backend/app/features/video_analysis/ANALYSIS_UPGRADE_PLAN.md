@@ -337,8 +337,10 @@ finding has a `t_ref`; self-critique demonstrably drops an unsupported claim.
 - ✅ evidence `t_ref` + confidence + UI jump-to-timestamp (commit `3e35bda`).
 - ✅ clip `focus` tag → targeted prompts (`_FOCUS_VI`/`call_vlm(focus=…)`).
 - ✅ self-critique pass (`self_critique`/`_apply_self_critique`, `SELF_CRITIQUE`).
-- ⏳ remaining: NC4(a) annotated (skeleton/angle) evidence thumbnails; richer
-  per-phase metrics beyond the current stroke dynamics.
+- ✅ NC4(a) annotated evidence thumbnails (`annotate_pose_frame` → skeleton +
+  knee/elbow angles per stroke; `va_trait.evidence_json`; served + shown per finding).
+- ⏳ remaining (optional, deferred): richer per-phase metrics beyond the current
+  stroke dynamics; NC4(b) overlay-as-VLM-input A/B. Committed core of Phase 2 done.
 
 **Phase 3 — Progress over time.**
 `va_metric` persistence + baseline comparison (S9); surface deltas in analysis and

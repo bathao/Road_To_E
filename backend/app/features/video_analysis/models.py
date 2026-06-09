@@ -163,6 +163,9 @@ class VATrait(Base):
     ai_text: Mapped[str | None] = mapped_column(Text, default=None)  # original AI text
     confidence: Mapped[float | None] = mapped_column(Float, default=None)
     t_ref: Mapped[float | None] = mapped_column(Float, default=None)  # evidence time (sec) in the clip
+    # Annotated evidence thumbnail for this finding: JSON {stroke_idx, t, thumb}
+    # where ``thumb`` is the filename under VIDEOS_DIR. NULL = no thumbnail.
+    evidence_json: Mapped[str | None] = mapped_column(Text, default=None)
     # proposed = AI suggestion awaiting review; accepted = confirmed by the user
     # (counts towards the profile); rejected = dismissed.
     status: Mapped[str] = mapped_column(String, index=True, default="proposed")
@@ -176,6 +179,17 @@ class VATrait(Base):
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     source_clip: Mapped[VAClip | None] = relationship("VAClip", back_populates="traits")
+
+    @property
+    def evidence(self) -> dict | None:
+        """Parsed ``evidence_json`` (so Pydantic's from_attributes can read it)."""
+        if not self.evidence_json:
+            return None
+        import json
+        try:
+            return json.loads(self.evidence_json)
+        except (ValueError, TypeError):
+            return None
 
 
 class VASkill(Base):

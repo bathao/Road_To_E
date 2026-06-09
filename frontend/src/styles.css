@@ -2447,6 +2447,21 @@ input:focus {
   border-radius: 0 4px 4px 0;
 }
 
+.va-evidence {
+  height: 64px;
+  width: auto;
+  margin-left: 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  vertical-align: middle;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+.va-evidence:hover {
+  transform: scale(1.04);
+  border-color: var(--accent, #4a90d9);
+}
+
 .va-sw-cols {
   display: grid;
   grid-template-columns: 1fr 1fr;

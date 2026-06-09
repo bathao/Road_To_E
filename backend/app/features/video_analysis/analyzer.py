@@ -33,6 +33,7 @@ VLM_NUM_CTX = 32768
 
 # BlazePose (MediaPipe) landmark indices we use.
 L_SHOULDER, R_SHOULDER = 11, 12
+L_ELBOW, R_ELBOW = 13, 14
 L_HIP, R_HIP = 23, 24
 L_KNEE, R_KNEE = 25, 26
 L_ANKLE, R_ANKLE = 27, 28
@@ -598,6 +599,14 @@ def playing_wrist_index(handed: str) -> int:
     return L_WRIST if handed == "left" else R_WRIST
 
 
+def playing_elbow_index(handed: str) -> int:
+    return L_ELBOW if handed == "left" else R_ELBOW
+
+
+def playing_shoulder_index(handed: str) -> int:
+    return L_SHOULDER if handed == "left" else R_SHOULDER
+
+
 def pose_track(frames_ts: list[tuple[float, Any]], handed: str = "right") -> list[dict[str, Any]]:
     """Per-frame playing-hand trajectory used by :func:`segment_strokes`. Each
     entry is ``{t, wx, wy, cx}`` — the playing wrist (normalised 0..1) plus the
@@ -801,6 +810,77 @@ def stroke_montage_b64(frames_ts: list[tuple[float, Any]],
     ]
     frames = [frame_at_time(frames_ts, t) for t in times]
     return montage_strip([f for f in frames if f is not None])
+
+
+# --------------------------------------- annotated evidence thumbnails (NC4a)
+EVIDENCE_MAX_DIM = 480  # longest side of a saved evidence thumbnail
+_HAND_SHORT = {"forehand": "FH", "backhand": "BH"}
+
+
+def annotate_pose_frame(frame_rgb, handed: str = "right", *, hand: str = "",
+                        t: float | None = None) -> str | None:
+    """Draw the pose skeleton + the playing-arm elbow and knee angles on one frame
+    — a user-facing *evidence* thumbnail for the moment a finding refers to, so the
+    user can SEE the geometry, not just read a sentence (NC4a). Pure geometry; the
+    caption is ASCII (the cv2 Hershey font has no Vietnamese glyphs). Returns
+    annotated JPEG b64, or None if the frame/libs are unusable. Skeleton is skipped
+    gracefully when no body is detected (the raw frame + caption still ship)."""
+    if frame_rgb is None or getattr(frame_rgb, "size", 0) == 0:
+        return None
+    try:
+        import cv2
+        import mediapipe as mp
+    except Exception:
+        return None
+    # Zoom to the player first: the side-crop of a 4K frame leaves the subject tiny
+    # and the skeleton hair-thin after downscaling. Cropping to the pose bbox makes
+    # the evidence legible (and is what the user wants to see — themselves, close).
+    box = _pose_bbox(frame_rgb)
+    region = frame_rgb[box[1]:box[3], box[0]:box[2]] if box else frame_rgb
+    pose = mp.solutions.pose.Pose(static_image_mode=True, model_complexity=1,
+                                  min_detection_confidence=0.5)
+    try:
+        res = pose.process(region)
+        lm = getattr(res, "pose_landmarks", None)
+        bgr = cv2.cvtColor(region, cv2.COLOR_RGB2BGR).copy()
+        knee_txt = elbow_txt = ""
+        if lm:
+            mp.solutions.drawing_utils.draw_landmarks(
+                bgr, lm, mp.solutions.pose.POSE_CONNECTIONS,
+                mp.solutions.drawing_utils.DrawingSpec((0, 230, 0), 2, 2),
+                mp.solutions.drawing_utils.DrawingSpec((0, 170, 255), 2),
+            )
+            pts = lm.landmark
+
+            def visible(i: int) -> bool:
+                return pts[i].visibility is None or pts[i].visibility > 0.3
+
+            si, ei, wi = (playing_shoulder_index(handed), playing_elbow_index(handed),
+                          playing_wrist_index(handed))
+            if visible(si) and visible(ei) and visible(wi):
+                elbow_txt = f"elbow={round(_angle(pts[si], pts[ei], pts[wi]))}"
+            knees = [_angle(pts[h], pts[k], pts[a])
+                     for h, k, a in ((L_HIP, L_KNEE, L_ANKLE), (R_HIP, R_KNEE, R_ANKLE))
+                     if visible(h) and visible(k) and visible(a)]
+            if knees:
+                knee_txt = f"knee={round(sum(knees) / len(knees))}"
+        cap = " ".join(x for x in [
+            f"t={t:.2f}s" if t is not None else "",
+            _HAND_SHORT.get(hand, ""), knee_txt, elbow_txt,
+        ] if x)
+        if cap:
+            h, w = bgr.shape[:2]
+            cv2.rectangle(bgr, (0, h - 22), (w, h), (0, 0, 0), -1)
+            cv2.putText(bgr, cap, (6, h - 7), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                        (255, 255, 255), 1, cv2.LINE_AA)
+        H, W = bgr.shape[:2]
+        scale = EVIDENCE_MAX_DIM / max(H, W)
+        if scale < 1:
+            bgr = cv2.resize(bgr, (int(W * scale), int(H * scale)))
+        ok, buf = cv2.imencode(".jpg", bgr, [cv2.IMWRITE_JPEG_QUALITY, 85])
+        return base64.b64encode(buf.tobytes()).decode("ascii") if ok else None
+    finally:
+        pose.close()
 
 
 # ---------------------------------------------------------------------- VLM
@@ -1280,6 +1360,7 @@ def analyze_file(path: str, clip_type: str, model: str | None = None, *,
     montages: list[str] = []
     stroke_context = ""
     motion_path = "stills"
+    shown: list[dict[str, Any]] = []
     if strokes:
         shown = sorted(strokes, key=lambda s: s["peak_speed"], reverse=True)[:VLM_MAX_STROKES]
         shown = sorted(shown, key=lambda s: s["t_contact"])
@@ -1328,6 +1409,16 @@ def analyze_file(path: str, clip_type: str, model: str | None = None, *,
     if SELF_CRITIQUE:
         raw = _apply_self_critique(raw, images_b64, pose_text, model,
                                    stroke_context=stroke_context, montage=montage)
+    # Annotated evidence thumbnails (NC4a): one per shown stroke (pose path only —
+    # needs body geometry). A finding's t_ref is later matched to the nearest one.
+    evidence: list[dict[str, Any]] = []
+    if motion_path == "pose":
+        for s in shown:
+            frame = frame_at_time(player_ts, s["t_contact"])
+            thumb = annotate_pose_frame(frame, handed, hand=s["hand"], t=s["t_contact"])
+            evidence.append({"stroke_idx": s["idx"], "t": round(s["t_contact"], 3),
+                             "hand": s["hand"], "thumb_b64": thumb})
+
     # Auto-build references only from labelled clips (we trust the side here).
     ref_crops_b64 = subject_crops([f for _, f in track_ts], me_side) if cropped else []
     return {
@@ -1340,6 +1431,7 @@ def analyze_file(path: str, clip_type: str, model: str | None = None, *,
         "strokes": strokes,
         "impacts": impacts,
         "metrics": pose_to_metrics(pose),
+        "evidence": evidence,
     }
 
 

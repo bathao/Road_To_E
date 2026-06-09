@@ -216,6 +216,15 @@ def identify_clip(
     return clip
 
 
+@router.get("/clips/{clip_id}/evidence/{thumb}")
+def clip_evidence(clip_id: int, thumb: str):
+    """Serve an annotated evidence thumbnail (skeleton + angles) for a finding."""
+    path = service.evidence_path(clip_id, thumb)
+    if path is None:
+        raise HTTPException(status_code=404, detail="Evidence not found")
+    return FileResponse(str(path))
+
+
 @router.get("/clips/{clip_id}/preview")
 def clip_preview(clip_id: int, db: Session = Depends(get_db)):
     clip = service.get_clip(db, clip_id)

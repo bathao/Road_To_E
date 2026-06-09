@@ -75,6 +75,7 @@ class TraitOut(BaseModel):
     ai_text: str | None = None
     confidence: float | None
     t_ref: float | None = None
+    evidence: dict | None = None
     status: str = "proposed"
     source_clip_id: int | None
     created_at: dt.datetime

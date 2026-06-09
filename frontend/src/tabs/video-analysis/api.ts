@@ -66,6 +66,8 @@ export const videoApi = {
   deleteClip: (id: number) => api.del<void>(`/video/clips/${id}`),
   videoUrl: (id: number) => apiUrl(`/video/clips/${id}/video`),
   previewUrl: (id: number) => apiUrl(`/video/clips/${id}/preview`),
+  evidenceUrl: (id: number, thumb: string) =>
+    apiUrl(`/video/clips/${id}/evidence/${thumb}`),
   frameUrl: (id: number) => apiUrl(`/video/clips/${id}/frame`),
   cropReference: (id: number, box: { x: number; y: number; w: number; h: number }) =>
     api.post<ProfileImage>(`/video/clips/${id}/crop-reference`, box),

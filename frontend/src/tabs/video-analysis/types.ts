@@ -58,6 +58,8 @@ export interface Trait {
   ai_text: string | null;
   confidence: number | null;
   t_ref: number | null;
+  // Annotated evidence thumbnail (skeleton + joint angles) for this finding.
+  evidence: { stroke_idx: number | null; t: number | null; thumb: string } | null;
   status: FindingStatus;
   source_clip_id: number | null;
   created_at: string;

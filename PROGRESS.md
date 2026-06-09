@@ -15,10 +15,12 @@ Analysis" — local-AI clip analysis (now **motion-aware**, see below); Tab 5
 > `focus` tag** is now committed too. Verified by a direct pipeline run on an
 > existing clip: `self-critique: reviewed=6 dropped=1`, `focus` block confirmed
 > injected into the VLM prompt, migration added `va_clip.focus` to the live DB.
-> Not yet driven through the browser UI (optional). Next Phase 2 items being built:
-> **NC4(a) annotated evidence thumbnails** (skeleton/angle drawn on the contact
-> frame, served + shown next to a finding); then Phase 3 progress tracking off
-> `va_metric`. See `ANALYSIS_UPGRADE_PLAN.md`.
+> Not yet driven through the browser UI (optional). **NC4(a) annotated evidence
+> thumbnails are now done too** (pose skeleton + knee/elbow angles drawn on each
+> stroke's contact frame, saved per clip, shown next to the matching finding).
+> That closes the committed core of Phase 2 — next is **Phase 3 progress tracking
+> off `va_metric`** (baseline comparison / deltas vs the player's own history).
+> See `ANALYSIS_UPGRADE_PLAN.md`.
 
 **Tab 4 "Video Analysis"** — point the tab at a video file on disk (local-only,
 no browser upload), optionally give a trim range (mm:ss) to cut a short segment
@@ -192,6 +194,16 @@ confirmed in the VLM prompt; `va_clip.focus` migrated into the live DB).
   logs `[video_analysis] self-critique: reviewed=… dropped=… downgraded=…`.
 - Honest limit: the critique is the same 8B VLM grading itself — it reduces, not
   eliminates, over-claiming; the human review gate stays the final word.
+- **NC4(a) annotated evidence thumbnails:** `analyzer.annotate_pose_frame` draws the
+  MediaPipe skeleton + the playing-arm elbow and knee angles (ASCII caption
+  `t=… FH knee=150 elbow=56`) on each shown stroke's contact frame, zoomed to the
+  player via `_pose_bbox`. `analyze_file` returns an `evidence` list; `analyze_clip`
+  saves them as clip-scoped `evidence_<clip>_<stroke>_<hex>.jpg` under `VIDEOS_DIR`,
+  and maps each finding's `t_ref` to the nearest one → `va_trait.evidence_json`
+  (new column). Served by `GET /clips/{id}/evidence/{thumb}` (filename validated,
+  no traversal); shown as a clickable thumbnail next to each finding in
+  `AnalysisDetail` (seeks the video too). Cleaned on re-analyse + clip delete.
+  Verified end-to-end (4 thumbnails, skeleton visibly drawn, mapping + serve-path OK).
 
 ### 2026-06-09 — Video Analysis deep upgrade: motion-aware pipeline (Phases 0–1, B, evidence, persistence)
 Executed the `ANALYSIS_UPGRADE_PLAN.md` first phases. Three commits, all additive

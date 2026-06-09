@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Aspect, ClipDetail, FindingDecision, Polarity, Side } from "../types";
+import { videoApi } from "../api";
+import type { Aspect, ClipDetail, FindingDecision, Polarity, Side, Trait } from "../types";
 import {
   ASPECT_LABEL,
   ASPECT_ORDER,
@@ -64,6 +65,27 @@ function TimeChip({ t, conf, onSeek }: {
       title="Nhảy tới khoảnh khắc này trong clip">
       ▶ {fmtTime(t)}{conf != null ? ` · ${Math.round(conf * 100)}%` : ""}
     </button>
+  );
+}
+
+// The annotated evidence frame (pose skeleton + joint angles) for a finding.
+// Clicking it seeks the clip to that moment, like the time chip.
+function EvidenceThumb({ clipId, trait, onSeek }: {
+  clipId: number;
+  trait: Trait;
+  onSeek: (t: number) => void;
+}) {
+  const ev = trait.evidence;
+  if (!ev?.thumb) return null;
+  return (
+    <img
+      className="va-evidence"
+      src={videoApi.evidenceUrl(clipId, ev.thumb)}
+      alt="bằng chứng (khung xương + góc khớp)"
+      title="Bằng chứng tại khoảnh khắc này — bấm để xem trong clip"
+      onClick={() => ev.t != null && onSeek(ev.t)}
+      onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
+    />
   );
 }
 
@@ -345,6 +367,7 @@ export default function AnalysisDetail({
                               onChange={(e) => setDraft(t.id, { text: e.target.value })}
                             />
                             <TimeChip t={t.t_ref} conf={t.confidence} onSeek={seekTo} />
+                            <EvidenceThumb clipId={detail.id} trait={t} onSeek={seekTo} />
                           </li>
                         );
                       })}
@@ -376,6 +399,7 @@ export default function AnalysisDetail({
                             <span className="va-aspect-tag">{ASPECT_LABEL[t.aspect] ?? t.aspect}</span>
                             {t.text}
                             <TimeChip t={t.t_ref} conf={t.confidence} onSeek={seekTo} />
+                            <EvidenceThumb clipId={detail.id} trait={t} onSeek={seekTo} />
                           </li>
                         ))}
                         {acceptedTraits.filter((t) => t.polarity === "strength").length === 0 && (
@@ -391,6 +415,7 @@ export default function AnalysisDetail({
                             <span className="va-aspect-tag">{ASPECT_LABEL[t.aspect] ?? t.aspect}</span>
                             {t.text}
                             <TimeChip t={t.t_ref} conf={t.confidence} onSeek={seekTo} />
+                            <EvidenceThumb clipId={detail.id} trait={t} onSeek={seekTo} />
                           </li>
                         ))}
                         {acceptedTraits.filter((t) => t.polarity === "weakness").length === 0 && (

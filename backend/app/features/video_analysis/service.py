@@ -6,6 +6,7 @@ import base64
 import datetime as dt
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -67,6 +68,57 @@ def _nonneg(v: object) -> float | None:
     except (TypeError, ValueError):
         return None
     return round(f, 3) if f > 0 else None
+
+
+# ----------------------------------------- annotated evidence thumbnails (NC4a)
+# Thumbnails live in VIDEOS_DIR named ``evidence_<clip>_<stroke>_<hex>.jpg`` so
+# they are clip-scoped (easy to clean on re-analyse/delete) and safe to serve by
+# name (the pattern is validated before any file is opened).
+_EVIDENCE_NAME = re.compile(r"evidence_\d+_\d+_[0-9a-f]+\.jpg")
+
+
+def _clear_evidence(clip_id: int) -> None:
+    for p in VIDEOS_DIR.glob(f"evidence_{clip_id}_*.jpg"):
+        try:
+            p.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
+def _save_evidence(clip_id: int, evidence: list[dict]) -> list[dict]:
+    """Persist the analyzer's annotated thumbs (b64) to disk. Returns
+    ``[{stroke_idx, t, thumb}]`` where ``thumb`` is the saved filename."""
+    out: list[dict] = []
+    for ev in evidence:
+        b64 = ev.get("thumb_b64")
+        if not b64:
+            continue
+        try:
+            data = base64.b64decode(b64)
+        except (ValueError, TypeError):
+            continue
+        name = f"evidence_{clip_id}_{ev.get('stroke_idx', 0)}_{uuid.uuid4().hex}.jpg"
+        (VIDEOS_DIR / name).write_bytes(data)
+        out.append({"stroke_idx": ev.get("stroke_idx"), "t": ev.get("t"), "thumb": name})
+    return out
+
+
+def _nearest_evidence(t_ref: float | None, ev_saved: list[dict],
+                      tol: float = 1.0) -> dict | None:
+    """The saved evidence thumb whose contact time is closest to a finding's
+    ``t_ref`` (within ``tol`` seconds), or None."""
+    if t_ref is None or not ev_saved:
+        return None
+    best = min(ev_saved, key=lambda e: abs((e.get("t") or 0.0) - t_ref))
+    return best if abs((best.get("t") or 0.0) - t_ref) <= tol else None
+
+
+def evidence_path(clip_id: int, thumb: str):
+    """Validated path to an evidence thumbnail for serving, or None."""
+    if not _EVIDENCE_NAME.fullmatch(thumb) or not thumb.startswith(f"evidence_{clip_id}_"):
+        return None
+    p = VIDEOS_DIR / thumb
+    return p if p.is_file() else None
 
 
 # --------------------------------------------------------- native file picker
@@ -406,6 +458,7 @@ def delete_clip(db: Session, clip_id: int) -> bool:
                 Path(path).unlink(missing_ok=True)
             except OSError:
                 pass
+    _clear_evidence(clip_id)
     db.delete(clip)
     db.commit()
     return True
@@ -616,6 +669,9 @@ def analyze_clip(clip_id: int, model: str | None) -> None:
 
         strokes = result.get("strokes", []) or []
         metrics = result.get("metrics", []) or []
+        # Save annotated evidence thumbnails (replace any from a prior run).
+        _clear_evidence(clip_id)
+        ev_saved = _save_evidence(clip_id, result.get("evidence", []) or [])
         db.query(VAAnalysis).filter(VAAnalysis.clip_id == clip_id).delete()
         db.add(VAAnalysis(
             clip_id=clip_id,
@@ -645,13 +701,16 @@ def analyze_clip(clip_id: int, model: str | None) -> None:
                 text = (item.get("text") or "").strip()
                 if not text or _is_not_observed(text):
                     continue
+                t_ref = _nonneg(item.get("t_ref"))
+                ev = _nearest_evidence(t_ref, ev_saved)
                 db.add(VATrait(
                     aspect=item.get("aspect", "other"),
                     polarity=polarity,
                     text=text,
                     ai_text=text,
                     confidence=_clamp01(item.get("confidence")),
-                    t_ref=_nonneg(item.get("t_ref")),
+                    t_ref=t_ref,
+                    evidence_json=json.dumps(ev, ensure_ascii=False) if ev else None,
                     status="proposed",
                     source_clip_id=clip_id,
                 ))
