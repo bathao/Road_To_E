@@ -172,6 +172,29 @@ export default function SkillBoard({
           </ol>
         </div>
       )}
+
+      {report && report.metric_trends.length > 0 && (
+        <div className="va-priorities">
+          <h4>📈 Tiến bộ chỉ số (clip mới nhất vs trước)</h4>
+          <ul className="va-trend-list">
+            {report.metric_trends.map((t) => {
+              const cls =
+                t.trend === "improved" ? "va-trend-up"
+                : t.trend === "declined" ? "va-trend-down" : "va-trend-flat";
+              const arrow = t.delta > 0 ? "▲" : t.delta < 0 ? "▼" : "■";
+              const amt = t.pct != null
+                ? `${t.pct > 0 ? "+" : ""}${t.pct}%`
+                : `${t.delta > 0 ? "+" : ""}${t.delta}`;
+              return (
+                <li key={t.name}>
+                  <span>{t.label}: <b>{t.current}{t.unit}</b></span>
+                  <span className={`va-trend ${cls}`}>{arrow} {amt}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
     </section>
   );
 }

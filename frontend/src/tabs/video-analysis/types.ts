@@ -105,6 +105,20 @@ export interface SkillIn {
   priority?: number | null;
 }
 
+// A metric compared to the player's own baseline (Phase 3 progress tracking).
+export interface MetricTrend {
+  name: string;
+  label: string;
+  unit: string;
+  current: number;
+  baseline: number;
+  delta: number;
+  pct: number | null;
+  better: "up" | "down" | "neutral";
+  trend: "improved" | "declined" | "flat" | "changed";
+  samples: number;
+}
+
 export interface SkillReportItem {
   aspect: Aspect;
   rating: number | null;
@@ -124,6 +138,7 @@ export interface Report {
   strengths: string[];
   weaknesses: string[];
   improvement_priorities: string[];
+  metric_trends: MetricTrend[];
   clips_reviewed: number;
   findings_accepted: number;
 }
@@ -159,6 +174,7 @@ export interface Analysis {
   summary: string;
   raw: RawAnalysis;
   pose: Record<string, unknown>;
+  progress: MetricTrend[];
   created_at: string;
 }
 

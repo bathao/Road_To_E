@@ -725,8 +725,95 @@ def analyze_clip(clip_id: int, model: str | None) -> None:
         db.close()
 
 
+# ------------------------------------------------ progress tracking (S9, Phase 3)
+# Per-metric coaching knowledge: a Vietnamese label, the display unit, and which
+# direction is an IMPROVEMENT. "up" = higher is better, "down" = lower is better,
+# "neutral" = just a change, no good/bad. The Head Coach reads the same trends.
+METRIC_META: dict[str, dict[str, str]] = {
+    "stance_width_ratio_mean": {"label": "Độ rộng tấn", "unit": "", "better": "up"},
+    "knee_flexion_deg_mean": {"label": "Góc gập gối", "unit": "°", "better": "down"},
+    "torso_lean_deg_mean": {"label": "Độ nghiêng thân", "unit": "°", "better": "neutral"},
+    "hand_elevation_mean": {"label": "Độ cao tay", "unit": "", "better": "neutral"},
+    "lateral_sway": {"label": "Biên độ di chuyển ngang (bộ chân)", "unit": "", "better": "up"},
+    "swing_speed_mean": {"label": "Tốc độ vung tay", "unit": "", "better": "up"},
+    "tempo_sec": {"label": "Nhịp đánh", "unit": "s", "better": "neutral"},
+    "recovery_sec": {"label": "Thời gian hồi vị", "unit": "s", "better": "down"},
+}
+_FLAT_PCT = 3.0  # |%| change below this counts as "no real change"
+
+
+def _make_trend(name: str, current: float, baseline: float, samples: int) -> schemas.MetricTrend:
+    """Compare a current metric value to a baseline and label the movement as an
+    improvement / decline / flat, using each metric's 'better' direction."""
+    meta = METRIC_META.get(name, {"label": name, "unit": "", "better": "neutral"})
+    delta = round(current - baseline, 3)
+    pct = round(delta / baseline * 100, 1) if baseline else None
+    better = meta["better"]
+    small = (pct is not None and abs(pct) < _FLAT_PCT) or (baseline and abs(delta) < 1e-6)
+    if small or better == "neutral":
+        trend = "flat" if small else "changed"
+    elif (delta > 0 and better == "up") or (delta < 0 and better == "down"):
+        trend = "improved"
+    else:
+        trend = "declined"
+    return schemas.MetricTrend(
+        name=name, label=meta["label"], unit=meta["unit"], current=round(current, 3),
+        baseline=round(baseline, 3), delta=delta, pct=pct, better=better,
+        trend=trend, samples=samples,
+    )
+
+
+def _metric_history(db: Session) -> list[tuple[str, float, int, dt.datetime]]:
+    """All metric rows as (name, value, clip_id, clip_created_at), ordered by the
+    CLIP's date (robust to re-analysis, which resets the metric row's own time)."""
+    rows = (
+        db.query(VAMetric.name, VAMetric.value, VAMetric.clip_id, VAClip.created_at)
+        .join(VAClip, VAMetric.clip_id == VAClip.id)
+        .order_by(VAClip.created_at)
+        .all()
+    )
+    return [(r[0], float(r[1]), r[2], r[3]) for r in rows]
+
+
+def clip_progress(db: Session, clip: VAClip) -> list[schemas.MetricTrend]:
+    """This clip's metrics vs the player's own baseline (mean of the same metric
+    over all EARLIER clips). Empty for the first clip / metrics with no history."""
+    hist = _metric_history(db)
+    current = {name: val for name, val, cid, _ in hist if cid == clip.id}
+    if not current:
+        return []
+    prior: dict[str, list[float]] = {}
+    for name, val, cid, created in hist:
+        if cid != clip.id and created < clip.created_at:
+            prior.setdefault(name, []).append(val)
+    out: list[schemas.MetricTrend] = []
+    for name in METRIC_META:
+        if name in current and prior.get(name):
+            base = sum(prior[name]) / len(prior[name])
+            out.append(_make_trend(name, current[name], base, len(prior[name])))
+    return out
+
+
+def report_metric_trends(db: Session) -> list[schemas.MetricTrend]:
+    """Whole-history trend per metric: latest clip's value vs the mean of all
+    earlier clips. Needs ≥2 clips with that metric. For the Head Coach + Profile."""
+    hist = _metric_history(db)
+    series: dict[str, list[float]] = {}
+    for name, val, _cid, _created in hist:
+        series.setdefault(name, []).append(val)  # already clip-date ordered
+    out: list[schemas.MetricTrend] = []
+    for name in METRIC_META:
+        vals = series.get(name) or []
+        if len(vals) >= 2:
+            latest, earlier = vals[-1], vals[:-1]
+            base = sum(earlier) / len(earlier)
+            out.append(_make_trend(name, latest, base, len(earlier)))
+    return out
+
+
 # ------------------------------------------------------------ serialisation
-def analysis_to_out(a: VAAnalysis) -> schemas.AnalysisOut:
+def analysis_to_out(a: VAAnalysis, progress: list[schemas.MetricTrend] | None = None
+                    ) -> schemas.AnalysisOut:
     def _load(s: str) -> dict:
         try:
             return json.loads(s) if s else {}
@@ -741,6 +828,7 @@ def analysis_to_out(a: VAAnalysis) -> schemas.AnalysisOut:
         summary=a.summary,
         raw=_load(a.raw_json),
         pose=_load(a.pose_json),
+        progress=progress or [],
         created_at=a.created_at,
     )
 
@@ -750,9 +838,10 @@ def clip_detail_out(db: Session, clip: VAClip) -> schemas.ClipDetailOut:
     # by hand because its ORM columns (raw_json/pose_json) differ from the
     # response shape (raw/pose).
     base = schemas.ClipOut.model_validate(clip)
+    progress = clip_progress(db, clip) if clip.analysis else []
     return schemas.ClipDetailOut(
         **base.model_dump(),
-        analysis=analysis_to_out(clip.analysis) if clip.analysis else None,
+        analysis=analysis_to_out(clip.analysis, progress) if clip.analysis else None,
         traits=[
             schemas.TraitOut.model_validate(t)
             for t in sorted(clip.traits, key=lambda t: (t.polarity, t.id))
@@ -903,6 +992,7 @@ def build_report(db: Session) -> schemas.ReportOut:
         style=profile.style, overall_summary=profile.overall_summary,
         skills=skill_items, strengths=strengths, weaknesses=weaknesses,
         improvement_priorities=priorities,
+        metric_trends=report_metric_trends(db),
         clips_reviewed=reviewed, findings_accepted=len(accepted),
     )
 

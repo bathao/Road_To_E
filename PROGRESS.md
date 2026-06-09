@@ -15,12 +15,13 @@ Analysis" — local-AI clip analysis (now **motion-aware**, see below); Tab 5
 > `focus` tag** is now committed too. Verified by a direct pipeline run on an
 > existing clip: `self-critique: reviewed=6 dropped=1`, `focus` block confirmed
 > injected into the VLM prompt, migration added `va_clip.focus` to the live DB.
-> Not yet driven through the browser UI (optional). **NC4(a) annotated evidence
-> thumbnails are now done too** (pose skeleton + knee/elbow angles drawn on each
-> stroke's contact frame, saved per clip, shown next to the matching finding).
-> That closes the committed core of Phase 2 — next is **Phase 3 progress tracking
-> off `va_metric`** (baseline comparison / deltas vs the player's own history).
-> See `ANALYSIS_UPGRADE_PLAN.md`.
+> Not yet driven through the browser UI (optional). NC4(a) annotated evidence
+> thumbnails are done; **Phase 3 progress tracking is now done too** (per-clip +
+> whole-history metric deltas vs the player's own baseline, in the analysis view
+> and `/report`). Trends only populate once **≥2 clips are re-analysed** (existing
+> clips predate `va_metric`, so they show 0 deltas until re-run). Phases 1–3 (the
+> committed core) are complete. Remaining is **Phase 4 (ball/table tracking)** —
+> a heavy optional GPU dependency (TrackNet ONNX). See `ANALYSIS_UPGRADE_PLAN.md`.
 
 **Tab 4 "Video Analysis"** — point the tab at a video file on disk (local-only,
 no browser upload), optionally give a trim range (mm:ss) to cut a short segment
@@ -171,6 +172,27 @@ Giải FS, BBTV…); Travel/"sets (cty)" → non-playing/skip; Serve counts → 
 ---
 
 ## History
+
+### 2026-06-09 — Video Analysis Phase 3: progress tracking (metric deltas vs baseline)
+Closes the committed core (Phases 1–3) of `ANALYSIS_UPGRADE_PLAN.md`. The
+`va_metric` time-series (written since `3e35bda`) is now *read back* to show
+improvement over time.
+- **`service.METRIC_META`**: per-metric Vietnamese label + unit + which direction is
+  an improvement (`up`/`down`/`neutral`) — e.g. knee flexion lower = better, swing
+  speed higher = better, recovery time lower = better. The Head Coach reads the same.
+- **`clip_progress(db, clip)`**: this clip's metrics vs the mean of the same metric
+  over all *earlier* clips → `MetricTrend` (current, baseline, delta, %, trend
+  improved/declined/flat/changed, sample count). Surfaced as `AnalysisOut.progress`
+  and a "📈 Tiến bộ so với các clip trước" table + coloured `TrendChip` in
+  `AnalysisDetail`.
+- **`report_metric_trends(db)`**: whole-history trend (latest clip vs mean of earlier)
+  → `ReportOut.metric_trends`; shown in `SkillBoard`. Additive, no break to the
+  Profile tab consumer. Ordering is by the CLIP's date (join `va_clip`), robust to
+  re-analysis resetting a metric row's own timestamp.
+- Verified the trend logic with synthetic metrics rolled back (no data written):
+  knee 155→142 = improved −8.4%; swing 1.0→1.12 = improved +12%; recovery 0.9→0.95
+  = declined +5.6%. Honest limit: existing clips predate `va_metric`, so deltas are
+  empty until **≥2 clips are re-analysed**.
 
 ### 2026-06-09 — Video Analysis Phase 2 (part): self-critique pass + clip focus tag
 Both target *trustworthier* findings, per `ANALYSIS_UPGRADE_PLAN.md` Phase 2.

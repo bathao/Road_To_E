@@ -126,6 +126,22 @@ class SkillIn(BaseModel):
     priority: int | None = None
 
 
+# --------------------------------------------------- progress / metric trends
+class MetricTrend(BaseModel):
+    """A pose/stroke metric compared to the player's own baseline (Phase 3)."""
+
+    name: str
+    label: str
+    unit: str = ""
+    current: float
+    baseline: float
+    delta: float
+    pct: float | None = None
+    better: str = "neutral"  # up | down | neutral — which direction is improvement
+    trend: str = "flat"      # improved | declined | flat | changed
+    samples: int = 0         # how many earlier clips formed the baseline
+
+
 # --------------------------------------------------- structured player report
 class SkillReportItem(BaseModel):
     aspect: str
@@ -148,6 +164,7 @@ class ReportOut(BaseModel):
     strengths: list[str] = []
     weaknesses: list[str] = []
     improvement_priorities: list[str] = []
+    metric_trends: list[MetricTrend] = []
     clips_reviewed: int = 0
     findings_accepted: int = 0
 
@@ -163,6 +180,7 @@ class AnalysisOut(BaseModel):
     summary: str
     raw: dict  # parsed raw_json
     pose: dict  # parsed pose_json
+    progress: list[MetricTrend] = []  # this clip's metrics vs the player's baseline
     created_at: dt.datetime
 
 

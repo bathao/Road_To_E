@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { videoApi } from "../api";
-import type { Aspect, ClipDetail, FindingDecision, Polarity, Side, Trait } from "../types";
+import type {
+  Aspect,
+  ClipDetail,
+  FindingDecision,
+  MetricTrend,
+  Polarity,
+  Side,
+  Trait,
+} from "../types";
 import {
   ASPECT_LABEL,
   ASPECT_ORDER,
@@ -66,6 +74,22 @@ function TimeChip({ t, conf, onSeek }: {
       ▶ {fmtTime(t)}{conf != null ? ` · ${Math.round(conf * 100)}%` : ""}
     </button>
   );
+}
+
+// A coloured delta chip for a metric vs the player's own baseline.
+function TrendChip({ t }: { t: MetricTrend }) {
+  const cls =
+    t.trend === "improved" ? "va-trend-up"
+    : t.trend === "declined" ? "va-trend-down" : "va-trend-flat";
+  const arrow = t.delta > 0 ? "▲" : t.delta < 0 ? "▼" : "■";
+  const word =
+    t.trend === "improved" ? "tốt hơn"
+    : t.trend === "declined" ? "kém hơn"
+    : t.trend === "flat" ? "≈ như cũ" : "thay đổi";
+  const amt = t.pct != null
+    ? `${t.pct > 0 ? "+" : ""}${t.pct}%`
+    : `${t.delta > 0 ? "+" : ""}${t.delta}`;
+  return <span className={`va-trend ${cls}`}>{arrow} {amt} · {word}</span>;
 }
 
 // The annotated evidence frame (pose skeleton + joint angles) for a finding.
@@ -454,6 +478,32 @@ export default function AnalysisDetail({
                   <ul className="va-rec-list">
                     {raw.recommendations!.map((r, i) => <li key={i}>{r}</li>)}
                   </ul>
+                </div>
+              )}
+
+              {a.progress && a.progress.length > 0 && (
+                <div className="va-aspect-block">
+                  <h4>📈 Tiến bộ so với các clip trước</h4>
+                  <table className="va-pose-table">
+                    <tbody>
+                      {a.progress.map((t) => (
+                        <tr key={t.name}>
+                          <td>{t.label}</td>
+                          <td>
+                            {t.current}{t.unit}{" "}
+                            <span className="va-muted">
+                              (trước: {t.baseline}{t.unit} · {t.samples} clip)
+                            </span>
+                          </td>
+                          <td><TrendChip t={t} /></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <p className="va-muted">
+                    So với trung bình các clip trước của chính bạn. “tốt hơn/kém hơn” theo
+                    chiều có lợi của từng chỉ số (vd gối gập nhiều hơn = tốt).
+                  </p>
                 </div>
               )}
 

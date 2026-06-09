@@ -342,9 +342,13 @@ finding has a `t_ref`; self-critique demonstrably drops an unsupported claim.
 - ⏳ remaining (optional, deferred): richer per-phase metrics beyond the current
   stroke dynamics; NC4(b) overlay-as-VLM-input A/B. Committed core of Phase 2 done.
 
-**Phase 3 — Progress over time.**
+**Phase 3 — Progress over time.** *(done)*
 `va_metric` persistence + baseline comparison (S9); surface deltas in analysis and
 `/report`. Verify: analysing a second clip shows deltas vs the first.
+- ✅ `service.METRIC_META` (per-metric label/unit/better-direction), `clip_progress`
+  (clip vs mean of earlier clips) → `AnalysisOut.progress` + `TrendChip` UI,
+  `report_metric_trends` (latest vs history) → `ReportOut.metric_trends` + SkillBoard.
+- Note: deltas are empty until ≥2 clips are re-analysed (older clips predate `va_metric`).
 
 **Phase 4 — Ball + table tracking (NC1, committed core, best-effort).**
 S10 table homography + TrackNet-style ball tracking (onnxruntime-GPU) + placement
