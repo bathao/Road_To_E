@@ -18,8 +18,11 @@ backend/.venv/
 backend/data/videos/
 backend/data/profile_refs/
 
-# ---- Optional ball-tracking ONNX model (Phase 4); large, user-supplied ----
-backend/data/models/
+# ---- ML models (Phase 4) ----
+# Track the small table-ROI seg model (needed for table detection); ignore other
+# (large / user-supplied) models like an optional TrackNet ONNX ball detector.
+backend/data/models/*
+!backend/data/models/roi_seg.pt
 
 # ---- Node / frontend ----
 frontend/node_modules/

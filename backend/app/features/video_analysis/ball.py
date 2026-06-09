@@ -158,13 +158,49 @@ def _order_corners(pts):
                     dtype="float32")
 
 
-def detect_table(frame_rgb) -> dict[str, Any] | None:
-    """Find the table as the largest blue/green quadrilateral and compute a
-    homography to a canonical unit rectangle (x = left↔right across the width,
-    y = near↔far along the length). Best-effort: None if no convincing quad."""
+def _homography_from_corners(corners_px, w: int, h: int):
+    """Perspective transform from 4 pixel corners (TL,TR,BR,BL) to a unit
+    rectangle (x = left↔right, y = near↔far). Returns (corners_list, H) or None."""
     import cv2
     import numpy as np
 
+    src = np.asarray(corners_px, dtype="float32")
+    dst = np.array([[0, 0], [1, 0], [1, 1], [0, 1]], dtype="float32")
+    try:
+        H = cv2.getPerspectiveTransform(src, dst)
+    except cv2.error:
+        return None
+    return src.tolist(), H.tolist()
+
+
+def detect_table(frame_rgb) -> dict[str, Any] | None:
+    """Find the foreground table and compute a homography to a canonical unit
+    rectangle (x = left↔right across the width, y = near↔far along the length).
+
+    Tier 1: the trained YOLOv8-seg ROI model (reused from video_studio_v3) — far
+    more reliable than colour, segments the *foreground* table specifically. Tier 2
+    (fallback): largest blue/green quadrilateral. Best-effort: None if neither finds
+    a convincing quad."""
+    import cv2
+    import numpy as np
+
+    h0, w0 = frame_rgb.shape[:2]
+    # Tier 1 — learned ROI segmentation.
+    try:
+        from app.features.video_analysis import table_roi
+
+        q = table_roi.detect_table_quad(cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR))
+    except Exception:
+        q = None
+    if q:
+        corners_px = [[c[0] * w0, c[1] * h0] for c in q["corners"]]
+        built = _homography_from_corners(corners_px, w0, h0)
+        if built:
+            corners_list, H = built
+            return {"corners": corners_list, "H": H, "area_frac": q["area_frac"],
+                    "color": "yolo_seg", "confidence": round(q["confidence"], 3)}
+
+    # Tier 2 — classical blue/green colour fallback.
     hsv = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2HSV)
     # Typical table colours: blue (~100-130 H) or green (~40-85 H), OpenCV H in 0..179.
     blue = cv2.inRange(hsv, (90, 60, 40), (135, 255, 255))

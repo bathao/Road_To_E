@@ -24,6 +24,9 @@ Analysis" — local-AI clip analysis (now **motion-aware**, see below); Tab 5
 > populate on a **fresh re-analysis** (older clips predate these). Remaining:
 > Phase 5 (split-step sync + experiments) — advanced/optional. Drop a TrackNet
 > model at `backend/data/models/ball_tracknet.onnx` to upgrade ball tracking.
+> **Table ROI now uses the user's trained YOLOv8-seg model** (reused from
+> video_studio_v3, `data/models/roi_seg.pt`, needs `ultralytics`) instead of
+> fragile colour detection — re-run `pip install -r backend/requirements.txt`.
 
 **Tab 4 "Video Analysis"** — point the tab at a video file on disk (local-only,
 no browser upload), optionally give a trim range (mm:ss) to cut a short segment
@@ -174,6 +177,25 @@ Giải FS, BBTV…); Travel/"sets (cty)" → non-playing/skip; Serve counts → 
 ---
 
 ## History
+
+### 2026-06-09 — Table ROI: reuse the trained YOLOv8-seg model from video_studio_v3
+Replaced the fragile classical blue/green table detection with the user's
+fine-tuned **YOLOv8-seg ROI model** (`video_studio_v3/assets/models/roi_seg.pt`,
+trained on many hand-labelled table examples). It segments the *foreground* table
+specifically — classical colour grabbed the whole green floor and produced wrong
+placement zones.
+- Copied the weights to `backend/data/models/roi_seg.pt` (6.7 MB, now tracked; the
+  gitignore keeps other/large models out). Added `ultralytics==8.4.62` (pulls CPU
+  torch — table detection runs once per clip, so no CUDA needed).
+- New `table_roi.py`: a self-contained port of that project's `backend/roi_yolo.py`
+  YOLO tier — lazy-loaded, optional (falls back to classical if the model/ultralytics
+  is absent), returns 4 normalised corners (CW from TL) + confidence + area fraction.
+- `ball.detect_table` now tries YOLO first (`color="yolo_seg"`), classical fallback.
+- Verified: clips #8/#10 detect the foreground table at conf 0.93 (area ~0.02) →
+  accurate zones; clip #3 (model didn't fire) falls back to classical. mediapipe +
+  torch coexist in one process; full `analyze_file` runs clean. Honest limit: the
+  ball *trajectory* is still the classical detector (only the table ROI was upgraded);
+  a TrackNet ball model is still the optional next step.
 
 ### 2026-06-09 — Video Analysis Phase 4: ball + table tracking (NC1, best-effort)
 New `ball.py` module, wired into `analyze_file` and persisted to `va_analysis.ball_json`

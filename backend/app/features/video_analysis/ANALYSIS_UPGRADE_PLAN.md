@@ -359,8 +359,12 @@ documented honestly.
   `detect_table` homography (approxPolyDP→minAreaRect fallback), `placement_zones`
   (3×3 grid), `va_analysis.ball_json`, "🏓 Bóng & điểm rơi" UI with `PlacementGrid`.
   Honesty gate: classical only counts with a table; no speed/spin claimed.
-- ⏳ not yet: ball-derived contact instant feeding back into stroke phasing (S4);
-  a bundled TrackNet model (drop one at `data/models/ball_tracknet.onnx` to enable).
+- ✅ **Table ROI upgraded to a trained YOLOv8-seg model** (`table_roi.py`, weights
+  reused from video_studio_v3 → `data/models/roi_seg.pt`, `ultralytics`); classical
+  colour is now only the fallback. Far more accurate foreground-table segmentation.
+- ⏳ not yet: ball *trajectory* still classical (a TrackNet ONNX ball model at
+  `data/models/ball_tracknet.onnx` would upgrade it); ball-derived contact instant
+  feeding back into stroke phasing (S4).
 
 **Phase 5 — Split-step sync (NC2) + experiments.**
 S5 split-step synchronisation (needs Phase 4's contact anchor + opponent tracking +

@@ -32,6 +32,12 @@ DEFAULT_TEXT_MODEL = "qwen3:14b"
 # "not available" when nothing is trackable. Never a hard dependency.
 BALL_MODEL_PATH = DATA_DIR / "models" / "ball_tracknet.onnx"
 
+# Trained YOLOv8-seg model for foreground table-ROI segmentation (reused from the
+# video_studio_v3 project, fine-tuned by the user on many table examples). When
+# present AND ultralytics imports, table detection uses it (far more accurate than
+# classical colour segmentation); otherwise it falls back to colour contrast.
+TABLE_ROI_MODEL_PATH = DATA_DIR / "models" / "roi_seg.pt"
+
 # Built frontend (Vite output). Served as the SPA in production.
 FRONTEND_DIST = PROJECT_DIR / "frontend" / "dist"
 

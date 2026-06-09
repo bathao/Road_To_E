@@ -11,3 +11,8 @@ python-multipart==0.0.20
 opencv-python==4.11.0.86
 mediapipe==0.10.21
 numpy==1.26.4
+# Phase 4 ball/table tracking: trained YOLOv8-seg table-ROI model (reused, the
+# user fine-tuned it). Pulls torch (CPU build suffices — table detection runs once
+# per clip). Lazy-loaded; the app still boots without it (table detection falls
+# back to classical colour segmentation). Weights live at data/models/roi_seg.pt.
+ultralytics==8.4.62
