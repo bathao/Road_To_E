@@ -3,9 +3,33 @@
 The 'Overall' row is auto-generated (see service.compute_overall_colors), not
 edited by hand, but it is still a category so it renders as a grid row.
 """
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.features.tracker.models import Activity, Category, Match
+
+# Columns added to existing tables after they first shipped. create_all() never
+# alters existing tables, so add any missing ones by hand (SQLite ADD COLUMN).
+_PLAYER_COLUMNS = {
+    # Opponent uses pimpled rubber ("đánh gai"). Existing players default to 0.
+    "plays_pips": "BOOLEAN DEFAULT 0",
+}
+
+
+def _add_missing_columns(db: Session, table: str, columns: dict[str, str]) -> bool:
+    existing = {row[1] for row in db.execute(text(f"PRAGMA table_info({table})"))}
+    changed = False
+    for name, decl in columns.items():
+        if name not in existing:
+            db.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {decl}"))
+            changed = True
+    return changed
+
+
+def migrate(db: Session) -> None:
+    """Idempotent column migrations for tables that predate a new field."""
+    if _add_missing_columns(db, "tracker_player", _PLAYER_COLUMNS):
+        db.commit()
 
 # (key, label, type, color_group). Order here = display order (sort_order).
 DEFAULT_CATEGORIES = [
@@ -27,6 +51,7 @@ def seed_categories(db: Session) -> None:
     - Inserts any missing categories.
     - Keeps label/type/color/sort_order in sync with the defaults.
     """
+    migrate(db)
     desired_keys = {key for key, *_ in DEFAULT_CATEGORIES}
     existing = {c.key: c for c in db.query(Category).all()}
     changed = False

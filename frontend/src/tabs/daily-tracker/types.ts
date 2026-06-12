@@ -36,12 +36,14 @@ export interface Player {
   name: string;
   level: PlayerLevel;
   note?: string | null;
+  plays_pips: boolean; // opponent uses pimpled rubber ("đánh gai")
 }
 
 export interface PlayerIn {
   name: string;
   level: PlayerLevel;
   note?: string | null;
+  plays_pips?: boolean;
 }
 
 export interface Match {
@@ -62,9 +64,11 @@ export interface Match {
   opponent_id: number | null;
   opponent_name: string | null;
   opponent_level: PlayerLevel | null;
+  opponent_plays_pips: boolean;
   opponent2_id: number | null;
   opponent2_name: string | null;
   opponent2_level: PlayerLevel | null;
+  opponent2_plays_pips: boolean;
   partner_id: number | null;
   partner_name: string | null;
   partner_level: PlayerLevel | null;
@@ -132,6 +136,7 @@ export interface StatsResponse {
   overall: MatchStats;
   singles: MatchStats;
   doubles: MatchStats;
+  vs_pips: MatchStats; // matches vs a pimpled-rubber opponent ("gai")
 }
 
 // ---- request payloads ----

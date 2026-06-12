@@ -240,6 +240,7 @@ export default function AnalysisPanel({
             <MatchCard title="Singles" s={stats.singles} />
             <MatchCard title="Doubles" s={stats.doubles} />
             <MatchCard title="All matches" s={stats.overall} />
+            <MatchCard title="🏓 vs Pips" s={stats.vs_pips} />
 
             {packages.length > 0 && (
               <CoachPackageCard

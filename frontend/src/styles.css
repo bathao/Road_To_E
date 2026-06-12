@@ -1258,6 +1258,47 @@ input:focus {
   color: #c0392b;
 }
 
+/* "Đánh gai" (pimpled-rubber opponent) chip + toggle. */
+.pips-chip {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  background: #ede7f6;
+  color: #5e35b1;
+}
+
+.pips-toggle {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.pips-toggle:hover {
+  border-color: #5e35b1;
+  color: #5e35b1;
+}
+
+.pips-toggle.active {
+  background: #ede7f6;
+  color: #5e35b1;
+  border-style: solid;
+  border-color: #5e35b1;
+}
+
+.pips-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text, #333);
+}
+
 .handicap-row {
   flex-wrap: wrap;
 }

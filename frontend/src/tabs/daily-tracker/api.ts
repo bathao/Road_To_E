@@ -47,6 +47,9 @@ export const trackerApi = {
   createPlayer: (payload: PlayerIn) =>
     api.post<Player>("/tracker/players", payload),
 
+  updatePlayer: (id: number, payload: PlayerIn) =>
+    api.put<Player>(`/tracker/players/${id}`, payload),
+
   getPhysicalItems: () => api.get<PhysicalItem[]>("/tracker/physical-items"),
 
   setPhysicalChecks: (date: string, items: string[]) =>

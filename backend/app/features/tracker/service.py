@@ -175,9 +175,11 @@ def match_to_out(m: Match) -> schemas.MatchOut:
         opponent_id=m.opponent_id,
         opponent_name=m.opponent.name if m.opponent else None,
         opponent_level=m.opponent.level if m.opponent else None,
+        opponent_plays_pips=bool(m.opponent.plays_pips) if m.opponent else False,
         opponent2_id=m.opponent2_id,
         opponent2_name=m.opponent2.name if m.opponent2 else None,
         opponent2_level=m.opponent2.level if m.opponent2 else None,
+        opponent2_plays_pips=bool(m.opponent2.plays_pips) if m.opponent2 else False,
         partner_id=m.partner_id,
         partner_name=m.partner.name if m.partner else None,
         partner_level=m.partner.level if m.partner else None,
@@ -192,7 +194,13 @@ _PLAYER_LEVELS = {"below", "equal", "above"}
 
 
 def player_to_out(p: Player) -> schemas.PlayerOut:
-    return schemas.PlayerOut(id=p.id, name=p.name, level=p.level, note=p.note)
+    return schemas.PlayerOut(
+        id=p.id,
+        name=p.name,
+        level=p.level,
+        note=p.note,
+        plays_pips=bool(p.plays_pips),
+    )
 
 
 def list_players(db: Session, q: str = "") -> list[schemas.PlayerOut]:
@@ -209,7 +217,9 @@ def create_or_get_player(db: Session, payload: schemas.PlayerIn) -> schemas.Play
     level = payload.level if payload.level in _PLAYER_LEVELS else "equal"
     existing = db.query(Player).filter(Player.name == name).first()
     if existing is None:
-        existing = Player(name=name, level=level, note=payload.note)
+        existing = Player(
+            name=name, level=level, note=payload.note, plays_pips=payload.plays_pips
+        )
         db.add(existing)
         db.commit()
         db.refresh(existing)
@@ -226,6 +236,7 @@ def update_player(
     if payload.level in _PLAYER_LEVELS:
         p.level = payload.level
     p.note = payload.note
+    p.plays_pips = payload.plays_pips
     db.commit()
     db.refresh(p)
     return player_to_out(p)
@@ -630,7 +641,9 @@ def build_stats(db: Session, date_from: dt.date, date_to: dt.date) -> schemas.St
     dates = _date_range(date_from, date_to)
     iso_dates = [d.isoformat() for d in dates]
 
-    rng = _load_range(db, date_from, date_to, with_match_relations=False)
+    # with_match_relations=True so opponent.plays_pips is available for the
+    # "vs đối thủ đánh gai" split (the opponent records are eager-loaded).
+    rng = _load_range(db, date_from, date_to, with_match_relations=True)
     duration_cats = [c for c in rng.categories if c.type == "duration"]
     duration_ids = {c.id for c in duration_cats}
     activities = rng.activities
@@ -656,6 +669,7 @@ def build_stats(db: Session, date_from: dt.date, date_to: dt.date) -> schemas.St
     overall = _blank_match_stats()
     singles = _blank_match_stats()
     doubles = _blank_match_stats()
+    vs_pips = _blank_match_stats()  # matches against a pimpled-rubber opponent
 
     for m in matches:
         if m.is_nonplaying:
@@ -666,6 +680,11 @@ def build_stats(db: Session, date_from: dt.date, date_to: dt.date) -> schemas.St
         bucket = doubles if m.discipline == "doubles" else singles
         _tally(overall, m)
         _tally(bucket, m)
+        # "vs gai": either listed opponent plays pimpled rubber (covers doubles).
+        if (m.opponent and m.opponent.plays_pips) or (
+            m.opponent2 and m.opponent2.plays_pips
+        ):
+            _tally(vs_pips, m)
 
     # Day-level counts.
     days_trained = sum(
@@ -696,6 +715,7 @@ def build_stats(db: Session, date_from: dt.date, date_to: dt.date) -> schemas.St
         overall=_finalize_match_stats(overall),
         singles=_finalize_match_stats(singles),
         doubles=_finalize_match_stats(doubles),
+        vs_pips=_finalize_match_stats(vs_pips),
     )
 
 

@@ -1,6 +1,6 @@
 # Progress Log — Table Tennis Coach
 
-## Current status (2026-06-09)
+## Current status (2026-06-12)
 
 **Five tabs in place.** Tab 1 "Daily Tracker" feature-complete; Tab 2 "Tactical
 Playbook" v1; Tab 3 "Match Stats" (named-opponent analytics); Tab 4 "Video
@@ -31,6 +31,18 @@ Analysis" — local-AI clip analysis (now **motion-aware**, see below); Tab 5
 > thumbnails (skeleton drawn) with jump-to-time, focus, YOLO table zones, progress
 > table all render. The knee-misread + sparse-long-clip + nonsense-trend bugs the
 > user spotted are fixed.
+>
+> **Strict-prompt verification (2026-06-09, DB-free re-run on clip #10):** the
+> no-flattery prompt is a clear, accurate improvement over the old flattering output.
+> Before: summary praised "tư thế chuẩn, khuỵu gối tốt, trọng tâm thấp" (wrong) + 4
+> praise-strengths. After: summary is problem-first ("trọng tâm cao do gối không
+> khuỵu đủ + chiến thuật đơn điệu"), **3 concrete weaknesses each with "Cách sửa:"**
+> (forehand knee 162.8° now correctly a weakness — the misread is gone; footwork;
+> monotone tactics), tactical note names the gap ("dễ bị bắt bài"), and the only
+> "strength" was a non-observation that the `_unobserved` filter reclassifies to
+> "Chưa quan sát" on save. Self-critique dropped 0 (findings now well-grounded).
+> **Conclusion: qualitative output quality is good/trustworthy — clear to build the
+> Head Coach on it.** Pending the user's go-ahead (asked at end of 2026-06-09).
 >
 > **DEFERRED on the user's call (don't build until asked):** counting winners /
 > unforced errors / short-vs-long-serve win% — needs human-confirmed point logging

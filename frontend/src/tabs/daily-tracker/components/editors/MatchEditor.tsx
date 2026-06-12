@@ -17,10 +17,15 @@ function playersLabel(m: Match): string {
   const parts: string[] = [];
   if (m.discipline === "doubles") {
     if (m.partner_name) parts.push(`+${m.partner_name}`);
-    const opps = [m.opponent_name, m.opponent2_name].filter(Boolean);
+    const opps = [
+      m.opponent_name && `${m.opponent_name}${m.opponent_plays_pips ? " 🏓" : ""}`,
+      m.opponent2_name &&
+        `${m.opponent2_name}${m.opponent2_plays_pips ? " 🏓" : ""}`,
+    ].filter(Boolean);
     if (opps.length) parts.push(`vs ${opps.join(" & ")}`);
   } else if (m.opponent_name) {
-    parts.push(`vs ${m.opponent_name} (${levelShort(m.opponent_level)})`);
+    const gai = m.opponent_plays_pips ? " 🏓gai" : "";
+    parts.push(`vs ${m.opponent_name} (${levelShort(m.opponent_level)})${gai}`);
   }
   if (m.handicap > 0) parts.push(`chấp ${m.handicap}`);
   else if (m.handicap < 0) parts.push(`được chấp ${-m.handicap}`);
@@ -153,9 +158,15 @@ export default function MatchEditor({
         label={discipline === "doubles" ? "Đối thủ 1" : "Đối thủ"}
         value={opponent}
         onChange={setOpponent}
+        pipsEditable
       />
       {discipline === "doubles" && (
-        <PlayerPicker label="Đối thủ 2" value={opponent2} onChange={setOpponent2} />
+        <PlayerPicker
+          label="Đối thủ 2"
+          value={opponent2}
+          onChange={setOpponent2}
+          pipsEditable
+        />
       )}
 
       {/* Handicap (optional) */}

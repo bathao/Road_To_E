@@ -57,6 +57,7 @@ class PlayerIn(BaseModel):
     name: str
     level: str = "equal"  # below | equal | above
     note: str | None = None
+    plays_pips: bool = False  # opponent uses pimpled rubber ("đánh gai")
 
 
 class PlayerOut(BaseModel):
@@ -65,6 +66,7 @@ class PlayerOut(BaseModel):
     name: str
     level: str
     note: str | None = None
+    plays_pips: bool = False
 
 
 # ---------- Match ----------
@@ -105,9 +107,11 @@ class MatchOut(BaseModel):
     opponent_id: int | None = None
     opponent_name: str | None = None
     opponent_level: str | None = None
+    opponent_plays_pips: bool = False
     opponent2_id: int | None = None
     opponent2_name: str | None = None
     opponent2_level: str | None = None
+    opponent2_plays_pips: bool = False
     partner_id: int | None = None
     partner_name: str | None = None
     partner_level: str | None = None
@@ -205,6 +209,7 @@ class StatsResponse(BaseModel):
     overall: MatchStats
     singles: MatchStats
     doubles: MatchStats
+    vs_pips: MatchStats  # matches vs an opponent who plays pimpled rubber ("gai")
 
 
 # ---------- Match Stats tab (named-opponent matches only) ----------

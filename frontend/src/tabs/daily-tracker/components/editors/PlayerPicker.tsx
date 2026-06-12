@@ -13,16 +13,21 @@ export default function PlayerPicker({
   label,
   value,
   onChange,
+  pipsEditable = false,
 }: {
   label: string;
   value: Player | null;
   onChange: (p: Player | null) => void;
+  // When true (opponent pickers), the selected pill shows a "đánh gai" toggle
+  // and the add-new form a "đánh gai" checkbox. Off for the partner picker.
+  pipsEditable?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Player[]>([]);
   const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [newLevel, setNewLevel] = useState<PlayerLevel>("equal");
+  const [newPips, setNewPips] = useState(false);
   const [busy, setBusy] = useState(false);
   const closeTimer = useRef<number | undefined>(undefined);
 
@@ -44,6 +49,7 @@ export default function PlayerPicker({
     setOpen(false);
     setAdding(false);
     setQuery("");
+    setNewPips(false);
   };
 
   const addNew = async () => {
@@ -51,8 +57,30 @@ export default function PlayerPicker({
     if (!name || busy) return;
     setBusy(true);
     try {
-      const p = await trackerApi.createPlayer({ name, level: newLevel });
+      const p = await trackerApi.createPlayer({
+        name,
+        level: newLevel,
+        plays_pips: newPips,
+      });
       select(p);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Flip the selected opponent's "đánh gai" flag (persisted on the player, so it
+  // applies to every match against them) and reflect it back up.
+  const togglePips = async () => {
+    if (!value || busy) return;
+    setBusy(true);
+    try {
+      const updated = await trackerApi.updatePlayer(value.id, {
+        name: value.name,
+        level: value.level,
+        note: value.note,
+        plays_pips: !value.plays_pips,
+      });
+      onChange(updated);
     } finally {
       setBusy(false);
     }
@@ -68,6 +96,25 @@ export default function PlayerPicker({
           <span className={`level-chip level-${value.level}`}>
             {levelShort(value.level)}
           </span>
+          {value.plays_pips && (
+            <span className="pips-chip" title="Đối thủ đánh gai">
+              🏓 Gai
+            </span>
+          )}
+          {pipsEditable && (
+            <button
+              className={`pips-toggle${value.plays_pips ? " active" : ""}`}
+              title={
+                value.plays_pips
+                  ? "Bỏ đánh dấu đánh gai"
+                  : "Đánh dấu: đối thủ đánh gai"
+              }
+              onClick={togglePips}
+              disabled={busy}
+            >
+              {value.plays_pips ? "✓ Gai" : "Gai?"}
+            </button>
+          )}
           <button
             className="icon-btn"
             title="Đổi người"
@@ -116,6 +163,11 @@ export default function PlayerPicker({
                 <span className={`level-chip level-${p.level}`}>
                   {levelShort(p.level)}
                 </span>
+                {p.plays_pips && (
+                  <span className="pips-chip" title="Đối thủ đánh gai">
+                    🏓 Gai
+                  </span>
+                )}
               </button>
             ))}
             {results.length === 0 && !query.trim() && (
@@ -144,6 +196,16 @@ export default function PlayerPicker({
                         </button>
                       ))}
                     </div>
+                    {pipsEditable && (
+                      <label className="pips-check">
+                        <input
+                          type="checkbox"
+                          checked={newPips}
+                          onChange={(e) => setNewPips(e.target.checked)}
+                        />
+                        🏓 Đối thủ đánh gai
+                      </label>
+                    )}
                     <button
                       className="btn primary"
                       onClick={addNew}

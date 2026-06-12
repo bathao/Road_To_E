@@ -59,6 +59,10 @@ class Player(Base):
     name: Mapped[str] = mapped_column(String, unique=True, index=True)
     level: Mapped[str] = mapped_column(String, default="equal")  # below | equal | above
     note: Mapped[str | None] = mapped_column(String, default=None)
+    # Whether this opponent uses pimpled rubber ("đánh gai"). A property of the
+    # person (by name), not of an individual match — all existing players default
+    # to False; flip it once and every match against them counts as "vs pips".
+    plays_pips: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class Match(Base):
