@@ -20,7 +20,7 @@ interface EditingCell {
 
 export default function DailyTracker() {
   // One shared timeline drives both the grid and the Analysis panel.
-  const [mode, setMode] = useState<Mode>("week");
+  const [mode, setMode] = useState<Mode>("month");
   const [anchor, setAnchor] = useState<Date>(() => new Date());
   const [customFrom, setCustomFrom] = useState<string>(() =>
     toIso(startOfMonth(new Date()))
