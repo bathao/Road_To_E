@@ -36,6 +36,8 @@ class TrainingState(Base):
     # Days before this keep their legacy tracker_physical_check data untouched;
     # days on/after this derive the physical signal from tc_session (see service).
     cutover_date: Mapped[dt.date | None] = mapped_column(Date, default=None)
+    # Autoregulation: ± overload steps derived from recent pain/RPE feedback.
+    intensity_bias: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class TrainingSession(Base):
@@ -60,6 +62,10 @@ class TrainingSession(Base):
     duration_min: Mapped[int | None] = mapped_column(Integer, default=None)
     adapted: Mapped[bool] = mapped_column(Boolean, default=False)
     note: Mapped[str | None] = mapped_column(String, default=None)
+    # Post-session feedback (autoregulation + safety): pain none|mild|strong,
+    # rpe easy|medium|hard.
+    pain: Mapped[str | None] = mapped_column(String, default=None)
+    rpe: Mapped[str | None] = mapped_column(String, default=None)
 
     items: Mapped[list["TrainingSessionItem"]] = relationship(
         back_populates="session",
@@ -89,6 +95,8 @@ class TrainingSessionItem(Base):
     is_prescribed: Mapped[bool] = mapped_column(Boolean, default=False)
     # Why it was prescribed (shown to the user) — set only for prescribed items.
     rx_reason: Mapped[str | None] = mapped_column(String, default=None)
+    # User skipped this exercise (e.g. it aggravated the knee) — logged, not done.
+    skipped: Mapped[bool] = mapped_column(Boolean, default=False)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
     session: Mapped["TrainingSession"] = relationship(back_populates="items")

@@ -1,20 +1,14 @@
 import { useState } from "react";
 import { formatTarget, playTing } from "../constants";
-import type { SessionItem, TrainingSession } from "../types";
+import type { SessionItem, SimpleExercise, TrainingSession } from "../types";
 
 function ExerciseThumb({ gif, alt }: { gif: string; alt: string }) {
   const [broken, setBroken] = useState(false);
   if (!gif || broken) {
-    // GIFs are bundled later; show a neutral placeholder meanwhile.
     return <div className="tc-ex-thumb tc-ex-thumb-ph">🏋️</div>;
   }
   return (
-    <img
-      className="tc-ex-thumb"
-      src={gif}
-      alt={alt}
-      onError={() => setBroken(true)}
-    />
+    <img className="tc-ex-thumb" src={gif} alt={alt} onError={() => setBroken(true)} />
   );
 }
 
@@ -22,18 +16,24 @@ function ExerciseCard({
   item,
   readOnly,
   onTick,
+  onSubstitute,
+  onSkip,
 }: {
   item: SessionItem;
   readOnly: boolean;
   onTick: (done: boolean) => void;
+  onSubstitute: (key: string) => void;
+  onSkip: (skipped: boolean) => void;
 }) {
   const toggle = () => {
-    if (readOnly) return;
+    if (readOnly || item.skipped) return;
     if (!item.done) playTing();
     onTick(!item.done);
   };
   return (
-    <div className={`tc-ex${item.done ? " tc-ex-done" : ""}`}>
+    <div
+      className={`tc-ex${item.done ? " tc-ex-done" : ""}${item.skipped ? " tc-ex-skipped" : ""}`}
+    >
       <ExerciseThumb gif={item.gif} alt={item.name_vi} />
       <div className="tc-ex-body">
         <div className="tc-ex-head">
@@ -47,25 +47,72 @@ function ExerciseCard({
             🎯 HLV chỉ định{item.rx_reason ? ` — ${item.rx_reason}` : ""}
           </div>
         )}
+        {!readOnly && (
+          <div className="tc-ex-actions">
+            {item.alternatives.length > 0 && (
+              <select
+                className="tc-ex-swap"
+                value=""
+                onChange={(e) => e.target.value && onSubstitute(e.target.value)}
+                title="Đổi sang bài khác nếu bài này khó/đau"
+              >
+                <option value="">↺ Đổi bài…</option>
+                {item.alternatives.map((a) => (
+                  <option key={a.key} value={a.key}>
+                    {a.name_vi}
+                  </option>
+                ))}
+              </select>
+            )}
+            <button
+              className="tc-ex-skip"
+              onClick={() => onSkip(!item.skipped)}
+              title="Bỏ qua nếu bài này làm đau"
+            >
+              {item.skipped ? "↩ Bỏ qua (hoàn tác)" : "✕ Bỏ (đau)"}
+            </button>
+          </div>
+        )}
       </div>
-      <button
-        className={`tc-check${item.done ? " tc-check-on" : ""}`}
-        onClick={toggle}
-        disabled={readOnly}
-        aria-pressed={item.done}
-      >
-        {item.done ? "✓ Đã xong" : "Check done"}
-      </button>
+      {!item.skipped && (
+        <button
+          className={`tc-check${item.done ? " tc-check-on" : ""}`}
+          onClick={toggle}
+          disabled={readOnly}
+          aria-pressed={item.done}
+        >
+          {item.done ? "✓ Đã xong" : "Check done"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function MiniList({ title, items }: { title: string; items: SimpleExercise[] }) {
+  if (items.length === 0) return null;
+  return (
+    <div className="tc-mini">
+      <div className="tc-mini-title">{title}</div>
+      {items.map((e) => (
+        <div key={e.exercise_key} className="tc-mini-row">
+          <span>{e.name_vi}</span>
+          <span className="tc-mini-target">
+            {formatTarget(e.target, e.per_side)}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
 
 interface Props {
   session: TrainingSession;
-  /** A completed session opened from the grid is shown read-only. */
   readOnly: boolean;
   onTick: (itemId: number, done: boolean) => void;
   onComplete: () => void;
+  onSubstitute?: (itemId: number, key: string) => void;
+  onSkip?: (itemId: number, skipped: boolean) => void;
+  onStart?: () => void;
 }
 
 export default function SessionCard({
@@ -73,8 +120,12 @@ export default function SessionCard({
   readOnly,
   onTick,
   onComplete,
+  onSubstitute,
+  onSkip,
+  onStart,
 }: Props) {
-  const allDone = session.total > 0 && session.done_count === session.total;
+  const active = session.items.filter((it) => !it.skipped);
+  const allDone = active.length > 0 && active.every((it) => it.done);
   return (
     <section className="tc-session">
       <div className="tc-session-head">
@@ -89,6 +140,14 @@ export default function SessionCard({
         </span>
       </div>
 
+      {!readOnly && onStart && (
+        <button className="btn primary tc-start" onClick={onStart}>
+          ▶ Bắt đầu tập (có hướng dẫn)
+        </button>
+      )}
+
+      <MiniList title="🔥 Khởi động" items={session.warmup} />
+
       <div className="tc-ex-list">
         {session.items.map((it) => (
           <ExerciseCard
@@ -96,9 +155,13 @@ export default function SessionCard({
             item={it}
             readOnly={readOnly}
             onTick={(done) => onTick(it.id, done)}
+            onSubstitute={(key) => onSubstitute?.(it.id, key)}
+            onSkip={(skipped) => onSkip?.(it.id, skipped)}
           />
         ))}
       </div>
+
+      <MiniList title="🧊 Giãn cơ (cool-down)" items={session.cooldown} />
 
       {!readOnly && (
         <div className="tc-session-foot">

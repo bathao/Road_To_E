@@ -11,6 +11,23 @@ export interface ExerciseTarget {
   sec?: number;
 }
 
+export interface ItemAlt {
+  key: string;
+  name_vi: string;
+}
+
+export interface SimpleExercise {
+  exercise_key: string;
+  name_vi: string;
+  muscle: string;
+  tt_benefit: string;
+  kind: ExerciseKind;
+  target: ExerciseTarget;
+  per_side: boolean;
+  gif: string;
+  form_cue: string;
+}
+
 export interface SessionItem {
   id: number;
   exercise_key: string;
@@ -25,7 +42,12 @@ export interface SessionItem {
   done: boolean;
   is_prescribed: boolean;
   rx_reason: string | null;
+  skipped: boolean;
+  alternatives: ItemAlt[];
 }
+
+export type Pain = "none" | "mild" | "strong";
+export type Rpe = "easy" | "medium" | "hard";
 
 export interface TrainingSession {
   id: number;
@@ -41,7 +63,11 @@ export interface TrainingSession {
   progress_pct: number;
   done_on: string | null;
   note: string | null;
+  pain: Pain | null;
+  rpe: Rpe | null;
   items: SessionItem[];
+  warmup: SimpleExercise[];
+  cooldown: SimpleExercise[];
 }
 
 export interface DayTile {
@@ -106,4 +132,7 @@ export interface Report {
   levels: LevelInfo[];
   recent: RecentSession[];
   summary_vi: string;
+  current_streak: number;
+  done_dates: string[];
+  intensity_bias: number;
 }

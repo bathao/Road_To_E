@@ -6,6 +6,25 @@ import datetime as dt
 from pydantic import BaseModel
 
 
+class ItemAlt(BaseModel):
+    key: str
+    name_vi: str
+
+
+class SimpleExercise(BaseModel):
+    """Warm-up / cool-down move — shown but not tracked or counted."""
+
+    exercise_key: str
+    name_vi: str
+    muscle: str
+    tt_benefit: str
+    kind: str
+    target: dict
+    per_side: bool
+    gif: str
+    form_cue: str
+
+
 class ItemOut(BaseModel):
     id: int
     exercise_key: str
@@ -20,6 +39,8 @@ class ItemOut(BaseModel):
     done: bool
     is_prescribed: bool
     rx_reason: str | None = None
+    skipped: bool = False
+    alternatives: list[ItemAlt] = []
 
 
 class SessionOut(BaseModel):
@@ -36,7 +57,11 @@ class SessionOut(BaseModel):
     progress_pct: int  # 0..100 over items
     done_on: dt.date | None = None
     note: str | None = None
+    pain: str | None = None  # none | mild | strong
+    rpe: str | None = None  # easy | medium | hard
     items: list[ItemOut] = []
+    warmup: list[SimpleExercise] = []  # gentle knee mobility before (not tracked)
+    cooldown: list[SimpleExercise] = []  # stretches after (not tracked)
 
 
 class TileOut(BaseModel):
@@ -81,6 +106,16 @@ class TickIn(BaseModel):
 
 class CompleteIn(BaseModel):
     note: str | None = None
+    pain: str | None = None  # none | mild | strong — drives autoregulation + safety
+    rpe: str | None = None  # easy | medium | hard
+
+
+class SubstituteIn(BaseModel):
+    exercise_key: str  # the alternative to swap in
+
+
+class SkipIn(BaseModel):
+    skipped: bool
 
 
 # ---------- Report (Tier-1 "brain view" the Head Coach reads) ----------
@@ -112,3 +147,6 @@ class ReportOut(BaseModel):
     levels: list[LevelInfo]
     recent: list[RecentSession]
     summary_vi: str  # short coach-voice weekly summary, data-driven
+    current_streak: int  # consecutive days (up to today) with a completed session
+    done_dates: list[dt.date]  # recent completed-session dates (for the heatmap)
+    intensity_bias: int  # current autoregulation adjustment (±)

@@ -3369,3 +3369,264 @@ input:focus {
   font-size: 11px;
   color: var(--muted);
 }
+
+.tc-muted {
+  color: var(--muted);
+}
+
+/* Start button + warm-up/cool-down mini lists */
+.tc-start {
+  width: 100%;
+  font-size: 15px;
+  padding: 11px;
+  margin-bottom: 12px;
+}
+.tc-mini {
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  background: #fafbfc;
+}
+.tc-mini-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.tc-mini-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 1px 0;
+}
+.tc-mini-target {
+  color: var(--muted);
+}
+
+/* Per-exercise actions (đổi bài / bỏ đau) + skipped state */
+.tc-ex-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+.tc-ex-swap {
+  font: inherit;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 6px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.tc-ex-skip {
+  font: inherit;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 8px;
+  background: var(--surface);
+  color: var(--danger);
+  cursor: pointer;
+}
+.tc-ex-skipped {
+  opacity: 0.5;
+}
+.tc-ex-skipped .tc-ex-name {
+  text-decoration: line-through;
+}
+
+/* Training heatmap */
+.tc-heat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+}
+.tc-heat-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+.tc-heat-streak {
+  font-weight: 700;
+}
+.tc-heat-sub {
+  font-size: 12px;
+}
+.tc-heat-grid {
+  display: grid;
+  grid-template-columns: repeat(18, 1fr);
+  gap: 4px;
+}
+.tc-heat-cell {
+  aspect-ratio: 1;
+  border-radius: 3px;
+  background: #e9ecf1;
+}
+.tc-heat-cell.on {
+  background: var(--green);
+}
+.tc-heat-cell.today {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Guided workout player (full-screen overlay) */
+.tc-wp-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(20, 24, 31, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.tc-wp {
+  width: 100%;
+  max-width: 480px;
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 18px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+.tc-wp-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tc-wp-bar {
+  flex: 1;
+  height: 8px;
+  background: #e9ecf1;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.tc-wp-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+.tc-wp-close {
+  border: none;
+  background: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: var(--muted);
+}
+.tc-wp-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 16px 8px 6px;
+}
+.tc-wp-thumb {
+  width: 120px;
+  height: 120px;
+  border-radius: 12px;
+  object-fit: cover;
+  background: #eef1f5;
+}
+.tc-wp-thumb-ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+}
+.tc-wp-sub {
+  margin-top: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-dark);
+}
+.tc-wp-title {
+  margin: 4px 0 8px;
+  font-size: 22px;
+}
+.tc-wp-timer {
+  font-size: 56px;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.tc-wp-reps {
+  font-size: 40px;
+  font-weight: 800;
+  margin: 6px 0;
+}
+.tc-wp-controls {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+.tc-wp-big {
+  font-size: 16px;
+  padding: 12px 26px;
+}
+.tc-wp-cue {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--muted);
+  max-width: 360px;
+}
+.tc-wp-next {
+  margin-top: 8px;
+  color: var(--muted);
+}
+.tc-wp-done {
+  padding: 28px 8px;
+}
+.tc-wp-done-emoji {
+  font-size: 56px;
+}
+.tc-wp-finish {
+  margin-top: 14px;
+  font-size: 16px;
+  padding: 12px 26px;
+}
+
+/* Post-session feedback (pain / RPE) */
+.tc-fb-group {
+  margin-bottom: 16px;
+}
+.tc-fb-q {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.tc-fb-opts {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tc-fb-opt {
+  font: inherit;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+.tc-fb-opt.active {
+  border-color: var(--accent);
+  background: var(--today);
+  color: var(--accent-dark);
+  font-weight: 700;
+}
+.tc-fb-warn {
+  font-size: 13px;
+  color: #b45309;
+  background: #fff4e0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+}
+.tc-fb-save {
+  width: 100%;
+  padding: 11px;
+  font-size: 15px;
+}

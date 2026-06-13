@@ -74,6 +74,48 @@ def tick_item(
 
 
 @router.post(
+    "/session/{level}/{day_index}/item/{item_id}/substitute",
+    response_model=schemas.SessionOut,
+)
+def substitute_item(
+    level: str,
+    day_index: int,
+    item_id: int,
+    payload: schemas.SubstituteIn,
+    db: Session = Depends(get_db),
+):
+    """Swap an exercise for a knee-safe alternative (e.g. the original hurt)."""
+    session = service._get_row(db, level, day_index)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    out = service.substitute_item(db, session.id, item_id, payload.exercise_key)
+    if out is None:
+        raise HTTPException(status_code=404, detail="Item or alternative not found")
+    return out
+
+
+@router.post(
+    "/session/{level}/{day_index}/item/{item_id}/skip",
+    response_model=schemas.SessionOut,
+)
+def skip_item(
+    level: str,
+    day_index: int,
+    item_id: int,
+    payload: schemas.SkipIn,
+    db: Session = Depends(get_db),
+):
+    """Mark an exercise skipped (logged — e.g. it aggravated the knee)."""
+    session = service._get_row(db, level, day_index)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    out = service.skip_item(db, session.id, item_id, payload.skipped)
+    if out is None:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return out
+
+
+@router.post(
     "/session/{level}/{day_index}/complete", response_model=schemas.SessionOut
 )
 def complete_session(
@@ -82,5 +124,7 @@ def complete_session(
     payload: schemas.CompleteIn,
     db: Session = Depends(get_db),
 ):
-    """Finalise a session; unlocks the next tile on the next /today call."""
-    return service.complete_session(db, level, day_index, payload.note)
+    """Finalise a session (+pain/RPE feedback → autoregulation); unlocks next."""
+    return service.complete_session(
+        db, level, day_index, payload.note, payload.pain, payload.rpe
+    )

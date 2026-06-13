@@ -1,5 +1,12 @@
 import { api } from "../../shared/api/client";
-import type { Levels, Program, Report, TrainingSession } from "./types";
+import type {
+  Levels,
+  Pain,
+  Program,
+  Report,
+  Rpe,
+  TrainingSession,
+} from "./types";
 
 export const trainingApi = {
   getToday: () => api.get<TrainingSession>("/training/today"),
@@ -23,9 +30,29 @@ export const trainingApi = {
       { done }
     ),
 
-  complete: (level: string, dayIndex: number, note?: string | null) =>
+  complete: (
+    level: string,
+    dayIndex: number,
+    opts?: { note?: string | null; pain?: Pain | null; rpe?: Rpe | null }
+  ) =>
     api.post<TrainingSession>(
       `/training/session/${level}/${dayIndex}/complete`,
-      { note: note ?? null }
+      {
+        note: opts?.note ?? null,
+        pain: opts?.pain ?? null,
+        rpe: opts?.rpe ?? null,
+      }
+    ),
+
+  substitute: (level: string, dayIndex: number, itemId: number, exerciseKey: string) =>
+    api.post<TrainingSession>(
+      `/training/session/${level}/${dayIndex}/item/${itemId}/substitute`,
+      { exercise_key: exerciseKey }
+    ),
+
+  skip: (level: string, dayIndex: number, itemId: number, skipped: boolean) =>
+    api.post<TrainingSession>(
+      `/training/session/${level}/${dayIndex}/item/${itemId}/skip`,
+      { skipped }
     ),
 };

@@ -11,72 +11,42 @@ physical program (day-by-day, see below). Stack: FastAPI + SQLite backend, React
 **Python 3.12** (mediapipe ships no 3.13 wheels); `start.bat` builds it with
 `py -3.12`.
 
-> **Resume (2026-06-13, latest).** Built **Tab 6 "Training Center"** end-to-end
-> (design doc `backend/app/features/training/TRAINING_CENTER_PLAN.md` + full
-> implementation, all typecheck/smoke-tested, **NOT committed** — user reviews
-> first). It's the Tier-1 *training-load* specialist: a BetterMe-style day-grid of
-> finite N-session programs per level (Foundation→Explosive→TT-Specific, day_index
-> decoupled from the calendar), Check-done per exercise (self-report, trusted),
-> sequential unlock + auto level-up. Completing a session **syncs into Daily
-> Tracker from a cutover date** via a union read-path (no duplicate rows; legacy
-> physical checks before the cutover stay untouched, the grid's Physical row
-> becomes a read-only mirror from the cutover forward). Exposes
-> `GET /api/training/report` for the future Head Coach, does **adaptive
-> prescription** by reading the `va_skill` ledger directly (weak
-> stance_posture/footwork/physical → a corrective exercise injected with a reason),
-> and a Profile-tab Training Center card. **GIFs are placeholders** (drop real ones
-> in `frontend/public/exercises/<key>.gif`). Also flipped Daily Tracker's default
-> timeline Week→Month. Open question left for the user: should a <70%-complete
-> session still count as a physical day (currently completing a session = 1
-> physical day; yellow at ≥70%).
->
-> **Quad-priority refinement (doctor's directive).** Doctor: strong quads reduce
-> load on the knee → quad strengthening is the priority, pain-free open-chain work
-> can be daily. Added the two evidence-based knee-OA staples — **quad set** (gồng cơ
-> đùi đẳng trường) and **short-arc quad** (duỗi gối biên độ ngắn, kê khăn / VMO).
-> Reweighted the cycle to legs 3/6 (was 2/5) so quad days come up every other
-> session, and every legs day now LEADS with quad moves. `SAFETY_NOTE_VI` updated to
-> state the quad-first rationale. Library now ~28 exercises.
->
-> **Progression after the 3 levels (coach's-call decision).** Finishing the top
-> level no longer dead-ends: it enters **maintenance** — repeats `tt_specific` in
-> **cycles (Vòng N)** with capped progressive overload (+2 reps / +5s per cycle,
-> plateau after 3; sets unchanged; knee-safe = time/reps only, no load/impact).
-> `program.cycle_of` + `scaled_target`; `open_session` no longer caps the last
-> level; `program_grid` shows the current cycle's 21 tiles + a `cycle` field
-> ("· Vòng N" in the header). The **Head Coach (Tier-2) is the intended long-term
-> owner** of "what next" (personalised). Smoke-tested: 63 sessions → Vòng 2 with
-> Russian 24→26, side-plank 25s→30s.
->
-> **KNEE-SAFE redesign (after build).** User has grade-1 knee osteoarthritis →
-> redesigned the whole `program.py` curriculum: NO deep squats / lunges / jumping.
-> 25 low-impact exercises — quad via leg raises (straight/side/prone), wall-sit
-> (shallow), glute bridge, calf raise, **lateral toe-steps** (knee-safe footwork),
-> **toe-stand hold**, mini-squat (shallow), single-leg balance + stretches, and
-> rotational core (**đứng xoay lườn / wood-chop**, russian/bicycle, plank/side-plank,
-> dead-bug). Levels relabelled (Căn bản → Sức bền & ổn định → Chuyên biệt nhẹ khớp);
-> progression is more volume/harder variants, not impact. Per-(level,day-type)
-> templates (3–4 ex each, ~12–14 min). A `SAFETY_NOTE_VI` banner shows in the header.
-> Prescription map updated (footwork → lateral_toe_steps). Cleared the one stale
-> auto-created session so it re-materialises with the new program (state/cutover
-> kept). Honest caveat surfaced to the user: not medical advice — stop on pain,
-> check with their doctor/PT.
->
-> **Live status / next session (pick up here tonight):**
-> - First browser load showed `Unexpected token '<' … not valid JSON` — cause was a
->   **stale uvicorn** (PID started 10:35, before the feature) serving the old code,
->   so `/api/training/*` 404'd into the SPA fallback (index.html). Fixed by killing
->   it and restarting; `GET /api/training/today` now returns proper JSON. **Lesson:
->   restart the backend after adding a feature** (start.bat / kill the old process).
-> - A fresh backend is currently running on :8000 (started ad-hoc, not via
->   start.bat). If it's gone tonight, just `start.bat` again. If start.bat says port
->   8000 is busy, kill the stray python on :8000 first.
-> - First `/today` call created `tc_state` in the real DB (cutover = 2026-06-13).
-> - **TODO tonight:** (1) browser-test the full sync — Check-done → Hoàn thành buổi →
->   verify the Daily Tracker Physical row mirror + the Profile Training Center card;
->   (2) decide the <70% policy above; (3) optionally drop real GIFs; (4) then commit
->   (still **uncommitted**: ~10 changed files + the new `training`/`training-center`
->   dirs + `public/exercises/`; DB untouched by intent).
+> **Resume (2026-06-13, latest).** Shipped **Tab 6 "Training Center"** — the Tier-1
+> *training-load* specialist — and **live-verified** it (user completed Day 1, sync
+> confirmed). Committed: `8322470` (feature) + `c884525` (DB w/ the first session).
+> Design in `backend/app/features/training/TRAINING_CENTER_PLAN.md`.
+>   - **v2 upgrade (4 features, separate commit):** (1) **guided workout player** —
+>     full-screen step-through with countdown timers for holds (per-side split),
+>     rep "Xong hiệp", rest timers, "ting"; (2) **pain/RPE feedback after each
+>     session → autoregulation** — `tc_state.intensity_bias` (easy→+1, mild pain→−1,
+>     strong→−2, clamp [−2,3]) shifts `scaled_target` for future sessions; (3)
+>     **streak + 35-day heatmap** in the tab; (4) **warm-up/cool-down** (untracked,
+>     in SessionOut) + per-exercise **"đổi bài" (substitute)** / **"bỏ (đau)" (skip,
+>     logged)**. New cols via `seed.migrate` (pain/rpe, skipped, intensity_bias).
+>   - **Knee-safe, quad-priority** (user has grade-1 knee OA; doctor: strong quads
+>     offload the knee). NO deep squats / lunges / jumping. ~28 low-impact exercises;
+>     every leg day LEADS with quad work (quad set, straight-leg raise, short-arc
+>     quad), cycle weighted to legs 3/6. Progression = reps / time-under-tension only.
+>   - **Day-grid (BetterMe-style)**, day_index decoupled from the calendar; 3 levels
+>     (Căn bản → Sức bền & ổn định → Chuyên biệt) × 21 sessions, sequential unlock +
+>     auto level-up. After the top level it enters **endless maintenance** — repeats
+>     in cycles (Vòng N) with capped progressive overload (+2 reps / +5s, plateau
+>     after 3). Header shows "· Vòng N".
+>   - **Daily Tracker sync from a cutover date** (option A): union read-path, no
+>     duplicate rows (legacy checks before cutover untouched; done TC sessions count
+>     from it forward). Grid's Physical row = read-only mirror that **opens a session
+>     detail popup on click** (`GET /session-by-date`). Default timeline Week→Month.
+>   - **Head Coach contract** `GET /api/training/report` (load/adherence/volume).
+>     **Adaptive prescription** reads the `va_skill` ledger directly (weak
+>     stance_posture/footwork/physical → corrective exercise w/ reason). Profile tab
+>     has a Training Center card.
+>   - **Open items:** GIFs are placeholders → drop real ones in
+>     `frontend/public/exercises/<key>.gif`. The **Head Coach (Tier-2)** is the
+>     intended long-term owner of "what next" (will read `/report`). Undecided:
+>     should a <70%-complete session count as a physical day (now: completing = 1
+>     physical day; yellow at ≥70%). Caveat to user: not medical advice — stop on pain.
+>   - **Ops lesson:** after adding a feature, **restart the backend** (a stale uvicorn
+>     served old code → `/api/training/*` 404'd into the SPA → "Unexpected token '<'").
 >
 > **Resume (2026-06-13, earlier).** Small Daily-Tracker session on top of the big
 > Video Analysis work below: added **pips-rubber opponent tracking** ("đánh gai") —
@@ -291,10 +261,13 @@ Giải FS, BBTV…); Travel/"sets (cty)" → non-playing/skip; Serve counts → 
 
 ## History
 
-### 2026-06-13 — Tab 6 "Training Center" (off-table physical program) — NOT committed
+### 2026-06-13 — Tab 6 "Training Center" (off-table physical program)
 Built per `backend/app/features/training/TRAINING_CENTER_PLAN.md` (design doc agreed
 with the user across several rounds of critique). The Tier-1 *training-load*
-specialist coach. **Held uncommitted at the user's request — they review first.**
+specialist coach. Committed `8322470` (feature) + `c884525` (DB). **Note:** the
+curriculum below was the initial build; it was then **redesigned knee-safe /
+quad-priority** + given endless maintenance cycles + a click-to-view popup — see the
+top Resume note for the shipped state.
 - **Model (`tc_*`).** `tc_state` (current_level, unlocked_levels, level_since,
   **cutover_date**); `tc_session` (level + day_index, NOT a calendar date; status
   unlocked→done; `done_on` = calendar date completed); `tc_session_item`

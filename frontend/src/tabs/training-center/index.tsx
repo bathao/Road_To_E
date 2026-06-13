@@ -1,14 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
 import { trainingApi } from "./api";
 import DayGrid from "./components/DayGrid";
+import FeedbackModal from "./components/FeedbackModal";
+import Heatmap from "./components/Heatmap";
 import LevelSwitcher from "./components/LevelSwitcher";
 import SessionCard from "./components/SessionCard";
 import WeeklySummary from "./components/WeeklySummary";
+import WorkoutPlayer from "./components/WorkoutPlayer";
 import type {
   DayTile,
   Levels,
+  Pain,
   Program,
   Report,
+  Rpe,
   TrainingSession,
 } from "./types";
 
@@ -17,11 +22,11 @@ export default function TrainingCenter() {
   const [program, setProgram] = useState<Program | null>(null);
   const [levels, setLevels] = useState<Levels | null>(null);
   const [report, setReport] = useState<Report | null>(null);
-  // Which level's grid is shown (defaults to the current level).
   const [viewLevel, setViewLevel] = useState<string | null>(null);
-  // The session shown in the detail panel + whether it is editable.
   const [detail, setDetail] = useState<TrainingSession | null>(null);
   const [readOnly, setReadOnly] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const [askFeedback, setAskFeedback] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -38,7 +43,6 @@ export default function TrainingCenter() {
       setReport(rep);
       setProgram(p);
       setViewLevel(t.level);
-      // Keep the detail panel on the open session after a reload.
       setDetail(t);
       setReadOnly(false);
     } catch (e) {
@@ -50,7 +54,12 @@ export default function TrainingCenter() {
     void load();
   }, [load]);
 
+  const fail = (e: unknown) =>
+    setError(e instanceof Error ? e.message : String(e));
+
   const isCurrentLevelView = !!today && program?.level === today.level;
+  // Only the live (editable) open session can be played/edited.
+  const editable = !!detail && !readOnly;
 
   const switchLevel = async (level: string) => {
     if (!today) return;
@@ -63,7 +72,6 @@ export default function TrainingCenter() {
         setReadOnly(false);
         return;
       }
-      // Browsing another (completed) level: show its last done session read-only.
       const lastDone = [...p.tiles].reverse().find((t) => t.status === "done");
       if (lastDone) {
         const s = await trainingApi.getSession(level, lastDone.day_index);
@@ -71,7 +79,7 @@ export default function TrainingCenter() {
         setReadOnly(true);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      fail(e);
     }
   };
 
@@ -90,42 +98,63 @@ export default function TrainingCenter() {
       setDetail(s);
       setReadOnly(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      fail(e);
     }
+  };
+
+  // Apply an updated session returned by a mutation to local state.
+  const applySession = (updated: TrainingSession) => {
+    setDetail(updated);
+    if (today && updated.id === today.id) setToday(updated);
   };
 
   const tick = async (itemId: number, done: boolean) => {
     if (!detail || readOnly) return;
     try {
-      const updated = await trainingApi.tickItem(
-        detail.level,
-        detail.day_index,
-        itemId,
-        done
+      applySession(
+        await trainingApi.tickItem(detail.level, detail.day_index, itemId, done)
       );
-      setDetail(updated);
-      if (today && updated.day_index === today.day_index) setToday(updated);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      fail(e);
     }
   };
 
-  const complete = async () => {
+  const substitute = async (itemId: number, key: string) => {
     if (!detail || readOnly) return;
     try {
-      await trainingApi.complete(detail.level, detail.day_index);
-      await load(); // advances the open session + refreshes grid/levels/report
+      applySession(
+        await trainingApi.substitute(detail.level, detail.day_index, itemId, key)
+      );
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      fail(e);
     }
   };
 
-  if (error && !program) {
-    return <div className="tc-error">Lỗi: {error}</div>;
-  }
-  if (!program || !today || !detail || !levels || !report) {
+  const skip = async (itemId: number, skipped: boolean) => {
+    if (!detail || readOnly) return;
+    try {
+      applySession(
+        await trainingApi.skip(detail.level, detail.day_index, itemId, skipped)
+      );
+    } catch (e) {
+      fail(e);
+    }
+  };
+
+  const submitFeedback = async (pain: Pain, rpe: Rpe) => {
+    if (!detail) return;
+    try {
+      setAskFeedback(false);
+      await trainingApi.complete(detail.level, detail.day_index, { pain, rpe });
+      await load();
+    } catch (e) {
+      fail(e);
+    }
+  };
+
+  if (error && !program) return <div className="tc-error">Lỗi: {error}</div>;
+  if (!program || !today || !detail || !levels || !report)
     return <div className="tc-loading">Đang tải…</div>;
-  }
 
   return (
     <div className="training-center">
@@ -153,6 +182,7 @@ export default function TrainingCenter() {
       </header>
 
       <WeeklySummary report={report} />
+      <Heatmap doneDates={report.done_dates} streak={report.current_streak} />
 
       <LevelSwitcher
         levels={levels.levels}
@@ -173,8 +203,33 @@ export default function TrainingCenter() {
         session={detail}
         readOnly={readOnly}
         onTick={tick}
-        onComplete={complete}
+        onComplete={() => setAskFeedback(true)}
+        onSubstitute={substitute}
+        onSkip={skip}
+        onStart={editable ? () => setPlaying(true) : undefined}
       />
+
+      {playing && editable && (
+        <WorkoutPlayer
+          session={detail}
+          onTickItem={tick}
+          onFinish={() => {
+            setPlaying(false);
+            setAskFeedback(true);
+          }}
+          onClose={() => {
+            setPlaying(false);
+            void load();
+          }}
+        />
+      )}
+
+      {askFeedback && (
+        <FeedbackModal
+          onSubmit={submitFeedback}
+          onClose={() => setAskFeedback(false)}
+        />
+      )}
     </div>
   );
 }

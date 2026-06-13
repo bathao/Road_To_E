@@ -7,6 +7,9 @@ export default function WeeklySummary({ report }: { report: Report }) {
       <div className="tc-summary-coach">🗣️ {report.summary_vi}</div>
       <div className="tc-summary-stats">
         <span>
+          🔥 <b>{report.current_streak}</b> ngày liên tiếp
+        </span>
+        <span>
           <b>{report.sessions_last_7d}</b> buổi / 7 ngày
         </span>
         <span>

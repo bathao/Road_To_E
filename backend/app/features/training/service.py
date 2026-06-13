@@ -75,8 +75,11 @@ def _materialise(db: Session, level: str, day_index: int) -> TrainingSession:
         return row
     planned = program.planned_session(level, day_index)
     # Progressive overload only applies on the endless maintenance level; on the
-    # finite levels (day_index 1..21) cycle 0 means base targets, unchanged.
+    # finite levels (day_index 1..21) cycle 0 means base targets. `intensity_bias`
+    # is the autoregulation adjustment from recent pain/RPE feedback.
     cycle = program.cycle_of(day_index) if level == program.MAINTENANCE_LEVEL else 0
+    state = ensure_state(db)
+    bias = state.intensity_bias or 0
     row = TrainingSession(
         level=level,
         day_index=day_index,
@@ -87,7 +90,7 @@ def _materialise(db: Session, level: str, day_index: int) -> TrainingSession:
         row.items.append(
             TrainingSessionItem(
                 exercise_key=ex.key,
-                target_json=json.dumps(program.scaled_target(ex, cycle)),
+                target_json=json.dumps(program.scaled_target(ex, cycle, bias)),
                 sort_order=i,
             )
         )
@@ -124,8 +127,23 @@ def open_session(db: Session) -> tuple[TrainingSession, bool]:
 
 
 # ---------------------------------------------------------------- serialisation
-def _item_out(item: TrainingSessionItem) -> schemas.ItemOut:
+def _simple_ex(ex) -> schemas.SimpleExercise:
+    return schemas.SimpleExercise(
+        exercise_key=ex.key,
+        name_vi=ex.name_vi,
+        muscle=ex.muscle,
+        tt_benefit=ex.tt_benefit,
+        kind=ex.kind,
+        target=dict(ex.target),
+        per_side=ex.per_side,
+        gif=ex.gif,
+        form_cue=ex.form_cue,
+    )
+
+
+def _item_out(item: TrainingSessionItem, exclude: set[str]) -> schemas.ItemOut:
     ex = program.EXERCISES.get(item.exercise_key)
+    alts = program.alternatives_for(item.exercise_key, exclude)
     return schemas.ItemOut(
         id=item.id,
         exercise_key=item.exercise_key,
@@ -140,6 +158,8 @@ def _item_out(item: TrainingSessionItem) -> schemas.ItemOut:
         done=item.done,
         is_prescribed=item.is_prescribed,
         rx_reason=item.rx_reason,
+        skipped=bool(item.skipped),
+        alternatives=[schemas.ItemAlt(key=a.key, name_vi=a.name_vi) for a in alts],
     )
 
 
@@ -149,6 +169,7 @@ def to_session_out(session: TrainingSession) -> schemas.SessionOut:
     done_count = sum(1 for it in items if it.done)
     exs = [program.EXERCISES[it.exercise_key] for it in items
            if it.exercise_key in program.EXERCISES]
+    in_session = {it.exercise_key for it in items}
     return schemas.SessionOut(
         id=session.id,
         level=session.level,
@@ -163,7 +184,11 @@ def to_session_out(session: TrainingSession) -> schemas.SessionOut:
         progress_pct=round(100 * done_count / total) if total else 0,
         done_on=session.done_on,
         note=session.note,
-        items=[_item_out(it) for it in items],
+        pain=session.pain,
+        rpe=session.rpe,
+        items=[_item_out(it, in_session) for it in items],
+        warmup=[_simple_ex(e) for e in program.warmup_exercises()],
+        cooldown=[_simple_ex(e) for e in program.cooldown_exercises()],
     )
 
 
@@ -276,20 +301,88 @@ def tick_item(
     return to_session_out(session) if session else None
 
 
+def substitute_item(
+    db: Session, session_id: int, item_id: int, new_key: str
+) -> schemas.SessionOut | None:
+    """Swap an exercise for a knee-safe alternative (e.g. the original hurt)."""
+    item = db.get(TrainingSessionItem, item_id)
+    if item is None or item.session_id != session_id:
+        return None
+    ex = program.EXERCISES.get(new_key)
+    if ex is None:
+        return None
+    state = ensure_state(db)
+    session = db.get(TrainingSession, session_id)
+    cycle = (
+        program.cycle_of(session.day_index)
+        if session and session.level == program.MAINTENANCE_LEVEL
+        else 0
+    )
+    item.exercise_key = new_key
+    item.target_json = json.dumps(program.scaled_target(ex, cycle, state.intensity_bias or 0))
+    item.done = False
+    item.skipped = False
+    db.commit()
+    return to_session_out(session) if session else None
+
+
+def skip_item(
+    db: Session, session_id: int, item_id: int, skipped: bool
+) -> schemas.SessionOut | None:
+    """Mark an exercise skipped (logged — e.g. it aggravated the knee)."""
+    item = db.get(TrainingSessionItem, item_id)
+    if item is None or item.session_id != session_id:
+        return None
+    item.skipped = skipped
+    if skipped:
+        item.done = False
+    db.commit()
+    session = db.get(TrainingSession, session_id)
+    return to_session_out(session) if session else None
+
+
+def _autoregulate(db: Session, pain: str | None, rpe: str | None) -> None:
+    """Nudge the intensity bias from this session's feedback (next sessions react).
+
+    Pain is the safety brake; RPE fine-tunes. Clamped to a sane band.
+    """
+    state = ensure_state(db)
+    delta = 0
+    if pain == "strong":
+        delta = -2
+    elif pain == "mild":
+        delta = -1
+    elif rpe == "easy":  # only push up when it was easy AND pain-free
+        delta = 1
+    elif rpe == "hard":
+        delta = 0  # hard but no pain = good stimulus; hold, don't add
+    state.intensity_bias = max(-2, min((state.intensity_bias or 0) + delta, 3))
+    db.commit()
+
+
 def complete_session(
-    db: Session, level: str, day_index: int, note: str | None
+    db: Session,
+    level: str,
+    day_index: int,
+    note: str | None,
+    pain: str | None = None,
+    rpe: str | None = None,
 ) -> schemas.SessionOut:
-    """Mark a session done, stamping the calendar date it was completed."""
+    """Mark a session done, stamp the date, record feedback + autoregulate."""
     session = _materialise(db, level, day_index)
     session.status = "done"
     session.done_on = dt.date.today()
     session.completed_at = dt.datetime.now()
     if note is not None:
         session.note = note
+    session.pain = pain
+    session.rpe = rpe
+    # Count only non-skipped exercises toward the session duration.
     exs = [program.EXERCISES[it.exercise_key] for it in session.items
-           if it.exercise_key in program.EXERCISES]
+           if it.exercise_key in program.EXERCISES and not it.skipped]
     session.duration_min = program.estimate_minutes(exs)
     db.commit()
+    _autoregulate(db, pain, rpe)
     db.refresh(session)
     return to_session_out(session)
 
@@ -468,6 +561,19 @@ def report(db: Session) -> schemas.ReportOut:
         )
         for s in done[:10]
     ]
+    # Distinct completed dates (most recent first) → heatmap + current streak.
+    done_dates_desc = sorted({s.done_on for s in done}, reverse=True)
+    streak = 0
+    cursor = today
+    date_set = set(done_dates_desc)
+    # A streak counts back from today; if today isn't trained yet, allow it to
+    # start from yesterday (so an unbroken run isn't "lost" before today's session).
+    if today not in date_set and (today - dt.timedelta(days=1)) in date_set:
+        cursor = today - dt.timedelta(days=1)
+    while cursor in date_set:
+        streak += 1
+        cursor -= dt.timedelta(days=1)
+
     level_vi = program.LEVEL_VI.get(state.current_level, state.current_level)
     return schemas.ReportOut(
         current_level=state.current_level,
@@ -483,6 +589,9 @@ def report(db: Session) -> schemas.ReportOut:
         levels=level_overview(db).levels,
         recent=recent,
         summary_vi=_weekly_summary(last7, last30, days_since, level_vi),
+        current_streak=streak,
+        done_dates=[d for d in done_dates_desc if (today - d).days < 70],
+        intensity_bias=state.intensity_bias or 0,
     )
 
 

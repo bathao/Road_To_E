@@ -216,8 +216,33 @@ _EX = [
              "timed", {"sets": 3, "sec": 40}, "balance", level_min=3, per_side=True,
              gif=_gif("single_leg_eyes_closed"),
              form_cue="Như đứng một chân nhưng nhắm mắt; đứng cạnh tường để bám."),
+    # --- warm-up (gentle knee mobility before the session; not counted) ---
+    Exercise("knee_mobility", "Làm nóng gối (gập–duỗi nhẹ)", "Khớp gối (làm nóng)",
+             "Làm trơn khớp gối trước khi tập, giảm cứng.",
+             "timed", {"sets": 1, "sec": 60}, "warmup", level_min=1,
+             gif=_gif("knee_mobility"),
+             form_cue="Ngồi/đứng, gập–duỗi gối biên độ thoải mái + xoay cổ chân. Nhẹ nhàng."),
+    Exercise("march_in_place", "Giậm chân tại chỗ nhẹ", "Toàn thân (làm nóng)",
+             "Tăng tuần hoàn, làm nóng cơ trước khi tập.",
+             "timed", {"sets": 1, "sec": 40}, "warmup", level_min=1,
+             gif=_gif("march_in_place"),
+             form_cue="Giậm chân nhẹ tại chỗ, không nhấc cao, không bật nhảy."),
 ]
 EXERCISES: dict[str, Exercise] = {e.key: e for e in _EX}
+
+# A short warm-up before, and a cool-down stretch after, every session. These are
+# guidance only — shown in the UI / workout player but NOT tracked as items and
+# NOT counted toward completion (they're the lead-in / wind-down, not "the work").
+WARMUP_KEYS = ("knee_mobility", "march_in_place")
+COOLDOWN_KEYS = ("quad_stretch", "hamstring_stretch")
+
+
+def warmup_exercises() -> list[Exercise]:
+    return [EXERCISES[k] for k in WARMUP_KEYS if k in EXERCISES]
+
+
+def cooldown_exercises() -> list[Exercise]:
+    return [EXERCISES[k] for k in COOLDOWN_KEYS if k in EXERCISES]
 
 
 # Per-level, per-day-type session templates (3–4 exercises each). Progression is
@@ -316,14 +341,19 @@ def cycle_of(day_index: int) -> int:
     return (day_index - 1) // SESSIONS_PER_LEVEL
 
 
-def scaled_target(ex: Exercise, cycle: int) -> dict:
-    """Apply gentle progressive overload to an exercise's target for a cycle.
+OVERLOAD_BUMP_CAP = OVERLOAD_MAX_CYCLES + 2  # autoregulation can push a bit past
 
-    cycle 0 = base (the first pass through the level). From cycle 1 we add a
-    small, capped bump: +5s per cycle for timed holds, +2 reps per cycle for
-    rep work. Sets are never changed. Knee-safe by construction (no load/impact).
+
+def scaled_target(ex: Exercise, cycle: int, bias: int = 0) -> dict:
+    """Apply progressive overload + autoregulation to an exercise's target.
+
+    Base overload = min(cycle, OVERLOAD_MAX_CYCLES). `bias` is the autoregulation
+    adjustment from recent pain/RPE feedback (easy → +, hard/pain → −). The
+    effective bump is clamped to [0, OVERLOAD_BUMP_CAP]: +5s per step for timed
+    holds, +2 reps per step for rep work. Sets never change; knee-safe by design.
     """
-    bump = min(max(cycle, 0), OVERLOAD_MAX_CYCLES)
+    base = min(max(cycle, 0), OVERLOAD_MAX_CYCLES)
+    bump = max(0, min(base + bias, OVERLOAD_BUMP_CAP))
     if bump == 0:
         return dict(ex.target)
     t = dict(ex.target)
@@ -332,3 +362,17 @@ def scaled_target(ex: Exercise, cycle: int) -> dict:
     elif "reps" in t:
         t["reps"] = t["reps"] + 2 * bump
     return t
+
+
+def alternatives_for(key: str, exclude: set[str]) -> list[Exercise]:
+    """Knee-safe substitutes for an exercise: same day-type, not already in the
+    session. Used by the "đổi bài nếu đau" swap."""
+    ex = EXERCISES.get(key)
+    if ex is None:
+        return []
+    out = [
+        e for e in _EX
+        if e.day_type == ex.day_type and e.key != key and e.key not in exclude
+        and e.key not in WARMUP_KEYS
+    ]
+    return out[:3]
