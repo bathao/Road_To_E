@@ -3,6 +3,7 @@ import { videoApi } from "../video-analysis/api";
 import { ASPECT_LABEL, SKILL_STATUS_LABEL } from "../video-analysis/labels";
 import type { Profile, ProfileImage, Report, Skill, SkillStatus } from "../video-analysis/types";
 import { LEVELS } from "../../shared/levels";
+import { pct } from "../../shared/format";
 import { trainingApi } from "../training-center/api";
 import type { Report as TrainingReport } from "../training-center/types";
 import { profileApi } from "./api";
@@ -23,8 +24,6 @@ const RANGES: { key: RangeKey; label: string }[] = [
   { key: "365", label: "1 năm" },
   { key: "all", label: "Tất cả" },
 ];
-
-const pct = (r: number | null) => (r == null ? "—" : `${Math.round(r * 100)}%`);
 
 function isoRange(range: RangeKey): { from: string; to: string } {
   const now = new Date();

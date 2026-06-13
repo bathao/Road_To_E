@@ -42,4 +42,3 @@ TABLE_ROI_MODEL_PATH = DATA_DIR / "models" / "roi_seg.pt"
 FRONTEND_DIST = PROJECT_DIR / "frontend" / "dist"
 
 APP_TITLE = "Table Tennis Coach"
-APP_PORT = 8000

@@ -27,11 +27,8 @@ from app.features.video_analysis.models import (
     VAProfileImage,
     VASkill,
     VATrait,
+    _utcnow,
 )
-
-
-def _utcnow() -> dt.datetime:
-    return dt.datetime.now(dt.timezone.utc)
 
 ALLOWED_SUFFIXES = {".mp4", ".mov", ".m4v", ".avi", ".mkv", ".webm"}
 

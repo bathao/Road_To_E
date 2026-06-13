@@ -374,84 +374,6 @@ def _stats(values: list[float]) -> dict[str, float] | None:
     }
 
 
-def run_pose(frames_rgb: list) -> dict[str, Any]:
-    """Estimate per-frame body geometry with MediaPipe and aggregate it."""
-    try:
-        import mediapipe as mp
-    except Exception as exc:  # pragma: no cover - install/runtime guard
-        return {"available": False, "reason": f"mediapipe unavailable: {exc}"}
-
-    if not frames_rgb:
-        return {"available": False, "reason": "no frames"}
-
-    pose = mp.solutions.pose.Pose(
-        static_image_mode=True, model_complexity=1, min_detection_confidence=0.5
-    )
-    stance_ratios: list[float] = []
-    knee_angles: list[float] = []
-    torso_leans: list[float] = []
-    hip_xs: list[float] = []
-    hand_elevations: list[float] = []
-    detected = 0
-    try:
-        for frame in frames_rgb:
-            res = pose.process(frame)
-            lm = getattr(res, "pose_landmarks", None)
-            if not lm:
-                continue
-            pts = lm.landmark
-
-            def vis(i: int) -> bool:
-                return pts[i].visibility is None or pts[i].visibility > 0.3
-
-            detected += 1
-            shoulder_w = _dist(pts[L_SHOULDER], pts[R_SHOULDER]) or 1e-6
-
-            if vis(L_ANKLE) and vis(R_ANKLE):
-                stance_ratios.append(_dist(pts[L_ANKLE], pts[R_ANKLE]) / shoulder_w)
-
-            for hip, knee, ankle in ((L_HIP, L_KNEE, L_ANKLE), (R_HIP, R_KNEE, R_ANKLE)):
-                if vis(hip) and vis(knee) and vis(ankle):
-                    knee_angles.append(_angle(pts[hip], pts[knee], pts[ankle]))
-
-            sh_mid = type("P", (), {"x": (pts[L_SHOULDER].x + pts[R_SHOULDER].x) / 2,
-                                    "y": (pts[L_SHOULDER].y + pts[R_SHOULDER].y) / 2})
-            hip_mid = type("P", (), {"x": (pts[L_HIP].x + pts[R_HIP].x) / 2,
-                                     "y": (pts[L_HIP].y + pts[R_HIP].y) / 2})
-            # Torso lean from vertical (0° = upright).
-            dx, dy = sh_mid.x - hip_mid.x, sh_mid.y - hip_mid.y
-            torso_leans.append(abs(math.degrees(math.atan2(dx, -dy))))
-            hip_xs.append(hip_mid.x)
-
-            # Highest playing hand relative to shoulder line (>0 = above), norm.
-            for wrist in (L_WRIST, R_WRIST):
-                if vis(wrist):
-                    hand_elevations.append((sh_mid.y - pts[wrist].y) / shoulder_w)
-    finally:
-        pose.close()
-
-    if detected == 0:
-        return {
-            "available": True,
-            "frames_analyzed": len(frames_rgb),
-            "frames_with_pose": 0,
-            "reason": "no body detected in sampled frames",
-        }
-
-    # Lateral sway = horizontal spread of the hips across the clip (footwork range).
-    lateral_sway = round((max(hip_xs) - min(hip_xs)), 3) if hip_xs else None
-    return {
-        "available": True,
-        "frames_analyzed": len(frames_rgb),
-        "frames_with_pose": detected,
-        "stance_width_ratio": _stats(stance_ratios),
-        "knee_flexion_deg": _stats(knee_angles),
-        "torso_lean_deg": _stats(torso_leans),
-        "lateral_sway": lateral_sway,
-        "hand_elevation": _stats(hand_elevations),
-    }
-
-
 def pose_to_text(pose: dict[str, Any]) -> str:
     """Render pose metrics as Vietnamese context for the VLM prompt."""
     if not pose.get("available"):
@@ -672,39 +594,6 @@ def playing_elbow_index(handed: str) -> int:
 
 def playing_shoulder_index(handed: str) -> int:
     return L_SHOULDER if handed == "left" else R_SHOULDER
-
-
-def pose_track(frames_ts: list[tuple[float, Any]], handed: str = "right") -> list[dict[str, Any]]:
-    """Per-frame playing-hand trajectory used by :func:`segment_strokes`. Each
-    entry is ``{t, wx, wy, cx}`` — the playing wrist (normalised 0..1) plus the
-    body-centre x (shoulder midpoint). Frames with no confident body are skipped.
-    Denser sampling → better strokes, so feed it the full sampled set, not the
-    VLM subset. Returns [] if mediapipe is unavailable."""
-    try:
-        import mediapipe as mp
-    except Exception:
-        return []
-    if not frames_ts:
-        return []
-    wrist_i = playing_wrist_index(handed)
-    pose = mp.solutions.pose.Pose(static_image_mode=True, model_complexity=1,
-                                  min_detection_confidence=0.5)
-    series: list[dict[str, Any]] = []
-    try:
-        for t, frame in frames_ts:
-            res = pose.process(frame)
-            lm = getattr(res, "pose_landmarks", None)
-            if not lm:
-                continue
-            pts = lm.landmark
-            w = pts[wrist_i]
-            if w.visibility is not None and w.visibility < 0.3:
-                continue
-            cx = (pts[L_SHOULDER].x + pts[R_SHOULDER].x) / 2
-            series.append({"t": round(t, 3), "wx": w.x, "wy": w.y, "cx": cx})
-    finally:
-        pose.close()
-    return series
 
 
 def _guess_hand(wx: float, cx: float, handed: str) -> str:
