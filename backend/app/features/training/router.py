@@ -38,7 +38,7 @@ def get_report(db: Session = Depends(get_db)):
 @router.get("/session/{level}/{day_index}", response_model=schemas.SessionOut)
 def get_session(level: str, day_index: int, db: Session = Depends(get_db)):
     """One materialised session by (level, day_index) — for viewing past days."""
-    session = service._get_row(db, level, day_index)
+    session = service.get_session_row(db, level, day_index)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
     return service.to_session_out(session)
@@ -64,7 +64,7 @@ def tick_item(
     db: Session = Depends(get_db),
 ):
     """Tick / untick one exercise in a session (self-report, trusted)."""
-    session = service._get_row(db, level, day_index)
+    session = service.get_session_row(db, level, day_index)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
     out = service.tick_item(db, session.id, item_id, payload.done)
@@ -85,7 +85,7 @@ def substitute_item(
     db: Session = Depends(get_db),
 ):
     """Swap an exercise for a knee-safe alternative (e.g. the original hurt)."""
-    session = service._get_row(db, level, day_index)
+    session = service.get_session_row(db, level, day_index)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
     out = service.substitute_item(db, session.id, item_id, payload.exercise_key)
@@ -106,7 +106,7 @@ def skip_item(
     db: Session = Depends(get_db),
 ):
     """Mark an exercise skipped (logged — e.g. it aggravated the knee)."""
-    session = service._get_row(db, level, day_index)
+    session = service.get_session_row(db, level, day_index)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
     out = service.skip_item(db, session.id, item_id, payload.skipped)

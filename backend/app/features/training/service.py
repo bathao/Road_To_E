@@ -10,6 +10,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.features.training import program, schemas
@@ -57,7 +58,8 @@ def _done_count(db: Session, level: str) -> int:
     )
 
 
-def _get_row(db: Session, level: str, day_index: int) -> TrainingSession | None:
+def get_session_row(db: Session, level: str, day_index: int) -> TrainingSession | None:
+    """The materialised session row for (level, day_index), or None."""
     return (
         db.query(TrainingSession)
         .filter(
@@ -70,7 +72,7 @@ def _get_row(db: Session, level: str, day_index: int) -> TrainingSession | None:
 
 def _materialise(db: Session, level: str, day_index: int) -> TrainingSession:
     """Get (or lazily create) the session row for (level, day_index)."""
-    row = _get_row(db, level, day_index)
+    row = get_session_row(db, level, day_index)
     if row is not None:
         return row
     planned = program.planned_session(level, day_index)
@@ -451,8 +453,6 @@ def get_cutover(db: Session) -> dt.date | None:
 def done_date_bounds(db: Session) -> tuple[dt.date | None, dt.date | None]:
     """(earliest, latest) calendar date a session was completed — for the
     tracker's data-range bounds (so the grid opens on a TC-only day too)."""
-    from sqlalchemy import func
-
     lo = db.query(func.min(TrainingSession.done_on)).scalar()
     hi = db.query(func.max(TrainingSession.done_on)).scalar()
     return lo, hi

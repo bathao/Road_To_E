@@ -80,8 +80,10 @@ for later column adds). Table prefix `tc_`.
 - **Exercise library** — one entry per exercise:
   `key`, `name_vi`, `muscle` (nhóm cơ), `tt_benefit` (why it helps table tennis —
   shown for motivation), `type` (`reps` | `timed`), `default_target`
-  (e.g. `{sets:3, reps:20}` or `{sets:3, sec:45}`), `level_min`, `day_type`
-  (`legs|core|balance`), `gif`, `form_cue` (form tip / warning).
+  (e.g. `{sets:3, reps:20}` or `{sets:3, sec:45}`), `day_type`
+  (`legs|core|balance`), `per_side`, `gif`, `form_cue` (form tip / warning).
+  Which exercises appear at each level is controlled by `DAY_TEMPLATES`, not a
+  per-exercise level field.
   ~12–15 exercises, reused across sessions (we do NOT author N distinct GIFs):
   Sumo Squat, Lateral Lunge, Split Step, Russian Twist, Side Plank, Crunch,
   Single-leg-eyes-closed, hip/hamstring stretch, …
