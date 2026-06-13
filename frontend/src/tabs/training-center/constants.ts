@@ -1,5 +1,46 @@
 import type { DayType, ExerciseTarget } from "./types";
 
+// Each exercise maps to a schematic pose illustration (bundled SVG, no copyright).
+// A real GIF dropped at /exercises/<key>.gif still takes priority (tried first).
+const POSE: Record<string, string> = {
+  quad_set: "supine-leg-raise",
+  straight_leg_raise: "supine-leg-raise",
+  short_arc_quad: "knee-mobility",
+  knee_mobility: "knee-mobility",
+  side_leg_raise: "side-leg-raise",
+  inner_thigh_raise: "inner-thigh",
+  prone_leg_raise: "prone-leg-raise",
+  glute_bridge: "glute-bridge",
+  single_leg_glute_bridge: "glute-bridge",
+  wall_sit_shallow: "wall-sit",
+  mini_squat: "wall-sit",
+  lateral_lunge: "side-lunge",
+  plank: "plank",
+  dead_bug: "supine-crunch",
+  crunch: "supine-crunch",
+  bicycle_crunch: "supine-crunch",
+  double_leg_lift_hold: "supine-crunch",
+  side_plank: "side-plank",
+  standing_trunk_twist: "standing-twist",
+  wood_chop: "standing-twist",
+  russian_twist: "standing-twist",
+  single_leg_balance: "standing",
+  single_leg_eyes_closed: "standing",
+  toe_stand_hold: "standing",
+  calf_raise: "standing",
+  gentle_bounce: "standing",
+  march_in_place: "standing",
+  lateral_toe_steps: "standing",
+  hamstring_stretch: "stretch",
+  quad_stretch: "stretch",
+  groin_stretch: "stretch",
+};
+
+/** Pose-illustration SVG path for an exercise key (defaults to a standing figure). */
+export function poseSvg(key: string): string {
+  return `/exercises/poses/${POSE[key] ?? "standing"}.svg`;
+}
+
 export const DAY_ICON: Record<DayType, string> = {
   legs: "🦵",
   core: "🌀",

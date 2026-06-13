@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { playTing } from "../constants";
 import type { TrainingSession } from "../types";
+import ExerciseImage from "./ExerciseImage";
 
 // One step in the guided run: warm-up / work set / rest / cooldown / done.
 type Step =
@@ -93,12 +94,6 @@ function buildSteps(session: TrainingSession): Step[] {
   }
   steps.push({ type: "done" });
   return steps;
-}
-
-function Thumb({ gif }: { gif: string }) {
-  const [broken, setBroken] = useState(false);
-  if (!gif || broken) return <div className="tc-wp-thumb tc-wp-thumb-ph">🏋️</div>;
-  return <img className="tc-wp-thumb" src={gif} alt="" onError={() => setBroken(true)} />;
 }
 
 interface Props {
@@ -199,7 +194,7 @@ export default function WorkoutPlayer({
           </div>
         ) : (
           <div className="tc-wp-body">
-            <Thumb gif={step.gif} />
+            <ExerciseImage gif={step.gif} alt={step.title} className="tc-wp-thumb" />
             <div className="tc-wp-sub">{step.sub}</div>
             <h2 className="tc-wp-title">{step.title}</h2>
             {step.type === "timed" ? (

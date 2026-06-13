@@ -1,16 +1,6 @@
-import { useState } from "react";
 import { formatTarget, playTing } from "../constants";
 import type { SessionItem, SimpleExercise, TrainingSession } from "../types";
-
-function ExerciseThumb({ gif, alt }: { gif: string; alt: string }) {
-  const [broken, setBroken] = useState(false);
-  if (!gif || broken) {
-    return <div className="tc-ex-thumb tc-ex-thumb-ph">🏋️</div>;
-  }
-  return (
-    <img className="tc-ex-thumb" src={gif} alt={alt} onError={() => setBroken(true)} />
-  );
-}
+import ExerciseImage from "./ExerciseImage";
 
 function ExerciseCard({
   item,
@@ -34,7 +24,7 @@ function ExerciseCard({
     <div
       className={`tc-ex${item.done ? " tc-ex-done" : ""}${item.skipped ? " tc-ex-skipped" : ""}`}
     >
-      <ExerciseThumb gif={item.gif} alt={item.name_vi} />
+      <ExerciseImage gif={item.gif} alt={item.name_vi} className="tc-ex-thumb" />
       <div className="tc-ex-body">
         <div className="tc-ex-head">
           <span className="tc-ex-name">{item.name_vi}</span>

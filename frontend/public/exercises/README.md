@@ -1,9 +1,15 @@
 # Exercise media (Training Center)
 
-Drop one image/GIF per exercise here, named `<key>.gif` (or `.png`/`.jpg` — but
-the code requests `.gif`, so prefer that). They are served at `/exercises/<key>.gif`
-and shown on each exercise card. Until a file exists, the card shows a 🏋️
-placeholder — nothing breaks.
+Image resolution per exercise, in priority order:
+1. **Real GIF** you drop here as `<key>.gif` (highest fidelity) — wins if present.
+2. **Bundled pose illustration** — a schematic SVG under `poses/`, mapped per
+   exercise in `frontend/src/tabs/training-center/constants.ts` (`POSE`). These
+   ship by default so every exercise has a relevant figure (no 🏋️ placeholder).
+3. 🏋️ emoji — only if both above are missing.
+
+So you don't *need* to add anything; but dropping a real `<key>.gif` here upgrades
+that exercise's card automatically (rebuild the frontend / `start.bat` to pick up
+new files, since the app serves the built `dist`).
 
 Keep them small (the repo is local-only, no CDN). A short looping GIF or a single
 clear demo frame is enough.
@@ -27,6 +33,7 @@ Legs (ƯU TIÊN cơ đùi; mông / hông / bắp chân — nhẹ khớp):
 - `calf_raise.gif`           (nhón gót)
 - `lateral_toe_steps.gif`    (di chuyển ngang nhón chân)
 - `mini_squat.gif`           (squat nông)
+- `lateral_lunge.gif`        (chùng chân ngang — nông, nhẹ; nhiều mông)
 - `single_leg_glute_bridge.gif`
 - `inner_thigh_raise.gif`    (nâng chân trong — đùi trong)
 

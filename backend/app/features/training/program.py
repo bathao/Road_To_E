@@ -133,6 +133,12 @@ _EX = [
              "reps", {"sets": 3, "reps": 12}, "legs", level_min=3, per_side=True,
              gif=_gif("single_leg_glute_bridge"),
              form_cue="Cầu mông nhưng duỗi một chân; giữ hông ngang, không lệch."),
+    Exercise("lateral_lunge", "Chùng chân ngang (lateral lunge)", "Mông, đùi trong, đùi",
+             "Khoẻ mông + bước ngang rộng cứu bóng. Mông khoẻ giúp giảm tải gối.",
+             "reps", {"sets": 2, "reps": 8}, "legs", level_min=1, per_side=True,
+             gif=_gif("lateral_lunge"),
+             form_cue="Bước rộng sang ngang, dồn trọng tâm chân trụ, gối theo hướng mũi chân; "
+                      "KHÔNG xuống sâu (giữ nông), vịn ghế nếu cần. Đau gối là dừng."),
     Exercise("inner_thigh_raise", "Nâng chân trong (đùi trong)", "Đùi trong",
              "Đùi trong giữ trụ khi bước rộng cứu bóng.",
              "reps", {"sets": 3, "reps": 15}, "legs", level_min=3, per_side=True,
@@ -250,23 +256,24 @@ def cooldown_exercises() -> list[Exercise]:
 DAY_TEMPLATES: dict[str, dict[str, list[str]]] = {
     "foundation": {
         # Quad-first: 3 quad moves + 1 hip accessory.
-        "legs": ["quad_set", "straight_leg_raise", "short_arc_quad", "side_leg_raise"],
+        "legs": ["quad_set", "straight_leg_raise", "short_arc_quad", "side_leg_raise",
+                 "lateral_lunge"],
         "core": ["plank", "double_leg_lift_hold", "standing_trunk_twist", "crunch"],
         "balance": ["single_leg_balance", "toe_stand_hold", "quad_stretch",
                     "hamstring_stretch"],
     },
     "explosive": {
-        # Quad-led + isometric quad endurance + posterior balance.
-        "legs": ["short_arc_quad", "straight_leg_raise", "wall_sit_shallow",
-                 "glute_bridge"],
+        # Quad-led + glutes (lateral lunge) + isometric quad endurance.
+        "legs": ["short_arc_quad", "lateral_lunge", "glute_bridge",
+                 "wall_sit_shallow"],
         "core": ["plank", "side_plank", "double_leg_lift_hold", "standing_trunk_twist"],
         "balance": ["single_leg_balance", "gentle_bounce", "calf_raise",
                     "groin_stretch"],
     },
     "tt_specific": {
-        # Functional quad/hip + low-impact footwork + posterior accessory.
-        "legs": ["short_arc_quad", "single_leg_glute_bridge", "lateral_toe_steps",
-                 "mini_squat"],
+        # Functional quad/hip + lateral lunge (glutes) + low-impact footwork.
+        "legs": ["short_arc_quad", "single_leg_glute_bridge", "lateral_lunge",
+                 "lateral_toe_steps"],
         "core": ["russian_twist", "wood_chop", "standing_trunk_twist", "side_plank"],
         "balance": ["single_leg_eyes_closed", "gentle_bounce", "prone_leg_raise",
                     "hamstring_stretch"],
