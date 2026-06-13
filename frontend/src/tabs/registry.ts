@@ -6,6 +6,7 @@ import TacticalPlaybook from "./tactical-playbook";
 import MatchStats from "./match-stats";
 import VideoAnalysis from "./video-analysis";
 import PlayerProfile from "./profile";
+import TrainingCenter from "./training-center";
 
 export interface TabDef {
   id: string;
@@ -52,11 +53,11 @@ export const TABS: TabDef[] = [
     enabled: true,
   },
   {
-    id: "training-plan",
-    label: "Training Plan",
-    icon: "🗂️",
-    component: DailyTracker,
-    enabled: false,
+    id: "training-center",
+    label: "Training Center",
+    icon: "💪",
+    component: TrainingCenter,
+    enabled: true,
   },
   {
     id: "motivation",

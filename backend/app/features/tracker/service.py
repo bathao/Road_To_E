@@ -19,6 +19,7 @@ from app.features.tracker.models import (
     PhysicalCheck,
     Player,
 )
+from app.features.training import service as training_service
 
 # ---------------------------------------------------------------- physical items
 
@@ -262,10 +263,12 @@ def get_or_create_event(db: Session, name: str | None) -> Event | None:
 
 def earliest_data_date(db: Session) -> dt.date | None:
     """The first day that has any tracked data (for the red 'rest-day' bound)."""
+    tc_lo, _ = training_service.done_date_bounds(db)
     candidates = [
         db.query(func.min(Activity.date)).scalar(),
         db.query(func.min(Match.date)).scalar(),
         db.query(func.min(PhysicalCheck.date)).scalar(),
+        tc_lo,
     ]
     dates = [d for d in candidates if d is not None]
     return min(dates) if dates else None
@@ -273,10 +276,12 @@ def earliest_data_date(db: Session) -> dt.date | None:
 
 def latest_data_date(db: Session) -> dt.date | None:
     """The most recent day that has any tracked data (for opening the grid there)."""
+    _, tc_hi = training_service.done_date_bounds(db)
     candidates = [
         db.query(func.max(Activity.date)).scalar(),
         db.query(func.max(Match.date)).scalar(),
         db.query(func.max(PhysicalCheck.date)).scalar(),
+        tc_hi,
     ]
     dates = [d for d in candidates if d is not None]
     return max(dates) if dates else None
@@ -343,8 +348,11 @@ class RangeData(NamedTuple):
     categories: list[Category]
     activities: list[Activity]
     matches: list[Match]  # ordered by order_index
-    checks_by_date: dict[str, list[str]]  # iso date -> ticked item keys
+    checks_by_date: dict[str, list[str]]  # iso date -> ticked item keys (legacy)
     notes_by_date: dict[str, str]  # iso date -> day-note text
+    # Training Center sessions completed in-range, keyed by done date. From the
+    # cutover forward these are the source of the physical-training signal.
+    tc_physical: dict[str, dict]
 
 
 def _load_range(
@@ -391,7 +399,15 @@ def _load_range(
         matches=matches,
         checks_by_date=physical_checks_by_date(checks),
         notes_by_date={n.date.isoformat(): n.text for n in day_notes},
+        tc_physical=training_service.physical_day_map(db, date_from, date_to),
     )
+
+
+def _physical_dates(rng: RangeData) -> set[str]:
+    """All dates that count as a physical-training day: legacy checklist ticks
+    (before the cutover) unioned with completed Training Center sessions (from
+    the cutover forward). The two never overlap, so this can't double-count."""
+    return set(rng.checks_by_date.keys()) | set(rng.tc_physical.keys())
 
 
 # ---------------------------------------------------------------- week
@@ -449,13 +465,20 @@ def build_week(
     for k, ms in by_cell.items():
         cells[k] = schemas.CellData(display=format_match_cell(ms))
 
-    # Physical Training cells (checklist): show ticked labels, yellow at >=70%.
+    # Physical Training cells. Before the cutover: the legacy checklist (ticked
+    # labels, yellow at >=70%). From the cutover forward: a read-only mirror of
+    # the Training Center session done that day.
     physical = cat_by_key.get("physical_training")
     if physical is not None:
         for iso, keys in checks_by_date.items():
             cells[f"{physical.id}|{iso}"] = schemas.CellData(
                 display=format_physical_cell(keys),
                 color="yellow" if physical_is_yellow(keys) else None,
+            )
+        for iso, info in rng.tc_physical.items():
+            cells[f"{physical.id}|{iso}"] = schemas.CellData(
+                display=f"💪 {info['done']}/{info['total']} · {info['focus_vi']}",
+                color="yellow" if info["is_yellow"] else None,
             )
 
     # Notes cells: compact 📝 preview; full text travels in day_notes.
@@ -473,7 +496,7 @@ def build_week(
             categories,
             activities,
             matches,
-            set(checks_by_date.keys()),
+            _physical_dates(rng),
             all_days=days,
             today=dt.date.today(),
             earliest=earliest_data_date(db),
@@ -490,6 +513,7 @@ def build_week(
         cells=cells,
         physical_checks=checks_by_date,
         day_notes=notes_by_date,
+        physical_cutover=training_service.get_cutover(db),
     )
 
 
@@ -664,6 +688,10 @@ def build_stats(db: Session, date_from: dt.date, date_to: dt.date) -> schemas.St
 
     for iso, keys in rng.checks_by_date.items():
         physical_per_day[iso] = physical_per_day.get(iso, 0) + len(keys)
+    # Training Center sessions (from the cutover forward) also count as physical
+    # days — mark the date present so days_physical / "trained" pick it up.
+    for iso in rng.tc_physical:
+        physical_per_day[iso] = physical_per_day.get(iso, 0) + 1
 
     # Match stats (playing matches only), split by discipline.
     overall = _blank_match_stats()
@@ -772,7 +800,7 @@ def build_breakdown(
 
     # Per-day aggregates.
     minutes: dict[str, int] = {}
-    physical: set[str] = set(rng.checks_by_date.keys())
+    physical: set[str] = _physical_dates(rng)
     mcount: dict[str, int] = {}
     wins: dict[str, int] = {}
     losses: dict[str, int] = {}
@@ -1094,12 +1122,17 @@ def _build_grid(db: Session, date_from: dt.date, date_to: dt.date):
     for key, ms in by_cell.items():
         text[key] = format_match_cell(ms)
 
-    # Physical Training checklist cells (text + yellow fill at >=70%).
+    # Physical Training cells: legacy checklist before the cutover, Training
+    # Center session mirror from the cutover forward.
     physical = cat_by_key.get("physical_training")
     if physical is not None:
         for iso, keys in checks_by_date.items():
             text[(physical.id, iso)] = format_physical_cell(keys)
             if physical_is_yellow(keys):
+                cell_colors[(physical.id, iso)] = "yellow"
+        for iso, info in rng.tc_physical.items():
+            text[(physical.id, iso)] = f"Training Center {info['done']}/{info['total']} · {info['focus_vi']}"
+            if info["is_yellow"]:
                 cell_colors[(physical.id, iso)] = "yellow"
 
     # Notes cells: export the full text (not the truncated grid preview).
@@ -1113,7 +1146,7 @@ def _build_grid(db: Session, date_from: dt.date, date_to: dt.date):
         categories,
         activities,
         matches,
-        set(checks_by_date.keys()),
+        _physical_dates(rng),
         all_days=dates,
         today=dt.date.today(),
         earliest=earliest_data_date(db),

@@ -308,5 +308,8 @@ class WeekResponse(BaseModel):
     activities: list[ActivityOut]
     matches: list[MatchOut]
     cells: dict[str, CellData]  # key = f"{category_id}|{date.isoformat()}"
-    physical_checks: dict[str, list[str]]  # iso date -> ticked item keys
+    physical_checks: dict[str, list[str]]  # iso date -> ticked item keys (legacy)
     day_notes: dict[str, str]  # iso date -> note text
+    # From this date forward the Physical row mirrors Training Center (read-only
+    # in the grid); before it, the legacy checklist stays editable. None = unset.
+    physical_cutover: dt.date | None = None

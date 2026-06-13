@@ -17,6 +17,13 @@ final verdict — it produces evidence, like every other specialist.
   rotational core, lateral legs, low/stable centre of gravity, split-step timing,
   single-leg balance. Deliberately **no chest / biceps** (scoping choice for a short
   daily session focused on legs + core).
+- **Knee-OA constraint + QUAD priority (doctor's directive).** The player has
+  grade-1 knee osteoarthritis. Per the doctor, strong quadriceps offload the knee
+  joint, so quad strengthening is the #1 priority and pain-free open-chain quad work
+  (quad set, straight-leg raise, short-arc quad) can be done daily. The curriculum
+  therefore: avoids deep squats / lunges / jumping; leads every leg day with quad
+  moves; weights the cycle toward legs (3/6). Progression is reps / time-under-
+  tension only — never load or impact.
 - **Tier-1 contract:** persist everything in a queryable shape + expose
   `GET /api/training/report` so the Head Coach reads training-load without scraping
   UI or recomputing. The Head Coach is a *consumer*; Training Center is a *producer*.
@@ -50,6 +57,16 @@ Reference UI the user gave: a grid of "Day" tiles unlocked one by one, with a to
   easier session, but never punishes.
 - Inside a program, sessions rotate **day-types**: `legs → core → balance → legs →
   core → …`. Day-type drives which exercises appear.
+
+**After the last level — no dead-end (coach's call).** Finishing the top level
+(`tt_specific`) does NOT end the program. It enters **maintenance**: the top level
+repeats in **cycles (Vòng N)** with **gentle, capped progressive overload** — each
+cycle adds +2 reps / +5s holds (sets never change), plateauing after
+`OVERLOAD_MAX_CYCLES` (3). Knee-safe by construction: overload is time-under-tension
+/ reps only, never load or impact. The grid shows the current cycle's 21 tiles with
+absolute session indices; the header shows "· Vòng N". This is the interim answer;
+the **Head Coach (Tier-2) is meant to take over "what next"** with a personalised
+program once it exists (it can read `/api/training/report`).
 
 ---
 

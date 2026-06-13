@@ -2,15 +2,83 @@
 
 ## Current status (2026-06-13)
 
-**Five tabs in place.** Tab 1 "Daily Tracker" feature-complete; Tab 2 "Tactical
+**Six tabs in place.** Tab 1 "Daily Tracker" feature-complete; Tab 2 "Tactical
 Playbook" v1; Tab 3 "Match Stats" (named-opponent analytics); Tab 4 "Video
 Analysis" — local-AI clip analysis (now **motion-aware**, see below); Tab 5
-"Profile" — a read-only player dashboard. Stack: FastAPI + SQLite backend, React
+"Profile" — a read-only player dashboard; Tab 6 "Training Center" — off-table
+physical program (day-by-day, see below). Stack: FastAPI + SQLite backend, React
 + Vite + TS frontend, served on one port by `start.bat`. The backend venv is
 **Python 3.12** (mediapipe ships no 3.13 wheels); `start.bat` builds it with
 `py -3.12`.
 
-> **Resume (2026-06-13, latest).** Small Daily-Tracker session on top of the big
+> **Resume (2026-06-13, latest).** Built **Tab 6 "Training Center"** end-to-end
+> (design doc `backend/app/features/training/TRAINING_CENTER_PLAN.md` + full
+> implementation, all typecheck/smoke-tested, **NOT committed** — user reviews
+> first). It's the Tier-1 *training-load* specialist: a BetterMe-style day-grid of
+> finite N-session programs per level (Foundation→Explosive→TT-Specific, day_index
+> decoupled from the calendar), Check-done per exercise (self-report, trusted),
+> sequential unlock + auto level-up. Completing a session **syncs into Daily
+> Tracker from a cutover date** via a union read-path (no duplicate rows; legacy
+> physical checks before the cutover stay untouched, the grid's Physical row
+> becomes a read-only mirror from the cutover forward). Exposes
+> `GET /api/training/report` for the future Head Coach, does **adaptive
+> prescription** by reading the `va_skill` ledger directly (weak
+> stance_posture/footwork/physical → a corrective exercise injected with a reason),
+> and a Profile-tab Training Center card. **GIFs are placeholders** (drop real ones
+> in `frontend/public/exercises/<key>.gif`). Also flipped Daily Tracker's default
+> timeline Week→Month. Open question left for the user: should a <70%-complete
+> session still count as a physical day (currently completing a session = 1
+> physical day; yellow at ≥70%).
+>
+> **Quad-priority refinement (doctor's directive).** Doctor: strong quads reduce
+> load on the knee → quad strengthening is the priority, pain-free open-chain work
+> can be daily. Added the two evidence-based knee-OA staples — **quad set** (gồng cơ
+> đùi đẳng trường) and **short-arc quad** (duỗi gối biên độ ngắn, kê khăn / VMO).
+> Reweighted the cycle to legs 3/6 (was 2/5) so quad days come up every other
+> session, and every legs day now LEADS with quad moves. `SAFETY_NOTE_VI` updated to
+> state the quad-first rationale. Library now ~28 exercises.
+>
+> **Progression after the 3 levels (coach's-call decision).** Finishing the top
+> level no longer dead-ends: it enters **maintenance** — repeats `tt_specific` in
+> **cycles (Vòng N)** with capped progressive overload (+2 reps / +5s per cycle,
+> plateau after 3; sets unchanged; knee-safe = time/reps only, no load/impact).
+> `program.cycle_of` + `scaled_target`; `open_session` no longer caps the last
+> level; `program_grid` shows the current cycle's 21 tiles + a `cycle` field
+> ("· Vòng N" in the header). The **Head Coach (Tier-2) is the intended long-term
+> owner** of "what next" (personalised). Smoke-tested: 63 sessions → Vòng 2 with
+> Russian 24→26, side-plank 25s→30s.
+>
+> **KNEE-SAFE redesign (after build).** User has grade-1 knee osteoarthritis →
+> redesigned the whole `program.py` curriculum: NO deep squats / lunges / jumping.
+> 25 low-impact exercises — quad via leg raises (straight/side/prone), wall-sit
+> (shallow), glute bridge, calf raise, **lateral toe-steps** (knee-safe footwork),
+> **toe-stand hold**, mini-squat (shallow), single-leg balance + stretches, and
+> rotational core (**đứng xoay lườn / wood-chop**, russian/bicycle, plank/side-plank,
+> dead-bug). Levels relabelled (Căn bản → Sức bền & ổn định → Chuyên biệt nhẹ khớp);
+> progression is more volume/harder variants, not impact. Per-(level,day-type)
+> templates (3–4 ex each, ~12–14 min). A `SAFETY_NOTE_VI` banner shows in the header.
+> Prescription map updated (footwork → lateral_toe_steps). Cleared the one stale
+> auto-created session so it re-materialises with the new program (state/cutover
+> kept). Honest caveat surfaced to the user: not medical advice — stop on pain,
+> check with their doctor/PT.
+>
+> **Live status / next session (pick up here tonight):**
+> - First browser load showed `Unexpected token '<' … not valid JSON` — cause was a
+>   **stale uvicorn** (PID started 10:35, before the feature) serving the old code,
+>   so `/api/training/*` 404'd into the SPA fallback (index.html). Fixed by killing
+>   it and restarting; `GET /api/training/today` now returns proper JSON. **Lesson:
+>   restart the backend after adding a feature** (start.bat / kill the old process).
+> - A fresh backend is currently running on :8000 (started ad-hoc, not via
+>   start.bat). If it's gone tonight, just `start.bat` again. If start.bat says port
+>   8000 is busy, kill the stray python on :8000 first.
+> - First `/today` call created `tc_state` in the real DB (cutover = 2026-06-13).
+> - **TODO tonight:** (1) browser-test the full sync — Check-done → Hoàn thành buổi →
+>   verify the Daily Tracker Physical row mirror + the Profile Training Center card;
+>   (2) decide the <70% policy above; (3) optionally drop real GIFs; (4) then commit
+>   (still **uncommitted**: ~10 changed files + the new `training`/`training-center`
+>   dirs + `public/exercises/`; DB untouched by intent).
+>
+> **Resume (2026-06-13, earlier).** Small Daily-Tracker session on top of the big
 > Video Analysis work below: added **pips-rubber opponent tracking** ("đánh gai") —
 > `tracker_player.plays_pips` (per-player by name), opponent-picker toggle + 🏓 chips,
 > and a **🏓 vs Pips** record card in the Analysis panel; seeded 3 pips opponents.
@@ -184,6 +252,11 @@ data into the DB. They do *not* give the final verdict; they produce evidence.
 - **Daily Tracker / Match Stats** = the training- and match-load record: what was
   trained, how much, match results by opponent level, win rates, physical work.
 - **Tactical Playbook** = the player's known tactics and tendencies.
+- **Training Center** = the off-table physical-training specialist: the structured
+  daily program, what was completed, adherence/volume by muscle group, current
+  level. `GET /api/training/report` is its structured "brain view"; it also reads
+  the Video Analysis skill ledger to prescribe corrective exercises (cross-feeding
+  between specialists, still all consumable by the Head Coach later).
 
 **Tier 2 — Head Coach ("HLV trưởng", the brain) — TO BE BUILT LATER.** A future
 top-level coach/tab that *reads everything* the specialists wrote — all daily
@@ -217,6 +290,45 @@ Giải FS, BBTV…); Travel/"sets (cty)" → non-playing/skip; Serve counts → 
 ---
 
 ## History
+
+### 2026-06-13 — Tab 6 "Training Center" (off-table physical program) — NOT committed
+Built per `backend/app/features/training/TRAINING_CENTER_PLAN.md` (design doc agreed
+with the user across several rounds of critique). The Tier-1 *training-load*
+specialist coach. **Held uncommitted at the user's request — they review first.**
+- **Model (`tc_*`).** `tc_state` (current_level, unlocked_levels, level_since,
+  **cutover_date**); `tc_session` (level + day_index, NOT a calendar date; status
+  unlocked→done; `done_on` = calendar date completed); `tc_session_item`
+  (exercise_key, target snapshot, done, is_prescribed, rx_reason).
+- **Program (`program.py`, static).** ~15 exercises (TT-relevant: rotational core,
+  lateral legs, split-step, single-leg balance; no chest/biceps) each with a
+  table-tennis benefit + form cue; 3 levels (Foundation→Explosive→TT-Specific),
+  21-session programs, day-cycle Legs→Core→Balance, exercises gated by `level_min`.
+- **Progression.** BetterMe-style sequential unlock (finish Day N → unlock Day N+1;
+  finish a level → unlock the next). No demotion / re-locking (we trust the user).
+  day_index is decoupled from the weekday calendar (no streak resets).
+- **Daily Tracker integration (option A, from a cutover).** Completing a session
+  feeds the physical-day signal via a **union read-path** in `tracker/service.py`
+  (`_load_range` loads `training_service.physical_day_map`; `_physical_dates` unions
+  legacy checks before the cutover with done sessions from the cutover forward — no
+  duplicate rows, can't drift). Overall/`days_physical`/stats/breakdown/export and
+  the grid's earliest/latest-data bounds all updated. The grid's Physical row is a
+  read-only mirror ("💪 4/5 · …") from `WeekResponse.physical_cutover` forward;
+  legacy past days stay editable and untouched.
+- **Head Coach contract.** `GET /api/training/report` — level, adherence
+  (last 7/30d, days-since-last), volume by day-type + muscle group, recent sessions,
+  a data-driven coach summary. A Training Center card was added to the Profile tab.
+- **Adaptive prescription.** `prescription_for` reads the `va_skill` ledger directly
+  (no Head Coach, no HTTP): a weak `stance_posture`/`footwork`/`physical` aspect →
+  one corrective exercise injected into the open session (`is_prescribed`, with a
+  transparent `rx_reason` from the assessment); skipped if the base session already
+  includes it. Best-effort (any failure → no prescription).
+- **Frontend** `tabs/training-center/` (icon 💪, replaced the disabled "Training
+  Plan" slot): header + progress bar, day grid, session detail with Check-done (+a
+  WebAudio "ting"), level switcher, weekly summary. **GIFs are placeholders** (🏋️
+  fallback; real files go in `frontend/public/exercises/<key>.gif`).
+- Verified: 3 backend smoke tests (level-up; physical union → days_physical/Overall;
+  prescription + report) + frontend `tsc` clean. Also: Daily Tracker default
+  timeline Week→Month.
 
 ### 2026-06-13 — Daily Tracker: pips-rubber opponents ("đánh gai") + vs-pips analysis
 Per the user: track whether an opponent plays pimpled rubber, as a property of

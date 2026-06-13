@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.features.playbook import router as playbook_router
 from app.features.tracker import router as tracker_router
 from app.features.tracker import seed as tracker_seed
+from app.features.training import router as training_router
 from app.features.video_analysis import router as video_router
 from app.features.video_analysis import seed as video_seed
 
@@ -17,6 +18,7 @@ FEATURE_ROUTERS = [
     tracker_router.router,
     playbook_router.router,
     video_router.router,
+    training_router.router,
 ]
 
 # Idempotent seed callables run on startup.

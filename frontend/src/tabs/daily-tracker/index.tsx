@@ -12,6 +12,9 @@ import MatchEditor from "./components/editors/MatchEditor";
 import ChecklistEditor from "./components/editors/ChecklistEditor";
 import NoteEditor from "./components/editors/NoteEditor";
 import AnalysisPanel from "./components/AnalysisPanel";
+import { trainingApi } from "../training-center/api";
+import SessionCard from "../training-center/components/SessionCard";
+import type { TrainingSession } from "../training-center/types";
 
 interface EditingCell {
   category: Category;
@@ -30,6 +33,8 @@ export default function DailyTracker() {
   const [week, setWeek] = useState<WeekResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<EditingCell | null>(null);
+  // Read-only Training Center session shown when a mirrored Physical cell is clicked.
+  const [viewSession, setViewSession] = useState<TrainingSession | null>(null);
   // Bumped after every mutation so the AnalysisPanel re-fetches its stats.
   const [dataVersion, setDataVersion] = useState(0);
 
@@ -188,6 +193,13 @@ export default function DailyTracker() {
         <WeekGrid
           week={week}
           onCellClick={(category, dateIso) => setEditing({ category, dateIso })}
+          onViewPhysical={async (dateIso) => {
+            try {
+              setViewSession(await trainingApi.getSessionByDate(dateIso));
+            } catch (e) {
+              setError(e instanceof Error ? e.message : String(e));
+            }
+          }}
         />
       ) : (
         !error && <div className="loading">Loading…</div>
@@ -236,6 +248,20 @@ export default function DailyTracker() {
               onSave={saveNote}
             />
           )}
+        </Modal>
+      )}
+
+      {viewSession && (
+        <Modal
+          title={`💪 Training Center · ${viewSession.done_on ?? ""}`}
+          onClose={() => setViewSession(null)}
+        >
+          <SessionCard
+            session={viewSession}
+            readOnly
+            onTick={() => {}}
+            onComplete={() => {}}
+          />
         </Modal>
       )}
     </div>

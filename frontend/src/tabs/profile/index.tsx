@@ -3,6 +3,8 @@ import { videoApi } from "../video-analysis/api";
 import { ASPECT_LABEL, SKILL_STATUS_LABEL } from "../video-analysis/labels";
 import type { Profile, ProfileImage, Report, Skill, SkillStatus } from "../video-analysis/types";
 import { LEVELS } from "../../shared/levels";
+import { trainingApi } from "../training-center/api";
+import type { Report as TrainingReport } from "../training-center/types";
 import { profileApi } from "./api";
 import type { MatchStatsLite, RangeKey, TrackerStats } from "./types";
 import SkillRadar from "./components/SkillRadar";
@@ -45,6 +47,7 @@ export default function PlayerProfile() {
   const [images, setImages] = useState<ProfileImage[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
   const [report, setReport] = useState<Report | null>(null);
+  const [trainingReport, setTrainingReport] = useState<TrainingReport | null>(null);
   const [lastDate, setLastDate] = useState<string | null>(null);
 
   const [range, setRange] = useState<RangeKey>("90");
@@ -65,18 +68,20 @@ export default function PlayerProfile() {
   useEffect(() => {
     (async () => {
       try {
-        const [p, im, sk, rp, ld] = await Promise.all([
+        const [p, im, sk, rp, ld, tr] = await Promise.all([
           videoApi.getProfile(),
           videoApi.listProfileImages(),
           videoApi.listSkills(),
           videoApi.getReport(),
           profileApi.lastDate(),
+          trainingApi.getReport(),
         ]);
         setProfile(p);
         setImages(im);
         setSkills(sk);
         setReport(rp);
         setLastDate(ld.date);
+        setTrainingReport(tr);
       } catch (e) {
         fail(e);
       }
@@ -310,6 +315,52 @@ export default function PlayerProfile() {
           </>
         ) : (
           <p className="va-muted">Đang tải…</p>
+        )}
+      </section>
+
+      {/* 7) Training Center (off-table physical program) */}
+      <section className="va-card">
+        <h3>💪 Training Center</h3>
+        {trainingReport && trainingReport.total_sessions_done > 0 ? (
+          <>
+            <p className="va-muted">{trainingReport.summary_vi}</p>
+            <div className="stat-grid">
+              <div className="stat-card">
+                <div className="stat-card-title">Cấp độ</div>
+                <div className="stat-big" style={{ fontSize: "1.3rem" }}>
+                  {trainingReport.current_level_vi}
+                </div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-card-title">Buổi đã hoàn thành</div>
+                <div className="stat-big">{trainingReport.total_sessions_done}</div>
+                <div className="stat-line muted">
+                  <span>{trainingReport.sessions_last_7d} buổi / 7 ngày</span>
+                </div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-card-title">Buổi gần nhất</div>
+                <div className="stat-big">
+                  {trainingReport.days_since_last ?? "—"}
+                </div>
+                <div className="stat-line muted"><span>ngày trước</span></div>
+              </div>
+            </div>
+            <div className="prof-cat-list">
+              {(["legs", "core", "balance"] as const).map((k) => (
+                <div key={k} className="stat-line">
+                  <span>
+                    {k === "legs" ? "🦵 Chân" : k === "core" ? "🌀 Lõi" : "⚖️ Cân bằng"}
+                  </span>
+                  <span>{trainingReport.day_type_counts[k] ?? 0} buổi</span>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <p className="va-muted">
+            Chưa có buổi tập nào. Vào tab Training Center 💪 để bắt đầu.
+          </p>
         )}
       </section>
     </div>

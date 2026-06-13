@@ -87,8 +87,11 @@ export interface WeekResponse {
   activities: Activity[];
   matches: Match[];
   cells: Record<string, CellData>; // key = `${category_id}|${isoDate}`
-  physical_checks: Record<string, string[]>; // isoDate -> ticked item keys
+  physical_checks: Record<string, string[]>; // isoDate -> ticked item keys (legacy)
   day_notes: Record<string, string>; // isoDate -> note text
+  // From this date forward the Physical row mirrors Training Center (read-only
+  // in the grid). null = unset (no Training Center activity yet).
+  physical_cutover: string | null;
 }
 
 export interface PhysicalItem {

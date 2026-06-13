@@ -7,9 +7,12 @@ import { dayHeader, monthGroups, todayIso } from "../../../shared/dates";
 export default function WeekGrid({
   week,
   onCellClick,
+  onViewPhysical,
 }: {
   week: WeekResponse;
   onCellClick: (category: Category, dateIso: string) => void;
+  // Read-only view of a Training Center session mirrored into the Physical row.
+  onViewPhysical: (dateIso: string) => void;
 }) {
   const today = todayIso();
   // Many columns (month / year / long custom range) → narrow, truncated cells
@@ -64,10 +67,16 @@ export default function WeekGrid({
                 const isRating = cat.type === "rating";
                 // Future days can't be logged yet — only today and the past.
                 const isFuture = iso > today;
-                const editable = !isRating && !isFuture;
+                // From the cutover forward the Physical row is a read-only
+                // mirror of Training Center — log physical work over there.
+                const isPhysicalMirror =
+                  cat.key === "physical_training" &&
+                  week.physical_cutover != null &&
+                  iso >= week.physical_cutover;
+                const editable = !isRating && !isFuture && !isPhysicalMirror;
                 const classes = ["cell", `type-${cat.type}`];
                 if (isToday) classes.push("today");
-                if (isRating) classes.push("readonly");
+                if (isRating || isPhysicalMirror) classes.push("readonly");
                 if (isFuture) classes.push("future");
                 // Fill the whole cell background with the day's color
                 // (Overall row, and Physical Training when >=70% ticked).
@@ -78,19 +87,31 @@ export default function WeekGrid({
                   cat.type === "note"
                     ? week.day_notes[iso] || ""
                     : cell?.display ?? "";
+                // A mirrored Physical cell with data is clickable to VIEW the
+                // Training Center session (read-only); empty mirror days aren't.
+                const viewablePhysical = isPhysicalMirror && !!cell?.display;
                 const title = isFuture
                   ? "Future date — you can only log today and past days"
                   : isRating
                     ? "Auto-generated from the day's data"
-                    : fullText
-                      ? `${cat.label} · ${iso}\n${fullText}`
-                      : undefined;
+                    : viewablePhysical
+                      ? "Bấm để xem buổi Training Center 💪"
+                      : isPhysicalMirror
+                        ? "Quản lý ở tab Training Center 💪"
+                        : fullText
+                          ? `${cat.label} · ${iso}\n${fullText}`
+                          : undefined;
+                const handleClick = editable
+                  ? () => onCellClick(cat, iso)
+                  : viewablePhysical
+                    ? () => onViewPhysical(iso)
+                    : undefined;
                 return (
                   <td
                     key={iso}
-                    className={classes.join(" ")}
+                    className={`${classes.join(" ")}${viewablePhysical ? " tc-mirror-view" : ""}`}
                     // Overall is auto-generated; future days are not editable.
-                    onClick={editable ? () => onCellClick(cat, iso) : undefined}
+                    onClick={handleClick}
                     title={title}
                   >
                     {!isRating && (
