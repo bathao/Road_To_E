@@ -1,6 +1,6 @@
 # Progress Log — Table Tennis Coach
 
-## Current status (2026-06-12)
+## Current status (2026-06-13)
 
 **Five tabs in place.** Tab 1 "Daily Tracker" feature-complete; Tab 2 "Tactical
 Playbook" v1; Tab 3 "Match Stats" (named-opponent analytics); Tab 4 "Video
@@ -10,7 +10,14 @@ Analysis" — local-AI clip analysis (now **motion-aware**, see below); Tab 5
 **Python 3.12** (mediapipe ships no 3.13 wheels); `start.bat` builds it with
 `py -3.12`.
 
-> **Resume (2026-06-09, latest).** Big Video Analysis session — `ANALYSIS_UPGRADE_PLAN.md`
+> **Resume (2026-06-13, latest).** Small Daily-Tracker session on top of the big
+> Video Analysis work below: added **pips-rubber opponent tracking** ("đánh gai") —
+> `tracker_player.plays_pips` (per-player by name), opponent-picker toggle + 🏓 chips,
+> and a **🏓 vs Pips** record card in the Analysis panel; seeded 3 pips opponents.
+> Committed `4ac9843`. No open threads here — the next real milestone is still the
+> Tier-2 Head Coach (see below).
+>
+> **Resume (2026-06-09).** Big Video Analysis session — `ANALYSIS_UPGRADE_PLAN.md`
 > **Phases 1–4 done** (Phase 5 split-step is the only one left, advanced/experimental),
 > plus the table-ROI model swap and a round of **live-verified quality fixes**. All
 > committed. The qualitative analysis is now trustworthy and strict; the remaining
@@ -130,7 +137,10 @@ Working features:
   Custom + ◀ Today ▶) drives both the grid and the Analysis panel.
 - **Duration** rows → one-tap chips (+ custom + note).
 - **Match** rows → dropdown score picker (Singles/Doubles, BO3/5/7), event
-  autocomplete, Travel/Rest; each set score is one match record.
+  autocomplete, Travel/Rest; each set score is one match record. An opponent can
+  be flagged **"đánh gai"** (pimpled rubber) — a property of the player by name
+  (`tracker_player.plays_pips`), toggled in the opponent picker, shown as a 🏓
+  chip; defaults off for everyone unless flagged.
 - **Physical Training** → checklist (Wall Sit, Sit-ups, Plank, Squats, Obliques,
   Stretching); cell turns yellow at ≥70% ticked.
 - **Overall** is auto-generated per day: green (a green-row trained), else yellow
@@ -138,8 +148,9 @@ Working features:
   (today not yet logged / future / before tracking began).
 - Future days are not editable. App opens on the latest week that has data.
 - **Analysis panel**: summary cards (days trained, physical days, training time,
-  Singles / Doubles / All-matches win rates) + a comparison chart (Columns or
-  Line, default Line; metric selector) + training-time-by-category bars.
+  Singles / Doubles / All-matches win rates, **🏓 vs Pips** — record vs
+  pimpled-rubber opponents) + a comparison chart (Columns or Line, default Line;
+  metric selector) + training-time-by-category bars.
 - Excel / CSV export of the selected range.
 - **Coaching packages**: coaching is bought in 10-session blocks; the first
   session of a block is marked with ★ (`is_package_start`). `/coach-packages`
@@ -206,6 +217,23 @@ Giải FS, BBTV…); Travel/"sets (cty)" → non-playing/skip; Serve counts → 
 ---
 
 ## History
+
+### 2026-06-13 — Daily Tracker: pips-rubber opponents ("đánh gai") + vs-pips analysis
+Per the user: track whether an opponent plays pimpled rubber, as a property of
+the **player by name** (not per match) — "không tick thì theo tên đối thủ". All
+existing players default to non-pips; future pips opponents get flagged once.
+- **Backend**: new `tracker_player.plays_pips` column (idempotent ALTER in the
+  tracker seed `migrate()`, mirroring video_analysis). `PlayerIn/PlayerOut` +
+  `MatchOut.opponent(2)_plays_pips`; `StatsResponse.vs_pips` (a `MatchStats`
+  over playing matches where either listed opponent plays pips — `build_stats`
+  now eager-loads the opponent relations). `create_or_get`/`update_player` carry
+  the flag.
+- **Frontend**: `PlayerPicker` gains a `pipsEditable` prop — opponent pickers
+  show a `Gai?`/`✓ Gai` toggle (persists via `PUT /players/{id}`) + an add-new
+  "🏓 đánh gai" checkbox; pips players show a 🏓 chip in the dropdown, selected
+  pill, and the match-list line. `AnalysisPanel` adds a **🏓 vs Pips** card.
+- **Data**: seeded 3 pips opponents — Tuấn gỗ (above), Ánh Loan (above), Khoa BB
+  Thanh Niên (equal). Committed `4ac9843`.
 
 ### 2026-06-09 — Video Analysis: live-verify fixes + qualitative tactical analysis
 Driven through the browser by the user; several real quality issues found and fixed,
