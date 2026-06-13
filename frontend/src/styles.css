@@ -3258,6 +3258,37 @@ input:focus {
   color: var(--muted);
   margin-top: 3px;
 }
+/* Expandable step-by-step "how to do it" guidance */
+.tc-ex-how {
+  margin-top: 6px;
+  font-size: 13px;
+}
+.tc-ex-how > summary {
+  cursor: pointer;
+  color: var(--accent, #2563eb);
+  font-weight: 600;
+  font-size: 12px;
+  list-style: none;
+  user-select: none;
+}
+.tc-ex-how > summary::-webkit-details-marker {
+  display: none;
+}
+.tc-ex-how > summary::before {
+  content: "▸ ";
+}
+.tc-ex-how[open] > summary::before {
+  content: "▾ ";
+}
+.tc-ex-how ol {
+  margin: 6px 0 2px;
+  padding-left: 20px;
+  color: var(--text, #1f2937);
+}
+.tc-ex-how li {
+  margin: 3px 0;
+  line-height: 1.4;
+}
 .tc-ex-rx {
   display: inline-block;
   margin-top: 5px;
@@ -3395,13 +3426,21 @@ input:focus {
   margin-bottom: 4px;
 }
 .tc-mini-row {
+  font-size: 13px;
+  padding: 2px 0;
+}
+.tc-mini-line {
   display: flex;
   justify-content: space-between;
-  font-size: 13px;
-  padding: 1px 0;
 }
 .tc-mini-target {
   color: var(--muted);
+}
+.tc-mini-how {
+  margin-top: 2px;
+}
+.tc-mini-how ol {
+  font-size: 12px;
 }
 
 /* Per-exercise actions (đổi bài / bỏ đau) + skipped state */

@@ -140,6 +140,7 @@ def _simple_ex(ex) -> schemas.SimpleExercise:
         per_side=ex.per_side,
         gif=ex.gif,
         form_cue=ex.form_cue,
+        how_to=program.how_to_for(ex.key),
     )
 
 
@@ -157,6 +158,7 @@ def _item_out(item: TrainingSessionItem, exclude: set[str]) -> schemas.ItemOut:
         per_side=ex.per_side if ex else False,
         gif=ex.gif if ex else "",
         form_cue=ex.form_cue if ex else "",
+        how_to=program.how_to_for(item.exercise_key),
         done=item.done,
         is_prescribed=item.is_prescribed,
         rx_reason=item.rx_reason,

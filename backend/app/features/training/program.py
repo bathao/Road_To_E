@@ -25,8 +25,8 @@ SAFETY_NOTE_VI = (
 DAY_TYPES = ("legs", "core", "balance")
 DAY_FOCUS_VI = {
     "legs": "Cơ đùi (ưu tiên) — khoẻ đùi để giảm tải gối",
-    "core": "Cơ lõi & xoay",
-    "balance": "Thăng bằng & giãn cơ",
+    "core": "Cơ lõi: xoay & kháng xoay",
+    "balance": "Thăng bằng · vai · cổ tay (bổ trợ TT, nhẹ gối)",
 }
 # A 6-session micro-cycle that PRIORITISES quads: legs 3/6, core 2/6, balance 1/6.
 # Quad-strengthening is the evidence-based priority for knee OA, so leg days come
@@ -142,7 +142,13 @@ _EX = [
              "reps", {"sets": 3, "reps": 15}, "legs", per_side=True,
              gif=_gif("inner_thigh_raise"),
              form_cue="Nằm nghiêng, chân trên gác ra trước, nâng chân dưới lên."),
-    # --- core: rotational + stability, no knee load ---
+    Exercise("hip_hinge", "Gập hông đứng (hip hinge)", "Đùi sau, mông, lưng dưới",
+             "Tạo lực từ chân–hông lên thân (chuỗi sau) cho cú giật mạnh; gối thẳng nên nhẹ khớp.",
+             "reps", {"sets": 3, "reps": 12}, "legs",
+             gif=_gif("hip_hinge"),
+             form_cue="Chân rộng bằng vai, GỐI HƠI MỀM (không gập sâu), đẩy MÔNG ra sau, lưng thẳng; "
+                      "cúi tới khi căng đùi sau rồi siết mông đứng dậy. Lực ở hông/đùi sau, KHÔNG ở gối."),
+    # --- core: rotational + anti-rotation + stability, no knee load ---
     Exercise("plank", "Plank", "Toàn bộ lõi",
              "Nền tảng ổn định thân khi đánh.",
              "timed", {"sets": 3, "sec": 30}, "core",
@@ -169,6 +175,25 @@ _EX = [
              "timed", {"sets": 3, "sec": 25}, "core", per_side=True,
              gif=_gif("side_plank"),
              form_cue="Thân thẳng một đường, hông không võng."),
+    Exercise("plank_knee_rotation", "Plank xoay hông qua lại", "Cơ liên sườn, lõi xoay, vai",
+             "Xoay lõi + vai vững cho lực xoáy cú giật. Tập trên cẳng tay nên gối KHÔNG chịu lực.",
+             "reps", {"sets": 2, "reps": 8}, "core", per_side=True,
+             gif=_gif("plank_knee_rotation"),
+             form_cue="Giữ plank cẳng tay vững, GỐI THẲNG; xoay hông cho hông/gối lật sang hai bên, "
+                      "từ tốn có kiểm soát. Trọng tâm ở cẳng tay + mũi chân, KHÔNG quỳ/dồn lên gối. "
+                      "Vai gánh lực đáng kể — dừng nếu vai hoặc gối khó chịu."),
+    Exercise("plank_shoulder_tap", "Plank chạm vai (kháng xoay)", "Lõi kháng xoay, vai",
+             "Giữ thân KHÔNG lắc khi tay hoạt động — đúng yêu cầu ổn định lúc vung vợt.",
+             "reps", {"sets": 3, "reps": 10}, "core", per_side=True,
+             gif=_gif("plank_shoulder_tap"),
+             form_cue="Plank cao (chống tay), GỐI THẲNG, chân mở rộng cho vững; lần lượt chạm tay lên "
+                      "vai đối diện mà HÔNG KHÔNG lắc. Lực ở tay + mũi chân, không dồn gối."),
+    Exercise("bird_dog", "Bird-dog (tay–chân chéo)", "Lõi sâu, mông, lưng (chuỗi sau)",
+             "Ổn định thân khi vươn người cứu bóng; phối hợp chéo tay–chân.",
+             "reps", {"sets": 3, "reps": 10}, "core", per_side=True,
+             gif=_gif("bird_dog"),
+             form_cue="Quỳ chống tay (KÊ ĐỆM/khăn gấp dưới gối), duỗi thẳng tay và chân ĐỐI DIỆN, "
+                      "giữ 2 giây rồi đổi bên; lưng phẳng, không võng. Cộm/đau gối thì đổi sang Dead Bug."),
     Exercise("bicycle_crunch", "Gập bụng xe đạp", "Bụng + lườn xoay",
              "Phối hợp xoay lõi liên tục như khi đôi công.",
              "reps", {"sets": 3, "reps": 20}, "core",
@@ -220,6 +245,31 @@ _EX = [
              "timed", {"sets": 3, "sec": 40}, "balance", per_side=True,
              gif=_gif("single_leg_eyes_closed"),
              form_cue="Như đứng một chân nhưng nhắm mắt; đứng cạnh tường để bám."),
+    # --- upper body / wrist / mobility: TT-specific, all knee-safe (đứng/nằm) ---
+    Exercise("wall_pushup", "Chống đẩy vào tường", "Ngực, vai, tay sau",
+             "Sức & sức bền tay–vai cho cú đánh ổn định; đứng nên KHÔNG tải gối.",
+             "reps", {"sets": 3, "reps": 12}, "balance",
+             gif=_gif("wall_pushup"),
+             form_cue="Đứng cách tường một tầm tay, chống tay ngang vai, hạ người vào tường rồi đẩy ra; "
+                      "thân thẳng, gối thẳng. Muốn nặng hơn thì đứng xa tường hơn."),
+    Exercise("wrist_curl", "Cuộn & xoay cổ tay (cẳng tay)", "Cẳng tay, cổ tay",
+             "Cổ tay khoẻ & linh hoạt = ma sát/độ XOÁY tốt hơn ở cú giật, gò.",
+             "reps", {"sets": 3, "reps": 15}, "balance", per_side=True,
+             gif=_gif("wrist_curl"),
+             form_cue="Ngồi, cẳng tay tựa đùi, cầm vật nhẹ (chai nước): cuộn cổ tay lên–xuống rồi "
+                      "xoay trong–ngoài chậm rãi. Nhẹ nhàng, không đau cổ tay."),
+    Exercise("scapular_yt", "Nằm sấp nâng tay (chữ Y–T)", "Vai sau, cơ bả vai, lưng trên",
+             "Vai khoẻ & đúng tư thế → bền vai, ít chấn thương khi đánh nhiều.",
+             "reps", {"sets": 3, "reps": 12}, "balance",
+             gif=_gif("scapular_yt"),
+             form_cue="Nằm sấp, trán tựa nhẹ, nâng hai tay khỏi sàn theo hình chữ Y rồi chữ T, "
+                      "siết bả vai; KHÔNG nhún vai lên tai. Không tải gối."),
+    Exercise("thoracic_rotation", "Xoay ngực (mở sách)", "Linh hoạt ngực – lườn",
+             "Tăng biên độ xoay thân → cú giật/bạt vươn xa & mượt hơn.",
+             "reps", {"sets": 2, "reps": 10}, "balance", per_side=True,
+             gif=_gif("thoracic_rotation"),
+             form_cue="Nằm nghiêng, hai gối co chồng nhau (KHÔNG tải lực), hai tay duỗi trước; mở tay "
+                      "trên xoay ngực ra sau như mở trang sách, mắt theo tay. Nhẹ nhàng; ngồi xoay cũng được."),
     # --- warm-up (gentle knee mobility before the session; not counted) ---
     Exercise("knee_mobility", "Làm nóng gối (gập–duỗi nhẹ)", "Khớp gối (làm nóng)",
              "Làm trơn khớp gối trước khi tập, giảm cứng.",
@@ -249,32 +299,245 @@ def cooldown_exercises() -> list[Exercise]:
     return [EXERCISES[k] for k in COOLDOWN_KEYS if k in EXERCISES]
 
 
+# Step-by-step "how to do it" for each exercise (Vietnamese), shown in the
+# expandable "Hướng dẫn chi tiết" on the card. Kept here (not on the Exercise
+# rows) so the dataclass calls stay readable and all instructions live together.
+HOW_TO: dict[str, tuple[str, ...]] = {
+    # --- legs ---
+    "quad_set": (
+        "Ngồi hoặc nằm, chân tập duỗi thẳng trên sàn.",
+        "Siết cơ đùi trước, ép mặt sau gối xuống sàn.",
+        "Giữ ~5 giây rồi thả lỏng. Lặp lại.",
+    ),
+    "short_arc_quad": (
+        "Nằm/ngồi, kê cuộn khăn (hoặc gối ôm) dưới khoeo chân.",
+        "Giữ đùi trên khăn, duỗi thẳng cẳng chân lên.",
+        "Giữ 2 giây rồi hạ chậm. Biên độ NHỎ, không đau.",
+    ),
+    "straight_leg_raise": (
+        "Nằm ngửa, một chân co (bàn chân đặt sàn), chân tập duỗi thẳng.",
+        "Siết đùi, nâng chân thẳng lên ~30–40 cm.",
+        "Giữ 1–2 giây, hạ chậm. Gối LUÔN thẳng.",
+    ),
+    "side_leg_raise": (
+        "Nằm nghiêng, hai chân duỗi thẳng chồng lên nhau.",
+        "Nâng chân trên thẳng lên (sang ngang), không gập gối.",
+        "Hạ chậm. Không lăn người ra sau. Đổi bên.",
+    ),
+    "prone_leg_raise": (
+        "Nằm sấp, hai chân duỗi.",
+        "Siết mông, nâng một chân thẳng khỏi sàn biên độ nhỏ.",
+        "Giữ 1–2 giây, hạ. Không ưỡn lưng. Đổi bên.",
+    ),
+    "wall_sit_shallow": (
+        "Tựa lưng vào tường, hai chân bước ra trước.",
+        "Trượt xuống cho gối cong NÔNG (không tới 90°).",
+        "Giữ, thở đều. Đau gối thì đứng cao hơn.",
+    ),
+    "glute_bridge": (
+        "Nằm ngửa, hai gối co, bàn chân đặt sàn rộng bằng hông.",
+        "Siết mông nâng hông thành đường thẳng vai–hông–gối.",
+        "Giữ 1–2 giây, hạ chậm. Không ưỡn lưng.",
+    ),
+    "calf_raise": (
+        "Đứng thẳng, vịn ghế/tường nếu cần.",
+        "Nhón cả hai gót lên cao hết mức.",
+        "Hạ gót chậm. Lặp lại.",
+    ),
+    "mini_squat": (
+        "Đứng chân rộng bằng vai, vịn ghế nếu cần.",
+        "Đẩy mông ra sau, cong gối NÔNG ~30°.",
+        "Đứng dậy siết mông. Gối không vượt mũi chân.",
+    ),
+    "lateral_toe_steps": (
+        "Nhón nhẹ trên mũi chân, gối hơi mềm.",
+        "Bước ngang sang phải vài bước rồi sang trái.",
+        "Nhẹ nhàng, KHÔNG khuỵu gối sâu, không nhảy.",
+    ),
+    "single_leg_glute_bridge": (
+        "Nằm ngửa như cầu mông, duỗi thẳng một chân lên.",
+        "Siết mông nâng hông bằng chân trụ còn lại.",
+        "Giữ hông NGANG (không lệch), hạ chậm. Đổi bên.",
+    ),
+    "lateral_lunge": (
+        "Đứng chân rộng, vịn ghế nếu cần.",
+        "Dồn trọng tâm sang một chân, đẩy mông ra sau, gối theo hướng mũi chân.",
+        "Giữ NÔNG rồi đẩy về giữa. Không xuống sâu. Đổi bên.",
+    ),
+    "inner_thigh_raise": (
+        "Nằm nghiêng, chân trên co gác ra trước mặt.",
+        "Chân dưới duỗi thẳng, nâng lên khỏi sàn.",
+        "Hạ chậm. Đổi bên.",
+    ),
+    "hip_hinge": (
+        "Đứng chân rộng bằng vai, gối HƠI MỀM (không gập sâu).",
+        "Đẩy MÔNG ra sau, gập người tới, lưng thẳng, tới khi căng đùi sau.",
+        "Siết mông đứng dậy. Lực ở hông/đùi sau, KHÔNG ở gối.",
+    ),
+    # --- core ---
+    "plank": (
+        "Chống hai khuỷu tay xuống sàn (dưới vai), mũi chân chống.",
+        "Siết bụng + mông, thân thẳng MỘT đường.",
+        "Giữ, thở đều. Lưng không võng, mông không chổng.",
+    ),
+    "crunch": (
+        "Nằm ngửa, gối co, tay đỡ nhẹ sau đầu (không đan chặt).",
+        "Cuộn vai lên khỏi sàn bằng cơ bụng — KHÔNG kéo cổ.",
+        "Hạ chậm. Lặp lại.",
+    ),
+    "dead_bug": (
+        "Nằm ngửa, hai tay vươn lên trần, hai gối co 90° (tư thế cái bàn).",
+        "Ép lưng SÁT sàn; hạ tay và chân ĐỐI DIỆN xuống gần sàn.",
+        "Đưa về, đổi bên. Lưng luôn sát sàn.",
+    ),
+    "double_leg_lift_hold": (
+        "Nằm ngửa, ép lưng sát sàn, hai tay xuôi cạnh người.",
+        "Nâng hai chân thẳng khỏi sàn vài chục cm.",
+        "GIỮ. Lưng cong/đau thì nâng chân cao hơn hoặc hơi co gối.",
+    ),
+    "side_plank": (
+        "Nằm nghiêng, chống một khuỷu tay ngay dưới vai.",
+        "Nâng hông lên, thân thẳng một đường.",
+        "Giữ, hông không võng. Đổi bên.",
+    ),
+    "plank_knee_rotation": (
+        "Vào plank cẳng tay, GỐI THẲNG, chân hơi rộng.",
+        "Xoay hông cho hông/gối lật chạm về sàn một bên.",
+        "Đổi bên, có kiểm soát. KHÔNG quỳ/dồn lên gối.",
+    ),
+    "plank_shoulder_tap": (
+        "Vào plank CAO (chống hai tay), gối thẳng, chân mở rộng cho vững.",
+        "Nhấc một tay chạm lên vai đối diện.",
+        "Đặt xuống, đổi tay. Giữ HÔNG không lắc.",
+    ),
+    "bird_dog": (
+        "Quỳ chống hai tay (KÊ ĐỆM dưới gối), lưng phẳng như mặt bàn.",
+        "Duỗi thẳng tay và chân ĐỐI DIỆN ra ngang thân.",
+        "Giữ 2 giây, thu về, đổi bên. Không võng lưng. (Cộm gối → đổi Dead Bug.)",
+    ),
+    "bicycle_crunch": (
+        "Nằm ngửa, tay đỡ sau đầu, hai chân nâng khỏi sàn.",
+        "Đưa khuỷu tay chạm gối ĐỐI DIỆN, chân kia duỗi ra.",
+        "Đổi bên liên tục như đạp xe, chậm và có kiểm soát.",
+    ),
+    "russian_twist": (
+        "Ngồi, gối co, hơi ngả người ra sau (lưng thẳng).",
+        "Xoay thân sang một bên (tay/vật chạm cạnh hông).",
+        "Xoay sang bên kia. Xoay từ LƯỜN, không giật cổ.",
+    ),
+    "standing_trunk_twist": (
+        "Đứng vững, chân rộng bằng vai, gối thẳng tự nhiên.",
+        "Hai tay đưa ngang, xoay thân sang trái.",
+        "Xoay sang phải. Xoay từ hông/lườn, hông giữ ổn định.",
+    ),
+    "wood_chop": (
+        "Đứng, hai tay nắm nhau (hoặc cầm vật nhẹ) đưa lên chéo một bên.",
+        "Vung chéo xuống phía hông ĐỐI DIỆN, xoay lườn theo.",
+        "Đưa lên lại, lặp; đổi bên. Gối chỉ hơi mềm, không khuỵu sâu.",
+    ),
+    # --- balance · upper body · wrist · mobility ---
+    "single_leg_balance": (
+        "Đứng thẳng cạnh điểm tựa (ghế/tường).",
+        "Nhấc một chân khỏi sàn, siết hông giữ thăng bằng.",
+        "Giữ. Bám tựa nếu loạng choạng. Đổi chân.",
+    ),
+    "single_leg_eyes_closed": (
+        "Đứng một chân cạnh tường để sẵn sàng bám.",
+        "Nhắm mắt, giữ thăng bằng bằng cảm nhận thân.",
+        "Giữ. Mở mắt/bám khi mất thăng bằng. Đổi chân.",
+    ),
+    "toe_stand_hold": (
+        "Đứng thẳng, vịn nếu cần.",
+        "Nhón cả hai gót lên cao.",
+        "GIỮ ở trên. Hạ chậm.",
+    ),
+    "gentle_bounce": (
+        "Đứng trên mũi chân, gối hơi mềm.",
+        "Nhún nhẹ tại chỗ, tiếp đất MỀM.",
+        "Giữ nhịp đều. KHÔNG nhảy cao.",
+    ),
+    "wall_pushup": (
+        "Đứng cách tường một tầm tay, chống hai tay lên tường ngang vai.",
+        "Cong khuỷu hạ người vào tường, thân giữ thẳng.",
+        "Đẩy người ra. Muốn nặng hơn thì đứng xa tường hơn.",
+    ),
+    "wrist_curl": (
+        "Ngồi, cẳng tay tựa lên đùi, bàn tay thò khỏi gối, cầm vật nhẹ (chai nước).",
+        "Cuộn cổ tay lên–xuống chậm vài lần.",
+        "Rồi xoay cổ tay trong–ngoài. Nhẹ nhàng. Đổi tay.",
+    ),
+    "scapular_yt": (
+        "Nằm sấp, trán tựa nhẹ, hai tay duỗi trước thành chữ Y.",
+        "Nâng hai tay khỏi sàn (giữ chữ Y), siết bả vai, rồi hạ.",
+        "Dang tay thành chữ T, nâng lên rồi hạ. KHÔNG nhún vai lên tai.",
+    ),
+    "thoracic_rotation": (
+        "Nằm nghiêng, hai gối co chồng nhau, hai tay duỗi thẳng trước mặt (chồng nhau).",
+        "Mở tay trên lên và ra sau, xoay NGỰC như mở trang sách, mắt theo tay.",
+        "Đưa tay về. Lặp rồi đổi bên. Nhẹ nhàng. (Ngồi xoay cũng được.)",
+    ),
+    "hamstring_stretch": (
+        "Ngồi/đứng, một chân duỗi thẳng.",
+        "Gập TỪ HÔNG tới khi căng nhẹ đùi sau, lưng thẳng.",
+        "Giữ, thở đều, KHÔNG nảy. Đổi bên.",
+    ),
+    "quad_stretch": (
+        "Đứng vịn tường một tay.",
+        "Gập một gối, tay kia kéo gót về phía mông NHẸ NHÀNG.",
+        "Giữ tới căng nhẹ đùi trước. Đổi bên.",
+    ),
+    "groin_stretch": (
+        "Ngồi, hai lòng bàn chân chạm nhau, kéo gần người.",
+        "Ấn nhẹ hai gối xuống tới khi căng nhẹ háng.",
+        "Giữ, thở đều, không nảy.",
+    ),
+    # --- warm-up ---
+    "knee_mobility": (
+        "Ngồi hoặc đứng vịn.",
+        "Gập–duỗi gối nhẹ nhàng trong biên độ thoải mái.",
+        "Xoay cổ chân vài vòng mỗi bên.",
+    ),
+    "march_in_place": (
+        "Đứng thẳng.",
+        "Giậm chân tại chỗ nhịp nhàng, nhấc đùi vừa phải.",
+        "Đánh tay nhẹ theo nhịp. KHÔNG bật nhảy.",
+    ),
+}
+
+
+def how_to_for(key: str) -> list[str]:
+    """Step-by-step instructions for an exercise (empty list if none)."""
+    return list(HOW_TO.get(key, ()))
+
+
 # Per-level, per-day-type session templates (3–4 exercises each). Progression is
 # by harder variants + more volume, never by adding impact.
 DAY_TEMPLATES: dict[str, dict[str, list[str]]] = {
     "foundation": {
-        # Quad-first: 3 quad moves + 1 hip accessory.
+        # Quad-first: quad/hip work; gentle intro of upper body on the balance day.
         "legs": ["quad_set", "straight_leg_raise", "short_arc_quad", "side_leg_raise",
                  "lateral_lunge"],
         "core": ["plank", "double_leg_lift_hold", "standing_trunk_twist", "crunch"],
-        "balance": ["single_leg_balance", "toe_stand_hold", "quad_stretch",
-                    "hamstring_stretch"],
+        "balance": ["single_leg_balance", "wall_pushup", "wrist_curl", "thoracic_rotation"],
     },
     "explosive": {
-        # Quad-led + glutes (lateral lunge) + isometric quad endurance.
-        "legs": ["short_arc_quad", "lateral_lunge", "glute_bridge",
-                 "wall_sit_shallow"],
-        "core": ["plank", "side_plank", "double_leg_lift_hold", "standing_trunk_twist"],
-        "balance": ["single_leg_balance", "gentle_bounce", "calf_raise",
-                    "groin_stretch"],
+        # Quad-led + posterior chain (hip hinge); core adds anti-rotation; upper body grows.
+        "legs": ["short_arc_quad", "lateral_lunge", "glute_bridge", "wall_sit_shallow",
+                 "hip_hinge"],
+        "core": ["plank_shoulder_tap", "bird_dog", "plank_knee_rotation",
+                 "standing_trunk_twist", "side_plank"],
+        "balance": ["single_leg_balance", "wall_pushup", "scapular_yt", "wrist_curl",
+                    "gentle_bounce"],
     },
     "tt_specific": {
-        # Functional quad/hip + lateral lunge (glutes) + low-impact footwork.
+        # Functional quad/hip + posterior chain + low-impact footwork; rotation-power core;
+        # advanced balance + shoulder/wrist/mobility.
         "legs": ["short_arc_quad", "single_leg_glute_bridge", "lateral_lunge",
-                 "lateral_toe_steps"],
-        "core": ["russian_twist", "wood_chop", "standing_trunk_twist", "side_plank"],
-        "balance": ["single_leg_eyes_closed", "gentle_bounce", "prone_leg_raise",
-                    "hamstring_stretch"],
+                 "lateral_toe_steps", "hip_hinge"],
+        "core": ["russian_twist", "wood_chop", "plank_knee_rotation", "plank_shoulder_tap",
+                 "standing_trunk_twist"],
+        "balance": ["single_leg_eyes_closed", "scapular_yt", "wrist_curl",
+                    "thoracic_rotation", "gentle_bounce"],
     },
 }
 

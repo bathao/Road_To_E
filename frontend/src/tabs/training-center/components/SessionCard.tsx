@@ -32,6 +32,16 @@ function ExerciseCard({
         </div>
         <div className="tc-ex-benefit">{item.tt_benefit}</div>
         {item.form_cue && <div className="tc-ex-cue">💡 {item.form_cue}</div>}
+        {item.how_to.length > 0 && (
+          <details className="tc-ex-how">
+            <summary>📋 Hướng dẫn chi tiết</summary>
+            <ol>
+              {item.how_to.map((s, i) => (
+                <li key={i}>{s}</li>
+              ))}
+            </ol>
+          </details>
+        )}
         {item.is_prescribed && (
           <div className="tc-ex-rx">
             🎯 HLV chỉ định{item.rx_reason ? ` — ${item.rx_reason}` : ""}
@@ -85,10 +95,22 @@ function MiniList({ title, items }: { title: string; items: SimpleExercise[] }) 
       <div className="tc-mini-title">{title}</div>
       {items.map((e) => (
         <div key={e.exercise_key} className="tc-mini-row">
-          <span>{e.name_vi}</span>
-          <span className="tc-mini-target">
-            {formatTarget(e.target, e.per_side)}
-          </span>
+          <div className="tc-mini-line">
+            <span>{e.name_vi}</span>
+            <span className="tc-mini-target">
+              {formatTarget(e.target, e.per_side)}
+            </span>
+          </div>
+          {e.how_to.length > 0 && (
+            <details className="tc-ex-how tc-mini-how">
+              <summary>📋 Hướng dẫn</summary>
+              <ol>
+                {e.how_to.map((s, i) => (
+                  <li key={i}>{s}</li>
+                ))}
+              </ol>
+            </details>
+          )}
         </div>
       ))}
     </div>

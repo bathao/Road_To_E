@@ -43,16 +43,26 @@ Core (lõi + xoay lườn):
 - `dead_bug.gif`
 - `double_leg_lift_hold.gif` (nằm ngửa nâng hai chân & giữ — đùi + bụng)
 - `side_plank.gif`
+- `plank_knee_rotation.gif` (plank xoay hông qua lại — lõi xoay + vai, gối thẳng)
+- `plank_shoulder_tap.gif`  (plank chạm vai — kháng xoay + vai)
+- `bird_dog.gif`            (tay–chân chéo — lõi sâu, chuỗi sau; kê đệm gối)
 - `bicycle_crunch.gif`
 - `russian_twist.gif`
 - `standing_trunk_twist.gif` (đứng xoay lườn)
 - `wood_chop.gif`            (xoay chéo lườn — đốn củi)
 
-Balance & recovery:
+Legs — posterior chain:
+- `hip_hinge.gif`           (gập hông đứng — đùi sau/mông, gối thẳng)
+
+Balance · vai · cổ tay · linh hoạt (bổ trợ TT, nhẹ gối):
 - `single_leg_balance.gif`   (đứng một chân)
 - `toe_stand_hold.gif`       (đứng nhón chân giữ)
 - `single_leg_eyes_closed.gif`
 - `gentle_bounce.gif`        (nhún nhẹ trên mũi chân)
+- `wall_pushup.gif`          (chống đẩy vào tường — ngực/vai/tay)
+- `wrist_curl.gif`           (cuộn & xoay cổ tay — cẳng tay, độ xoáy)
+- `scapular_yt.gif`          (nằm sấp nâng tay Y–T — vai sau/bả vai)
+- `thoracic_rotation.gif`    (xoay ngực "mở sách" — linh hoạt thân)
 - `groin_stretch.gif`
 - `hamstring_stretch.gif`
 - `quad_stretch.gif`

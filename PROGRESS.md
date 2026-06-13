@@ -11,6 +11,29 @@ physical program (day-by-day, see below). Stack: FastAPI + SQLite backend, React
 **Python 3.12** (mediapipe ships no 3.13 wheels); `start.bat` builds it with
 `py -3.12`.
 
+> **Resume (2026-06-13, newest).** Expanded & polished the **Training Center** program
+> + a project-wide cleanup pass. Exercises now **39** (was ~28):
+>   - **New knee-safe, TT-specific moves.** Legs: *lateral lunge* (chùng chân ngang,
+>     light 2×8), *hip hinge* (chuỗi sau). Core: *plank xoay hông*, *plank chạm vai*
+>     (kháng xoay), *bird-dog*. Filled the big gap — **upper body / shoulder / wrist /
+>     mobility** (the program was lower-body+core heavy, weak for a stroke sport):
+>     *chống đẩy tường*, *nằm sấp Y–T*, **cuộn/xoay cổ tay** (độ xoáy), *xoay ngực
+>     mở sách*. The **balance day** was re-themed "Thăng bằng · vai · cổ tay" to hold
+>     the upper-body work — **legs stay 3/6** (knee mandate untouched). Heavier moves
+>     gated to levels 2–3.
+>   - **Step-by-step instructions for ALL 39 exercises** — a `HOW_TO` dict in
+>     `program.py` (`how_to_for()` → schemas/service → `how_to` field), shown as an
+>     expandable "📋 Hướng dẫn chi tiết" (`<details>`) on each card + warm-up/cool-down.
+>   - **Dedicated pose SVGs** for the 8 new moves (`frontend/public/exercises/poses/`),
+>     mapped in `constants.ts` `POSE` (was reusing generic figures).
+>   - **Cleanup / refactor** (committed earlier this session): removed dead
+>     `LEVEL_RANK` + the unused `Exercise.level_min` field (`DAY_TEMPLATES` is the sole
+>     source of what appears per level); `_get_row`→public `get_session_row`; full
+>     audit of all features → dropped dead `analyzer.run_pose/pose_track` (111 lines),
+>     deduped `_utcnow`, removed unused `APP_PORT`, profile uses shared `pct()`; dropped
+>     the orphan `tracker_day_rating` table.
+>   - **Ops:** restart backend + `npm run build` (frontend changed) to see it.
+>
 > **Resume (2026-06-13, latest).** Shipped **Tab 6 "Training Center"** — the Tier-1
 > *training-load* specialist — and **live-verified** it (user completed Day 1, sync
 > confirmed). Committed: `8322470` (feature) + `c884525` (DB w/ the first session).
@@ -275,7 +298,8 @@ top Resume note for the shipped state.
 - **Program (`program.py`, static).** ~15 exercises (TT-relevant: rotational core,
   lateral legs, split-step, single-leg balance; no chest/biceps) each with a
   table-tennis benefit + form cue; 3 levels (Foundation→Explosive→TT-Specific),
-  21-session programs, day-cycle Legs→Core→Balance, exercises gated by `level_min`.
+  21-session programs, day-cycle Legs→Core→Balance, exercises chosen per level by
+  `DAY_TEMPLATES` (later expanded to 39 exercises + per-exercise `HOW_TO` steps).
 - **Progression.** BetterMe-style sequential unlock (finish Day N → unlock Day N+1;
   finish a level → unlock the next). No demotion / re-locking (we trust the user).
   day_index is decoupled from the weekday calendar (no streak resets).

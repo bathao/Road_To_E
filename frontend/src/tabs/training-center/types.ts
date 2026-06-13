@@ -26,6 +26,7 @@ export interface SimpleExercise {
   per_side: boolean;
   gif: string;
   form_cue: string;
+  how_to: string[];
 }
 
 export interface SessionItem {
@@ -39,6 +40,7 @@ export interface SessionItem {
   per_side: boolean;
   gif: string;
   form_cue: string;
+  how_to: string[];
   done: boolean;
   is_prescribed: boolean;
   rx_reason: string | null;

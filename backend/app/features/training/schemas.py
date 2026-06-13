@@ -23,6 +23,7 @@ class SimpleExercise(BaseModel):
     per_side: bool
     gif: str
     form_cue: str
+    how_to: list[str] = []
 
 
 class ItemOut(BaseModel):
@@ -36,6 +37,7 @@ class ItemOut(BaseModel):
     per_side: bool
     gif: str
     form_cue: str
+    how_to: list[str] = []
     done: bool
     is_prescribed: bool
     rx_reason: str | None = None
