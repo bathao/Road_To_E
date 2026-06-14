@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { videoApi } from "../api";
-import type { Profile, ProfileImage, ProfileIn } from "../types";
+import type { IdentityStatus, Profile, ProfileImage, ProfileIn } from "../types";
 
 interface Props {
   profile: Profile;
@@ -35,10 +35,43 @@ export default function ProfilePanel({
   const [draft, setDraft] = useState<Profile>(profile);
   const [editing, setEditing] = useState(false);
   const [addingImage, setAddingImage] = useState(false);
+  // Reference image shown enlarged in a lightbox (null = closed).
+  const [zoomed, setZoomed] = useState<number | null>(null);
+  // Face/body identity enrollment.
+  const [idStatus, setIdStatus] = useState<IdentityStatus | null>(null);
+  const [enrolling, setEnrolling] = useState(false);
+  const [enrollErr, setEnrollErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    videoApi.identityStatus().then(setIdStatus).catch(() => setIdStatus(null));
+  }, []);
+
+  const enroll = async () => {
+    setEnrolling(true);
+    setEnrollErr(null);
+    try {
+      await videoApi.enrollIdentity();
+      setIdStatus(await videoApi.identityStatus());
+    } catch (e) {
+      setEnrollErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setEnrolling(false);
+    }
+  };
 
   useEffect(() => {
     setDraft(profile);
   }, [profile]);
+
+  // Close the lightbox on Escape.
+  useEffect(() => {
+    if (zoomed === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setZoomed(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [zoomed]);
 
   const set = (patch: Partial<Profile>) => setDraft((d) => ({ ...d, ...patch }));
 
@@ -64,6 +97,7 @@ export default function ProfilePanel({
   };
 
   return (
+    <>
     <section className="va-card va-profile">
       <div className="va-card-head">
         <h3>👤 Hồ sơ: {profile.name}</h3>
@@ -116,6 +150,45 @@ export default function ProfilePanel({
       )}
 
       <div className="va-card-head va-mt">
+        <h4>🧬 Nhận diện khuôn mặt (ArcFace)</h4>
+        <button className="btn primary" disabled={enrolling} onClick={enroll}>
+          {enrolling ? "Đang ghi danh…" : "Ghi danh lại"}
+        </button>
+      </div>
+      <p className="va-muted">
+        Thả ảnh chân dung rõ mặt vào folder <code>data/identity/me/</code> rồi bấm
+        “Ghi danh lại”. Hệ thống học mặt bạn, tự lọc kho ảnh (giữ ảnh khớp, bỏ
+        người khác), và tự nhận diện bạn trong clip mới — đỡ phải vẽ khung tay.
+      </p>
+      {idStatus && (
+        <div className="va-id-status">
+          <div>
+            Trạng thái:{" "}
+            {idStatus.enrolled ? (
+              <b className="va-ok">đã ghi danh ✓</b>
+            ) : (
+              <b className="va-warn">chưa ghi danh</b>
+            )}{" "}
+            · ảnh mốc trong folder: <b>{idStatus.anchor_files}</b>
+          </div>
+          {idStatus.anchor_files === 0 && (
+            <div className="va-warn">
+              ⚠️ Chưa có ảnh mốc nào. Copy ảnh chân dung của bạn vào{" "}
+              <code>{idStatus.anchor_dir}</code> trước.
+            </div>
+          )}
+          {idStatus.meta?.status === "ok" && (
+            <div className="va-muted">
+              Lần ghi danh gần nhất: {idStatus.meta.anchors} ảnh mốc · giữ{" "}
+              {idStatus.meta.kept_from_gallery} / bỏ {idStatus.meta.rejected_from_gallery}{" "}
+              ảnh kho · {idStatus.meta.identity_face_samples} mẫu mặt.
+            </div>
+          )}
+        </div>
+      )}
+      {enrollErr && <div className="va-warn">⚠️ {enrollErr}</div>}
+
+      <div className="va-card-head va-mt">
         <h4>Ảnh nhận diện ({images.length})</h4>
         <button className="btn" disabled={addingImage} onClick={addImage}>
           {addingImage ? "Đang mở…" : "📁 Thêm ảnh"}
@@ -129,7 +202,12 @@ export default function ProfilePanel({
         <div className="va-ref-grid">
           {images.map((img) => (
             <div key={img.id} className="va-ref-item">
-              <img src={videoApi.profileImageUrl(img.id)} alt="ref" />
+              <img
+                src={videoApi.profileImageUrl(img.id)}
+                alt="ref"
+                title="Double-click để phóng to"
+                onDoubleClick={() => setZoomed(img.id)}
+              />
               <button className="va-x va-ref-x" title="Xóa" onClick={() => onDeleteImage(img.id)}>×</button>
             </div>
           ))}
@@ -169,5 +247,13 @@ export default function ProfilePanel({
         })}
       </div>
     </section>
+
+    {zoomed !== null && (
+      <div className="va-lightbox" onClick={() => setZoomed(null)}>
+        <img src={videoApi.profileImageUrl(zoomed)} alt="ảnh nhận diện phóng to" />
+        <button className="va-lightbox-close" title="Đóng (Esc)" onClick={() => setZoomed(null)}>×</button>
+      </div>
+    )}
+    </>
   );
 }

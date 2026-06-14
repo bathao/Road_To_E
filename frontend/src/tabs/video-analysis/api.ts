@@ -5,6 +5,8 @@ import type {
   ClipType,
   FindingDecision,
   Focus,
+  IdentityEnroll,
+  IdentityStatus,
   ModelHealth,
   Profile,
   ProfileImage,
@@ -31,6 +33,10 @@ export const videoApi = {
     api.post<ProfileImage>("/video/profile/images", { local_path }),
   deleteProfileImage: (id: number) => api.del<void>(`/video/profile/images/${id}`),
   profileImageUrl: (id: number) => apiUrl(`/video/profile/images/${id}/file`),
+
+  // ---- face/body identity (ArcFace enrollment) ----
+  identityStatus: () => api.get<IdentityStatus>("/video/identity/status"),
+  enrollIdentity: () => api.post<IdentityEnroll>("/video/identity/enroll", {}),
 
   // ---- profile ----
   getProfile: () => api.get<Profile>("/video/profile"),

@@ -2,7 +2,36 @@
 
 ## Current status (2026-06-14)
 
-> **Resume (2026-06-14, newest).** Built **Tab 7 "HLV trưởng" (Head Coach) — the
+> **Resume (2026-06-14, latest).** Fixed the long-standing **player-identity**
+> problem ("which one is Thảo") in Video Analysis — the old VLM-guess approach was
+> unreliable, forcing a hand-drawn box on every clip. New embedding-based engine
+> `video_analysis/identity.py`:
+>   - **Face (primary):** InsightFace (RetinaFace + ArcFace `buffalo_l`, 512-d, CPU
+>     via onnxruntime). **Body re-ID (fallback):** torchvision ResNet-50 appearance
+>     embedding (for frames with no clear face). Models download once, then offline.
+>   - **Enroll needs a trusted anchor:** clean portraits in `data/identity/me/`. The
+>     auto-collected `profile_refs/` gallery was provably polluted (faces clustered
+>     into ~15 identities, mean pairwise sim 0.18). `enroll()` keeps only gallery
+>     crops whose face matches the anchor → auto-cleans the dataset. Embeddings
+>     cached in `data/identity/identity.npz`.
+>   - **Verified on real data:** user dropped **39 portraits** (internal consistency
+>     0.705). Enroll kept 10–12 matching crops, rejected the rest. **Identified Thảo
+>     in 10/10 existing clips** (confidence 0.59–0.91). Thresholds tuned to
+>     ENROLL_MATCH 0.40 / IDENTIFY_FACE 0.45 (true matches 0.59+, opponents <0.35).
+>   - **Wired into `detect_clip`:** face identity runs first → auto-sets the side;
+>     only falls back to the VLM/manual box when not confident. Endpoints
+>     `GET/POST /api/video/identity/{status,enroll}`; "Ghi danh lại" button + status
+>     in the profile panel. Also added a **double-click lightbox** on reference
+>     thumbnails.
+>   - **Deps:** `insightface`, `onnxruntime`, `scikit-image==0.24.0`; numpy kept <2
+>     (insightface tried to pull numpy 2, which breaks mediapipe — re-pinned).
+>   - **DB cleanup (uncommitted):** user wiped all `va_trait` (rough analysis) + the
+>     polluted gallery (removed 18 wrong-person + 8 no-face crops → 12 clean Thảo
+>     images). The identity photos/npz are gitignored.
+>   - **Open:** user to **live-verify the auto-detected side** is correct on a real
+>     clip in the app; body-re-ID path is built but not yet exercised end-to-end.
+
+> **Resume (2026-06-14, earlier).** Built **Tab 7 "HLV trưởng" (Head Coach) — the
 > Tier-2 brain, Phase 1.** This is the north-star module: a single STRICT personal
 > coach for Nguyễn Bá Thảo that **consumes** the specialist reports (no re-collecting)
 > and synthesises a holistic verdict + plan. Design in

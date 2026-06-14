@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.core.db import SessionLocal
 from app.core.settings import PROFILE_REFS_DIR, VIDEOS_DIR
-from app.features.video_analysis import analyzer, schemas
+from app.features.video_analysis import analyzer, identity, schemas
 from app.features.video_analysis.models import (
     VAAnalysis,
     VAClip,
@@ -593,23 +593,40 @@ def detect_clip(clip_id: int, model: str | None) -> None:
                     + (f", {clip.me_appearance}" if clip.me_appearance else "")
                 )
             else:
-                det = analyzer.detect_subject(
-                    clip.stored_path, reference_images_b64=refs,
-                    me_side=clip.me_side, me_appearance=clip.me_appearance,
-                    handed=profile.handed, model=model,
-                )
-                side = det.get("side", "unknown")
-                ok = bool(det.get("identified")) and side in _CONCRETE_SIDES
-                clip.identified = ok
-                clip.subject_desc = (det.get("subject") or "")[:500] or None
-                if ok:
+                # 1) Embedding-based identity (face) — strong + automatic.
+                #    Replaces the fragile VLM guess when the player is enrolled.
+                emb_id = None
+                try:
+                    emb_id = identity.identify_clip(clip.stored_path)
+                except Exception:
+                    emb_id = None
+                if emb_id and emb_id.get("found") and emb_id.get("side") in _CONCRETE_SIDES:
+                    side = emb_id["side"]
+                    clip.identified = True
                     clip.me_side = side
-                    if det.get("appearance") and not clip.me_appearance:
-                        clip.me_appearance = det["appearance"][:200]
-                if not ok:
-                    clip.status = "needs_id"
-                    db.commit()
-                    return
+                    clip.subject_desc = (
+                        f"(tự nhận diện khuôn mặt · tin cậy {emb_id.get('confidence')}) "
+                        f"phía {side}"
+                    )
+                else:
+                    # 2) Fallback: VLM guess → may still need the user's help.
+                    det = analyzer.detect_subject(
+                        clip.stored_path, reference_images_b64=refs,
+                        me_side=clip.me_side, me_appearance=clip.me_appearance,
+                        handed=profile.handed, model=model,
+                    )
+                    side = det.get("side", "unknown")
+                    ok = bool(det.get("identified")) and side in _CONCRETE_SIDES
+                    clip.identified = ok
+                    clip.subject_desc = (det.get("subject") or "")[:500] or None
+                    if ok:
+                        clip.me_side = side
+                        if det.get("appearance") and not clip.me_appearance:
+                            clip.me_appearance = det["appearance"][:200]
+                    if not ok:
+                        clip.status = "needs_id"
+                        db.commit()
+                        return
         except Exception as exc:
             clip.status = "error"
             clip.error_msg = str(exc)[:1000]

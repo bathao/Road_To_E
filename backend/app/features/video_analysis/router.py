@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
-from app.features.video_analysis import analyzer, schemas, service
+from app.features.video_analysis import analyzer, identity, schemas, service
 
 router = APIRouter(prefix="/api/video", tags=["video_analysis"])
 
@@ -15,6 +15,23 @@ router = APIRouter(prefix="/api/video", tags=["video_analysis"])
 @router.get("/health/model", response_model=schemas.ModelHealthOut)
 def model_health():
     return analyzer.check_models()
+
+
+# --------------------------------------------------------------- identity
+@router.get("/identity/status")
+def identity_status():
+    """Enrollment status: is the player enrolled, how many anchor photos, last meta."""
+    return identity.status()
+
+
+@router.post("/identity/enroll")
+def identity_enroll():
+    """(Re)build the face/body identity from anchor portraits + auto-clean the
+    gallery. Slow on first run (downloads models). Returns enrollment stats."""
+    try:
+        return identity.enroll()
+    except Exception as e:  # noqa: BLE001 — surface a readable error to the GUI
+        raise HTTPException(status_code=500, detail=f"Lỗi ghi danh: {e}")
 
 
 # ----------------------------------------------------------------- profile

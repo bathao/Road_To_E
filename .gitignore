@@ -24,6 +24,14 @@ backend/data/profile_refs/
 backend/data/models/*
 !backend/data/models/roi_seg.pt
 
+# ---- Player identity (ArcFace enrollment) ----
+# Raw portrait photos + the cached embeddings are personal/regenerable; keep the
+# folder (via README) but not its contents. Re-enroll to rebuild identity.npz.
+backend/data/identity/me/*
+!backend/data/identity/me/README.txt
+backend/data/identity/identity.npz
+backend/data/identity/enroll_meta.json
+
 # ---- Node / frontend ----
 frontend/node_modules/
 frontend/dist/

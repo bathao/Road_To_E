@@ -2177,6 +2177,43 @@ input:focus {
   object-fit: cover;
   border-radius: 6px;
   border: 1px solid var(--border);
+  cursor: zoom-in;
+}
+
+/* Lightbox: double-click a reference thumbnail to view it enlarged. */
+.va-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+}
+.va-lightbox img {
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+}
+.va-lightbox-close {
+  position: absolute;
+  top: 18px;
+  right: 24px;
+  width: 40px;
+  height: 40px;
+  font-size: 24px;
+  line-height: 1;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.va-lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .va-ref-x {
@@ -3802,3 +3839,20 @@ input:focus {
   color: #556;
 }
 .hc-meta { margin-top: 14px; color: #99a; font-size: 12px; }
+
+/* Identity enrollment status (Video Analysis profile panel). */
+.va-id-status {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+.va-id-status code,
+.va-card p code {
+  background: #eef0f3;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+.va-ok { color: #1a7f37; }
+.va-warn { color: #a4540a; }

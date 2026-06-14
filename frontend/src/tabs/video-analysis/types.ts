@@ -234,3 +234,25 @@ export interface ModelHealth {
   default_available: boolean;
   message: string;
 }
+
+// Face/body identity enrollment (ArcFace).
+export interface IdentityEnrollMeta {
+  status: string; // ok | no_anchor
+  anchors?: number;
+  anchor_files?: number;
+  kept_from_gallery?: number;
+  rejected_from_gallery?: number;
+  gallery_noface?: number;
+  identity_face_samples?: number;
+  identity_body_samples?: number;
+  rejected_sample?: string[];
+}
+
+export interface IdentityStatus {
+  enrolled: boolean;
+  anchor_dir: string;
+  anchor_files: number;
+  meta?: IdentityEnrollMeta;
+}
+
+export type IdentityEnroll = IdentityEnrollMeta;
