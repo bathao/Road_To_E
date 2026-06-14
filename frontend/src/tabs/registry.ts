@@ -7,6 +7,7 @@ import MatchStats from "./match-stats";
 import VideoAnalysis from "./video-analysis";
 import PlayerProfile from "./profile";
 import TrainingCenter from "./training-center";
+import HeadCoach from "./head-coach";
 
 export interface TabDef {
   id: string;
@@ -17,6 +18,13 @@ export interface TabDef {
 }
 
 export const TABS: TabDef[] = [
+  {
+    id: "head-coach",
+    label: "HLV trưởng",
+    icon: "🧠",
+    component: HeadCoach,
+    enabled: true,
+  },
   {
     id: "daily-tracker",
     label: "Daily Tracker",

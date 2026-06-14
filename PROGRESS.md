@@ -1,12 +1,43 @@
 # Progress Log — Table Tennis Coach
 
-## Current status (2026-06-13)
+## Current status (2026-06-14)
 
-**Six tabs in place.** Tab 1 "Daily Tracker" feature-complete; Tab 2 "Tactical
+> **Resume (2026-06-14, newest).** Built **Tab 7 "HLV trưởng" (Head Coach) — the
+> Tier-2 brain, Phase 1.** This is the north-star module: a single STRICT personal
+> coach for Nguyễn Bá Thảo that **consumes** the specialist reports (no re-collecting)
+> and synthesises a holistic verdict + plan. Design in
+> `backend/app/features/head_coach/HEAD_COACH_PLAN.md`.
+>   - **Consumer, in-process.** `gather_bundle()` calls the four specialists' own
+>     service functions directly (`video_service.build_report`, `training_service.report`,
+>     `tracker_service.build_stats` over a 90-day window, `playbook_service.list_tactics`)
+>     — no HTTP. Only `accepted` video findings reach it (VA already gates).
+>   - **Model = `qwen3:14b`** (text-only reasoning, no VLM). New `HEAD_COACH_MODEL`
+>     settings knob; called like `synthesize_skills` (Ollama `/api/chat`, JSON `format`
+>     schema, num_ctx 16384, temp 0.3). Verified end-to-end: ~52s, sharp data-grounded
+>     output (cites real win-rate/pose/training numbers). `gpt-oss:20b` & `qwen2.5:32b`
+>     are also pulled locally as upgrade options — swap the knob.
+>   - **Persona:** strict personal coach — problem-first, no flattery, issues measurable
+>     "tăng cường" directives (train more / more playing hours / more matches singles-
+>     doubles-pips / sharpen skill), in-match tactic suggestions, a knee-safe week plan,
+>     and watch-items flagging thin/stale data.
+>   - **Output** persisted as snapshots in `hc_assessment` (latest = current verdict);
+>     generated **on-demand** (button), tab reads the latest saved snapshot — it does NOT
+>     re-run on load. Endpoints: `POST /api/head-coach/generate`, `GET /assessment`,
+>     `GET /sources`. New frontend tab `tabs/head-coach/` (icon 🧠, placed first).
+>   - **Phase 2/3 (deferred):** review/confirm gate + snapshot history; then write-back
+>     (drive Training-Center prescriptions, push tactics into the Playbook).
+>   - **Open thread:** the user wiped all `va_trait` (strengths/weaknesses) + the stale
+>     `overall_summary` + the test `hc_assessment` snapshot to start fresh ("phân tích
+>     nhám") — will re-analyse clips. **Next: go fix the Video Analysis tab** (per the
+>     user). NOTE: the DB deletions were left UNCOMMITTED (recoverable from HEAD).
+>   - **Ops:** restart backend (new code) + `npm run build` (done) to see the tab.
+
+**Seven tabs in place.** Tab 1 "Daily Tracker" feature-complete; Tab 2 "Tactical
 Playbook" v1; Tab 3 "Match Stats" (named-opponent analytics); Tab 4 "Video
 Analysis" — local-AI clip analysis (now **motion-aware**, see below); Tab 5
 "Profile" — a read-only player dashboard; Tab 6 "Training Center" — off-table
-physical program (day-by-day, see below). Stack: FastAPI + SQLite backend, React
+physical program (day-by-day, see below); Tab 7 "HLV trưởng" (Head Coach) — the
+Tier-2 brain (Phase 1, see newest Resume note). Stack: FastAPI + SQLite backend, React
 + Vite + TS frontend, served on one port by `start.bat`. The backend venv is
 **Python 3.12** (mediapipe ships no 3.13 wheels); `start.bat` builds it with
 `py -3.12`.

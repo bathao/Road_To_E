@@ -1,0 +1,257 @@
+"""Head Coach service: gather the specialist reports, synthesise the verdict.
+
+The Head Coach is a *consumer*. It calls the Tier-1 specialists' own service
+functions in-process (never HTTP), assembles a compact bundle, asks the local
+text model for a strict holistic verdict + plan, and persists the result as a
+snapshot. See HEAD_COACH_PLAN.md.
+"""
+from __future__ import annotations
+
+import datetime as dt
+import json
+
+import httpx
+from sqlalchemy.orm import Session
+
+from app.core.settings import HEAD_COACH_MODEL, OLLAMA_BASE_URL
+from app.features.head_coach import schemas
+from app.features.head_coach.models import HeadCoachAssessment
+from app.features.head_coach.prompt import RESPONSE_SCHEMA, SYSTEM_PROMPT
+from app.features.playbook import service as playbook_service
+from app.features.tracker import service as tracker_service
+from app.features.training import service as training_service
+from app.features.video_analysis import service as video_service
+
+# Window used for the match / training-load stats fed to the coach.
+_STATS_WINDOW_DAYS = 90
+
+_ASPECT_VI = {
+    "serve": "Giao bóng",
+    "receive": "Đỡ giao bóng",
+    "forehand": "Phải tay (FH)",
+    "backhand": "Trái tay (BH)",
+    "footwork": "Di chuyển/bộ chân",
+    "stance_posture": "Tư thế",
+    "tactics": "Chiến thuật",
+    "mental": "Tâm lý",
+    "physical": "Thể lực",
+}
+
+
+# ---------------------------------------------------------------- gather inputs
+def gather_bundle(db: Session) -> schemas.SourceSummary:
+    """Assemble a compact, human-readable snapshot of all four specialists."""
+    today = dt.date.today()
+    date_from = today - dt.timedelta(days=_STATS_WINDOW_DAYS)
+
+    video = video_service.build_report(db)
+    training = training_service.report(db)
+    stats = tracker_service.build_stats(db, date_from, today)
+    tactics = playbook_service.list_tactics(db)
+
+    video_sum = {
+        "player": video.name,
+        "handed": video.handed,
+        "grip": video.grip,
+        "style": video.style,
+        "overall_summary": video.overall_summary or "",
+        "clips_reviewed": video.clips_reviewed,
+        "findings_accepted": video.findings_accepted,
+        "skills": [
+            {
+                "aspect": _ASPECT_VI.get(s.aspect, s.aspect),
+                "rating": s.rating,
+                "status": s.status,
+                "assessment": s.assessment or "",
+                "priority": s.priority,
+            }
+            for s in video.skills
+        ],
+        "strengths": video.strengths,
+        "weaknesses": video.weaknesses,
+        "improvement_priorities": video.improvement_priorities,
+        "metric_trends": [
+            {"label": m.label, "trend": m.trend, "pct": m.pct} for m in video.metric_trends
+        ],
+    }
+
+    training_sum = {
+        "level": training.current_level_vi,
+        "total_sessions_done": training.total_sessions_done,
+        "sessions_last_7d": training.sessions_last_7d,
+        "sessions_last_30d": training.sessions_last_30d,
+        "days_since_last": training.days_since_last,
+        "current_streak": training.current_streak,
+        "intensity_bias": training.intensity_bias,
+        "muscle_volume": {mv.muscle: mv.times for mv in training.muscle_volume},
+        "summary": training.summary_vi,
+    }
+
+    def _ms(m) -> dict:
+        return {"played": m.total, "wins": m.wins, "losses": m.losses, "win_rate": m.win_rate}
+
+    match_sum = {
+        "window_days": _STATS_WINDOW_DAYS,
+        "days_trained": stats.days_trained,
+        "days_physical": stats.days_physical,
+        "minutes_total": stats.minutes_total,
+        "minutes_by_category": {c.label: c.minutes for c in stats.minutes_by_category},
+        "overall": _ms(stats.overall),
+        "singles": _ms(stats.singles),
+        "doubles": _ms(stats.doubles),
+        "vs_pips": _ms(stats.vs_pips),
+    }
+
+    tactics_sum = {
+        "count": len(tactics),
+        "favorites": [t.title for t in tactics if t.is_favorite][:10],
+        "titles": [t.title for t in tactics][:25],
+    }
+
+    return schemas.SourceSummary(
+        video=video_sum,
+        training=training_sum,
+        match=match_sum,
+        tactics=tactics_sum,
+        generated_for_range=f"{date_from.isoformat()} → {today.isoformat()}",
+    )
+
+
+def _bundle_to_text(b: schemas.SourceSummary) -> str:
+    """Render the bundle into the Vietnamese context block fed to the model."""
+    v, t, m, tac = b.video, b.training, b.match, b.tactics
+
+    skills_lines = "\n".join(
+        f"  - {s['aspect']}: "
+        f"{'điểm ' + str(s['rating']) + '/10' if s.get('rating') is not None else 'chưa chấm'}, "
+        f"trạng thái {s['status']}"
+        f"{' — ' + s['assessment'] if s.get('assessment') else ''}"
+        for s in v.get("skills", [])
+    ) or "  (chưa có dữ liệu kỹ năng)"
+
+    strengths = "; ".join(v.get("strengths", [])) or "(chưa ghi nhận)"
+    weaknesses = "; ".join(v.get("weaknesses", [])) or "(chưa ghi nhận)"
+    trends = "; ".join(
+        f"{mt['label']} {mt['trend']}" for mt in v.get("metric_trends", [])
+    ) or "(chưa đủ dữ liệu)"
+
+    def _wr(d: dict) -> str:
+        wr = d.get("win_rate")
+        wr_s = f"{round(wr * 100)}%" if wr is not None else "—"
+        return f"{d['played']} trận (T{d['wins']}/B{d['losses']}, thắng {wr_s})"
+
+    minutes_cat = "; ".join(f"{k}: {v_}p" for k, v_ in m.get("minutes_by_category", {}).items()) or "—"
+    muscle = "; ".join(f"{k}×{v_}" for k, v_ in t.get("muscle_volume", {}).items()) or "—"
+
+    return (
+        f"=== HỒ SƠ KỸ THUẬT (từ phân tích video, đã duyệt {v.get('findings_accepted', 0)} "
+        f"nhận xét / {v.get('clips_reviewed', 0)} clip) ===\n"
+        f"Vận động viên: {v.get('player')} — thuận tay {v.get('handed')}, vợt {v.get('grip')}, "
+        f"lối đánh {v.get('style') or 'chưa rõ'}.\n"
+        f"Tóm tắt hiện có: {v.get('overall_summary') or '(chưa có)'}\n"
+        f"Kỹ năng theo mảng:\n{skills_lines}\n"
+        f"Điểm mạnh: {strengths}\nĐiểm yếu: {weaknesses}\nXu hướng chỉ số: {trends}\n\n"
+        f"=== THỂ LỰC (Training Center) ===\n"
+        f"Cấp độ: {t.get('level')}; tổng buổi đã xong: {t.get('total_sessions_done')}; "
+        f"7 ngày: {t.get('sessions_last_7d')} buổi; 30 ngày: {t.get('sessions_last_30d')} buổi; "
+        f"chuỗi hiện tại: {t.get('current_streak')} ngày; "
+        f"số ngày từ buổi gần nhất: {t.get('days_since_last')}; "
+        f"điều chỉnh cường độ: {t.get('intensity_bias')}.\n"
+        f"Khối lượng theo nhóm cơ: {muscle}\n"
+        f"Tự nhận xét tuần: {t.get('summary')}\n\n"
+        f"=== TẬP & THI ĐẤU ({m.get('window_days')} ngày gần nhất) ===\n"
+        f"Số ngày tập: {m.get('days_trained')}; ngày thể lực: {m.get('days_physical')}; "
+        f"tổng thời lượng: {m.get('minutes_total')} phút ({minutes_cat}).\n"
+        f"Đơn: {_wr(m.get('singles', {}))}\n"
+        f"Đôi: {_wr(m.get('doubles', {}))}\n"
+        f"Gặp đối thủ gai: {_wr(m.get('vs_pips', {}))}\n"
+        f"Tổng các trận: {_wr(m.get('overall', {}))}\n\n"
+        f"=== SỔ TAY CHIẾN THUẬT ===\n"
+        f"Đang lưu {tac.get('count')} chiến thuật"
+        f"{'; tâm đắc: ' + ', '.join(tac.get('favorites', [])) if tac.get('favorites') else ''}.\n"
+    )
+
+
+# ---------------------------------------------------------------- synthesise
+def _call_model(context_text: str) -> dict:
+    user_text = (
+        "Dưới đây là TOÀN BỘ số liệu hiện có về học trò Nguyễn Bá Thảo. Hãy đọc kỹ, "
+        "đánh giá NGHIÊM KHẮC dựa trên số liệu, rồi đưa ra kết luận + kế hoạch.\n\n"
+        f"{context_text}\n"
+        "Yêu cầu trả về (tiếng Việt, đúng JSON schema):\n"
+        "- overall_assessment: 3-5 câu, nêu vấn đề trước, trích số liệu cụ thể.\n"
+        "- top_priorities: 3-5 ưu tiên xếp theo mức cấp thiết (kèm 'why' và 'source').\n"
+        "- directives: mệnh lệnh TĂNG CƯỜNG đo được (area ∈ training/playing_hours/"
+        "matches/skill/tactics/recovery; kèm target số cụ thể và reason từ số liệu).\n"
+        "- tactics: 2-4 đề xuất chiến thuật áp dụng trong trận (situation → action).\n"
+        "- week_plan: kế hoạch 1 tuần, mỗi ngày có focus + detail (gắn với tập thể lực "
+        "và bài sửa điểm yếu; nhớ giới hạn an toàn đầu gối).\n"
+        "- watch_items: cảnh báo (dữ liệu mỏng/cũ, an toàn, điều cần theo dõi)."
+    )
+    payload = {
+        "model": HEAD_COACH_MODEL,
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_text},
+        ],
+        "stream": False,
+        "format": RESPONSE_SCHEMA,
+        "options": {"temperature": 0.3, "num_ctx": 16384},
+    }
+    resp = httpx.post(f"{OLLAMA_BASE_URL}/api/chat", json=payload, timeout=600.0)
+    resp.raise_for_status()
+    content = resp.json().get("message", {}).get("content", "{}")
+    return json.loads(content) if content else {}
+
+
+def generate(db: Session) -> schemas.AssessmentOut:
+    """Gather → synthesise → persist a new verdict snapshot, and return it."""
+    bundle = gather_bundle(db)
+    data = _call_model(_bundle_to_text(bundle))
+
+    row = HeadCoachAssessment(
+        model=HEAD_COACH_MODEL,
+        overall_assessment=data.get("overall_assessment", ""),
+        top_priorities_json=json.dumps(data.get("top_priorities", []), ensure_ascii=False),
+        directives_json=json.dumps(data.get("directives", []), ensure_ascii=False),
+        tactics_json=json.dumps(data.get("tactics", []), ensure_ascii=False),
+        week_plan_json=json.dumps(data.get("week_plan", []), ensure_ascii=False),
+        watch_items_json=json.dumps(data.get("watch_items", []), ensure_ascii=False),
+        sources_json=bundle.model_dump_json(),
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return _to_out(row)
+
+
+def _to_out(row: HeadCoachAssessment) -> schemas.AssessmentOut:
+    return schemas.AssessmentOut(
+        id=row.id,
+        created_at=row.created_at,
+        model=row.model,
+        overall_assessment=row.overall_assessment,
+        top_priorities=[schemas.Priority(**p) for p in json.loads(row.top_priorities_json)],
+        directives=[schemas.Directive(**d) for d in json.loads(row.directives_json)],
+        tactics=[schemas.TacticSuggestion(**t) for t in json.loads(row.tactics_json)],
+        week_plan=[schemas.PlanDay(**d) for d in json.loads(row.week_plan_json)],
+        watch_items=json.loads(row.watch_items_json),
+        sources=schemas.SourceSummary(**json.loads(row.sources_json)),
+    )
+
+
+def get_latest(db: Session) -> schemas.AssessmentOut:
+    """The most recent verdict, or an `empty` placeholder if none generated yet."""
+    row = (
+        db.query(HeadCoachAssessment)
+        .order_by(HeadCoachAssessment.created_at.desc())
+        .first()
+    )
+    if row is None:
+        return schemas.AssessmentOut(empty=True)
+    return _to_out(row)
+
+
+def live_sources(db: Session) -> schemas.SourcesOut:
+    """The current bundle without calling the AI — transparency / debug view."""
+    return schemas.SourcesOut(sources=gather_bundle(db))

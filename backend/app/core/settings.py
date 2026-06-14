@@ -25,6 +25,13 @@ OLLAMA_BASE_URL = "http://localhost:11434"
 DEFAULT_VLM_MODEL = "qwen3-vl:8b"
 # Text-only model used to synthesise the living profile summaries from traits.
 DEFAULT_TEXT_MODEL = "qwen3:14b"
+# Tier-2 Head Coach ("HLV trưởng"). A text-only reasoning task: it reads the
+# already-distilled specialist reports (no images) and synthesises a holistic,
+# strict verdict + plan in Vietnamese. qwen3:14b fits the 16GB GPU comfortably
+# (~9-10GB at Q4, leaving room for context) and has a thinking mode for the
+# multi-source reasoning. Swap here to try a larger reasoner (e.g. gpt-oss:20b,
+# qwen3:30b-a3b) if synthesis quality proves insufficient.
+HEAD_COACH_MODEL = "qwen3:14b"
 
 # Optional TrackNet-style ball-detection ONNX model (Phase 4 / NC1). When this
 # file exists AND onnxruntime is importable, ball tracking uses the CNN; otherwise
