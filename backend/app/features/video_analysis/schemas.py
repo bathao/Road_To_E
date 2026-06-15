@@ -1,4 +1,4 @@
-"""Pydantic schemas for the Video Analysis API."""
+"""Pydantic schemas for the Technique Analysis API (text intake, date-stamped)."""
 from __future__ import annotations
 
 import datetime as dt
@@ -21,10 +21,10 @@ ASPECTS = [
 # findings, not a skill to rate).
 SKILL_ASPECTS = [a for a in ASPECTS if a != "other"]
 POLARITIES = ["strength", "weakness", "neutral"]
-# Drill focus — steers the analysis prompt. "" / "free" = no steer.
-FOCUS_VALUES = ["", "serve_practice", "footwork_drill", "rally", "match", "free"]
 FINDING_STATUSES = ["proposed", "accepted", "rejected"]
 SKILL_STATUSES = ["strength", "weakness", "improving", "needs_work", "neutral"]
+# The footage setting: tập luyện/khởi động vs thi đấu trận thật.
+SETTINGS = ["practice", "match"]
 
 
 # ----------------------------------------------------------------- profile
@@ -73,11 +73,9 @@ class TraitOut(BaseModel):
     polarity: str
     text: str
     ai_text: str | None = None
-    confidence: float | None
-    t_ref: float | None = None
-    evidence: dict | None = None
+    confidence: float | None = None
     status: str = "proposed"
-    source_clip_id: int | None
+    source_report_id: int | None = None
     created_at: dt.datetime
 
 
@@ -88,7 +86,7 @@ class TraitIn(BaseModel):
     confidence: float | None = None
 
 
-# --------------------------------------------------------- review a clip
+# --------------------------------------------------------- review findings
 class FindingDecisionIn(BaseModel):
     """One reviewed finding: keep it (accept) or drop it (reject), optionally
     with user edits to the text/aspect/polarity."""
@@ -110,6 +108,7 @@ class SkillOut(BaseModel):
 
     id: int
     aspect: str
+    setting: str
     rating: int | None
     status: str
     assessment: str
@@ -126,25 +125,77 @@ class SkillIn(BaseModel):
     priority: int | None = None
 
 
-# --------------------------------------------------- progress / metric trends
-class MetricTrend(BaseModel):
-    """A pose/stroke metric compared to the player's own baseline (Phase 3)."""
+# --------------------------------------------------------------- reports
+class ReportCreateIn(BaseModel):
+    """Paste an analysis produced elsewhere, tagged with the date + setting."""
 
-    name: str
-    label: str
-    unit: str = ""
-    current: float
-    baseline: float
-    delta: float
-    pct: float | None = None
-    better: str = "neutral"  # up | down | neutral — which direction is improvement
-    trend: str = "flat"      # improved | declined | flat | changed
-    samples: int = 0         # how many earlier clips formed the baseline
+    source_text: str
+    analysis_date: dt.date | None = None  # default today; backdatable; not future
+    setting: str = "practice"  # practice | match
+    title: str = ""
+    context: str = ""
+
+
+class AnalysisReportOut(BaseModel):
+    """A pasted-analysis entry (the list/detail item)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    analysis_date: dt.date
+    setting: str
+    title: str
+    context: str
+    source_text: str
+    model: str
+    status: str
+    error_msg: str | None = None
+    reviewed_at: dt.datetime | None = None
+    created_at: dt.datetime
+
+
+class AnalysisReportDetailOut(AnalysisReportOut):
+    traits: list[TraitOut] = []
+
+
+# ----------------------------------------- progress over time (for the Coach)
+class SkillPoint(BaseModel):
+    analysis_date: dt.date
+    rating: int | None = None
+    status: str = "neutral"
+
+
+class SkillHistory(BaseModel):
+    aspect: str
+    setting: str = "practice"
+    points: list[SkillPoint] = []
+
+
+class FindingPoint(BaseModel):
+    analysis_date: dt.date
+    aspect: str
+    polarity: str
+    text: str
+    setting: str = "practice"  # practice | match
+
+
+class AspectSettingStat(BaseModel):
+    """How an aspect looks in practice vs in real matches — the gap the player
+    cares about (good in training, weaker under match pressure)."""
+
+    aspect: str
+    practice_strengths: int = 0
+    practice_weaknesses: int = 0
+    match_strengths: int = 0
+    match_weaknesses: int = 0
+    practice_samples: list[str] = []  # a few example findings (practice)
+    match_samples: list[str] = []     # a few example findings (match)
 
 
 # --------------------------------------------------- structured player report
 class SkillReportItem(BaseModel):
     aspect: str
+    setting: str
     rating: int | None
     status: str
     assessment: str
@@ -153,7 +204,7 @@ class SkillReportItem(BaseModel):
 
 
 class ReportOut(BaseModel):
-    """The systematic, machine-readable view of the player a future module reads."""
+    """The systematic, machine-readable view of the player the Head Coach reads."""
 
     name: str
     handed: str
@@ -164,105 +215,13 @@ class ReportOut(BaseModel):
     strengths: list[str] = []
     weaknesses: list[str] = []
     improvement_priorities: list[str] = []
-    metric_trends: list[MetricTrend] = []
-    clips_reviewed: int = 0
+    # Development over time:
+    skill_history: list[SkillHistory] = []        # per-aspect dated ratings
+    findings_timeline: list[FindingPoint] = []    # dated accepted findings
+    # Practice vs match contrast (per aspect).
+    practice_vs_match: list[AspectSettingStat] = []
+    reports_reviewed: int = 0
     findings_accepted: int = 0
-
-
-# ------------------------------------------------------------------- clips
-class AnalysisOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    clip_id: int
-    model: str
-    language: str
-    summary: str
-    raw: dict  # parsed raw_json
-    pose: dict  # parsed pose_json
-    ball: dict = {}  # ball/table tracking (parsed ball_json)
-    progress: list[MetricTrend] = []  # this clip's metrics vs the player's baseline
-    created_at: dt.datetime
-
-
-class ClipOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    original_name: str
-    clip_type: str
-    focus: str = ""
-    title: str
-    note: str | None
-    duration_sec: float | None
-    fps: float | None
-    frames_sampled: int | None
-    width: int | None
-    height: int | None
-    model: str
-    status: str
-    error_msg: str | None
-    created_at: dt.datetime
-    processing_started_at: dt.datetime | None = None
-    reviewed_at: dt.datetime | None = None
-    me_side: str = ""
-    me_appearance: str = ""
-    subject_desc: str | None = None
-    identified: bool = True
-
-
-class ClipDetailOut(ClipOut):
-    analysis: AnalysisOut | None = None
-    traits: list[TraitOut] = []
-
-
-class ClipCreateIn(BaseModel):
-    """Create a clip from a file already on disk (local-only tool). When a trim
-    range is given, only the cut segment is kept."""
-
-    local_path: str
-    clip_type: str = "training"
-    focus: str = ""
-    title: str = ""
-    note: str | None = None
-    model: str | None = None
-    trim_start: str | None = None
-    trim_end: str | None = None
-    me_side: str = ""
-    me_appearance: str = ""
-
-
-class ReanalyzeIn(BaseModel):
-    model: str | None = None  # override the VLM model for this run
-
-
-class IdentifyIn(BaseModel):
-    """User-supplied identity for a clip the model couldn't place."""
-
-    me_side: str = ""
-    me_appearance: str = ""
-
-
-# ------------------------------------------------------------ profile images
-class ProfileImageOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    source_clip_id: int | None
-    created_at: dt.datetime
-
-
-class ProfileImageIn(BaseModel):
-    local_path: str
-
-
-class CropBoxIn(BaseModel):
-    """A user-drawn bounding box, normalised to 0..1 of the frame."""
-
-    x: float
-    y: float
-    w: float
-    h: float
 
 
 # ------------------------------------------------------------------ health

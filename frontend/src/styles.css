@@ -2893,6 +2893,186 @@ input:focus {
   line-height: 1.55;
 }
 
+/* ---------------- Technique Analysis: paste + reports + review ------------- */
+.va-analyze-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 920px;
+}
+.va-paste-area {
+  width: 100%;
+  margin-top: 10px;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.5;
+}
+.va-row-end {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.va-report-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.va-report-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.va-report-item:hover {
+  background: var(--surface);
+}
+.va-report-item.active {
+  border-color: var(--accent);
+  background: var(--today);
+}
+.va-report-main {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+.va-report-date {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.va-report-title {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.va-report-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.va-st-chip {
+  font-size: 12px;
+}
+.va-st-processing { color: var(--accent-dark); }
+.va-st-await { color: #a4540a; }
+.va-st-done { color: #1a7f37; }
+.va-st-error { color: #b42318; }
+
+.va-link {
+  background: none;
+  border: none;
+  color: var(--accent-dark);
+  cursor: pointer;
+  font: inherit;
+  padding: 4px 0;
+}
+.va-source-text {
+  white-space: pre-wrap;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  max-height: 240px;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.va-review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+.va-review-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.va-review-row.va-dropped {
+  opacity: 0.5;
+}
+.va-review-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.va-review-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Footage setting chip (practice vs match) */
+.va-set-chip {
+  font-size: 12px;
+  font-weight: 700;
+}
+.va-set-practice { color: var(--accent-dark); }
+.va-set-match { color: #b42318; }
+
+/* Practice-vs-match contrast list */
+.va-pvm-list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+.va-pvm-list li {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+.va-pvm-gap {
+  background: #fff4ed;
+}
+.va-pvm-name { font-weight: 600; }
+.va-pvm-cell { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.va-pvm-flag { color: #b42318; font-size: 12px; white-space: nowrap; }
+.va-pvm-cell .va-strength { color: #1a7f37; }
+.va-pvm-cell .va-weakness { color: #b42318; }
+
+/* Per-setting skill rows (practice vs match under one aspect) */
+.va-skill-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+.va-skill-setting {
+  padding-left: 10px;
+  border-left: 3px solid var(--border);
+}
+.va-skill-setname {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.prof-skill-seg {
+  margin-bottom: 10px;
+}
+
 /* ---------------- Analysis progress ---------------- */
 .va-progress {
   margin: 4px 0 10px;
@@ -3692,6 +3872,19 @@ input:focus {
   background: var(--today);
   color: var(--accent-dark);
   font-weight: 700;
+}
+.tc-fb-date {
+  font: inherit;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+.tc-fb-hint {
+  font-size: 13px;
+  color: var(--accent-dark);
+  margin-top: 6px;
 }
 .tc-fb-warn {
   font-size: 13px;

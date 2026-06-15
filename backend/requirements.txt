@@ -3,25 +3,9 @@ uvicorn[standard]==0.34.0
 SQLAlchemy==2.0.36
 openpyxl==3.1.5
 pydantic==2.10.4
-# Video Analysis tab: HTTP client for local Ollama, multipart uploads,
-# frame decoding + pose estimation. (Pinned for Python 3.12; mediapipe has no
-# 3.13 wheels yet — start.bat builds the venv with py -3.12.)
+# HTTP client for the local Ollama text model (Technique Analysis parsing +
+# Head Coach synthesis). The Technique Analysis tab no longer processes video,
+# so the old CV stack (opencv, mediapipe, ultralytics/torch, insightface,
+# onnxruntime, scikit-image) was removed — analysis text is produced elsewhere
+# and pasted in.
 httpx==0.28.1
-python-multipart==0.0.20
-opencv-python==4.11.0.86
-mediapipe==0.10.21
-numpy==1.26.4
-# Phase 4 ball/table tracking: trained YOLOv8-seg table-ROI model (reused, the
-# user fine-tuned it). Pulls torch (CPU build suffices — table detection runs once
-# per clip). Lazy-loaded; the app still boots without it (table detection falls
-# back to classical colour segmentation). Weights live at data/models/roi_seg.pt.
-ultralytics==8.4.62
-# Player identity ("which one is Thảo"): InsightFace (RetinaFace + ArcFace
-# buffalo_l) for face recognition + onnxruntime to run it (CPU). The body-re-ID
-# fallback reuses the torchvision ResNet-50 that ultralytics' torch already
-# provides. Model files download once on first use, then run offline. numpy is
-# kept <2 (mediapipe requires it); scikit-image is pinned to the last <0.25 build
-# that supports numpy 1.x (insightface depends on it).
-insightface==1.0.1
-onnxruntime==1.26.0
-scikit-image==0.24.0

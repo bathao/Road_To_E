@@ -55,11 +55,12 @@ def gather_bundle(db: Session) -> schemas.SourceSummary:
         "grip": video.grip,
         "style": video.style,
         "overall_summary": video.overall_summary or "",
-        "clips_reviewed": video.clips_reviewed,
+        "reports_reviewed": video.reports_reviewed,
         "findings_accepted": video.findings_accepted,
         "skills": [
             {
                 "aspect": _ASPECT_VI.get(s.aspect, s.aspect),
+                "setting": s.setting,
                 "rating": s.rating,
                 "status": s.status,
                 "assessment": s.assessment or "",
@@ -70,8 +71,36 @@ def gather_bundle(db: Session) -> schemas.SourceSummary:
         "strengths": video.strengths,
         "weaknesses": video.weaknesses,
         "improvement_priorities": video.improvement_priorities,
-        "metric_trends": [
-            {"label": m.label, "trend": m.trend, "pct": m.pct} for m in video.metric_trends
+        # Development over time: per-aspect-and-setting rating history.
+        "skill_history": [
+            {
+                "aspect": _ASPECT_VI.get(h.aspect, h.aspect),
+                "setting": h.setting,
+                "points": [
+                    {"date": p.analysis_date.isoformat(), "rating": p.rating, "status": p.status}
+                    for p in h.points
+                ],
+            }
+            for h in video.skill_history
+        ],
+        "findings_timeline": [
+            {
+                "date": fp.analysis_date.isoformat(),
+                "aspect": _ASPECT_VI.get(fp.aspect, fp.aspect),
+                "polarity": fp.polarity,
+                "text": fp.text,
+                "setting": fp.setting,
+            }
+            for fp in video.findings_timeline
+        ],
+        # Practice vs real-match contrast per aspect (the in-match gap).
+        "practice_vs_match": [
+            {
+                "aspect": _ASPECT_VI.get(s.aspect, s.aspect),
+                "practice": f"{s.practice_strengths}↑/{s.practice_weaknesses}↓",
+                "match": f"{s.match_strengths}↑/{s.match_weaknesses}↓",
+            }
+            for s in video.practice_vs_match
         ],
     }
 
@@ -120,9 +149,11 @@ def gather_bundle(db: Session) -> schemas.SourceSummary:
 def _bundle_to_text(b: schemas.SourceSummary) -> str:
     """Render the bundle into the Vietnamese context block fed to the model."""
     v, t, m, tac = b.video, b.training, b.match, b.tactics
+    _setting_vi = {"practice": "TẬP", "match": "ĐẤU"}
 
+    # Skills are rated separately for practice vs match.
     skills_lines = "\n".join(
-        f"  - {s['aspect']}: "
+        f"  - {s['aspect']} [{_setting_vi.get(s.get('setting'), 'TẬP')}]: "
         f"{'điểm ' + str(s['rating']) + '/10' if s.get('rating') is not None else 'chưa chấm'}, "
         f"trạng thái {s['status']}"
         f"{' — ' + s['assessment'] if s.get('assessment') else ''}"
@@ -131,9 +162,36 @@ def _bundle_to_text(b: schemas.SourceSummary) -> str:
 
     strengths = "; ".join(v.get("strengths", [])) or "(chưa ghi nhận)"
     weaknesses = "; ".join(v.get("weaknesses", [])) or "(chưa ghi nhận)"
-    trends = "; ".join(
-        f"{mt['label']} {mt['trend']}" for mt in v.get("metric_trends", [])
-    ) or "(chưa đủ dữ liệu)"
+
+    # Development over time: for each (aspect, setting) with ≥2 dated rating
+    # points, show the first→latest movement (progress vs stagnation).
+    prog_lines = []
+    for h in v.get("skill_history", []):
+        pts = h.get("points", [])
+        if len(pts) >= 2 and pts[0].get("rating") is not None and pts[-1].get("rating") is not None:
+            first, last = pts[0], pts[-1]
+            arrow = "↑" if last["rating"] > first["rating"] else (
+                "↓" if last["rating"] < first["rating"] else "→")
+            prog_lines.append(
+                f"  - {h['aspect']} [{_setting_vi.get(h.get('setting'), 'TẬP')}]: "
+                f"{first['rating']}/10 ({first['date']}) "
+                f"{arrow} {last['rating']}/10 ({last['date']})"
+            )
+    trends = ("\n" + "\n".join(prog_lines)) if prog_lines else " (chưa đủ dữ liệu nhiều mốc)"
+
+    # The most recent dated findings (last 8) — what the latest analyses said,
+    # tagged with TẬP (practice) / ĐẤU (match).
+    timeline = v.get("findings_timeline", [])
+    recent_lines = "; ".join(
+        f"{fp['date']} ({_setting_vi.get(fp.get('setting'), 'TẬP')}) [{fp['aspect']}] {fp['text']}"
+        for fp in timeline[-8:]
+    ) or "(chưa có)"
+
+    # Practice-vs-match gap (↑ = nhận xét tốt, ↓ = nhận xét yếu).
+    pvm = v.get("practice_vs_match", [])
+    pvm_lines = "\n".join(
+        f"  - {s['aspect']}: khi TẬP {s['practice']} · khi ĐẤU {s['match']}" for s in pvm
+    ) or "  (chưa đủ dữ liệu để so sánh)"
 
     def _wr(d: dict) -> str:
         wr = d.get("win_rate")
@@ -144,13 +202,16 @@ def _bundle_to_text(b: schemas.SourceSummary) -> str:
     muscle = "; ".join(f"{k}×{v_}" for k, v_ in t.get("muscle_volume", {}).items()) or "—"
 
     return (
-        f"=== HỒ SƠ KỸ THUẬT (từ phân tích video, đã duyệt {v.get('findings_accepted', 0)} "
-        f"nhận xét / {v.get('clips_reviewed', 0)} clip) ===\n"
+        f"=== HỒ SƠ KỸ THUẬT (từ phân tích kỹ thuật, đã duyệt {v.get('findings_accepted', 0)} "
+        f"nhận xét / {v.get('reports_reviewed', 0)} bản phân tích) ===\n"
         f"Vận động viên: {v.get('player')} — thuận tay {v.get('handed')}, vợt {v.get('grip')}, "
         f"lối đánh {v.get('style') or 'chưa rõ'}.\n"
         f"Tóm tắt hiện có: {v.get('overall_summary') or '(chưa có)'}\n"
         f"Kỹ năng theo mảng:\n{skills_lines}\n"
-        f"Điểm mạnh: {strengths}\nĐiểm yếu: {weaknesses}\nXu hướng chỉ số: {trends}\n\n"
+        f"Điểm mạnh: {strengths}\nĐiểm yếu: {weaknesses}\n"
+        f"Tiến độ kỹ năng theo thời gian (điểm đầu → điểm gần nhất):{trends}\n"
+        f"CHÊNH LỆCH TẬP vs ĐẤU theo mảng:\n{pvm_lines}\n"
+        f"Nhận xét gần đây (theo ngày): {recent_lines}\n\n"
         f"=== THỂ LỰC (Training Center) ===\n"
         f"Cấp độ: {t.get('level')}; tổng buổi đã xong: {t.get('total_sessions_done')}; "
         f"7 ngày: {t.get('sessions_last_7d')} buổi; 30 ngày: {t.get('sessions_last_30d')} buổi; "
