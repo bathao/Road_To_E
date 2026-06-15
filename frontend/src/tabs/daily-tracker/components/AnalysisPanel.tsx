@@ -9,26 +9,16 @@ import { trackerApi } from "../api";
 import { fromIso as parseIso, prettyDate } from "../../../shared/dates";
 import type { Mode, Unit } from "../../../shared/period";
 import { chartUnitFor } from "../../../shared/period";
-import BarChart from "../../../shared/ui/BarChart";
 import type { Bar } from "../../../shared/ui/BarChart";
 import LineChart from "../../../shared/ui/LineChart";
 import { fmtMinutes, pct } from "../../../shared/format";
 
 // Metrics the comparison chart can plot.
-type MetricKey =
-  | "minutes"
-  | "matches"
-  | "wins"
-  | "win_rate"
-  | "days_trained"
-  | "days_physical";
+type MetricKey = "minutes" | "matches" | "days_physical";
 
 const METRICS: { key: MetricKey; label: string }[] = [
   { key: "minutes", label: "Training time" },
   { key: "matches", label: "Matches" },
-  { key: "wins", label: "Wins" },
-  { key: "win_rate", label: "Win rate" },
-  { key: "days_trained", label: "Days trained" },
   { key: "days_physical", label: "Physical days" },
 ];
 
@@ -59,18 +49,6 @@ function bucketBar(b: BreakdownBucket, metric: MetricKey): Bar {
     case "matches":
       value = b.matches;
       display = String(b.matches);
-      break;
-    case "wins":
-      value = b.wins;
-      display = `${b.wins}W`;
-      break;
-    case "win_rate":
-      value = b.win_rate === null ? 0 : Math.round(b.win_rate * 100);
-      display = pct(b.win_rate);
-      break;
-    case "days_trained":
-      value = b.days_trained;
-      display = String(b.days_trained);
       break;
     case "days_physical":
       value = b.days_physical;
@@ -152,15 +130,9 @@ export default function AnalysisPanel({
   const [buckets, setBuckets] = useState<BreakdownBucket[]>([]);
   const [packages, setPackages] = useState<CoachPackage[]>([]);
   const [metric, setMetric] = useState<MetricKey>("minutes");
-  const [chartType, setChartType] = useState<"bar" | "line">("line");
   const [error, setError] = useState<string | null>(null);
 
-  const chartUnit: Unit | null = chartUnitFor(
-    mode,
-    chartType,
-    fromIso,
-    rangeToIso
-  );
+  const chartUnit: Unit | null = chartUnitFor(mode, "line", fromIso, rangeToIso);
 
   const load = useCallback(async () => {
     if (fromIso > rangeToIso) {
@@ -258,20 +230,6 @@ export default function AnalysisPanel({
               <div className="comparison-head">
                 <div className="comparison-title">
                   <h3>Comparison {UNIT_TITLE[chartUnit]}</h3>
-                  <div className="seg">
-                    <button
-                      className={`seg-btn${chartType === "bar" ? " active" : ""}`}
-                      onClick={() => setChartType("bar")}
-                    >
-                      ▦ Columns
-                    </button>
-                    <button
-                      className={`seg-btn${chartType === "line" ? " active" : ""}`}
-                      onClick={() => setChartType("line")}
-                    >
-                      📈 Line
-                    </button>
-                  </div>
                 </div>
                 <div className="seg metric-seg">
                   {METRICS.map((m) => (
@@ -285,20 +243,14 @@ export default function AnalysisPanel({
                   ))}
                 </div>
               </div>
-              {chartType === "bar" ? (
-                <BarChart bars={buckets.map((b) => bucketBar(b, metric))} />
-              ) : (
-                <LineChart
-                  points={buckets.map((b) => bucketBar(b, metric))}
-                  formatY={(v) =>
-                    metric === "minutes"
-                      ? fmtMinutes(Math.round(v))
-                      : metric === "win_rate"
-                        ? `${Math.round(v)}%`
-                        : String(Math.round(v))
-                  }
-                />
-              )}
+              <LineChart
+                points={buckets.map((b) => bucketBar(b, metric))}
+                formatY={(v) =>
+                  metric === "minutes"
+                    ? fmtMinutes(Math.round(v))
+                    : String(Math.round(v))
+                }
+              />
             </div>
           )}
 
