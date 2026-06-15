@@ -13,20 +13,64 @@ const RPE: { key: Rpe; label: string }[] = [
   { key: "hard", label: "Khó" },
 ];
 
-// Asked after a session: knee pain + perceived effort. Drives autoregulation
-// (the next sessions adjust) and safety.
+// Local (not UTC) ISO date — avoids slipping a day near midnight.
+function localISO(d: Date): string {
+  const tz = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - tz).toISOString().slice(0, 10);
+}
+const TODAY = localISO(new Date());
+const YESTERDAY = localISO(new Date(Date.now() - 86400000));
+
+function dateLabel(iso: string): string {
+  if (iso === TODAY) return "Hôm nay";
+  if (iso === YESTERDAY) return "Hôm qua";
+  return iso;
+}
+
+// Asked after a session: which day it was trained (default today, can backdate
+// if logged late) + knee pain + perceived effort (drives autoregulation/safety).
 export default function FeedbackModal({
   onSubmit,
   onClose,
 }: {
-  onSubmit: (pain: Pain, rpe: Rpe) => void;
+  onSubmit: (pain: Pain, rpe: Rpe, doneOn: string) => void;
   onClose: () => void;
 }) {
   const [pain, setPain] = useState<Pain>("none");
   const [rpe, setRpe] = useState<Rpe>("medium");
+  const [doneOn, setDoneOn] = useState<string>(TODAY);
   return (
     <Modal title="Buổi tập thế nào?" onClose={onClose}>
       <div className="tc-fb">
+        <div className="tc-fb-group">
+          <div className="tc-fb-q">Tập ngày nào?</div>
+          <div className="tc-fb-opts">
+            <button
+              className={`tc-fb-opt${doneOn === TODAY ? " active" : ""}`}
+              onClick={() => setDoneOn(TODAY)}
+            >
+              Hôm nay
+            </button>
+            <button
+              className={`tc-fb-opt${doneOn === YESTERDAY ? " active" : ""}`}
+              onClick={() => setDoneOn(YESTERDAY)}
+            >
+              Hôm qua
+            </button>
+            <input
+              type="date"
+              className="tc-fb-date"
+              value={doneOn}
+              max={TODAY}
+              onChange={(e) => e.target.value && setDoneOn(e.target.value)}
+            />
+          </div>
+          {doneOn !== TODAY && (
+            <div className="tc-fb-hint">
+              Ghi cho <b>{dateLabel(doneOn)}</b> (tập trễ, track lại sau).
+            </div>
+          )}
+        </div>
         <div className="tc-fb-group">
           <div className="tc-fb-q">Khớp gối có đau không?</div>
           <div className="tc-fb-opts">
@@ -63,7 +107,7 @@ export default function FeedbackModal({
         )}
         <button
           className="btn primary tc-fb-save"
-          onClick={() => onSubmit(pain, rpe)}
+          onClick={() => onSubmit(pain, rpe, doneOn)}
         >
           Lưu & hoàn thành buổi
         </button>

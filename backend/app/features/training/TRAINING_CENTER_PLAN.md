@@ -7,7 +7,12 @@ auto-syncs into the Daily Tracker so the user sees it in one place and (b) is re
 later by the Tier-2 **Head Coach** to make training decisions. It does *not* give the
 final verdict — it produces evidence, like every other specialist.
 
-> Status: **design only, not implemented.** Decisions below were agreed with the user.
+> Status: **implemented & in use.** Backend (models / schemas / service / router /
+> program config), frontend tab (header, day grid, session detail, feedback modal),
+> tracker integration, `GET /report`, and adaptive prescription are all live.
+> Beyond the original plan: per-session **pain/RPE feedback → autoregulation**,
+> exercise **substitution**, and **backdated logging** (`done_on` — train earlier,
+> log later; clamped to today). Decisions below were agreed with the user.
 
 ---
 

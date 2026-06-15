@@ -371,12 +371,25 @@ def complete_session(
     note: str | None,
     pain: str | None = None,
     rpe: str | None = None,
+    done_on: dt.date | None = None,
 ) -> schemas.SessionOut:
-    """Mark a session done, stamp the date, record feedback + autoregulate."""
+    """Mark a session done, stamp the date, record feedback + autoregulate.
+
+    ``done_on`` lets the user backdate a session trained earlier but logged
+    later (e.g. trained yesterday, ticked today). Defaults to today; a future
+    date is clamped to today.
+    """
+    today = dt.date.today()
+    when = done_on if (done_on is not None and done_on <= today) else today
     session = _materialise(db, level, day_index)
     session.status = "done"
-    session.done_on = dt.date.today()
-    session.completed_at = dt.datetime.now()
+    session.done_on = when
+    # Keep completed_at consistent with the trained date: now() if it's today,
+    # else end-of-day on the backdated date (it's only a record, not used in logic).
+    session.completed_at = (
+        dt.datetime.now() if when == today
+        else dt.datetime.combine(when, dt.time(23, 59))
+    )
     if note is not None:
         session.note = note
     session.pain = pain

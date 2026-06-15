@@ -141,11 +141,15 @@ export default function TrainingCenter() {
     }
   };
 
-  const submitFeedback = async (pain: Pain, rpe: Rpe) => {
+  const submitFeedback = async (pain: Pain, rpe: Rpe, doneOn: string) => {
     if (!detail) return;
     try {
       setAskFeedback(false);
-      await trainingApi.complete(detail.level, detail.day_index, { pain, rpe });
+      await trainingApi.complete(detail.level, detail.day_index, {
+        pain,
+        rpe,
+        done_on: doneOn,
+      });
       await load();
     } catch (e) {
       fail(e);

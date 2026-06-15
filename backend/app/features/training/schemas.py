@@ -110,6 +110,9 @@ class CompleteIn(BaseModel):
     note: str | None = None
     pain: str | None = None  # none | mild | strong — drives autoregulation + safety
     rpe: str | None = None  # easy | medium | hard
+    # The date the session was actually trained. Defaults to today; can be
+    # backdated (e.g. trained yesterday, logged today). Never in the future.
+    done_on: dt.date | None = None
 
 
 class SubstituteIn(BaseModel):

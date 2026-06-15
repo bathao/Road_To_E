@@ -33,7 +33,12 @@ export const trainingApi = {
   complete: (
     level: string,
     dayIndex: number,
-    opts?: { note?: string | null; pain?: Pain | null; rpe?: Rpe | null }
+    opts?: {
+      note?: string | null;
+      pain?: Pain | null;
+      rpe?: Rpe | null;
+      done_on?: string | null; // ISO date; backdate a session trained earlier
+    }
   ) =>
     api.post<TrainingSession>(
       `/training/session/${level}/${dayIndex}/complete`,
@@ -41,6 +46,7 @@ export const trainingApi = {
         note: opts?.note ?? null,
         pain: opts?.pain ?? null,
         rpe: opts?.rpe ?? null,
+        done_on: opts?.done_on ?? null,
       }
     ),
 
