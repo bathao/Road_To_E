@@ -19,17 +19,17 @@ export interface TabDef {
 
 export const TABS: TabDef[] = [
   {
-    id: "head-coach",
-    label: "HLV trưởng",
-    icon: "🧠",
-    component: HeadCoach,
-    enabled: true,
-  },
-  {
     id: "daily-tracker",
     label: "Daily Tracker",
     icon: "📅",
     component: DailyTracker,
+    enabled: true,
+  },
+  {
+    id: "head-coach",
+    label: "Coach",
+    icon: "🧠",
+    component: HeadCoach,
     enabled: true,
   },
   {
@@ -48,8 +48,8 @@ export const TABS: TabDef[] = [
   },
   {
     id: "video-analysis",
-    label: "Video Analysis",
-    icon: "🎬",
+    label: "Phân tích kỹ thuật",
+    icon: "📝",
     component: VideoAnalysis,
     enabled: true,
   },
