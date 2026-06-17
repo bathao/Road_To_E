@@ -270,6 +270,64 @@ _EX = [
              gif=_gif("thoracic_rotation"),
              form_cue="Nằm nghiêng, hai gối co chồng nhau (KHÔNG tải lực), hai tay duỗi trước; mở tay "
                       "trên xoay ngực ra sau như mở trang sách, mắt theo tay. Nhẹ nhàng; ngồi xoay cũng được."),
+    # --- daily staples: done EVERY session, with their own progressive ramp ---
+    # (see DAILY_KEYS / daily_target). Knee-safe; one targets the wrist/forearm
+    # for spin, the other hip/core control for footwork.
+    Exercise("gyro_ball", "Powerball (gyro ball) cổ tay", "Cẳng tay, cổ tay",
+             "Cổ tay & cẳng tay khoẻ + bền → cú giật/gò NHIỀU XOÁY hơn, cổ tay không "
+             "rã khi đối công liên tục. Tập mỗi ngày, tăng dần thời gian.",
+             "timed", {"sets": 2, "sec": 20}, "balance", per_side=True,
+             gif=_gif("gyro_ball"),
+             form_cue="Khởi động cho rotor quay, rồi GIỮ và xoay cổ tay đều để bóng tăng tốc; "
+                      "cẳng tay siết, VAI THẢ LỎNG. Mỗi tay một lượt. Đau cổ tay/khuỷu thì giảm tốc/giảm thời gian."),
+    Exercise("thigh_lift_bottle", "Nằm ngửa nâng đùi vòng qua chai nước",
+             "Hông, đùi (gập/khép–dạng), lõi dưới",
+             "Hông khoẻ + linh hoạt và lõi kiểm soát tốt → bước chân ngang nhanh, giữ trọng "
+             "tâm vững. Nằm nên KHÔNG tải khớp gối. Tập mỗi ngày, tăng dần số lần.",
+             "reps", {"sets": 2, "reps": 8}, "core", per_side=True,
+             gif=_gif("thigh_lift_bottle"),
+             form_cue="Đặt chai nước trên sàn ở khoảng giữa hai chân. Nằm ngửa, ÉP NHẸ lưng xuống sàn; "
+                      "nâng một đùi lên đưa bàn chân & đùi VÒNG QUA chai sang bên kia rồi vòng về, đổi bên. "
+                      "Chậm, kiểm soát bằng lõi; gối không cần gập sâu. Đau lưng/gối thì giảm biên độ."),
+    # --- dumbbell pool (1kg pair): rotated 2-per-day as daily work, see
+    #     DUMBBELL_KEYS / daily_dumbbells. Light load → high reps for endurance;
+    #     all knee-safe (seated/standing, hip-hinge not knee load). ---
+    Exercise("db_trunk_twist", "Ngồi cầm tạ xoay lườn", "Cơ lườn xoay (có tải)",
+             "Thêm tải vào đúng vòng xoay của cú giật/bạt → lực xoáy mạnh & bền hơn.",
+             "reps", {"sets": 2, "reps": 20}, "core",
+             gif=_gif("db_trunk_twist"),
+             form_cue="Ngồi (hoặc đứng) lưng thẳng, hai tay ôm tạ trước ngực; xoay thân trái–phải "
+                      "từ LƯỜN, hông giữ ổn định, không giật cổ. Tạ nhẹ — kiểm soát chậm."),
+    Exercise("db_shoulder_press", "Ngồi đẩy tạ qua đầu", "Vai, tay sau",
+             "Vai khoẻ & bền giữ cánh tay ổn định suốt trận, ít mỏi khi đánh nhiều.",
+             "reps", {"sets": 2, "reps": 15}, "balance",
+             gif=_gif("db_shoulder_press"),
+             form_cue="Ngồi thẳng lưng, hai tạ ngang vai; đẩy thẳng lên qua đầu rồi hạ chậm. "
+                      "Siết bụng giữ trụ, KHÔNG ưỡn lưng."),
+    Exercise("db_wood_chop", "Bổ củi chéo có tạ", "Lườn xoay chéo (có tải)",
+             "Truyền lực xoáy chéo từ hông lên tay như cú giật/bạt mạnh.",
+             "reps", {"sets": 2, "reps": 12}, "core", per_side=True,
+             gif=_gif("db_wood_chop"),
+             form_cue="Hai tay cầm một tạ, vung chéo từ trên cao một bên xuống hông đối diện, "
+                      "xoay lườn theo; gối chỉ hơi mềm, KHÔNG khuỵu sâu. Đổi bên."),
+    Exercise("db_lateral_raise", "Nâng tạ ngang vai (lateral raise)", "Vai (delta giữa)",
+             "Ổn định khớp vai → đường vợt chắc, giảm chấn thương vai khi vung nhiều.",
+             "reps", {"sets": 2, "reps": 15}, "balance",
+             gif=_gif("db_lateral_raise"),
+             form_cue="Đứng/ngồi, hai tạ cạnh hông; nâng thẳng tay sang ngang tới ngang vai "
+                      "(khuỷu hơi cong) rồi hạ chậm. KHÔNG nhún vai, không lấy đà."),
+    Exercise("db_shadow_swing", "Vung mô phỏng cú đánh có tạ", "Vai, cánh tay, lườn (chuyên biệt TT)",
+             "Mô phỏng quỹ đạo cú thuận/trái tay có kháng nhẹ → cơ quen đường vợt, ra cú nhanh & mạnh hơn.",
+             "reps", {"sets": 2, "reps": 12}, "balance", per_side=True,
+             gif=_gif("db_shadow_swing"),
+             form_cue="Cầm 1 tạ, mô phỏng cú giật/bạt CHẬM & đúng kỹ thuật (xoay hông→thân→tay), "
+                      "không vung ẩu. Làm cả thuận tay & trái tay. Đau vai/khuỷu thì dừng."),
+    Exercise("db_bent_row", "Khom người kéo tạ (bent-over row)", "Lưng trên, xô, tay sau",
+             "Khoẻ lưng trên → tư thế thẳng, kéo vợt về nhanh sau cú đánh; cân bằng cơ kéo–đẩy.",
+             "reps", {"sets": 2, "reps": 15}, "balance",
+             gif=_gif("db_bent_row"),
+             form_cue="Gập HÔNG (hip hinge), gối hơi mềm, lưng thẳng; kéo hai tạ về phía hông siết "
+                      "bả vai, hạ chậm. Lực ở lưng/hông, KHÔNG dồn gối; đau lưng dưới thì giảm độ gập."),
     # --- warm-up (gentle knee mobility before the session; not counted) ---
     Exercise("knee_mobility", "Làm nóng gối (gập–duỗi nhẹ)", "Khớp gối (làm nóng)",
              "Làm trơn khớp gối trước khi tập, giảm cứng.",
@@ -297,6 +355,54 @@ def warmup_exercises() -> list[Exercise]:
 
 def cooldown_exercises() -> list[Exercise]:
     return [EXERCISES[k] for k in COOLDOWN_KEYS if k in EXERCISES]
+
+
+# Exercises appended to EVERY session (the player asked to train these daily):
+# the wrist powerball and the supine hip/core "thigh-over-bottle". Unlike the
+# warm-up these ARE tracked and counted, and they carry their own progressive
+# ramp (daily_target) instead of the level/day-type rotation.
+DAILY_KEYS = ("gyro_ball", "thigh_lift_bottle")
+
+# 1kg-dumbbell pool. The player trains with weights daily, but doing all of these
+# every day would overload the shoulders and bloat the session, so we ROTATE: a
+# different DUMBBELL_PER_DAY of them each day (a 3-day cycle through the 6). The
+# order interleaves core/rotation and shoulder/back work so each day is balanced.
+# Intensity still ramps via daily_target (reps), so "usage changes day to day AND
+# load progresses week to week".
+DUMBBELL_KEYS = (
+    "db_trunk_twist",    # core / rotation
+    "db_shoulder_press",  # shoulder
+    "db_wood_chop",      # core / diagonal rotation
+    "db_lateral_raise",   # shoulder
+    "db_shadow_swing",   # TT-specific shoulder/arm
+    "db_bent_row",       # upper back / posture
+)
+DUMBBELL_PER_DAY = 2
+
+
+def daily_exercises() -> list[Exercise]:
+    return [EXERCISES[k] for k in DAILY_KEYS if k in EXERCISES]
+
+
+def daily_dumbbells(global_day: int) -> list[Exercise]:
+    """The DUMBBELL_PER_DAY weighted exercises for this training day.
+
+    Deterministic in `global_day` (so it's stable/idempotent per session): walks
+    the pool DUMBBELL_PER_DAY at a time, wrapping around — different bias of the
+    body each day, full pool covered every few days."""
+    n = len(DUMBBELL_KEYS)
+    if n == 0:
+        return []
+    take = min(DUMBBELL_PER_DAY, n)
+    start = ((max(global_day, 1) - 1) * take) % n
+    keys = [DUMBBELL_KEYS[(start + i) % n] for i in range(take)]
+    return [EXERCISES[k] for k in keys if k in EXERCISES]
+
+
+def daily_for(global_day: int) -> list[Exercise]:
+    """All exercises that should be appended to a session at this training age:
+    the fixed daily staples + today's rotating dumbbell picks."""
+    return daily_exercises() + daily_dumbbells(global_day)
 
 
 # Step-by-step "how to do it" for each exercise (Vietnamese), shown in the
@@ -491,6 +597,49 @@ HOW_TO: dict[str, tuple[str, ...]] = {
         "Ấn nhẹ hai gối xuống tới khi căng nhẹ háng.",
         "Giữ, thở đều, không nảy.",
     ),
+    # --- daily staples ---
+    "gyro_ball": (
+        "Cho ngón tay giật dây (hoặc xoay mồi) để rotor trong bóng bắt đầu quay.",
+        "Khi bóng đã quay, GIỮ chắc và xoay cổ tay đều theo vòng để bóng tăng tốc & duy trì.",
+        "Giữ liên tục hết thời gian rồi đổi tay. Vai thả lỏng, chỉ cẳng tay làm việc.",
+    ),
+    "thigh_lift_bottle": (
+        "Đặt một chai nước trên sàn, ngay khoảng giữa hai chân.",
+        "Nằm ngửa, hai tay xuôi cạnh người, ÉP NHẸ thắt lưng xuống sàn.",
+        "Nâng một chân/đùi lên, đưa bàn chân & đùi VÒNG QUA chai sang bên kia rồi vòng về chỗ cũ.",
+        "Đổi chân. Dùng lõi kiểm soát, chậm rãi; không lấy đà bằng lưng.",
+    ),
+    # --- dumbbell pool (1kg) ---
+    "db_trunk_twist": (
+        "Ngồi thẳng lưng trên ghế/sàn (hoặc đứng chân rộng bằng vai), hai tay ôm tạ trước ngực.",
+        "Xoay thân sang một bên từ LƯỜN, giữ hông ổn định.",
+        "Xoay sang bên kia. Chậm, có kiểm soát; không giật cổ/lưng.",
+    ),
+    "db_shoulder_press": (
+        "Ngồi thẳng lưng, hai tạ đưa lên ngang vai, lòng bàn tay hướng trước.",
+        "Đẩy hai tạ thẳng lên qua đầu, siết bụng giữ trụ.",
+        "Hạ chậm về ngang vai. Không ưỡn lưng.",
+    ),
+    "db_wood_chop": (
+        "Đứng chân rộng, hai tay cầm một tạ đưa lên cao chéo qua một vai.",
+        "Vung chéo tạ xuống phía hông ĐỐI DIỆN, xoay lườn theo.",
+        "Đưa lên lại, lặp; đổi bên. Gối chỉ hơi mềm, không khuỵu sâu.",
+    ),
+    "db_lateral_raise": (
+        "Đứng/ngồi thẳng, hai tạ để cạnh hông, khuỷu hơi cong.",
+        "Nâng thẳng hai tay sang ngang tới ngang vai.",
+        "Hạ chậm. Không nhún vai, không lấy đà bằng thân.",
+    ),
+    "db_shadow_swing": (
+        "Cầm 1 tạ ở tay thuận, vào tư thế chuẩn bị như đánh bóng.",
+        "Mô phỏng cú giật/bạt CHẬM, đúng kỹ thuật: xoay hông → thân → tay.",
+        "Lặp, rồi đổi sang mô phỏng cú trái tay. Giữ form, không vung ẩu.",
+    ),
+    "db_bent_row": (
+        "Gập HÔNG (đẩy mông ra sau), gối hơi mềm, lưng thẳng, hai tạ buông thẳng xuống.",
+        "Kéo hai tạ về phía hông, siết hai bả vai lại.",
+        "Hạ chậm. Lực ở lưng/hông, không dồn lên gối.",
+    ),
     # --- warm-up ---
     "knee_mobility": (
         "Ngồi hoặc đứng vịn.",
@@ -629,6 +778,47 @@ def scaled_target(ex: Exercise, cycle: int, bias: int = 0) -> dict:
         t["sec"] = t["sec"] + 5 * bump
     elif "reps" in t:
         t["reps"] = t["reps"] + 2 * bump
+    return t
+
+
+# --------------------------------------------------- daily-staple progression
+# The daily exercises are done from day 1 and must ramp on the FINITE levels too
+# (the level/cycle overload above only kicks in on the endless maintenance level).
+# We drive their intensity off a monotonic "training-age" day number that never
+# resets between levels, bumping ~weekly and capping so it stays knee/tendon-safe.
+DAILY_STEP_DAYS = 7   # advance one intensity step roughly every week of daily work
+DAILY_STEP_CAP = 5    # stop ramping after this many steps (sensible ceiling)
+DAILY_BUMP_SEC = 8    # +8s per step for timed holds (20s → 60s at the cap)
+DAILY_BUMP_REPS = 2   # +2 reps per step for rep work (8 → 18 at the cap)
+
+
+def global_day_number(level: str, day_index: int) -> int:
+    """A monotonic session number across all levels (never resets between them).
+
+    Foundation 1..21 → 1..21, Explosive → 22..42, the top/maintenance level →
+    43+ (its day_index already keeps growing across cycles). Used only to pace
+    the daily staples, so they keep getting harder regardless of level."""
+    try:
+        base = LEVELS.index(level) * SESSIONS_PER_LEVEL
+    except ValueError:
+        base = 0
+    return base + day_index
+
+
+def daily_target(ex: Exercise, global_day: int, bias: int = 0) -> dict:
+    """Progressive target for a daily-staple exercise at a given training age.
+
+    Steps up ~weekly (capped), then `bias` applies the same pain/RPE
+    autoregulation as the rest of the program (hard/pain → ease off)."""
+    step = min(max(global_day - 1, 0) // DAILY_STEP_DAYS, DAILY_STEP_CAP)
+    step = max(0, min(step + bias, DAILY_STEP_CAP + 2))
+    t = dict(ex.target)
+    if step == 0:
+        return t
+    if ex.kind == "timed" and "sec" in t:
+        t["sec"] = t["sec"] + DAILY_BUMP_SEC * step
+    elif "reps" in t:
+        t["reps"] = t["reps"] + DAILY_BUMP_REPS * step
     return t
 
 

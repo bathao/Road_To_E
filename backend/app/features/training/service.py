@@ -271,8 +271,42 @@ def _apply_prescription(db: Session, session: TrainingSession) -> None:
     db.refresh(session)
 
 
+def _ensure_daily(db: Session, session: TrainingSession) -> None:
+    """Append the daily exercises to the open session (once each).
+
+    Daily = the fixed staples (powerball, thigh-over-bottle) + today's rotating
+    1kg-dumbbell picks. Mirrors `_apply_prescription`: idempotent, runs on the
+    open session so even a session materialised before these existed picks them
+    up. Each carries its own progressive target (ramps with training age +
+    autoregulation bias). Placed before the prescription so the order is
+    [program, daily, prescribed].
+    """
+    if session.status == "done":
+        return
+    state = ensure_state(db)
+    bias = state.intensity_bias or 0
+    gday = program.global_day_number(session.level, session.day_index)
+    existing = {it.exercise_key for it in session.items}
+    missing = [ex for ex in program.daily_for(gday) if ex.key not in existing]
+    if not missing:
+        return
+    max_order = max((it.sort_order for it in session.items), default=-1)
+    for ex in missing:
+        max_order += 1
+        session.items.append(
+            TrainingSessionItem(
+                exercise_key=ex.key,
+                target_json=json.dumps(program.daily_target(ex, gday, bias)),
+                sort_order=max_order,
+            )
+        )
+    db.commit()
+    db.refresh(session)
+
+
 def get_today(db: Session) -> schemas.SessionOut:
     session, _ = open_session(db)
+    _ensure_daily(db, session)
     _apply_prescription(db, session)
     return to_session_out(session)
 
