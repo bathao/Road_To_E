@@ -37,6 +37,9 @@ export default function DailyTracker() {
   const [viewSession, setViewSession] = useState<TrainingSession | null>(null);
   // Bumped after every mutation so the AnalysisPanel re-fetches its stats.
   const [dataVersion, setDataVersion] = useState(0);
+  // Measured width of the grid's Category column; the Analysis chart uses it as
+  // a left gutter so its day points line up under the grid's day columns.
+  const [gridGutter, setGridGutter] = useState(210);
 
   const period = { mode, anchor, customFrom, customTo };
   const range = useMemo(
@@ -192,6 +195,7 @@ export default function DailyTracker() {
       {week ? (
         <WeekGrid
           week={week}
+          onLayout={setGridGutter}
           onCellClick={(category, dateIso) => setEditing({ category, dateIso })}
           onViewPhysical={async (dateIso) => {
             try {
@@ -211,6 +215,7 @@ export default function DailyTracker() {
         toIso={range.toIso}
         label={range.label}
         reloadSignal={dataVersion}
+        gutterPx={gridGutter}
       />
 
       {editing && (

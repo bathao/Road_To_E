@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from "react";
 import type { Category, WeekResponse } from "../types";
 import { cellKey } from "../types";
 import { dayHeader, monthGroups, todayIso } from "../../../shared/dates";
@@ -8,13 +9,41 @@ export default function WeekGrid({
   week,
   onCellClick,
   onViewPhysical,
+  onLayout,
 }: {
   week: WeekResponse;
   onCellClick: (category: Category, dateIso: string) => void;
   // Read-only view of a Training Center session mirrored into the Physical row.
   onViewPhysical: (dateIso: string) => void;
+  // Reports the rendered width (px) of the leading Category column, so the
+  // Analysis chart below can use it as a left gutter and line its day points
+  // up under the grid's day columns. Re-fired on data change and resize.
+  onLayout?: (gutterPx: number) => void;
 }) {
   const today = todayIso();
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const cornerRef = useRef<HTMLTableCellElement>(null);
+
+  useLayoutEffect(() => {
+    if (!onLayout) return;
+    const measure = () => {
+      const wrap = wrapRef.current;
+      const corner = cornerRef.current;
+      if (!wrap || !corner) return;
+      // Day columns begin at the Category column's right edge, measured
+      // relative to the grid wrapper (which shares its left edge with the
+      // chart below, both being full-width siblings).
+      onLayout(
+        corner.getBoundingClientRect().right -
+          wrap.getBoundingClientRect().left
+      );
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (wrapRef.current) ro.observe(wrapRef.current);
+    return () => ro.disconnect();
+    // Re-measure whenever the column layout could change.
+  }, [onLayout, week, week.days.length]);
   // Many columns (month / year / long custom range) → narrow, truncated cells
   // that reveal their full content on hover.
   const compact = week.days.length > 10;
@@ -24,12 +53,12 @@ export default function WeekGrid({
   const showMonths = groups.length > 1;
 
   return (
-    <div className="grid-wrap">
+    <div className="grid-wrap" ref={wrapRef}>
       <table className={compact ? "week-grid compact" : "week-grid"}>
         <thead>
           {showMonths && (
             <tr>
-              <th className="corner" rowSpan={2}>
+              <th className="corner" rowSpan={2} ref={cornerRef}>
                 Category
               </th>
               {groups.map((g, i) => (
@@ -40,7 +69,11 @@ export default function WeekGrid({
             </tr>
           )}
           <tr>
-            {!showMonths && <th className="corner">Category</th>}
+            {!showMonths && (
+              <th className="corner" ref={cornerRef}>
+                Category
+              </th>
+            )}
             {week.days.map((iso) => {
               const { weekday, dayNum } = dayHeader(iso);
               return (

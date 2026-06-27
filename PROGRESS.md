@@ -1,8 +1,102 @@
 # Progress Log — Table Tennis Coach
 
-## Current status (2026-06-14)
+## Current status (2026-06-26)
 
-> **Resume (2026-06-14, latest).** Fixed the long-standing **player-identity**
+> **Resume (2026-06-26, latest).** Redesigned the **Daily Tracker
+> Analysis comparison chart** into a single composite view + a grid-aligned axis.
+> All frontend, `npm run build` clean, **committed this session** (2026-06-27).
+>   - **One composite chart, all three metrics** — replaced the 1-series chart +
+>     `Training time / Matches / Physical days` toggle with a new
+>     `shared/ui/ActivityChart.tsx` that draws each metric in the form that fits
+>     it on a shared time axis: **training time = filled area+line** (left "hours"
+>     axis), **matches = line+dots** (right "count" axis overlay), **physical
+>     days = a strip of squares** below the plot. One hover band shows all three
+>     for that day. `LineChart` left untouched (Match Stats still uses it).
+>   - **Day axis aligned to the grid above** — the user's key ask. `WeekGrid`
+>     measures its "Category" column width (`ResizeObserver` + `useLayoutEffect`)
+>     and reports it up (`onLayout`); `DailyTracker` → `AnalysisPanel` →
+>     `ActivityChart` use it as a left gutter, with each day centred in an equal
+>     slot (same model as the grid's `table-layout:fixed` columns) and **zero
+>     horizontal padding** on the chart card, so a chart point sits directly under
+>     its grid day column. Only active in per-day mode (Week/Month/short Custom);
+>     degrades when the grid is wide enough to scroll horizontally.
+>   - **Reordered + trimmed** — comparison chart now leads the Analysis section
+>     (right under the grid for side-by-side reading); summary cards moved below;
+>     the "Training time by category" bars block was **deleted** (its `minutes-*`
+>     CSS kept — Profile tab still uses it).
+>   - **Harmonised** — title + legend moved **inside** the chart card (one
+>     cohesive widget, no more legend stranded at the far right); summary cards
+>     `auto-fill` → `auto-fit` so they fill the full width; dead CSS removed
+>     (`comparison-head/-title`, `metric-seg`).
+>   - **Colours echo the grid semantics** — training = **green** (`#5fa83c`, the
+>     green training rows), matches = **blue** (`--accent`), physical = **yellow/
+>     gold** (`#e0a800`, the yellow Physical row). Applied across line/area/dots/
+>     hover/legend/tooltip swatches/strip/right-axis.
+>   - **Files:** new `ActivityChart.tsx`; edited `AnalysisPanel.tsx`,
+>     `WeekGrid.tsx`, daily-tracker `index.tsx`, `styles.css`.
+
+> **Resume (2026-06-17).** Training Center got **daily-staple exercises**
+> the player now does **every session**, each on its own progressive ramp,
+> independent of the level/day-type rotation (`90f3517`):
+>   - **Fixed daily staples:** `gyro_ball` (powerball, per hand, timed) +
+>     `thigh_lift_bottle` (supine hip/core lift with a bottle/1kg, per side).
+>   - **1kg-dumbbell pool (6 moves)** rotated `DUMBBELL_PER_DAY` (2) per day on a
+>     3-day cycle, interleaving core/rotation + shoulder/back so the daily load
+>     varies.
+>   - **`daily_target()`** ramps reps/seconds ~weekly (capped) off a monotonic
+>     `global_day_number` and respects the pain/RPE autoregulation bias; knee-safe
+>     (sets fixed, seated/standing or hip-hinge, no added knee load).
+>   - **`service._ensure_daily`** appends them to the open session idempotently
+>     (mirrors `_apply_prescription`), so an already-open session picks them up.
+>   - Frontend pose-SVG fallbacks mapped for the new exercise keys.
+>   - Touches only `program.py` (+190), `service.py` (+34), `constants.ts` (+8).
+
+> **Resume (2026-06-15).** Big pivot on the "Video Analysis" coach +
+> several UX commits. **Headline: the entire local CV/VLM video pipeline was
+> ripped out and replaced with a text intake** (`6c4d569`). The local VLM proved
+> ineffective, so the tab no longer touches video at all:
+>   - **Removed all CV:** `analyzer.py` (VLM, 1721 lines), `ball.py`,
+>     `identity.py` (the ArcFace/body-reID engine from the *previous* resume note
+>     below — now gone), `table_roi.py`, pose/metrics, the clip
+>     upload/detect/confirm flow + image gallery. Trimmed the heavy deps
+>     (opencv/mediapipe/ultralytics/insightface/onnxruntime) from requirements.
+>     `ANALYSIS_UPGRADE_PLAN.md` deleted; new `TEXT_ANALYSIS_PLAN.md` is the design.
+>   - **New flow:** paste an analysis produced **elsewhere** (e.g. a cloud model),
+>     tagged with the **date** it pertains to + the **setting (practice vs match)**.
+>     `text_synth.extract_findings` parses it on the shared local text model
+>     (`qwen3:14b`, same as the Coach); findings **auto-accept** (the user curated
+>     the text — no review gate) and the skill ledger auto-rebuilds.
+>   - **Full practice/match separation:** `va_skill` is now keyed on
+>     `(aspect, setting)`; `va_skill_snapshot` carries setting + `analysis_date`,
+>     giving a rating/finding **history over time** (replaces the old pose
+>     metric_trends as the progress signal). `build_report` exposes per-setting
+>     skills/history + a practice-vs-match contrast; the Head Coach reads the
+>     per-setting gap and is prompted to prescribe match-specific fixes.
+>   - **DB migration additive:** drops the dead video tables, rebuilds `va_skill`
+>     for the composite key; profile basics preserved.
+>   - **UI split:** the "Phân tích kỹ thuật" tab (📝) is now pure intake
+>     (PasteForm + ReportList + ReviewPanel); the **living profile** (editable
+>     basics, AI summary, skill radar+bars, per-setting SkillBoard, findings
+>     TraitBoard) moved to the **Profile** tab.
+>   - **Open:** parsing/synthesis only exercised with **stubs** — the live Ollama
+>     calls still need a real-model sanity check.
+>
+> **Other 2026-06-15 commits:**
+>   - **Tabs reorder/rename** (`1f5697c`): Daily Tracker is now first = the default
+>     tab; "Head Coach" label → **"Coach"**; "Video Analysis" → **"Phân tích kỹ
+>     thuật"** (📝). Tab ids unchanged.
+>   - **Training Center backdated logging** (`93c0f0f`): the complete-session
+>     feedback modal gets a date picker (Hôm nay / Hôm qua / lịch, max = today);
+>     API/service accept optional `done_on` (clamped, never future).
+>   - **Daily Tracker chart trim** (`f6c8a22`): comparison chart is **line-only**
+>     now (dropped the Columns view); metric selector limited to
+>     time/matches/physical (removed Wins, Win rate, Days trained). Summary cards
+>     unchanged.
+>
+> ⚠️ The resume notes and Tab-4 descriptions BELOW this line describe the
+> **old CV/VLM pipeline that no longer exists** — kept for history only.
+
+> **Resume (2026-06-14, latest) [SUPERSEDED — this CV identity engine was removed in `6c4d569`].** Fixed the long-standing **player-identity**
 > problem ("which one is Thảo") in Video Analysis — the old VLM-guess approach was
 > unreliable, forcing a hand-drawn box on every clip. New embedding-based engine
 > `video_analysis/identity.py`:

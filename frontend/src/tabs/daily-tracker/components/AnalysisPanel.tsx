@@ -9,18 +9,9 @@ import { trackerApi } from "../api";
 import { fromIso as parseIso, prettyDate } from "../../../shared/dates";
 import type { Mode, Unit } from "../../../shared/period";
 import { chartUnitFor } from "../../../shared/period";
-import type { Bar } from "../../../shared/ui/BarChart";
-import LineChart from "../../../shared/ui/LineChart";
+import ActivityChart from "../../../shared/ui/ActivityChart";
+import type { ActivityPoint } from "../../../shared/ui/ActivityChart";
 import { fmtMinutes, pct } from "../../../shared/format";
-
-// Metrics the comparison chart can plot.
-type MetricKey = "minutes" | "matches" | "days_physical";
-
-const METRICS: { key: MetricKey; label: string }[] = [
-  { key: "minutes", label: "Training time" },
-  { key: "matches", label: "Matches" },
-  { key: "days_physical", label: "Physical days" },
-];
 
 const UNIT_TITLE: Record<Unit, string> = {
   month: "by month",
@@ -31,31 +22,21 @@ const UNIT_TITLE: Record<Unit, string> = {
 const WD_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 
-// Map a breakdown bucket to a chart bar for the chosen metric.
-function bucketBar(b: BreakdownBucket, metric: MetricKey): Bar {
+// Map a breakdown bucket to a composite chart point (all three metrics at once).
+function bucketPoint(b: BreakdownBucket): ActivityPoint {
   const range = `${prettyDate(b.date_from)} — ${prettyDate(b.date_to)}`;
   // Rich-tooltip heading: a full date for single days, else the range.
   const tip =
     b.date_from === b.date_to
       ? `${WD_SHORT[parseIso(b.date_from).getDay()]}, ${prettyDate(b.date_from)}`
       : `${b.label} · ${range}`;
-  let value: number;
-  let display: string;
-  switch (metric) {
-    case "minutes":
-      value = b.minutes;
-      display = fmtMinutes(b.minutes);
-      break;
-    case "matches":
-      value = b.matches;
-      display = String(b.matches);
-      break;
-    case "days_physical":
-      value = b.days_physical;
-      display = String(b.days_physical);
-      break;
-  }
-  return { label: b.label, value, display, title: `${b.label} · ${range}`, tip };
+  return {
+    label: b.label,
+    tip,
+    minutes: b.minutes,
+    matches: b.matches,
+    daysPhysical: b.days_physical,
+  };
 }
 
 // A summary card for one discipline (or overall).
@@ -119,17 +100,19 @@ export default function AnalysisPanel({
   toIso: rangeToIso,
   label,
   reloadSignal,
+  gutterPx,
 }: {
   mode: Mode;
   fromIso: string;
   toIso: string;
   label: string;
   reloadSignal: number;
+  // Width of the grid's Category column, used to align the chart's day axis.
+  gutterPx?: number;
 }) {
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [buckets, setBuckets] = useState<BreakdownBucket[]>([]);
   const [packages, setPackages] = useState<CoachPackage[]>([]);
-  const [metric, setMetric] = useState<MetricKey>("minutes");
   const [error, setError] = useState<string | null>(null);
 
   const chartUnit: Unit | null = chartUnitFor(mode, "line", fromIso, rangeToIso);
@@ -187,6 +170,35 @@ export default function AnalysisPanel({
 
       {stats && (
         <>
+          {/* Comparison chart first — directly under the grid so it can be read
+              side-by-side with the day columns above. */}
+          {chartUnit && buckets.length > 0 && (
+            <div className="stat-block comparison-block">
+              <ActivityChart
+                points={buckets.map(bucketPoint)}
+                formatMinutes={(v) => fmtMinutes(Math.round(v))}
+                unitIsDay={chartUnit === "day"}
+                gutterPx={gutterPx}
+                header={
+                  <>
+                    <h3>Comparison {UNIT_TITLE[chartUnit]}</h3>
+                    <div className="chart-legend">
+                      <span className="lg-item">
+                        <span className="lg-sw lg-time" />Training time
+                      </span>
+                      <span className="lg-item">
+                        <span className="lg-sw lg-match" />Matches
+                      </span>
+                      <span className="lg-item">
+                        <span className="lg-sw lg-phys" />Physical days
+                      </span>
+                    </div>
+                  </>
+                }
+              />
+            </div>
+          )}
+
           <div className="stat-grid">
             <div className="stat-card">
               <div className="stat-card-title">Days trained</div>
@@ -223,62 +235,6 @@ export default function AnalysisPanel({
               />
             )}
           </div>
-
-          {/* Comparison chart: sub-periods of the selected range */}
-          {chartUnit && buckets.length > 0 && (
-            <div className="stat-block">
-              <div className="comparison-head">
-                <div className="comparison-title">
-                  <h3>Comparison {UNIT_TITLE[chartUnit]}</h3>
-                </div>
-                <div className="seg metric-seg">
-                  {METRICS.map((m) => (
-                    <button
-                      key={m.key}
-                      className={`seg-btn${metric === m.key ? " active" : ""}`}
-                      onClick={() => setMetric(m.key)}
-                    >
-                      {m.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <LineChart
-                points={buckets.map((b) => bucketBar(b, metric))}
-                formatY={(v) =>
-                  metric === "minutes"
-                    ? fmtMinutes(Math.round(v))
-                    : String(Math.round(v))
-                }
-              />
-            </div>
-          )}
-
-          {/* Minutes by training category */}
-          <div className="stat-block">
-            <h3>Training time by category</h3>
-            <div className="minutes-bars">
-              {stats.minutes_by_category.map((c) => {
-                const max = Math.max(
-                  1,
-                  ...stats.minutes_by_category.map((x) => x.minutes)
-                );
-                return (
-                  <div key={c.key} className="minutes-row">
-                    <span className="minutes-label">{c.label}</span>
-                    <div className="minutes-track">
-                      <div
-                        className="minutes-fill"
-                        style={{ width: `${(c.minutes / max) * 100}%` }}
-                      />
-                    </div>
-                    <span className="minutes-val">{fmtMinutes(c.minutes)}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
         </>
       )}
     </section>
