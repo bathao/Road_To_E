@@ -328,6 +328,44 @@ _EX = [
              gif=_gif("db_bent_row"),
              form_cue="Gập HÔNG (hip hinge), gối hơi mềm, lưng thẳng; kéo hai tạ về phía hông siết "
                       "bả vai, hạ chậm. Lực ở lưng/hông, KHÔNG dồn gối; đau lưng dưới thì giảm độ gập."),
+    # Seated "weighted abs" trio (ngồi ngả người, tạ 1kg): compound bụng + đùi
+    # (gập hông) + tay/vai, all knee-safe (seated, no knee load / flexion / impact).
+    Exercise("db_seated_leg_press", "Ngồi nâng đùi, đẩy tạ ra trước (luân phiên)",
+             "Bụng/lõi, đùi trước (gập hông), vai/tay",
+             "Vừa siết lõi vừa gập hông nâng đùi và đẩy tay — lõi khoẻ + hông linh hoạt giữ "
+             "trọng tâm vững khi di chuyển, tay/vai bền hơn.",
+             "reps", {"sets": 2, "reps": 16}, "core",
+             gif=_gif("db_seated_leg_press"),
+             form_cue="Ngồi, gối co bàn chân chạm sàn, hơi ngả người giữ lưng thẳng, hai tay cầm 1 tạ "
+                      "trước ngực. Nâng một đùi lên ĐỒNG THỜI đẩy tạ thẳng ra trước; hạ về, đổi chân, "
+                      "luân phiên. Siết bụng giữ thăng bằng; ngả vừa phải, không đau lưng dưới/gối."),
+    Exercise("db_seated_overhead_tuck", "Ngồi đẩy tạ qua đầu + co gối theo nhịp",
+             "Bụng/lõi, đùi trước (gập hông), vai (đẩy qua đầu)",
+             "Lõi giữ thân ổn định trong khi vai đẩy tạ và hông co gối — phối hợp tay–thân–chân "
+             "như lúc ra cú, vai bền khi đánh nhiều.",
+             "reps", {"sets": 2, "reps": 16}, "core",
+             gif=_gif("db_seated_overhead_tuck"),
+             form_cue="Ngồi ngả nhẹ ra sau (lưng thẳng), hai tay cầm hai tạ ngang vai. Đẩy hai tạ "
+                      "thẳng lên qua đầu ĐỒNG THỜI co một gối/đùi lên theo nhịp; hạ tạ và chân rồi "
+                      "đổi bên. Siết bụng, KHÔNG ưỡn lưng; gối co thoải mái, không đau."),
+    Exercise("db_seated_leg_spread", "Ngồi giữ tạ qua đầu, giang chân ra–vào",
+             "Bụng/lõi, đùi trong/ngoài (giang–khép), vai (giữ qua đầu)",
+             "Đùi trong/ngoài khoẻ để bước ngang rộng cứu bóng, lõi giữ thăng bằng khi giang chân, "
+             "vai bền khi giữ tạ qua đầu.",
+             "reps", {"sets": 2, "reps": 20}, "core",
+             gif=_gif("db_seated_leg_spread"),
+             form_cue="Ngồi ngả ra sau, hai tay cầm tạ DUỖI THẲNG qua đầu và giữ chắc. Giang hai chân "
+                      "mở rộng sang hai bên rồi khép vào theo nhịp; chân TRƯỢT nhẹ trên sàn, gối duỗi "
+                      "thoải mái. Siết bụng giữ thân; vai giữ tạ ổn định, không hạ tạ ra sau gáy."),
+    Exercise("db_seated_pass_under", "Ngồi nâng đùi, luồn tạ dưới đùi (luân phiên)",
+             "Bụng/lõi, đùi trước (gập hông), tay/vai",
+             "Nâng đùi siết lõi dưới + gập hông, hai tay luồn tạ qua dưới đùi rèn phối hợp tay–thân–chân; "
+             "lõi & hông khoẻ giữ trọng tâm khi xoay người cứu bóng.",
+             "reps", {"sets": 2, "reps": 16}, "core",
+             gif=_gif("db_seated_pass_under"),
+             form_cue="Ngồi ngả nhẹ ra sau (lưng thẳng), hai tay cùng cầm 1 tạ. Nâng một đùi/gối lên, "
+                      "đưa hai tay luồn tạ XUỐNG DƯỚI đùi đang nâng rồi rút về; hạ chân, đổi bên, luân phiên. "
+                      "Siết bụng giữ thăng bằng; gối co thoải mái, không tì mạnh, không đau."),
     # --- warm-up (gentle knee mobility before the session; not counted) ---
     Exercise("knee_mobility", "Làm nóng gối (gập–duỗi nhẹ)", "Khớp gối (làm nóng)",
              "Làm trơn khớp gối trước khi tập, giảm cứng.",
@@ -365,17 +403,21 @@ DAILY_KEYS = ("gyro_ball", "thigh_lift_bottle")
 
 # 1kg-dumbbell pool. The player trains with weights daily, but doing all of these
 # every day would overload the shoulders and bloat the session, so we ROTATE: a
-# different DUMBBELL_PER_DAY of them each day (a 3-day cycle through the 6). The
-# order interleaves core/rotation and shoulder/back work so each day is balanced.
-# Intensity still ramps via daily_target (reps), so "usage changes day to day AND
-# load progresses week to week".
+# different DUMBBELL_PER_DAY of them each day (~a 5-day cycle through the 10). The
+# order interleaves shoulder/back work with core/rotation and the seated weighted-
+# abs compounds so each day is balanced. Intensity still ramps via daily_target
+# (reps), so "usage changes day to day AND load progresses week to week".
 DUMBBELL_KEYS = (
-    "db_trunk_twist",    # core / rotation
-    "db_shoulder_press",  # shoulder
-    "db_wood_chop",      # core / diagonal rotation
-    "db_lateral_raise",   # shoulder
-    "db_shadow_swing",   # TT-specific shoulder/arm
-    "db_bent_row",       # upper back / posture
+    "db_trunk_twist",         # core / rotation
+    "db_shoulder_press",      # shoulder
+    "db_seated_leg_press",    # seated weighted abs (core + thigh + arm)
+    "db_lateral_raise",       # shoulder
+    "db_wood_chop",           # core / diagonal rotation
+    "db_seated_overhead_tuck",  # seated weighted abs (core + thigh + shoulder)
+    "db_shadow_swing",        # TT-specific shoulder/arm
+    "db_seated_leg_spread",   # seated weighted abs (core + thigh + shoulder)
+    "db_bent_row",            # upper back / posture
+    "db_seated_pass_under",   # seated weighted abs (core + thigh + arm)
 )
 DUMBBELL_PER_DAY = 2
 
@@ -639,6 +681,31 @@ HOW_TO: dict[str, tuple[str, ...]] = {
         "Gập HÔNG (đẩy mông ra sau), gối hơi mềm, lưng thẳng, hai tạ buông thẳng xuống.",
         "Kéo hai tạ về phía hông, siết hai bả vai lại.",
         "Hạ chậm. Lực ở lưng/hông, không dồn lên gối.",
+    ),
+    # --- seated weighted-abs trio + pass-under (ngồi ngả người, tạ 1kg) ---
+    "db_seated_leg_press": (
+        "Ngồi trên sàn, gối co bàn chân chạm đất, hơi ngả người ra sau (lưng thẳng), hai tay cùng cầm 1 tạ trước ngực.",
+        "Siết bụng giữ thăng bằng; nâng một đùi/chân lên ĐỒNG THỜI đẩy tạ thẳng ra trước.",
+        "Thu tạ về ngực và hạ chân xuống, đổi sang chân kia.",
+        "Luân phiên hai chân, chậm và có kiểm soát; gối duỗi thoải mái, không đau.",
+    ),
+    "db_seated_overhead_tuck": (
+        "Ngồi ngả nhẹ ra sau (lưng thẳng), hai tay cầm hai tạ đưa lên ngang vai.",
+        "Đẩy hai tạ thẳng lên qua đầu ĐỒNG THỜI co một gối/đùi lên theo nhịp.",
+        "Hạ tạ về ngang vai và hạ chân, rồi đổi bên chân.",
+        "Siết bụng giữ trụ, KHÔNG ưỡn lưng; gối co thoải mái.",
+    ),
+    "db_seated_leg_spread": (
+        "Ngồi ngả ra sau (lưng thẳng), hai tay cầm 1 tạ DUỖI THẲNG lên qua đầu, giữ chắc.",
+        "Giang hai chân mở rộng sang hai bên (chân trượt nhẹ trên sàn).",
+        "Khép hai chân về giữa theo nhịp. Lặp lại.",
+        "Siết bụng giữ thân; vai giữ tạ ổn định, gối duỗi thoải mái.",
+    ),
+    "db_seated_pass_under": (
+        "Ngồi ngả nhẹ ra sau (lưng thẳng), hai tay cùng cầm 1 tạ.",
+        "Nâng một đùi/gối lên, đưa hai tay luồn tạ XUỐNG DƯỚI đùi đang nâng rồi rút tạ về.",
+        "Hạ chân xuống, đổi sang chân kia.",
+        "Luân phiên, siết bụng giữ thăng bằng; gối co thoải mái, không tì mạnh.",
     ),
     # --- warm-up ---
     "knee_mobility": (

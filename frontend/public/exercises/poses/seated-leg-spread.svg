@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <rect x="4" y="4" width="92" height="92" rx="14" fill="#eef2f7"/>
+  <line x1="12" y1="86" x2="88" y2="86" stroke="#cbd5e1" stroke-width="2"/>
+  <path d="M50 39 L50 62" fill="none" stroke="#334155" stroke-width="12" stroke-linecap="round"/>
+  <path d="M50 32 L50 39" fill="none" stroke="#334155" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="50" cy="33" r="6.5" fill="#334155"/>
+  <g fill="none" stroke="#475569" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M50 41 L43 22 L46 16"/>
+    <path d="M50 41 L57 22 L54 16"/>
+  </g>
+  <path d="M50 62 L44 84" fill="none" stroke="#2563eb" stroke-width="7.5" stroke-linecap="round">
+    <animate attributeName="d" values="M50 62 L44 84; M50 62 L30 80; M50 62 L44 84" dur="1.7s" repeatCount="indefinite"/>
+  </path>
+  <path d="M50 62 L56 84" fill="none" stroke="#2563eb" stroke-width="7.5" stroke-linecap="round">
+    <animate attributeName="d" values="M50 62 L56 84; M50 62 L70 80; M50 62 L56 84" dur="1.7s" repeatCount="indefinite"/>
+  </path>
+  <rect x="44" y="12" width="12" height="6" rx="2.5" fill="#ef4444"/>
+</svg>

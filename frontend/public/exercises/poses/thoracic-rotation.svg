@@ -1,12 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <rect x="4" y="4" width="92" height="92" rx="14" fill="#eef2f7"/>
   <line x1="12" y1="80" x2="88" y2="80" stroke="#cbd5e1" stroke-width="2"/>
-  <circle cx="22" cy="62" r="6" fill="#334155"/>
-  <g fill="none" stroke="#334155" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M28 64 L54 64"/>
+  <g fill="none" stroke="#475569" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
     <path d="M54 64 L66 58 L66 70"/>
     <path d="M30 64 L46 66"/>
   </g>
-  <path d="M30 62 Q 18 46 34 38" fill="none" stroke="#2563eb" stroke-width="5" stroke-linecap="round"/>
-  <path d="M34 38 L30 43 M34 38 L39 41" fill="none" stroke="#2563eb" stroke-width="4" stroke-linecap="round"/>
+  <path d="M28 64 L54 64" fill="none" stroke="#334155" stroke-width="12" stroke-linecap="round"/>
+  <path d="M22 63 L29 64" fill="none" stroke="#334155" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="21" cy="62" r="6.5" fill="#334155"/>
+  <g>
+    <path d="M30 62 Q 18 46 34 38" fill="none" stroke="#2563eb" stroke-width="7" stroke-linecap="round"/>
+    <path d="M34 38 L30 43 M34 38 L39 41" fill="none" stroke="#2563eb" stroke-width="4" stroke-linecap="round"/>
+    <animateTransform attributeName="transform" type="rotate" values="0 30 63; -38 30 63; 0 30 63" dur="2.4s" repeatCount="indefinite"/>
+  </g>
 </svg>

@@ -1,8 +1,35 @@
 # Progress Log — Table Tennis Coach
 
-## Current status (2026-06-26)
+## Current status (2026-06-27)
 
-> **Resume (2026-06-26, latest).** Redesigned the **Daily Tracker
+> **Resume (2026-06-27, latest).** Training Center got **4 new seated weighted-abs
+> exercises** + the whole pose library was **animated**. Two parts, all committed
+> this session:
+>   - **4 new "bụng-có-tạ" (ngồi) moves** sourced from a FitwithCarla reel the user
+>     shared (frame-by-frame): `db_seated_leg_press` (nâng đùi luân phiên + đẩy tạ
+>     ra trước), `db_seated_overhead_tuck` (đẩy tạ qua đầu + co gối), `db_seated_leg_spread`
+>     (giữ tạ qua đầu, giang chân ra–vào), `db_seated_pass_under` (nâng đùi, luồn
+>     tạ dưới đùi). All compound (bụng/core + đùi/gập-hông + tay/vai) and **knee-safe**
+>     (seated, no knee load/flexion/jump). Added to the **1kg-dumbbell pool**
+>     (`DUMBBELL_KEYS` 6→10, interleaved; rotation now covers all in ~5 days), each
+>     with muscle/tt-benefit/form-cue + 4-step `HOW_TO`. Source used 2kg; kept 1kg to
+>     match the existing daily pool (target ramps weekly anyway). Only `program.py`
+>     + `constants.ts` (POSE map) touched.
+>   - **Exercise illustrations are now ANIMATED.** The 22 static stick-figure pose
+>     SVGs (`frontend/public/exercises/poses/*.svg`) + the 4 new ones = **26 hand-
+>     authored animated SVGs** (SMIL `<animate>`/`<animateTransform>`), each acting
+>     out the rep (leg lift, press, twist, spread, hinge…). Runs in the existing
+>     `<img>` loader (declarative SVG animation plays in `<img>`); GIF at
+>     `/exercises/<key>.gif` still wins if present. Then **upgraded the figure style**
+>     per the user: thicker "mass" torso (12px), fuller limbs (6.5–7px), head+neck,
+>     the **active muscle highlighted blue**, weights in red — reads as a body, not a
+>     stick. No code change (same filenames); `npm run build` clean; ~0.6KB/file.
+>   - **Honest limit:** can't generate real-person GIFs locally (no image/video gen);
+>     web GIFs are copyright-risky and rarely match these niche moves — so the
+>     animated SVG is the self-made, no-copyright solution. User confirmed it renders
+>     in-app and approved the fuller-body restyle.
+
+> **Resume (2026-06-26).** Redesigned the **Daily Tracker
 > Analysis comparison chart** into a single composite view + a grid-aligned axis.
 > All frontend, `npm run build` clean, **committed this session** (2026-06-27).
 >   - **One composite chart, all three metrics** — replaced the 1-series chart +

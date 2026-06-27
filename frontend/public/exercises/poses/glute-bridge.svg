@@ -1,9 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <rect x="4" y="4" width="92" height="92" rx="14" fill="#eef2f7"/>
   <line x1="14" y1="80" x2="86" y2="80" stroke="#cbd5e1" stroke-width="2"/>
-  <circle cx="20" cy="74" r="6" fill="#334155"/>
-  <path d="M24 76 L46 56" fill="none" stroke="#2563eb" stroke-width="5" stroke-linecap="round"/>
-  <g fill="none" stroke="#334155" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M46 56 L62 70 L62 80"/>
-  </g>
+  <path d="M20 74 L24 76" fill="none" stroke="#334155" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="19" cy="73" r="6.5" fill="#334155"/>
+  <path d="M46 66 L62 72 L62 80" fill="none" stroke="#475569" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+    <animate attributeName="d" values="M46 66 L62 72 L62 80; M46 54 L62 70 L62 80; M46 66 L62 72 L62 80" dur="1.8s" repeatCount="indefinite"/>
+  </path>
+  <path d="M24 76 L46 66" fill="none" stroke="#2563eb" stroke-width="11" stroke-linecap="round">
+    <animate attributeName="d" values="M24 76 L46 66; M24 76 L46 54; M24 76 L46 66" dur="1.8s" repeatCount="indefinite"/>
+  </path>
 </svg>

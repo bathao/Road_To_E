@@ -1,11 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <rect x="4" y="4" width="92" height="92" rx="14" fill="#eef2f7"/>
   <line x1="12" y1="84" x2="88" y2="84" stroke="#cbd5e1" stroke-width="2"/>
-  <circle cx="22" cy="48" r="6" fill="#334155"/>
-  <g fill="none" stroke="#334155" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M28 50 L72 52"/>
+  <g fill="none" stroke="#475569" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
     <path d="M30 50 L30 84"/>
     <path d="M72 52 L86 84"/>
   </g>
-  <path d="M30 50 L42 40 L34 52" fill="none" stroke="#2563eb" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M28 50 L72 52" fill="none" stroke="#334155" stroke-width="12" stroke-linecap="round"/>
+  <path d="M22 48 L29 50" fill="none" stroke="#334155" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="21" cy="47" r="6.5" fill="#334155"/>
+  <path d="M30 50 L30 70 L34 84" fill="none" stroke="#2563eb" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round">
+    <animate attributeName="d" values="M30 50 L30 70 L34 84; M30 50 L30 70 L34 84; M30 50 L42 42 L34 52; M30 50 L42 42 L34 52; M30 50 L30 70 L34 84" dur="2.4s" repeatCount="indefinite"/>
+  </path>
 </svg>

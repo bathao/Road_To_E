@@ -1,12 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <rect x="4" y="4" width="92" height="92" rx="14" fill="#eef2f7"/>
   <line x1="14" y1="88" x2="86" y2="88" stroke="#cbd5e1" stroke-width="2"/>
-  <circle cx="50" cy="22" r="6" fill="#334155"/>
-  <g fill="none" stroke="#334155" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M50 28 L50 70"/>
+  <g fill="none" stroke="#475569" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
     <path d="M50 70 L42 86"/>
     <path d="M50 70 L58 86"/>
   </g>
-  <path d="M50 38 L31 21" fill="none" stroke="#2563eb" stroke-width="5" stroke-linecap="round"/>
-  <path d="M50 38 L69 21" fill="none" stroke="#2563eb" stroke-width="5" stroke-linecap="round"/>
+  <path d="M50 28 L50 70" fill="none" stroke="#334155" stroke-width="12" stroke-linecap="round"/>
+  <circle cx="50" cy="21" r="6.5" fill="#334155"/>
+  <path d="M50 38 L31 21" fill="none" stroke="#2563eb" stroke-width="7.5" stroke-linecap="round">
+    <animate attributeName="d" values="M50 38 L31 21; M50 44 L30 44; M50 38 L31 21" dur="2.2s" repeatCount="indefinite"/>
+  </path>
+  <path d="M50 38 L69 21" fill="none" stroke="#2563eb" stroke-width="7.5" stroke-linecap="round">
+    <animate attributeName="d" values="M50 38 L69 21; M50 44 L70 44; M50 38 L69 21" dur="2.2s" repeatCount="indefinite"/>
+  </path>
 </svg>

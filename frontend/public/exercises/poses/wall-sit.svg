@@ -2,10 +2,16 @@
   <rect x="4" y="4" width="92" height="92" rx="14" fill="#eef2f7"/>
   <line x1="18" y1="18" x2="18" y2="82" stroke="#cbd5e1" stroke-width="3"/>
   <line x1="18" y1="82" x2="84" y2="82" stroke="#cbd5e1" stroke-width="2"/>
-  <circle cx="26" cy="34" r="6" fill="#334155"/>
-  <g fill="none" stroke="#334155" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M24 40 L24 60"/>
-    <path d="M50 60 L50 82"/>
-  </g>
-  <path d="M24 60 H50" fill="none" stroke="#2563eb" stroke-width="5" stroke-linecap="round"/>
+  <path d="M24 40 L24 60" fill="none" stroke="#334155" stroke-width="12" stroke-linecap="round">
+    <animate attributeName="d" values="M24 40 L24 60; M24 43 L24 63; M24 40 L24 60" dur="2.6s" repeatCount="indefinite"/>
+  </path>
+  <path d="M50 60 L50 82" fill="none" stroke="#475569" stroke-width="7" stroke-linecap="round">
+    <animate attributeName="d" values="M50 60 L50 82; M50 63 L50 82; M50 60 L50 82" dur="2.6s" repeatCount="indefinite"/>
+  </path>
+  <circle cx="25" cy="33" r="6.5" fill="#334155">
+    <animate attributeName="cy" values="33;36;33" dur="2.6s" repeatCount="indefinite"/>
+  </circle>
+  <path d="M24 60 H50" fill="none" stroke="#2563eb" stroke-width="10" stroke-linecap="round">
+    <animate attributeName="d" values="M24 60 H50; M24 63 H50; M24 60 H50" dur="2.6s" repeatCount="indefinite"/>
+  </path>
 </svg>

@@ -1,11 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <rect x="4" y="4" width="92" height="92" rx="14" fill="#eef2f7"/>
   <line x1="14" y1="84" x2="86" y2="84" stroke="#cbd5e1" stroke-width="2"/>
-  <circle cx="66" cy="46" r="6" fill="#334155"/>
-  <g fill="none" stroke="#334155" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M50 60 L62 50"/>
+  <g fill="none" stroke="#475569" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
     <path d="M50 60 L46 84"/>
     <path d="M50 60 L56 84"/>
   </g>
-  <path d="M60 52 L54 80" fill="none" stroke="#2563eb" stroke-width="5" stroke-linecap="round"/>
+  <path d="M50 60 L62 50" fill="none" stroke="#334155" stroke-width="12" stroke-linecap="round"/>
+  <circle cx="66" cy="46" r="6.5" fill="#334155">
+    <animate attributeName="cx" values="66;70;66" dur="2.8s" repeatCount="indefinite"/>
+    <animate attributeName="cy" values="46;50;46" dur="2.8s" repeatCount="indefinite"/>
+  </circle>
+  <path d="M60 52 L54 80" fill="none" stroke="#2563eb" stroke-width="7.5" stroke-linecap="round">
+    <animate attributeName="d" values="M60 52 L54 80; M63 55 L56 80; M60 52 L54 80" dur="2.8s" repeatCount="indefinite"/>
+  </path>
 </svg>

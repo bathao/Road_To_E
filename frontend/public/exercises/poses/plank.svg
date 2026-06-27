@@ -1,10 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <rect x="4" y="4" width="92" height="92" rx="14" fill="#eef2f7"/>
   <line x1="14" y1="80" x2="86" y2="80" stroke="#cbd5e1" stroke-width="2"/>
-  <circle cx="28" cy="54" r="6" fill="#334155"/>
-  <path d="M34 58 L82 79" fill="none" stroke="#2563eb" stroke-width="5" stroke-linecap="round"/>
-  <g fill="none" stroke="#334155" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+  <g fill="none" stroke="#475569" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
     <path d="M36 60 L40 79"/>
     <path d="M36 79 H46"/>
   </g>
+  <circle cx="27" cy="53" r="6.5" fill="#334155">
+    <animate attributeName="cy" values="53;54.5;53" dur="2.8s" repeatCount="indefinite"/>
+  </circle>
+  <path d="M33 58 L82 79" fill="none" stroke="#2563eb" stroke-width="11" stroke-linecap="round">
+    <animate attributeName="d" values="M33 58 L82 79; M33 59.5 L82 79.5; M33 58 L82 79" dur="2.8s" repeatCount="indefinite"/>
+  </path>
 </svg>

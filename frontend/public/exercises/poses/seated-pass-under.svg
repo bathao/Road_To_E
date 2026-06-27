@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <rect x="4" y="4" width="92" height="92" rx="14" fill="#eef2f7"/>
+  <line x1="12" y1="84" x2="88" y2="84" stroke="#cbd5e1" stroke-width="2"/>
+  <path d="M46 74 L60 78 L56 84" fill="none" stroke="#475569" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M46 74 L34 52" fill="none" stroke="#334155" stroke-width="12" stroke-linecap="round"/>
+  <path d="M31 47 L34 52" fill="none" stroke="#334155" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="29" cy="45" r="6.5" fill="#334155"/>
+  <path d="M46 74 L66 78 L80 78" fill="none" stroke="#2563eb" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round">
+    <animate attributeName="d" values="M46 74 L66 78 L80 78; M46 74 L62 62 L78 56; M46 74 L66 78 L80 78" dur="1.9s" repeatCount="indefinite"/>
+  </path>
+  <path d="M34 52 L42 62 L50 64" fill="none" stroke="#475569" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round">
+    <animate attributeName="d" values="M34 52 L42 62 L50 64; M34 52 L46 66 L60 70; M34 52 L42 62 L50 64" dur="1.9s" repeatCount="indefinite"/>
+  </path>
+  <rect x="47" y="60" width="11" height="6" rx="2.5" fill="#ef4444">
+    <animate attributeName="x" values="47;58;47" dur="1.9s" repeatCount="indefinite"/>
+    <animate attributeName="y" values="60;68;60" dur="1.9s" repeatCount="indefinite"/>
+  </rect>
+</svg>
