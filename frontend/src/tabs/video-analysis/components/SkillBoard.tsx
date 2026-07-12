@@ -1,6 +1,12 @@
 import { useState } from "react";
 import type { Aspect, Report, Setting, Skill, SkillIn, SkillStatus } from "../types";
-import { ASPECT_LABEL, ASPECT_ORDER, SETTING_LABEL, SKILL_STATUS_LABEL } from "../labels";
+import {
+  ASPECT_LABEL,
+  ASPECT_ORDER,
+  SETTING_LABEL,
+  SKILL_STATUS_CLASS as STATUS_CLASS,
+  SKILL_STATUS_LABEL,
+} from "../labels";
 
 interface Props {
   skills: Skill[];
@@ -18,14 +24,6 @@ const STATUS_ORDER: SkillStatus[] = [
   "needs_work",
   "weakness",
 ];
-
-const STATUS_CLASS: Record<SkillStatus, string> = {
-  strength: "va-sk-strong",
-  improving: "va-sk-improving",
-  neutral: "va-sk-neutral",
-  needs_work: "va-sk-needswork",
-  weakness: "va-sk-weak",
-};
 
 const SETTINGS: Setting[] = ["practice", "match"];
 const SETTING_ICON: Record<Setting, string> = { practice: "🏓", match: "🔥" };

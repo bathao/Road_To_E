@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { useLoad, useMutate } from "../../shared/useApi";
 import { trainingApi } from "./api";
 import DayGrid from "./components/DayGrid";
 import FeedbackModal from "./components/FeedbackModal";
@@ -27,35 +28,35 @@ export default function TrainingCenter() {
   const [readOnly, setReadOnly] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [askFeedback, setAskFeedback] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    try {
-      setError(null);
-      const [t, lv, rep] = await Promise.all([
-        trainingApi.getToday(),
-        trainingApi.getLevels(),
-        trainingApi.getReport(),
-      ]);
-      const p = await trainingApi.getProgram(t.level);
-      setToday(t);
-      setLevels(lv);
-      setReport(rep);
-      setProgram(p);
-      setViewLevel(t.level);
-      setDetail(t);
-      setReadOnly(false);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    }
+  const {
+    data: loaded,
+    error: loadError,
+    reload,
+  } = useLoad(async () => {
+    const [t, lv, rep] = await Promise.all([
+      trainingApi.getToday(),
+      trainingApi.getLevels(),
+      trainingApi.getReport(),
+    ]);
+    const p = await trainingApi.getProgram(t.level);
+    return { today: t, levels: lv, report: rep, program: p };
   }, []);
 
+  // Each (re)load resets the view to today's live session.
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (!loaded) return;
+    setToday(loaded.today);
+    setLevels(loaded.levels);
+    setReport(loaded.report);
+    setProgram(loaded.program);
+    setViewLevel(loaded.today.level);
+    setDetail(loaded.today);
+    setReadOnly(false);
+  }, [loaded]);
 
-  const fail = (e: unknown) =>
-    setError(e instanceof Error ? e.message : String(e));
+  const { run, error: mutateError } = useMutate();
+  const error = mutateError ?? loadError;
 
   const isCurrentLevelView = !!today && program?.level === today.level;
   // Only the live (editable) open session can be played/edited.
@@ -63,23 +64,21 @@ export default function TrainingCenter() {
 
   const switchLevel = async (level: string) => {
     if (!today) return;
-    try {
-      const p = await trainingApi.getProgram(level);
-      setProgram(p);
-      setViewLevel(level);
-      if (level === today.level) {
-        setDetail(today);
-        setReadOnly(false);
-        return;
-      }
-      const lastDone = [...p.tiles].reverse().find((t) => t.status === "done");
-      if (lastDone) {
-        const s = await trainingApi.getSession(level, lastDone.day_index);
-        setDetail(s);
-        setReadOnly(true);
-      }
-    } catch (e) {
-      fail(e);
+    const p = await run(() => trainingApi.getProgram(level));
+    if (p === undefined) return;
+    setProgram(p);
+    setViewLevel(level);
+    if (level === today.level) {
+      setDetail(today);
+      setReadOnly(false);
+      return;
+    }
+    const lastDone = [...p.tiles].reverse().find((t) => t.status === "done");
+    if (lastDone) {
+      const s = await run(() => trainingApi.getSession(level, lastDone.day_index));
+      if (s === undefined) return;
+      setDetail(s);
+      setReadOnly(true);
     }
   };
 
@@ -93,13 +92,10 @@ export default function TrainingCenter() {
       setReadOnly(false);
       return;
     }
-    try {
-      const s = await trainingApi.getSession(program.level, tile.day_index);
-      setDetail(s);
-      setReadOnly(true);
-    } catch (e) {
-      fail(e);
-    }
+    const s = await run(() => trainingApi.getSession(program.level, tile.day_index));
+    if (s === undefined) return;
+    setDetail(s);
+    setReadOnly(true);
   };
 
   // Apply an updated session returned by a mutation to local state.
@@ -110,50 +106,39 @@ export default function TrainingCenter() {
 
   const tick = async (itemId: number, done: boolean) => {
     if (!detail || readOnly) return;
-    try {
-      applySession(
-        await trainingApi.tickItem(detail.level, detail.day_index, itemId, done)
-      );
-    } catch (e) {
-      fail(e);
-    }
+    const out = await run(() =>
+      trainingApi.tickItem(detail.level, detail.day_index, itemId, done)
+    );
+    if (out !== undefined) applySession(out);
   };
 
   const substitute = async (itemId: number, key: string) => {
     if (!detail || readOnly) return;
-    try {
-      applySession(
-        await trainingApi.substitute(detail.level, detail.day_index, itemId, key)
-      );
-    } catch (e) {
-      fail(e);
-    }
+    const out = await run(() =>
+      trainingApi.substitute(detail.level, detail.day_index, itemId, key)
+    );
+    if (out !== undefined) applySession(out);
   };
 
   const skip = async (itemId: number, skipped: boolean) => {
     if (!detail || readOnly) return;
-    try {
-      applySession(
-        await trainingApi.skip(detail.level, detail.day_index, itemId, skipped)
-      );
-    } catch (e) {
-      fail(e);
-    }
+    const out = await run(() =>
+      trainingApi.skip(detail.level, detail.day_index, itemId, skipped)
+    );
+    if (out !== undefined) applySession(out);
   };
 
   const submitFeedback = async (pain: Pain, rpe: Rpe, doneOn: string) => {
     if (!detail) return;
-    try {
-      setAskFeedback(false);
-      await trainingApi.complete(detail.level, detail.day_index, {
+    setAskFeedback(false);
+    const out = await run(() =>
+      trainingApi.complete(detail.level, detail.day_index, {
         pain,
         rpe,
         done_on: doneOn,
-      });
-      await load();
-    } catch (e) {
-      fail(e);
-    }
+      })
+    );
+    if (out !== undefined) reload();
   };
 
   if (error && !program) return <div className="tc-error">Lỗi: {error}</div>;
@@ -223,7 +208,7 @@ export default function TrainingCenter() {
           }}
           onClose={() => {
             setPlaying(false);
-            void load();
+            reload();
           }}
         />
       )}

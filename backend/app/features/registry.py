@@ -7,6 +7,7 @@ Importing the feature modules also registers their ORM models on Base.metadata.
 from sqlalchemy.orm import Session
 
 from app.features.head_coach import router as head_coach_router
+from app.features.head_coach import seed as head_coach_seed
 from app.features.playbook import router as playbook_router
 from app.features.tracker import router as tracker_router
 from app.features.tracker import seed as tracker_seed
@@ -29,6 +30,7 @@ SEED_FUNCS = [
     tracker_seed.seed_categories,
     video_seed.seed_profile,
     training_seed.migrate,
+    head_coach_seed.migrate,
 ]
 
 

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useLoad, useMutate } from "../../shared/useApi";
 import Modal from "../../shared/ui/Modal";
 import { playbookApi } from "./api";
 import { PHASE_ICON } from "./constants";
@@ -55,11 +56,6 @@ function haystack(t: {
 }
 
 export default function TacticalPlaybook() {
-  const [meta, setMeta] = useState<PlaybookMeta | null>(null);
-  const [library, setLibrary] = useState<LibraryItem[]>([]);
-  const [tactics, setTactics] = useState<Tactic[]>([]);
-  const [error, setError] = useState<string | null>(null);
-
   const [phase, setPhase] = useState<PhaseFilter>("all");
   const [search, setSearch] = useState("");
   const [favOnly, setFavOnly] = useState(false);
@@ -72,29 +68,20 @@ export default function TacticalPlaybook() {
     payload: TacticIn;
   } | null>(null);
 
-  const reloadTactics = useCallback(async () => {
-    try {
-      setError(null);
-      setTactics(await playbookApi.getTactics());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    }
-  }, []);
+  // Meta + library load once; tactics reload after every mutation.
+  const staticLoad = useLoad<[PlaybookMeta, LibraryItem[]]>(
+    () => Promise.all([playbookApi.getMeta(), playbookApi.getLibrary()]),
+    []
+  );
+  const meta = staticLoad.data?.[0] ?? null;
+  const library = staticLoad.data?.[1] ?? [];
 
-  useEffect(() => {
-    let alive = true;
-    Promise.all([playbookApi.getMeta(), playbookApi.getLibrary()])
-      .then(([m, lib]) => {
-        if (!alive) return;
-        setMeta(m);
-        setLibrary(lib);
-      })
-      .catch((e) => alive && setError(e instanceof Error ? e.message : String(e)));
-    void reloadTactics();
-    return () => {
-      alive = false;
-    };
-  }, [reloadTactics]);
+  const tacticsLoad = useLoad<Tactic[]>(() => playbookApi.getTactics(), []);
+  const tactics = tacticsLoad.data ?? [];
+  const reloadTactics = tacticsLoad.reload;
+
+  const { run, error: mutateError } = useMutate();
+  const error = mutateError ?? tacticsLoad.error ?? staticLoad.error;
 
   // Which Library items are already in My Tactics (by source_key).
   const addedKeys = useMemo(
@@ -134,22 +121,19 @@ export default function TacticalPlaybook() {
     setEditing({ id: t.id, payload: toPayload(t) });
 
   const saveEditing = async (payload: TacticIn) => {
-    try {
-      if (editing?.id != null) {
-        await playbookApi.updateTactic(editing.id, payload);
-      } else {
-        await playbookApi.createTactic(payload);
-      }
-      setEditing(null);
-      await reloadTactics();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    }
+    const out = await run(() =>
+      editing?.id != null
+        ? playbookApi.updateTactic(editing.id, payload)
+        : playbookApi.createTactic(payload)
+    );
+    if (out === undefined) return;
+    setEditing(null);
+    reloadTactics();
   };
 
   const addFromLibrary = async (item: LibraryItem) => {
-    try {
-      await playbookApi.createTactic({
+    const out = await run(() =>
+      playbookApi.createTactic({
         phase: item.phase,
         title: item.title,
         when_to_use: item.when_to_use,
@@ -161,33 +145,29 @@ export default function TacticalPlaybook() {
         confidence: 0,
         is_favorite: false,
         source_key: item.key,
-      });
-      await reloadTactics();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    }
+      })
+    );
+    if (out !== undefined) reloadTactics();
   };
 
   const toggleFavorite = async (t: Tactic) => {
-    try {
-      await playbookApi.updateTactic(t.id, {
+    const out = await run(() =>
+      playbookApi.updateTactic(t.id, {
         ...toPayload(t),
         is_favorite: !t.is_favorite,
-      });
-      await reloadTactics();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    }
+      })
+    );
+    if (out !== undefined) reloadTactics();
   };
 
   const remove = async (t: Tactic) => {
     if (!window.confirm(`Xoá chiến thuật "${t.title}"?`)) return;
-    try {
+    // deleteTactic returns void, so return `true` to signal success to `run`.
+    const ok = await run(async () => {
       await playbookApi.deleteTactic(t.id);
-      await reloadTactics();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    }
+      return true;
+    });
+    if (ok) reloadTactics();
   };
 
   const showIcons = phase === "all";

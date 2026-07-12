@@ -1,8 +1,59 @@
 # Progress Log — Table Tennis Coach
 
-## Current status (2026-06-27)
+## Current status (2026-07-12)
 
-> **Resume (2026-06-27, latest).** Training Center got **4 new seated weighted-abs
+> **Resume (2026-07-12, latest).** **Project-wide hardening pass** (from a full
+> code review): safety, bugs, performance, tests. NOT committed yet. Highlights:
+>   - **Data safety:** `tracker/seed.seed_categories` no longer deletes
+>     categories/activities/matches missing from the defaults — it keeps them and
+>     logs a warning (never delete user data). Unique index on
+>     `tracker_activity(date, category_id)` added non-destructively (skipped with
+>     a warning if legacy duplicates exist). SQLite now runs WAL +
+>     `busy_timeout=5000` (`core/db.py`).
+>   - **Real bug fixes (frontend):** Profile tab dùng UTC (`toISOString`) — trước
+>     7h sáng VN "hôm nay" bị tính là hôm qua → fixed via shared local-date
+>     helpers; ReviewPanel drafts được merge thay vì reset mỗi 2.5s poll (hết mất
+>     chữ đang gõ); WorkoutPlayer countdown side-effects moved out of the state
+>     updater (StrictMode-safe).
+>   - **Silent failures eliminated:** new `shared/useApi.ts` (`useLoad` with
+>     stale-response guard + `useMutate`) adopted across all tabs — every write
+>     now surfaces errors in the UI; backend got `logging` throughout (the
+>     swallowed `regenerate_skills` failure now logs + rolls back).
+>   - **Head Coach generate chạy nền** (mirrors parse_report): `hc_assessment`
+>     gets `status`/`error_msg` columns (idempotent seed migrate), POST /generate
+>     returns ngay, GUI polls GET /status rồi refetch — hết request treo 10 phút.
+>   - **Perf:** `selectinload` + 365-day floor on training `report()` /
+>     `physical_day_map()` (N+1 gone from every tracker load); `/assets/*` served
+>     `immutable` (only index.html stays no-store).
+>   - **LLM prompts:** trait caps (150 profile / 20 per aspect) + `num_ctx=16384`
+>     so Ollama never silently truncates; player name read from `profile.name`
+>     (hết hardcode); docstrings về review-gate đã sửa cho đúng auto-accept design.
+>   - **Validation:** Pydantic `Literal`/bounds cho MatchIn (discipline, best_of
+>     3|5|7, sets 0..4), duration ≤ 24h, player name không rỗng; training
+>     complete/substitute từ chối level/exercise không hợp lệ; unknown `/api/*`
+>     trả 404 thay vì index.html; DELETE report trả 404 khi không có.
+>   - **Dedup:** `core/sqlite_migrate.py` (một `add_missing_columns` thay 3 bản
+>     copy), một `ASPECT_LABEL_VI`/`SETTING_LABEL_VI` (video schemas) dùng chung
+>     với Head Coach, một `PHYSICAL_YELLOW_RATIO`, một `_result_letter`; FE:
+>     `SKILL_STATUS_CLASS` dùng chung, date helpers gom về `shared/dates.ts`,
+>     BarChart chết đã xóa (type `Bar` chuyển sang LineChart).
+>   - **styles.css tách theo tab:** `src/styles/{base,daily-tracker,…}.css` (8
+>     file, `styles.css` chỉ còn @import) + **~610 dòng CSS chết đã xóa**
+>     (upload/lightbox/annotator/gate/progress cũ, `minutes-*`) — grep-verified.
+>   - **Tests:** `backend/tests/` — **22 pytest** (in-memory SQLite, không đụng
+>     DB thật): coach-package math, overall colors, match-stats grouping,
+>     activity upsert, seed safety, autoregulation clamp, maintenance-cycle math…
+>     `requirements-dev.txt` mới. Chạy: `.venv\Scripts\python -m pytest tests -q`.
+>   - **OpenAPI typegen:** `npm run gen:api` → dump schema qua
+>     `backend/scripts/dump_openapi.py` → `src/shared/api/schema.d.ts`
+>     (openapi-typescript) để soát drift giữa types.ts viết tay và Pydantic.
+>   - Verified: backend boots on the real DB (idempotent migrations applied:
+>     `hc_assessment.status/error_msg`, activity unique index), 22/22 tests pass,
+>     `npm run build` clean, smoke-tested weeks/report/status/assets endpoints.
+>     **Lưu ý:** server đang chạy (start.bat) vẫn là code cũ — cần khởi động lại
+>     để backend mới có hiệu lực.
+
+> **Resume (2026-06-27).** Training Center got **4 new seated weighted-abs
 > exercises** + the whole pose library was **animated**. Two parts, all committed
 > this session:
 >   - **4 new "bụng-có-tạ" (ngồi) moves** sourced from a FitwithCarla reel the user

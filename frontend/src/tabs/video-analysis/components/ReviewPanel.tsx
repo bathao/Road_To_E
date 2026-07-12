@@ -25,20 +25,30 @@ export default function ReviewPanel({ detail, reviewing, onReview, onDelete }: P
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});
   const [showSource, setShowSource] = useState(false);
 
-  // Seed drafts from the report's findings. A not-yet-reviewed (proposed)
-  // finding defaults to "keep"; a rejected one defaults to "drop".
+  // Start fresh when a DIFFERENT report is selected…
   useEffect(() => {
-    const next: Record<number, Draft> = {};
-    for (const t of detail.traits) {
-      next[t.id] = {
-        accept: t.status !== "rejected",
-        text: t.text,
-        aspect: t.aspect,
-        polarity: t.polarity,
-      };
-    }
-    setDrafts(next);
-  }, [detail]);
+    setDrafts({});
+  }, [detail.id]);
+
+  // …then seed drafts for findings that don't have one yet. Merging (instead
+  // of replacing) keeps in-progress edits alive while the 2.5s parsing poll
+  // refreshes `detail` — replacing on every poll used to wipe the textareas.
+  useEffect(() => {
+    setDrafts((prev) => {
+      const next = { ...prev };
+      for (const t of detail.traits) {
+        if (!next[t.id]) {
+          next[t.id] = {
+            accept: t.status !== "rejected",
+            text: t.text,
+            aspect: t.aspect,
+            polarity: t.polarity,
+          };
+        }
+      }
+      return next;
+    });
+  }, [detail.id, detail.traits]);
 
   const set = (id: number, patch: Partial<Draft>) =>
     setDrafts((d) => ({ ...d, [id]: { ...d[id], ...patch } }));

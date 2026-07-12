@@ -9,10 +9,13 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import logging
+import time
 
 import httpx
 from sqlalchemy.orm import Session
 
+from app.core.db import SessionLocal
 from app.core.settings import HEAD_COACH_MODEL, OLLAMA_BASE_URL
 from app.features.head_coach import schemas
 from app.features.head_coach.models import HeadCoachAssessment
@@ -21,21 +24,12 @@ from app.features.playbook import service as playbook_service
 from app.features.tracker import service as tracker_service
 from app.features.training import service as training_service
 from app.features.video_analysis import service as video_service
+from app.features.video_analysis.schemas import ASPECT_LABEL_VI as _ASPECT_VI
+
+log = logging.getLogger(__name__)
 
 # Window used for the match / training-load stats fed to the coach.
 _STATS_WINDOW_DAYS = 90
-
-_ASPECT_VI = {
-    "serve": "Giao bóng",
-    "receive": "Đỡ giao bóng",
-    "forehand": "Phải tay (FH)",
-    "backhand": "Trái tay (BH)",
-    "footwork": "Di chuyển/bộ chân",
-    "stance_posture": "Tư thế",
-    "tactics": "Chiến thuật",
-    "mental": "Tâm lý",
-    "physical": "Thể lực",
-}
 
 
 # ---------------------------------------------------------------- gather inputs
@@ -234,9 +228,9 @@ def _bundle_to_text(b: schemas.SourceSummary) -> str:
 
 
 # ---------------------------------------------------------------- synthesise
-def _call_model(context_text: str) -> dict:
+def _call_model(context_text: str, player_name: str) -> dict:
     user_text = (
-        "Dưới đây là TOÀN BỘ số liệu hiện có về học trò Nguyễn Bá Thảo. Hãy đọc kỹ, "
+        f"Dưới đây là TOÀN BỘ số liệu hiện có về học trò {player_name}. Hãy đọc kỹ, "
         "đánh giá NGHIÊM KHẮC dựa trên số liệu, rồi đưa ra kết luận + kế hoạch.\n\n"
         f"{context_text}\n"
         "Yêu cầu trả về (tiếng Việt, đúng JSON schema):\n"
@@ -259,29 +253,68 @@ def _call_model(context_text: str) -> dict:
         "format": RESPONSE_SCHEMA,
         "options": {"temperature": 0.3, "num_ctx": 16384},
     }
+    t0 = time.monotonic()
     resp = httpx.post(f"{OLLAMA_BASE_URL}/api/chat", json=payload, timeout=600.0)
     resp.raise_for_status()
+    log.info("head coach: model=%s took=%.1fs", HEAD_COACH_MODEL, time.monotonic() - t0)
     content = resp.json().get("message", {}).get("content", "{}")
     return json.loads(content) if content else {}
 
 
-def generate(db: Session) -> schemas.AssessmentOut:
-    """Gather → synthesise → persist a new verdict snapshot, and return it."""
-    bundle = gather_bundle(db)
-    data = _call_model(_bundle_to_text(bundle))
-
-    row = HeadCoachAssessment(
-        model=HEAD_COACH_MODEL,
-        overall_assessment=data.get("overall_assessment", ""),
-        top_priorities_json=json.dumps(data.get("top_priorities", []), ensure_ascii=False),
-        directives_json=json.dumps(data.get("directives", []), ensure_ascii=False),
-        tactics_json=json.dumps(data.get("tactics", []), ensure_ascii=False),
-        week_plan_json=json.dumps(data.get("week_plan", []), ensure_ascii=False),
-        watch_items_json=json.dumps(data.get("watch_items", []), ensure_ascii=False),
-        sources_json=bundle.model_dump_json(),
-    )
+def start_generate(db: Session) -> schemas.AssessmentOut:
+    """Create a `generating` placeholder row; the heavy work (gather + local
+    LLM, up to minutes) runs in run_generate_job on a background task. Mirrors
+    the video-analysis parse flow: the UI polls /assessment until the status
+    leaves `generating`."""
+    row = HeadCoachAssessment(model=HEAD_COACH_MODEL, status="generating")
     db.add(row)
     db.commit()
+    db.refresh(row)
+    return _to_out(row)
+
+
+def run_generate_job(assessment_id: int) -> None:
+    """Background job: gather the bundle, call the model, fill the snapshot."""
+    db = SessionLocal()
+    try:
+        row = db.get(HeadCoachAssessment, assessment_id)
+        if row is None or row.status != "generating":
+            return
+        try:
+            bundle = gather_bundle(db)
+            data = _call_model(
+                _bundle_to_text(bundle),
+                player_name=bundle.video.get("player") or "vận động viên",
+            )
+        except Exception as exc:  # noqa: BLE001 — surfaced to the GUI via status
+            log.exception("head coach generate(%d) failed", assessment_id)
+            db.rollback()
+            row = db.get(HeadCoachAssessment, assessment_id)
+            if row is not None:
+                row.status = "error"
+                row.error_msg = str(exc)[:1000]
+                db.commit()
+            return
+        row.overall_assessment = data.get("overall_assessment", "")
+        row.top_priorities_json = json.dumps(data.get("top_priorities", []), ensure_ascii=False)
+        row.directives_json = json.dumps(data.get("directives", []), ensure_ascii=False)
+        row.tactics_json = json.dumps(data.get("tactics", []), ensure_ascii=False)
+        row.week_plan_json = json.dumps(data.get("week_plan", []), ensure_ascii=False)
+        row.watch_items_json = json.dumps(data.get("watch_items", []), ensure_ascii=False)
+        row.sources_json = bundle.model_dump_json()
+        row.status = "done"
+        row.error_msg = None
+        db.commit()
+    finally:
+        db.close()
+
+
+def generate(db: Session) -> schemas.AssessmentOut:
+    """Synchronous gather → synthesise → persist (used by scripts/tests; the
+    HTTP API uses start_generate + run_generate_job instead)."""
+    out = start_generate(db)
+    run_generate_job(out.id)
+    row = db.get(HeadCoachAssessment, out.id)
     db.refresh(row)
     return _to_out(row)
 
@@ -291,6 +324,8 @@ def _to_out(row: HeadCoachAssessment) -> schemas.AssessmentOut:
         id=row.id,
         created_at=row.created_at,
         model=row.model,
+        status=row.status or "done",
+        error_msg=row.error_msg,
         overall_assessment=row.overall_assessment,
         top_priorities=[schemas.Priority(**p) for p in json.loads(row.top_priorities_json)],
         directives=[schemas.Directive(**d) for d in json.loads(row.directives_json)],
@@ -302,15 +337,31 @@ def _to_out(row: HeadCoachAssessment) -> schemas.AssessmentOut:
 
 
 def get_latest(db: Session) -> schemas.AssessmentOut:
-    """The most recent verdict, or an `empty` placeholder if none generated yet."""
+    """The most recent *completed* verdict, or an `empty` placeholder if none
+    generated yet (in-flight/error rows are reported via get_status)."""
     row = (
         db.query(HeadCoachAssessment)
+        .filter(HeadCoachAssessment.status == "done")
         .order_by(HeadCoachAssessment.created_at.desc())
         .first()
     )
     if row is None:
         return schemas.AssessmentOut(empty=True)
     return _to_out(row)
+
+
+def get_status(db: Session) -> schemas.GenerateStatusOut:
+    """The most recent generation attempt's state — what the UI polls."""
+    row = (
+        db.query(HeadCoachAssessment)
+        .order_by(HeadCoachAssessment.created_at.desc())
+        .first()
+    )
+    if row is None:
+        return schemas.GenerateStatusOut(status="none")
+    return schemas.GenerateStatusOut(
+        id=row.id, status=row.status or "done", error_msg=row.error_msg
+    )
 
 
 def live_sources(db: Session) -> schemas.SourcesOut:

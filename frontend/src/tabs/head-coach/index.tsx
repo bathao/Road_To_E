@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { headCoachApi } from "./api";
+import { useLoad, useMutate } from "../../shared/useApi";
 import type { Assessment, Directive } from "./types";
 
 const AREA: Record<string, { icon: string; label: string }> = {
@@ -22,40 +23,61 @@ function fmtTime(iso: string | null): string {
 }
 
 export default function HeadCoach() {
-  const [data, setData] = useState<Assessment | null>(null);
-  const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    data,
+    error: loadError,
+    loading,
+    reload,
+  } = useLoad<Assessment>(() => headCoachApi.getAssessment(), []);
+  const { run, error: mutateError, clearError } = useMutate();
+  const error = mutateError ?? loadError;
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setData(await headCoachApi.getAssessment());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
+  // On mount, resume the "generating" state if a run is already in flight
+  // (e.g. the tab was switched away and back while the local model worked).
+  useEffect(() => {
+    let alive = true;
+    headCoachApi
+      .getStatus()
+      .then((s) => {
+        if (alive && s.status === "generating") setGenerating(true);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
   }, []);
 
+  // While generating, poll the status every 3s; when the run finishes, stop
+  // and refetch the completed assessment (or surface the error).
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (!generating) return;
+    const timer = setInterval(async () => {
+      try {
+        const s = await headCoachApi.getStatus();
+        if (s.status === "generating") return;
+        setGenerating(false);
+        if (s.status === "error") {
+          throw new Error(s.error_msg || "Phân tích thất bại.");
+        }
+        reload();
+      } catch (e) {
+        setGenerating(false);
+        void run(() => Promise.reject(e)); // surface via the shared error state
+      }
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [generating, reload, run]);
 
   const generate = async () => {
-    setGenerating(true);
-    setError(null);
-    try {
-      setData(await headCoachApi.generate());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setGenerating(false);
-    }
+    clearError();
+    const started = await run(() => headCoachApi.generate());
+    if (started !== undefined) setGenerating(true);
   };
 
-  const m = (data?.sources.match ?? {}) as Record<string, any>;
+  const m = data?.sources.match ?? {};
+  const video = data?.sources.video ?? {};
+  const training = data?.sources.training ?? {};
 
   return (
     <div className="hc">
@@ -74,7 +96,8 @@ export default function HeadCoach() {
 
       {generating && (
         <div className="hc-note">
-          HLV đang xem lại số liệu của bạn (chạy model cục bộ, ~30–60 giây)…
+          HLV đang xem lại số liệu của bạn (chạy model cục bộ ở chế độ nền —
+          có thể chuyển tab khác rồi quay lại, kết quả sẽ tự hiện)…
         </div>
       )}
       {error && <div className="hc-error">⚠️ {error}</div>}
@@ -175,17 +198,17 @@ export default function HeadCoach() {
             <div className="hc-source-grid">
               <div>Khoảng thời gian: {data.sources.generated_for_range}</div>
               <div>
-                Thi đấu (90 ngày): đơn {String(m.singles?.played ?? "—")} trận · đôi{" "}
-                {String(m.doubles?.played ?? "—")} · gai {String(m.vs_pips?.played ?? "—")} · tổng{" "}
-                {String(m.overall?.played ?? "—")}
+                Thi đấu (90 ngày): đơn {m.singles?.played ?? "—"} trận · đôi{" "}
+                {m.doubles?.played ?? "—"} · gai {m.vs_pips?.played ?? "—"} · tổng{" "}
+                {m.overall?.played ?? "—"}
               </div>
               <div>
-                Phân tích video: {String((data.sources.video as any).clips_reviewed ?? 0)} clip ·{" "}
-                {String((data.sources.video as any).findings_accepted ?? 0)} nhận xét đã duyệt
+                Phân tích kỹ thuật: {video.reports_reviewed ?? 0} bản phân tích ·{" "}
+                {video.findings_accepted ?? 0} nhận xét đã duyệt
               </div>
               <div>
-                Thể lực: cấp {String((data.sources.training as any).level ?? "—")} ·{" "}
-                {String((data.sources.training as any).sessions_last_7d ?? 0)} buổi/7 ngày
+                Thể lực: cấp {training.level ?? "—"} ·{" "}
+                {training.sessions_last_7d ?? 0} buổi/7 ngày
               </div>
             </div>
           </details>

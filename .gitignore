@@ -41,6 +41,9 @@ frontend/dist/
 frontend/vite.config.js
 frontend/vite.config.d.ts
 
+# OpenAPI dump (intermediate of `npm run gen:api`; schema.d.ts IS tracked)
+frontend/openapi.json
+
 # ---- Editor / OS ----
 .vscode/
 .idea/

@@ -4,6 +4,9 @@ All feature routers come from app.features.registry, so adding a tab's backend
 never touches this file. Static responses are sent with no-cache headers so a
 fresh build is always picked up by the browser.
 """
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -13,7 +16,23 @@ from app.core.db import SessionLocal, init_db
 from app.core.settings import APP_TITLE, FRONTEND_DIST
 from app.features import registry
 
-app = FastAPI(title=APP_TITLE)
+# uvicorn only configures its own loggers; give the app's `app.*` loggers a
+# root handler so seed migrations / LLM calls / swallowed errors are visible.
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    init_db()
+    db = SessionLocal()
+    try:
+        registry.run_seeds(db)
+    finally:
+        db.close()
+    yield
+
+
+app = FastAPI(title=APP_TITLE, lifespan=lifespan)
 
 # Allow the Vite dev server during development.
 app.add_middleware(
@@ -27,18 +46,13 @@ app.add_middleware(
 @app.middleware("http")
 async def no_cache(request: Request, call_next):
     response = await call_next(request)
-    response.headers["Cache-Control"] = "no-store, must-revalidate"
+    # Vite assets are content-hashed (immutable) — safe to cache forever. Only
+    # index.html & friends need no-store so a fresh build is always picked up.
+    if request.url.path.startswith("/assets/"):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    else:
+        response.headers["Cache-Control"] = "no-store, must-revalidate"
     return response
-
-
-@app.on_event("startup")
-def on_startup() -> None:
-    init_db()
-    db = SessionLocal()
-    try:
-        registry.run_seeds(db)
-    finally:
-        db.close()
 
 
 # Feature routers (tracker, and future tabs).
@@ -63,6 +77,9 @@ def spa(full_path: str):
     unknown client routes fall back to index.html."""
     # Serve a real static file at the root of dist (favicon, manifest, …) when it
     # exists and stays inside dist (guard against path traversal).
+    # Unknown /api/... paths must 404, not silently serve index.html.
+    if full_path.startswith("api/"):
+        return JSONResponse(status_code=404, content={"detail": "Not Found"})
     if full_path:
         candidate = (FRONTEND_DIST / full_path).resolve()
         if (

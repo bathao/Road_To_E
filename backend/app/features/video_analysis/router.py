@@ -137,5 +137,6 @@ def review_report(report_id: int, payload: schemas.ReviewIn, db: Session = Depen
 
 @router.delete("/reports/{report_id}", status_code=204)
 def delete_report(report_id: int, db: Session = Depends(get_db)):
-    service.delete_report(db, report_id)
+    if not service.delete_report(db, report_id):
+        raise HTTPException(status_code=404, detail="Report not found")
     return Response(status_code=204)

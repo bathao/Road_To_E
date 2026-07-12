@@ -1,0 +1,1151 @@
+/* Base: reset, variables, app shell, shared toolbar/buttons/modals/editors,
+   shared chart components (LineChart / ActivityChart / BarChart / PeriodControl)
+   and every rule referenced by more than one tab. */
+
+:root {
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --border: #d7dbe0;
+  --text: #1f2329;
+  --muted: #6b7280;
+  --accent: #2563eb;
+  --accent-dark: #1d4ed8;
+  --green: #92d050;
+  --yellow: #ffe17a;
+  --red: #e06666;
+  --danger: #dc2626;
+  --today: #eef4ff;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  font-size: 14px;
+}
+
+/* ---------------- App shell ---------------- */
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.app-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.app-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 700;
+  padding: 12px 20px 8px;
+}
+
+.app-logo {
+  font-size: 22px;
+}
+
+.tab-bar {
+  display: flex;
+  gap: 2px;
+  padding: 0 14px;
+}
+
+.tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--muted);
+  border-bottom: 3px solid transparent;
+}
+
+.tab-btn:hover {
+  color: var(--text);
+}
+
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+.tab-btn.disabled {
+  opacity: 0.5;
+}
+
+.tab-icon {
+  font-size: 16px;
+}
+
+.app-body {
+  flex: 1;
+  overflow: auto;
+  padding: 18px 20px;
+}
+
+/* ---------------- Coming soon ---------------- */
+
+.coming-soon {
+  text-align: center;
+  margin-top: 80px;
+  color: var(--muted);
+}
+
+.coming-soon-icon {
+  font-size: 48px;
+}
+
+.period-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 6px;
+  padding: 7px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.btn:hover {
+  border-color: var(--accent);
+}
+
+.btn.primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.btn.primary:hover {
+  background: var(--accent-dark);
+}
+
+.btn.danger {
+  color: var(--danger);
+  border-color: #f1c4c4;
+}
+
+.btn.danger:hover {
+  background: #fdeaea;
+}
+
+.icon-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--muted);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.icon-btn:hover {
+  background: #eee;
+  color: var(--text);
+}
+
+.icon-btn.danger {
+  color: var(--danger);
+}
+
+.day-head.today {
+  background: var(--today);
+  color: var(--accent-dark);
+}
+
+.day-head.today .day-weekday {
+  color: var(--accent);
+}
+
+.cell.today {
+  background: var(--today);
+}
+
+.cell.today:hover {
+  background: #e0ebff;
+}
+
+.cell.readonly.today:hover {
+  background: var(--today);
+}
+
+/* Overall row: the whole cell is filled with the day's color. */
+
+.cell.rating-green,
+.cell.rating-green.today {
+  background: var(--green);
+}
+
+.cell.rating-yellow,
+.cell.rating-yellow.today {
+  background: var(--yellow);
+}
+
+.cell.rating-red,
+.cell.rating-red.today {
+  background: var(--red);
+}
+
+.analysis-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.analysis-range {
+  margin-left: 6px;
+  font-weight: 600;
+}
+
+.custom-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.custom-range input {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.stat-grid {
+  display: grid;
+  /* auto-fit (not auto-fill) so the cards stretch to fill the full width
+     instead of packing left and leaving empty tracks on the right. */
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+}
+
+.stat-card-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.stat-big {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-top: 6px;
+}
+
+.stat-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  margin-top: 6px;
+}
+
+.stat-line.muted {
+  color: var(--muted);
+}
+
+.stat-line .win {
+  color: #2e7d32;
+}
+
+.stat-line .loss {
+  color: var(--danger);
+}
+
+/* Line / area trend chart */
+
+.linechart {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 12px 12px 8px;
+}
+
+.linechart-row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.linechart-plot {
+  position: relative;
+  flex: 1;
+  height: 200px;
+}
+
+.linechart-plot svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.lc-grid {
+  stroke: #e8ebef;
+  stroke-width: 1;
+}
+
+.lc-area {
+  fill: rgba(37, 99, 235, 0.12);
+}
+
+.lc-line {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.lc-dot {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid var(--accent);
+  transform: translate(-50%, -50%);
+  cursor: default;
+  transition: width 0.1s, height 0.1s;
+  pointer-events: none;
+}
+
+.lc-dot.active {
+  width: 12px;
+  height: 12px;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+}
+
+/* Invisible hover targets spanning the full plot height. */
+
+.lc-hit {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  transform: translateX(-50%);
+  cursor: pointer;
+}
+
+/* Floating tooltip (YouTube-style). */
+
+.lc-tooltip {
+  position: absolute;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  padding: 10px 16px;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 10;
+  transform: translate(-50%, calc(-100% - 16px));
+}
+
+.lc-tooltip.below {
+  transform: translate(-50%, 16px);
+}
+
+.lc-tt-date {
+  font-size: 13px;
+  color: #444;
+  font-weight: 500;
+}
+
+.lc-tt-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-top: 2px;
+}
+
+.linechart-yaxis {
+  width: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: left;
+  padding-bottom: 2px;
+}
+
+.linechart-xaxis {
+  display: flex;
+  margin-right: 46px;
+  margin-top: 6px;
+}
+
+.lc-xlabel {
+  flex: 1 1 0;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.lc-xlabel:first-child {
+  text-align: left;
+}
+
+.lc-xlabel:last-child {
+  text-align: right;
+}
+
+.actchart {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  /* No horizontal padding: the chart's content left edge then lines up with
+     the grid's, so a `gutterPx` left column matches the grid's Category
+     column and day points sit under their grid day columns. */
+  padding: 12px 0 8px;
+}
+
+/* Title + legend live inside the card (above the plot). The header may carry
+   its own horizontal padding without shifting the edge-aligned plot below. */
+
+.actchart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 0 12px 12px;
+}
+
+.actchart-head h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.actchart-body {
+  display: flex;
+  align-items: stretch;
+}
+
+/* Left "hours" axis: fills the gutter, numbers right-aligned against the plot. */
+
+.actchart-yaxis-left {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  font-size: 11px;
+  color: var(--muted);
+  padding: 0 8px 2px 0;
+}
+
+.actchart-plot {
+  position: relative;
+  flex: 1;
+  height: 200px;
+}
+
+.actchart-plot svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.ac-grid {
+  stroke: #e8ebef;
+  stroke-width: 1;
+}
+
+.ac-area {
+  fill: rgba(95, 168, 60, 0.16);
+}
+
+.ac-line {
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.ac-time {
+  stroke: #5fa83c;
+}
+
+.ac-match {
+  stroke: var(--accent);
+  stroke-width: 1.75;
+}
+
+.ac-dot {
+  position: absolute;
+  border-radius: 50%;
+  background: #fff;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.ac-dot-time {
+  width: 7px;
+  height: 7px;
+  border: 2px solid #5fa83c;
+}
+
+.ac-dot-match {
+  width: 6px;
+  height: 6px;
+  border: 2px solid var(--accent);
+}
+
+.ac-dot.active {
+  width: 12px;
+  height: 12px;
+}
+
+.ac-dot-time.active {
+  box-shadow: 0 0 0 4px rgba(95, 168, 60, 0.2);
+}
+
+.ac-dot-match.active {
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.18);
+}
+
+.ac-hit {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  transform: translateX(-50%);
+  cursor: pointer;
+}
+
+.ac-tooltip {
+  position: absolute;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  padding: 10px 14px;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 10;
+  transform: translate(-50%, calc(-100% - 16px));
+}
+
+.ac-tooltip.below {
+  transform: translate(-50%, 16px);
+}
+
+.ac-tt-date {
+  font-size: 13px;
+  color: #444;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.ac-tt-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.ac-tt-row + .ac-tt-row {
+  margin-top: 3px;
+}
+
+.ac-tt-row b {
+  margin-left: auto;
+  padding-left: 18px;
+  color: #1f2937;
+  font-size: 13px;
+}
+
+.ac-sw {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex: 0 0 auto;
+}
+
+.ac-sw-time {
+  background: #5fa83c;
+}
+
+.ac-sw-match {
+  background: var(--accent);
+}
+
+.ac-sw-phys {
+  background: #e0a800;
+}
+
+/* Right "count" axis: overlay pinned inside the plot's right edge so it does
+   not consume width (which would shift the day region off the grid). */
+
+.actchart-yaxis-right {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 2px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  font-size: 11px;
+  color: var(--accent-dark);
+  pointer-events: none;
+}
+
+.actchart-yaxis-right span {
+  background: rgba(255, 255, 255, 0.75);
+  border-radius: 3px;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+/* Physical-days strip below the plot, aligned to the day slots. */
+
+.actchart-strip {
+  display: flex;
+  gap: 2px;
+  margin-top: 6px;
+  height: 14px;
+}
+
+.ac-cell {
+  flex: 1 1 0;
+  border-radius: 3px;
+  background: #eef0f3;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.ac-cell-fill {
+  position: absolute;
+  inset: 0;
+  background: #e0a800;
+  opacity: 0;
+}
+
+.ac-cell.active {
+  outline: 2px solid rgba(224, 168, 0, 0.5);
+  outline-offset: -1px;
+}
+
+.actchart-xaxis {
+  display: flex;
+  margin-top: 6px;
+}
+
+.ac-xlabel {
+  flex: 1 1 0;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* ---------------- Modal ---------------- */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal {
+  background: var(--surface);
+  border-radius: 10px;
+  width: 460px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 64px);
+  overflow: auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+/* The playbook tactic form needs a little more breathing room. */
+
+.modal:has(.pb-editor) {
+  width: 520px;
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-head h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.modal-body {
+  padding: 18px;
+}
+
+/* ---------------- Editors ---------------- */
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.editor-sub {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.chip-row,
+.quick-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 18px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.chip:hover {
+  border-color: var(--accent);
+}
+
+.chip.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.custom-row,
+.note-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.custom-row {
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.package-row.disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.custom-row label,
+.note-row label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.custom-row input,
+.note-row input {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.seg-label {
+  width: 80px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.seg-btn {
+  border: none;
+  background: var(--surface);
+  padding: 7px 14px;
+  cursor: pointer;
+  font-size: 14px;
+  border-right: 1px solid var(--border);
+}
+
+.seg-btn:last-child {
+  border-right: none;
+}
+
+.seg-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.score-head.win {
+  color: #2e7d32;
+}
+
+.score-head.loss {
+  color: var(--danger);
+}
+
+.score-btn.win {
+  background: #eaf6ea;
+  border-color: #b6dfb6;
+  color: #2e7d32;
+}
+
+.score-btn.win:hover {
+  background: #d6efd6;
+}
+
+.score-btn.loss {
+  background: #fdeaea;
+  border-color: #f1c4c4;
+  color: var(--danger);
+}
+
+.score-btn.loss:hover {
+  background: #fbdada;
+}
+
+.player-row > .seg-label {
+  width: 80px;
+  flex-shrink: 0;
+  padding-top: 8px;
+}
+
+.player-add-form .seg {
+  flex-wrap: wrap;
+}
+
+.level-chip {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.level-below {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.level-equal {
+  background: #fff4d6;
+  color: #9a7d00;
+}
+
+.level-above {
+  background: #fdeaea;
+  color: #c0392b;
+}
+
+.pips-toggle.active {
+  background: #ede7f6;
+  color: #5e35b1;
+  border-style: solid;
+  border-color: #5e35b1;
+}
+
+/* Charts already carry their own card chrome — drop it when nested in a
+   stats-card so we don't get a card-inside-a-card. */
+
+.stats-card .linechart {
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  padding: 0;
+}
+
+.lvl-fill.level-below {
+  background: #51b36a;
+}
+
+.lvl-fill.level-equal {
+  background: var(--accent);
+}
+
+.lvl-fill.level-above {
+  background: #e0734a;
+}
+
+/* note editor */
+
+.note-area {
+  width: 100%;
+  resize: vertical;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.note-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.check-item.on {
+  background: #fff8e0;
+  border-color: #e8c84d;
+}
+
+.pb-phase-seg .seg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.seg-btn.active .pb-count {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+.pb-search,
+.pb-select {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 14px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.pb-error {
+  background: #fdeaea;
+  border: 1px solid #f1c4c4;
+  color: var(--danger);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+.pb-fav.on {
+  color: #f5b301;
+}
+
+.pb-phase-row .chip-row {
+  margin-top: 2px;
+}
+
+.pb-input {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 14px;
+  background: var(--surface);
+  color: var(--text);
+  width: 100%;
+}
+
+.pb-star-btn.on {
+  color: #f5b301;
+}
+
+/* ======================= Video Analysis tab ======================= */
+
+.va-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.va-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 14px 16px;
+}
+
+.va-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.va-card-head h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.va-card-head h4 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.va-muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.va-chip {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12.5px;
+}
+
+.va-trait-add .pb-input {
+  flex: 1;
+  min-width: 140px;
+}
+
+.va-sk-chip {
+  font-size: 11.5px;
+  color: #fff;
+  border: none;
+}
+
+.va-skill-bar {
+  height: 7px;
+  border-radius: 4px;
+  background: #e6e8eb;
+  overflow: hidden;
+  margin: 6px 0;
+}
+
+.va-skill-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.2s;
+}
+
+.va-report-item.active {
+  border-color: var(--accent);
+  background: var(--today);
+}
+
+.tc-level-chip.active {
+  border-color: var(--accent);
+  background: var(--today);
+}
+
+.tc-heat-cell.on {
+  background: var(--green);
+}
+
+.tc-heat-cell.today {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Post-session feedback (pain / RPE) */
+
+.tc-fb-group {
+  margin-bottom: 16px;
+}
+
+.tc-fb-q {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.tc-fb-opts {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tc-fb-opt {
+  font: inherit;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.tc-fb-opt.active {
+  border-color: var(--accent);
+  background: var(--today);
+  color: var(--accent-dark);
+  font-weight: 700;
+}
+
+.tc-fb-date {
+  font: inherit;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+
+.tc-fb-hint {
+  font-size: 13px;
+  color: var(--accent-dark);
+  margin-top: 6px;
+}
+
+.va-id-status code,
+.va-card p code {
+  background: #eef0f3;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 12px;
+}

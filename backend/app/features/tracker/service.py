@@ -34,7 +34,9 @@ PHYSICAL_ITEMS: list[tuple[str, str]] = [
 ]
 PHYSICAL_ITEM_LABELS = dict(PHYSICAL_ITEMS)
 # The Physical Training cell turns yellow once at least this share is ticked.
-PHYSICAL_YELLOW_RATIO = 0.7
+# Single source of truth lives in the Training Center (it applies the same rule
+# to its own sessions) — re-exported here for the legacy-checklist path.
+PHYSICAL_YELLOW_RATIO = training_service.PHYSICAL_YELLOW_RATIO
 
 
 def physical_checks_by_date(checks: list[PhysicalCheck]) -> dict[str, list[str]]:
@@ -640,7 +642,7 @@ def win_rate(wins: int, losses: int) -> float | None:
 
 
 def _result_of(m: Match) -> str:
-    return "W" if m.my_sets > m.opp_sets else "L" if m.my_sets < m.opp_sets else "T"
+    return _result_letter(m.my_sets, m.opp_sets)
 
 
 def _tally(s: dict, m: Match) -> None:

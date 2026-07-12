@@ -38,7 +38,8 @@ export const videoApi = {
 
   // ---- analysis reports (pasted text, date-stamped) ----
   listReports: () => api.get<AnalysisReport[]>("/video/reports"),
-  getReport_: (id: number) => api.get<AnalysisReportDetail>(`/video/reports/${id}`),
+  getAnalysisReport: (id: number) =>
+    api.get<AnalysisReportDetail>(`/video/reports/${id}`),
   createReport: (payload: {
     source_text: string;
     analysis_date?: string | null; // ISO date; defaults today, backdatable, not future

@@ -26,6 +26,21 @@ SKILL_STATUSES = ["strength", "weakness", "improving", "needs_work", "neutral"]
 # The footage setting: tập luyện/khởi động vs thi đấu trận thật.
 SETTINGS = ["practice", "match"]
 
+# Canonical Vietnamese display labels — the single copy shared by this feature
+# and the Head Coach (prompt-facing descriptions live in text_synth).
+ASPECT_LABEL_VI = {
+    "serve": "Giao bóng",
+    "receive": "Đỡ giao bóng",
+    "forehand": "Phải tay (FH)",
+    "backhand": "Trái tay (BH)",
+    "footwork": "Bộ chân / di chuyển",
+    "stance_posture": "Tư thế",
+    "tactics": "Chiến thuật",
+    "mental": "Tâm lý",
+    "physical": "Thể lực",
+}
+SETTING_LABEL_VI = {"practice": "Tập", "match": "Đấu"}
+
 
 # ----------------------------------------------------------------- profile
 class ProfileOut(BaseModel):

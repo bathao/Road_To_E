@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import datetime as dt
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class CategoryOut(BaseModel):
@@ -20,7 +21,7 @@ class CategoryOut(BaseModel):
 class ActivityIn(BaseModel):
     date: dt.date
     category_id: int
-    duration_minutes: int
+    duration_minutes: int = Field(ge=0, le=24 * 60)  # one calendar day max
     note: str | None = None
     is_package_start: bool = False  # first session of a coaching package
 
@@ -55,9 +56,17 @@ class CoachStartAllowedResponse(BaseModel):
 # ---------- Player (opponent / partner pool) ----------
 class PlayerIn(BaseModel):
     name: str
-    level: str = "equal"  # below | equal | above
+    level: Literal["below", "equal", "above"] = "equal"
     note: str | None = None
     plays_pips: bool = False  # opponent uses pimpled rubber ("đánh gai")
+
+    @field_validator("name")
+    @classmethod
+    def _name_not_blank(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Tên người chơi không được để trống.")
+        return v
 
 
 class PlayerOut(BaseModel):
@@ -73,10 +82,10 @@ class PlayerOut(BaseModel):
 class MatchIn(BaseModel):
     date: dt.date
     category_id: int
-    discipline: str = "singles"  # singles | doubles
-    best_of: int = 5  # 3 | 5 | 7
-    my_sets: int = 0
-    opp_sets: int = 0
+    discipline: Literal["singles", "doubles"] = "singles"
+    best_of: Literal[3, 5, 7] = 5
+    my_sets: int = Field(default=0, ge=0, le=4)  # ≤4 set wins even in a BO7
+    opp_sets: int = Field(default=0, ge=0, le=4)
     event_name: str | None = None  # resolved to / created as an Event
     is_nonplaying: bool = False
     nonplaying_label: str | None = None  # Travel | Rest

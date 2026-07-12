@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useLoad } from "../../shared/useApi";
 import PeriodControl from "../../shared/ui/PeriodControl";
-import type { Bar } from "../../shared/ui/BarChart";
+import type { Bar } from "../../shared/ui/LineChart";
 import LineChart from "../../shared/ui/LineChart";
 import LevelBars from "./components/LevelBars";
 import { startOfMonth, toIso } from "../../shared/dates";
@@ -28,8 +29,6 @@ export default function MatchStats() {
   const [discipline, setDiscipline] = useState<DisciplineFilter>("all");
   const [category, setCategory] = useState<CategoryFilter>("all");
 
-  const [data, setData] = useState<MatchStatsResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [selOpp, setSelOpp] = useState<number | "">(""); // head-to-head dropdown
 
   const period = { mode, anchor, customFrom, customTo };
@@ -39,21 +38,10 @@ export default function MatchStats() {
   );
   const unit = chartUnitFor(mode, "line", range.fromIso, range.toIso) ?? "day";
 
-  const reload = useCallback(async () => {
-    try {
-      setError(null);
-      setSelOpp(""); // reset the head-to-head pick when the dataset changes
-      setData(
-        await matchStatsApi.get(range.fromIso, range.toIso, discipline, category, unit)
-      );
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    }
+  const { data, error } = useLoad<MatchStatsResponse>(() => {
+    setSelOpp(""); // reset the head-to-head pick when the dataset changes
+    return matchStatsApi.get(range.fromIso, range.toIso, discipline, category, unit);
   }, [range.fromIso, range.toIso, discipline, category, unit]);
-
-  useEffect(() => {
-    void reload();
-  }, [reload]);
 
   const o = data?.overall;
   const hasMatches = !!o && o.total > 0;

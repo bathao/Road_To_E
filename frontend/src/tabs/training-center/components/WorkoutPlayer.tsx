@@ -111,7 +111,7 @@ export default function WorkoutPlayer({
 }: Props) {
   const steps = useMemo(() => buildSteps(session), [session]);
   const [idx, setIdx] = useState(0);
-  const [secLeft, setSecLeft] = useState(0);
+  const [secLeft, setSecLeft] = useState(-1); // -1 = no countdown on this step yet
   const [paused, setPaused] = useState(false);
   const tickedRef = useRef<Set<number>>(new Set());
 
@@ -129,30 +129,29 @@ export default function WorkoutPlayer({
     setIdx((i) => Math.min(i + 1, steps.length - 1));
   };
 
-  // (Re)load the countdown when the step changes.
+  // (Re)load the countdown when the step changes. -1 = no countdown running.
   useEffect(() => {
-    if (step && (step.type === "timed" || step.type === "rest")) {
-      setSecLeft(step.sec);
-    }
+    setSecLeft(step && (step.type === "timed" || step.type === "rest") ? step.sec : -1);
   }, [idx]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Tick the countdown once per second; auto-advance + ting at zero.
+  // Tick the countdown once per second. The updater stays PURE (React may
+  // double-invoke it); side effects (ting + advance) run in the effect below
+  // when the counter reaches zero.
   useEffect(() => {
     if (!step || (step.type !== "timed" && step.type !== "rest")) return;
     if (paused) return;
     const id = setInterval(() => {
-      setSecLeft((s) => {
-        if (s <= 1) {
-          clearInterval(id);
-          playTing();
-          advance();
-          return 0;
-        }
-        return s - 1;
-      });
+      setSecLeft((s) => (s > 0 ? s - 1 : s));
     }, 1000);
     return () => clearInterval(id);
   }, [idx, paused]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Countdown reached zero → ting + auto-advance (side effects live here).
+  useEffect(() => {
+    if (secLeft !== 0 || !step || (step.type !== "timed" && step.type !== "rest")) return;
+    playTing();
+    advance();
+  }, [secLeft]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const total = steps.length - 1; // exclude the 'done' step
   const progress = Math.round((Math.min(idx, total) / total) * 100);
@@ -181,7 +180,7 @@ export default function WorkoutPlayer({
         ) : step.type === "rest" ? (
           <div className="tc-wp-body tc-wp-rest">
             <div className="tc-wp-sub">Nghỉ</div>
-            <div className="tc-wp-timer">{secLeft}s</div>
+            <div className="tc-wp-timer">{Math.max(secLeft, 0)}s</div>
             <div className="tc-wp-next">Tiếp theo: {step.nextTitle}</div>
             <div className="tc-wp-controls">
               <button className="btn" onClick={() => setPaused((p) => !p)}>
@@ -199,7 +198,7 @@ export default function WorkoutPlayer({
             <h2 className="tc-wp-title">{step.title}</h2>
             {step.type === "timed" ? (
               <>
-                <div className="tc-wp-timer">{secLeft}s</div>
+                <div className="tc-wp-timer">{Math.max(secLeft, 0)}s</div>
                 <div className="tc-wp-controls">
                   <button className="btn" onClick={() => setPaused((p) => !p)}>
                     {paused ? "▶ Tiếp tục" : "⏸ Tạm dừng"}

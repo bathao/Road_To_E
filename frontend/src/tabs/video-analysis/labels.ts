@@ -44,6 +44,15 @@ export const POLARITY_LABEL: Record<Polarity, string> = {
   neutral: "Chưa quan sát",
 };
 
+// CSS class per skill status (shared by SkillBoard + the Profile tab).
+export const SKILL_STATUS_CLASS: Record<SkillStatus, string> = {
+  strength: "va-sk-strong",
+  improving: "va-sk-improving",
+  neutral: "va-sk-neutral",
+  needs_work: "va-sk-needswork",
+  weakness: "va-sk-weak",
+};
+
 export const SKILL_STATUS_LABEL: Record<SkillStatus, string> = {
   strength: "Điểm mạnh",
   weakness: "Điểm yếu",

@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { videoApi } from "../video-analysis/api";
-import { ASPECT_LABEL, SKILL_STATUS_LABEL } from "../video-analysis/labels";
+import {
+  ASPECT_LABEL,
+  SKILL_STATUS_CLASS,
+  SKILL_STATUS_LABEL,
+} from "../video-analysis/labels";
 import type {
   Aspect,
   Profile,
@@ -9,7 +13,6 @@ import type {
   Setting,
   Skill,
   SkillIn,
-  SkillStatus,
   Trait,
   TraitIn,
 } from "../video-analysis/types";
@@ -18,19 +21,12 @@ import SkillBoard from "../video-analysis/components/SkillBoard";
 import TraitBoard from "../video-analysis/components/TraitBoard";
 import { LEVELS } from "../../shared/levels";
 import { pct } from "../../shared/format";
+import { addDays, toIso } from "../../shared/dates";
 import { trainingApi } from "../training-center/api";
 import type { Report as TrainingReport } from "../training-center/types";
 import { profileApi } from "./api";
 import type { MatchStatsLite, RangeKey, TrackerStats } from "./types";
 import SkillRadar from "./components/SkillRadar";
-
-const STATUS_CLASS: Record<SkillStatus, string> = {
-  strength: "va-sk-strong",
-  improving: "va-sk-improving",
-  neutral: "va-sk-neutral",
-  needs_work: "va-sk-needswork",
-  weakness: "va-sk-weak",
-};
 
 const RANGES: { key: RangeKey; label: string }[] = [
   { key: "30", label: "30 ngày" },
@@ -40,12 +36,13 @@ const RANGES: { key: RangeKey; label: string }[] = [
 ];
 
 function isoRange(range: RangeKey): { from: string; to: string } {
+  // LOCAL calendar day (shared/dates), never toISOString(): UTC would put
+  // "today" on yesterday before 7am in Vietnam and hide the day's data.
   const now = new Date();
-  const to = now.toISOString().slice(0, 10);
-  if (range === "all") return { from: "2026-01-01", to };
-  const f = new Date(now);
-  f.setDate(f.getDate() - parseInt(range, 10));
-  return { from: f.toISOString().slice(0, 10), to };
+  const to = toIso(now);
+  // "All": a floor safely before any recorded data (data itself bounds the stats).
+  if (range === "all") return { from: "2000-01-01", to };
+  return { from: toIso(addDays(now, -parseInt(range, 10))), to };
 }
 
 function hoursLabel(minutes: number): string {
@@ -245,11 +242,11 @@ export default function PlayerProfile() {
                 <div key={s.aspect} className="prof-bar-row">
                   <span className="prof-bar-name">{ASPECT_LABEL[s.aspect] ?? s.aspect}</span>
                   <div className="va-skill-bar">
-                    <div className={`va-skill-bar-fill ${STATUS_CLASS[s.status]}`}
+                    <div className={`va-skill-bar-fill ${SKILL_STATUS_CLASS[s.status]}`}
                       style={{ width: `${((s.rating ?? 0) / 10) * 100}%` }} />
                   </div>
                   <span className="prof-bar-val">{s.rating == null ? "—" : `${s.rating}/10`}</span>
-                  <span className={`va-chip va-sk-chip ${STATUS_CLASS[s.status]}`}>
+                  <span className={`va-chip va-sk-chip ${SKILL_STATUS_CLASS[s.status]}`}>
                     {SKILL_STATUS_LABEL[s.status]}
                   </span>
                 </div>

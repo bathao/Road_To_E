@@ -1,5 +1,15 @@
 import { useState } from "react";
-import type { Bar } from "./BarChart";
+
+// One chart point/bar datum (the BarChart component this came from is gone;
+// the type lives on here for LineChart + Match Stats).
+export interface Bar {
+  label: string;
+  value: number; // numeric height driver
+  display: string; // text shown above the bar
+  title?: string; // native hover tooltip
+  tip?: string; // rich-tooltip heading
+  highlight?: boolean;
+}
 
 // A YouTube-style area + line trend chart. SVG draws the gridlines, filled
 // area and line (with a 0..100 viewBox stretched to fit); dots, axis labels

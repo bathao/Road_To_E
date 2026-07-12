@@ -24,10 +24,42 @@ export interface PlanDay {
   detail: string;
 }
 
+// The backend builds these dicts in head_coach/service.gather_bundle; the
+// fields the UI reads are typed here (extra keys stay accessible as unknown).
+export interface SourceMatchSide {
+  played?: number;
+  wins?: number;
+  losses?: number;
+  win_rate?: number | null;
+}
+
+export interface SourceMatch {
+  window_days?: number;
+  overall?: SourceMatchSide;
+  singles?: SourceMatchSide;
+  doubles?: SourceMatchSide;
+  vs_pips?: SourceMatchSide;
+  [k: string]: unknown;
+}
+
+export interface SourceVideo {
+  player?: string;
+  reports_reviewed?: number;
+  findings_accepted?: number;
+  [k: string]: unknown;
+}
+
+export interface SourceTraining {
+  level?: string;
+  sessions_last_7d?: number;
+  total_sessions_done?: number;
+  [k: string]: unknown;
+}
+
 export interface SourceSummary {
-  video: Record<string, unknown>;
-  training: Record<string, unknown>;
-  match: Record<string, unknown>;
+  video: SourceVideo;
+  training: SourceTraining;
+  match: SourceMatch;
   tactics: Record<string, unknown>;
   generated_for_range: string;
 }
@@ -36,6 +68,8 @@ export interface Assessment {
   id: number | null;
   created_at: string | null;
   model: string;
+  status: "generating" | "done" | "error";
+  error_msg: string | null;
   overall_assessment: string;
   top_priorities: Priority[];
   directives: Directive[];
@@ -44,4 +78,10 @@ export interface Assessment {
   watch_items: string[];
   sources: SourceSummary;
   empty: boolean;
+}
+
+export interface GenerateStatus {
+  id: number | null;
+  status: "none" | "generating" | "done" | "error";
+  error_msg: string | null;
 }

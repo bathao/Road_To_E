@@ -1,4 +1,4 @@
-export default function ComingSoon({ label }: { label: string }) {
+export default function ComingSoon({ label = "Coming soon" }: { label?: string }) {
   return (
     <div className="coming-soon">
       <div className="coming-soon-icon">🚧</div>

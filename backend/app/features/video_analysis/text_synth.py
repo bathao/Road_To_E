@@ -15,11 +15,20 @@ All output is Vietnamese (content); code stays English. Calls use Ollama's
 from __future__ import annotations
 
 import json
+import logging
+import time
 from typing import Any
 
 import httpx
 
 from app.core.settings import OLLAMA_BASE_URL, TEXT_MODEL
+
+log = logging.getLogger(__name__)
+
+
+def _player_name(basics: dict[str, Any]) -> str:
+    """The player's (editable) profile name for use inside prompts."""
+    return (basics.get("name") or "").strip() or "vận động viên"
 
 _ASPECT_VI = {
     "serve": "giao bóng",
@@ -49,8 +58,13 @@ def _chat(user_text: str, system: str, schema: dict, *, temperature: float = 0.2
         "format": schema,
         "options": {"temperature": temperature, "num_ctx": num_ctx},
     }
+    t0 = time.monotonic()
     resp = httpx.post(f"{OLLAMA_BASE_URL}/api/chat", json=payload, timeout=timeout)
     resp.raise_for_status()
+    log.info(
+        "ollama chat: model=%s prompt_chars=%d took=%.1fs",
+        TEXT_MODEL, len(user_text), time.monotonic() - t0,
+    )
     content = resp.json().get("message", {}).get("content", "{}")
     return json.loads(content) if content else {}
 
@@ -87,15 +101,16 @@ def extract_findings(
 
     Returns ``[{aspect, polarity, text, confidence}]``. Each finding is ONE
     concrete strength or weakness about a single aspect. ``neutral`` is for notes
-    that are neither (e.g. "không quan sát được giao bóng"). The findings are
-    proposals — the user reviews them before they count."""
+    that are neither (e.g. "không quan sát được giao bóng"). The pasted analysis
+    was already curated by the user, so parsed findings are auto-accepted (they
+    can still be edited/removed afterwards)."""
     if not (text or "").strip():
         raise RuntimeError("Chưa có nội dung phân tích để bóc tách.")
     aspect_lines = "\n".join(f"  - {k}: {v}" for k, v in _ASPECT_VI.items())
     ctx = f"\nBối cảnh buổi này: {context}.\n" if context.strip() else "\n"
     user_text = (
         "Đây là một bản phân tích kỹ thuật bóng bàn (do một công cụ khác tạo ra) "
-        f"về vận động viên Nguyễn Bá Thảo (thuận tay {basics.get('handed')}, cầm "
+        f"về vận động viên {_player_name(basics)} (thuận tay {basics.get('handed')}, cầm "
         f"vợt {basics.get('grip')}, lối đánh {basics.get('style') or 'chưa rõ'})."
         f"{ctx}"
         "Hãy ĐỌC KỸ và bóc tách thành các NHẬN XÉT riêng lẻ, mỗi nhận xét nói về "
@@ -163,7 +178,7 @@ def synthesize_profile(basics: dict[str, Any], traits: list[dict[str, Any]]) -> 
         f"- [{t['aspect']} / {t['polarity']}] {t['text']}" for t in traits
     )
     user_text = (
-        "Đây là hồ sơ một vận động viên bóng bàn tên Nguyễn Bá Thảo.\n"
+        f"Đây là hồ sơ một vận động viên bóng bàn tên {_player_name(basics)}.\n"
         f"Thông tin cơ bản: thuận tay {basics.get('handed')}, cách cầm vợt "
         f"{basics.get('grip')}, lối đánh {basics.get('style') or 'chưa rõ'}.\n\n"
         f"Các nhận xét đã tích lũy từ nhiều buổi:\n{bullet}\n\n"
@@ -175,6 +190,7 @@ def synthesize_profile(basics: dict[str, Any], traits: list[dict[str, Any]]) -> 
         system="Bạn là HLV bóng bàn, viết hồ sơ học trò bằng tiếng Việt.",
         schema=_PROFILE_SCHEMA,
         temperature=0.3,
+        num_ctx=16384,  # accumulated traits can be long
     )
 
 
@@ -225,8 +241,8 @@ def synthesize_skills(
     body = "\n\n".join(blocks)
     aspects_list = ", ".join(findings_by_aspect.keys())
     user_text = (
-        "Đây là các nhận xét ĐÃ ĐƯỢC XÁC NHẬN về vận động viên bóng bàn Nguyễn Bá "
-        f"Thảo (thuận tay {basics.get('handed')}, cầm vợt {basics.get('grip')}, lối "
+        f"Đây là các nhận xét ĐÃ ĐƯỢC XÁC NHẬN về vận động viên bóng bàn "
+        f"{_player_name(basics)} (thuận tay {basics.get('handed')}, cầm vợt {basics.get('grip')}, lối "
         f"đánh {basics.get('style') or 'chưa rõ'}), gom theo từng mảng kỹ năng. "
         f"TẤT CẢ nhận xét dưới đây là {ctx_vi}:\n\n"
         f"{body}\n\n"
@@ -244,6 +260,7 @@ def synthesize_skills(
         system="Bạn là HLV bóng bàn, đánh giá trình độ học trò bằng tiếng Việt.",
         schema=_SKILLS_SCHEMA,
         temperature=0.2,
+        num_ctx=16384,  # accumulated findings can be long
     )
     return data.get("skills", []) if isinstance(data, dict) else []
 

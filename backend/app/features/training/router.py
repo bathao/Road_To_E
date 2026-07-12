@@ -126,7 +126,10 @@ def complete_session(
 ):
     """Finalise a session (+pain/RPE feedback → autoregulation); unlocks next.
     Accepts an optional backdated `done_on` (trained earlier, logged later)."""
-    return service.complete_session(
-        db, level, day_index, payload.note, payload.pain, payload.rpe,
-        done_on=payload.done_on,
-    )
+    try:
+        return service.complete_session(
+            db, level, day_index, payload.note, payload.pain, payload.rpe,
+            done_on=payload.done_on,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))

@@ -9,6 +9,7 @@ series, all read by the Head Coach to track development over time.
 from __future__ import annotations
 
 import datetime as dt
+import logging
 
 from sqlalchemy.orm import Session
 
@@ -23,6 +24,24 @@ from app.features.video_analysis.models import (
     VATrait,
     _utcnow,
 )
+
+
+log = logging.getLogger(__name__)
+
+# Prompt-size caps: the local model's context is finite and Ollama silently
+# truncates overlong prompts — cap what we feed it, keeping the MOST RECENT.
+_PROFILE_TRAIT_CAP = 150       # traits fed into the profile summary
+_SKILL_FINDINGS_PER_ASPECT = 20  # findings per (setting, aspect) for the ledger
+
+
+def _basics(profile: VAProfile) -> dict:
+    """Profile facts shared by every prompt (name is the editable profile name)."""
+    return {
+        "name": profile.name,
+        "handed": profile.handed,
+        "grip": profile.grip,
+        "style": profile.style,
+    }
 
 
 def _clamp01(v: object) -> float | None:
@@ -53,18 +72,24 @@ def update_profile(db: Session, payload: schemas.ProfileIn) -> VAProfile:
 
 
 def regenerate_profile_summary(db: Session) -> VAProfile:
-    """Fold all *accepted* findings into the profile summary fields via the LLM."""
+    """Fold accepted findings into the profile summary fields via the LLM.
+
+    Capped to the most recent _PROFILE_TRAIT_CAP traits (chronological order
+    preserved) so the prompt never outgrows the model's context window."""
     profile = get_or_create_profile(db)
-    traits = [
-        {"aspect": t.aspect, "polarity": t.polarity, "text": t.text}
-        for t in db.query(VATrait)
+    recent = (
+        db.query(VATrait)
         .filter(VATrait.status == "accepted")
         .filter(VATrait.polarity.in_(["strength", "weakness"]))  # skip "Chưa quan sát"
-        .order_by(VATrait.created_at)
+        .order_by(VATrait.created_at.desc())
+        .limit(_PROFILE_TRAIT_CAP)
         .all()
+    )
+    traits = [
+        {"aspect": t.aspect, "polarity": t.polarity, "text": t.text}
+        for t in reversed(recent)  # oldest → newest, like before
     ]
-    basics = {"handed": profile.handed, "grip": profile.grip, "style": profile.style}
-    result = text_synth.synthesize_profile(basics, traits)
+    result = text_synth.synthesize_profile(_basics(profile), traits)
     for field in (
         "serve_summary", "footwork_summary", "posture_summary",
         "strengths_summary", "weaknesses_summary", "overall_summary",
@@ -177,12 +202,12 @@ def parse_report(report_id: int) -> None:
         if report is None or report.status != "parsing":
             return
         profile = get_or_create_profile(db)
-        basics = {"handed": profile.handed, "grip": profile.grip, "style": profile.style}
         try:
             findings = text_synth.extract_findings(
-                report.source_text, basics, report.context
+                report.source_text, _basics(profile), report.context
             )
         except Exception as exc:  # noqa: BLE001 — surface to the GUI
+            log.exception("parse_report(%d): extract_findings failed", report_id)
             report.status = "error"
             report.error_msg = str(exc)[:1000]
             db.commit()
@@ -216,7 +241,11 @@ def parse_report(report_id: int) -> None:
         try:
             regenerate_skills(db)
         except Exception:  # noqa: BLE001
-            pass
+            log.exception(
+                "parse_report(%d): auto regenerate_skills failed — findings are "
+                "saved; rebuild the ledger manually from the GUI", report_id,
+            )
+            db.rollback()
 
         report.status = "reviewed"
         db.commit()
@@ -353,19 +382,25 @@ def regenerate_skills(db: Session) -> list[VASkill]:
     record dated snapshots so each setting's progress is trackable over time."""
     profile = get_or_create_profile(db)
     by_sa = _accepted_by_setting_aspect(db)
-    basics = {"handed": profile.handed, "grip": profile.grip, "style": profile.style}
     skills_map = {(s.aspect, s.setting): s for s in db.query(VASkill).all()}
     now = _utcnow()
 
     for setting in schemas.SETTINGS:
+        # Cap to the most recent findings per aspect (items are oldest-first)
+        # so the prompt stays inside the model's context window.
         findings_by_aspect = {
-            aspect: [{"polarity": t.polarity, "text": t.text} for t in items]
+            aspect: [
+                {"polarity": t.polarity, "text": t.text}
+                for t in items[-_SKILL_FINDINGS_PER_ASPECT:]
+            ]
             for (st, aspect), items in by_sa.items()
             if st == setting
         }
         if not findings_by_aspect:
             continue  # no findings in this setting → leave its rows untouched
-        results = text_synth.synthesize_skills(basics, findings_by_aspect, setting=setting)
+        results = text_synth.synthesize_skills(
+            _basics(profile), findings_by_aspect, setting=setting
+        )
         for item in results:
             aspect = item.get("aspect")
             skill = skills_map.get((aspect, setting))
@@ -522,16 +557,5 @@ def build_report(db: Session) -> schemas.ReportOut:
     )
 
 
-_ASPECT_LABEL = {
-    "serve": "Giao bóng",
-    "receive": "Đỡ giao bóng",
-    "forehand": "Phải tay",
-    "backhand": "Trái tay",
-    "footwork": "Bộ chân",
-    "stance_posture": "Tư thế",
-    "tactics": "Chiến thuật",
-    "mental": "Tâm lý",
-    "physical": "Thể lực",
-}
-
-_SETTING_LABEL = {"practice": "Tập", "match": "Đấu"}
+_ASPECT_LABEL = schemas.ASPECT_LABEL_VI
+_SETTING_LABEL = schemas.SETTING_LABEL_VI

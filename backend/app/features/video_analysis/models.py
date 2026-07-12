@@ -100,9 +100,13 @@ class VAReport(Base):
 
 
 class VATrait(Base):
-    """An atomic finding about the player, parsed from a report. Findings start
-    as ``proposed`` and only count once the user confirms them (``accepted``);
-    rejected ones are kept for provenance. Dated via the source report."""
+    """An atomic finding about the player, parsed from a report.
+
+    Parsed findings are auto-``accepted`` (the pasted analysis was already
+    curated by the user before being pasted in); only ``accepted`` findings
+    count towards the profile. The user can still edit/remove findings or mark
+    them ``rejected`` afterwards (kept for provenance). Dated via the source
+    report."""
 
     __tablename__ = "va_trait"
 

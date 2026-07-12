@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Modal from "../../../shared/ui/Modal";
+import { addDays, toIso, todayIso } from "../../../shared/dates";
 import type { Pain, Rpe } from "../types";
 
 const PAIN: { key: Pain; label: string }[] = [
@@ -13,20 +14,6 @@ const RPE: { key: Rpe; label: string }[] = [
   { key: "hard", label: "Khó" },
 ];
 
-// Local (not UTC) ISO date — avoids slipping a day near midnight.
-function localISO(d: Date): string {
-  const tz = d.getTimezoneOffset() * 60000;
-  return new Date(d.getTime() - tz).toISOString().slice(0, 10);
-}
-const TODAY = localISO(new Date());
-const YESTERDAY = localISO(new Date(Date.now() - 86400000));
-
-function dateLabel(iso: string): string {
-  if (iso === TODAY) return "Hôm nay";
-  if (iso === YESTERDAY) return "Hôm qua";
-  return iso;
-}
-
 // Asked after a session: which day it was trained (default today, can backdate
 // if logged late) + knee pain + perceived effort (drives autoregulation/safety).
 export default function FeedbackModal({
@@ -36,6 +23,13 @@ export default function FeedbackModal({
   onSubmit: (pain: Pain, rpe: Rpe, doneOn: string) => void;
   onClose: () => void;
 }) {
+  // Computed per render (shared local-day helpers) so a tab left open across
+  // midnight doesn't keep offering yesterday as "Hôm nay".
+  const TODAY = todayIso();
+  const YESTERDAY = toIso(addDays(new Date(), -1));
+  const dateLabel = (iso: string) =>
+    iso === TODAY ? "Hôm nay" : iso === YESTERDAY ? "Hôm qua" : iso;
+
   const [pain, setPain] = useState<Pain>("none");
   const [rpe, setRpe] = useState<Rpe>("medium");
   const [doneOn, setDoneOn] = useState<string>(TODAY);

@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Category, MatchIn, WeekResponse } from "./types";
 import { trackerApi } from "./api";
 import { fromIso, startOfMonth, toIso } from "../../shared/dates";
 import type { Mode } from "../../shared/period";
 import { resolveRange, stepAnchor } from "../../shared/period";
+import { useLoad, useMutate } from "../../shared/useApi";
 import PeriodControl from "../../shared/ui/PeriodControl";
 import WeekGrid from "./components/WeekGrid";
 import Modal from "../../shared/ui/Modal";
@@ -30,8 +31,6 @@ export default function DailyTracker() {
   );
   const [customTo, setCustomTo] = useState<string>(() => toIso(new Date()));
 
-  const [week, setWeek] = useState<WeekResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<EditingCell | null>(null);
   // Read-only Training Center session shown when a mirrored Physical cell is clicked.
   const [viewSession, setViewSession] = useState<TrainingSession | null>(null);
@@ -48,18 +47,16 @@ export default function DailyTracker() {
   );
   // The grid spans the whole selected range: one day, a week, a full month,
   // a year, or a custom span. Wider ranges render as narrower columns.
-  const reload = useCallback(async () => {
-    try {
-      setError(null);
-      setWeek(await trackerApi.getWeek(range.fromIso, range.toIso));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    }
-  }, [range.fromIso, range.toIso]);
-
-  useEffect(() => {
-    void reload();
-  }, [reload]);
+  const {
+    data: week,
+    error: loadError,
+    reload,
+  } = useLoad<WeekResponse>(
+    () => trackerApi.getWeek(range.fromIso, range.toIso),
+    [range.fromIso, range.toIso]
+  );
+  const { run, error: mutateError, clearError } = useMutate();
+  const error = mutateError ?? loadError;
 
   // On first mount, jump the timeline to the most recent day that has data
   // (today is usually empty until it is logged).
@@ -76,9 +73,10 @@ export default function DailyTracker() {
     };
   }, []);
 
-  // ---- mutations (all reload the week afterwards) ----
-  const afterMutate = async () => {
-    await reload();
+  // ---- mutations (all reload the week afterwards; a failed call surfaces in
+  // the error banner instead of rejecting silently) ----
+  const afterMutate = () => {
+    reload();
     setDataVersion((v) => v + 1);
   };
 
@@ -88,56 +86,70 @@ export default function DailyTracker() {
     isPackageStart: boolean
   ) => {
     if (!editing) return;
-    await trackerApi.upsertActivity({
-      date: editing.dateIso,
-      category_id: editing.category.id,
-      duration_minutes: minutes,
-      note: note || null,
-      is_package_start: isPackageStart,
-    });
+    const ok = await run(() =>
+      trackerApi.upsertActivity({
+        date: editing.dateIso,
+        category_id: editing.category.id,
+        duration_minutes: minutes,
+        note: note || null,
+        is_package_start: isPackageStart,
+      })
+    );
+    if (ok === undefined) return; // failed → keep the editor open
     setEditing(null);
-    await afterMutate();
+    afterMutate();
   };
 
   const clearDuration = async () => {
     if (!editing) return;
-    await trackerApi.upsertActivity({
-      date: editing.dateIso,
-      category_id: editing.category.id,
-      duration_minutes: 0,
-      note: null,
-    });
+    const ok = await run(() =>
+      trackerApi.upsertActivity({
+        date: editing.dateIso,
+        category_id: editing.category.id,
+        duration_minutes: 0,
+        note: null,
+      })
+    );
+    if (ok === undefined) return;
     setEditing(null);
-    await afterMutate();
+    afterMutate();
   };
 
   const addMatch = async (payload: Omit<MatchIn, "date" | "category_id">) => {
     if (!editing) return;
-    await trackerApi.createMatch({
-      date: editing.dateIso,
-      category_id: editing.category.id,
-      ...payload,
-    });
-    await afterMutate();
+    const ok = await run(() =>
+      trackerApi.createMatch({
+        date: editing.dateIso,
+        category_id: editing.category.id,
+        ...payload,
+      })
+    );
+    if (ok === undefined) return;
+    afterMutate();
   };
 
   const deleteMatch = async (id: number) => {
-    await trackerApi.deleteMatch(id);
-    await afterMutate();
+    const ok = await run(() => trackerApi.deleteMatch(id));
+    if (ok === undefined) return;
+    afterMutate();
   };
 
   const savePhysicalChecks = async (items: string[]) => {
     if (!editing) return;
-    await trackerApi.setPhysicalChecks(editing.dateIso, items);
+    const ok = await run(() =>
+      trackerApi.setPhysicalChecks(editing.dateIso, items)
+    );
+    if (ok === undefined) return;
     setEditing(null);
-    await afterMutate();
+    afterMutate();
   };
 
   const saveNote = async (text: string) => {
     if (!editing) return;
-    await trackerApi.setDayNote(editing.dateIso, text);
+    const ok = await run(() => trackerApi.setDayNote(editing.dateIso, text));
+    if (ok === undefined) return;
     setEditing(null);
-    await afterMutate();
+    afterMutate();
   };
 
   // ---- export (the currently selected range) ----
@@ -190,7 +202,11 @@ export default function DailyTracker() {
         </div>
       </div>
 
-      {error && <div className="error-banner">⚠ {error}</div>}
+      {error && (
+        <div className="error-banner" onClick={clearError}>
+          ⚠ {error}
+        </div>
+      )}
 
       {week ? (
         <WeekGrid
@@ -198,11 +214,8 @@ export default function DailyTracker() {
           onLayout={setGridGutter}
           onCellClick={(category, dateIso) => setEditing({ category, dateIso })}
           onViewPhysical={async (dateIso) => {
-            try {
-              setViewSession(await trainingApi.getSessionByDate(dateIso));
-            } catch (e) {
-              setError(e instanceof Error ? e.message : String(e));
-            }
+            const s = await run(() => trainingApi.getSessionByDate(dateIso));
+            if (s !== undefined) setViewSession(s);
           }}
         />
       ) : (

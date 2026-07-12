@@ -1,14 +1,7 @@
 import { useState } from "react";
 import type { ModelHealth, Setting } from "../types";
 import { SETTING_LABEL } from "../labels";
-
-// Local (not UTC) ISO date — avoids slipping a day near midnight.
-function localISO(d: Date): string {
-  const tz = d.getTimezoneOffset() * 60000;
-  return new Date(d.getTime() - tz).toISOString().slice(0, 10);
-}
-const TODAY = localISO(new Date());
-const YESTERDAY = localISO(new Date(Date.now() - 86400000));
+import { addDays, toIso, todayIso } from "../../../shared/dates";
 
 interface Props {
   health: ModelHealth | null;
@@ -23,6 +16,11 @@ interface Props {
 }
 
 export default function PasteForm({ health, submitting, onCreate }: Props) {
+  // Computed per render (shared local-day helpers) so a tab left open across
+  // midnight doesn't keep offering yesterday as "Hôm nay".
+  const TODAY = todayIso();
+  const YESTERDAY = toIso(addDays(new Date(), -1));
+
   const [text, setText] = useState("");
   const [title, setTitle] = useState("");
   const [context, setContext] = useState("");

@@ -52,6 +52,8 @@ class AssessmentOut(BaseModel):
     id: int | None = None
     created_at: dt.datetime | None = None
     model: str = ""
+    status: str = "done"  # generating | done | error
+    error_msg: str | None = None
     overall_assessment: str = ""
     top_priorities: list[Priority] = []
     directives: list[Directive] = []
@@ -67,3 +69,11 @@ class SourcesOut(BaseModel):
     """The live bundle, for the transparency / debug view (no AI call)."""
 
     sources: SourceSummary
+
+
+class GenerateStatusOut(BaseModel):
+    """State of the most recent generation attempt (polled by the GUI)."""
+
+    id: int | None = None
+    status: str = "none"  # none | generating | done | error
+    error_msg: str | None = None

@@ -146,6 +146,14 @@ def update_match(match_id: int, payload: schemas.MatchIn, db: Session = Depends(
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
     event = service.get_or_create_event(db, payload.event_name)
+    if (payload.date, payload.category_id) != (match.date, match.category_id):
+        # Moved to another cell → append after that cell's existing matches so
+        # order_index stays unique within the cell.
+        match.order_index = (
+            db.query(Match)
+            .filter(Match.date == payload.date, Match.category_id == payload.category_id)
+            .count()
+        )
     match.date = payload.date
     match.category_id = payload.category_id
     match.discipline = payload.discipline

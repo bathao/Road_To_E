@@ -23,9 +23,16 @@ class Category(Base):
 
 
 class Activity(Base):
-    """A duration-type entry for a given day and category."""
+    """A duration-type entry for a given day and category.
+
+    (date, category_id) is unique — the PUT /activities upsert relies on it.
+    On existing DBs the index is added by seed.migrate (skipped with a warning
+    if legacy duplicates exist; no data is ever deleted)."""
 
     __tablename__ = "tracker_activity"
+    __table_args__ = (
+        UniqueConstraint("date", "category_id", name="uq_tracker_activity_date_category"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     date: Mapped[dt.date] = mapped_column(Date, index=True)
@@ -74,8 +81,8 @@ class Match(Base):
     date: Mapped[dt.date] = mapped_column(Date, index=True)
     category_id: Mapped[int] = mapped_column(ForeignKey("tracker_category.id"), index=True)
     discipline: Mapped[str] = mapped_column(String, default="singles")  # singles | doubles
-    # 3 | 5 | 7. Stored as entry metadata; score validation against it is
-    # client-side only (frontend scores.ts) — the server doesn't enforce it.
+    # 3 | 5 | 7. Basic bounds are enforced in schemas.MatchIn (Literal/ge/le);
+    # full score-vs-best_of consistency stays client-side (frontend scores.ts).
     best_of: Mapped[int] = mapped_column(Integer, default=5)
     my_sets: Mapped[int] = mapped_column(Integer, default=0)
     opp_sets: Mapped[int] = mapped_column(Integer, default=0)

@@ -50,6 +50,21 @@ cd frontend
 npm run dev   # http://localhost:5173
 ```
 
+After changing backend Pydantic schemas, regenerate the TypeScript API types
+(used to check the hand-written mirrors in `src/tabs/*/types.ts` for drift):
+
+```bash
+cd frontend
+npm run gen:api   # -> src/shared/api/schema.d.ts (from FastAPI's OpenAPI)
+```
+
+Backend tests:
+
+```bash
+cd backend
+.venv\Scripts\python -m pytest tests -q
+```
+
 ## Architecture
 
 Feature-based modularity so adding a tab = one folder + one registry line.

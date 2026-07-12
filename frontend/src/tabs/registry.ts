@@ -1,6 +1,7 @@
 // Tab registry. Adding a tab = build a folder under src/tabs/<tab>/ and add one
 // entry here. Disabled tabs render the ComingSoon placeholder.
 import type { ComponentType } from "react";
+import ComingSoon from "./ComingSoon";
 import DailyTracker from "./daily-tracker";
 import TacticalPlaybook from "./tactical-playbook";
 import MatchStats from "./match-stats";
@@ -71,7 +72,9 @@ export const TABS: TabDef[] = [
     id: "motivation",
     label: "Motivation",
     icon: "🔥",
-    component: DailyTracker,
+    // Disabled tabs never render their component (AppShell shows ComingSoon),
+    // but point at the real placeholder to avoid confusion.
+    component: ComingSoon,
     enabled: false,
   },
 ];

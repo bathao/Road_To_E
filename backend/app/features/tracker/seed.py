@@ -3,33 +3,54 @@
 The 'Overall' row is auto-generated (see service.compute_overall_colors), not
 edited by hand, but it is still a category so it renders as a grid row.
 """
+import logging
+
 from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
+from app.core.sqlite_migrate import add_missing_columns
 from app.features.tracker.models import Activity, Category, Match
 
-# Columns added to existing tables after they first shipped. create_all() never
-# alters existing tables, so add any missing ones by hand (SQLite ADD COLUMN).
+log = logging.getLogger(__name__)
+
+# Columns added to existing tables after they first shipped.
 _PLAYER_COLUMNS = {
     # Opponent uses pimpled rubber ("đánh gai"). Existing players default to 0.
     "plays_pips": "BOOLEAN DEFAULT 0",
 }
 
 
-def _add_missing_columns(db: Session, table: str, columns: dict[str, str]) -> bool:
-    existing = {row[1] for row in db.execute(text(f"PRAGMA table_info({table})"))}
-    changed = False
-    for name, decl in columns.items():
-        if name not in existing:
-            db.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {decl}"))
-            changed = True
-    return changed
-
-
 def migrate(db: Session) -> None:
     """Idempotent column migrations for tables that predate a new field."""
-    if _add_missing_columns(db, "tracker_player", _PLAYER_COLUMNS):
+    changed = add_missing_columns(db, "tracker_player", _PLAYER_COLUMNS)
+    changed = _ensure_activity_unique_index(db) or changed
+    if changed:
         db.commit()
+
+
+def _ensure_activity_unique_index(db: Session) -> bool:
+    """Back the (date, category_id) upsert in the router with a real unique index.
+
+    NEVER deletes or merges rows: if duplicates already exist the index cannot
+    be created — log a warning and leave the data exactly as it is.
+    """
+    try:
+        db.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_tracker_activity_date_category "
+                "ON tracker_activity (date, category_id)"
+            )
+        )
+        return True
+    except OperationalError:
+        db.rollback()
+        log.warning(
+            "tracker_activity has duplicate (date, category_id) rows; unique "
+            "index not created. Data left untouched — resolve duplicates by hand."
+        )
+        return False
+
 
 # (key, label, type, color_group). Order here = display order (sort_order).
 DEFAULT_CATEGORIES = [
@@ -47,23 +68,29 @@ DEFAULT_CATEGORIES = [
 def seed_categories(db: Session) -> None:
     """Reconcile the category table to DEFAULT_CATEGORIES. Idempotent.
 
-    - Removes categories no longer in the defaults (and their entries).
     - Inserts any missing categories.
     - Keeps label/type/color/sort_order in sync with the defaults.
+    - NEVER deletes: a category missing from the defaults (rename/typo in this
+      file, downgrade, …) is kept along with all its activities/matches — user
+      data must survive a code change. It is only logged so the mismatch is
+      visible.
     """
     migrate(db)
     desired_keys = {key for key, *_ in DEFAULT_CATEGORIES}
     existing = {c.key: c for c in db.query(Category).all()}
     changed = False
 
-    # Drop categories that are no longer wanted, plus their dependent rows.
-    for key, cat in list(existing.items()):
+    for key, cat in existing.items():
         if key not in desired_keys:
-            db.query(Activity).filter(Activity.category_id == cat.id).delete()
-            db.query(Match).filter(Match.category_id == cat.id).delete()
-            db.delete(cat)
-            del existing[key]
-            changed = True
+            n_act = db.query(Activity).filter(Activity.category_id == cat.id).count()
+            n_match = db.query(Match).filter(Match.category_id == cat.id).count()
+            log.warning(
+                "category %r is not in DEFAULT_CATEGORIES; keeping it and its "
+                "data (%d activities, %d matches). Remove by hand if intended.",
+                key,
+                n_act,
+                n_match,
+            )
 
     # Insert missing / update existing to match the defaults.
     for order, (key, label, type_, color) in enumerate(DEFAULT_CATEGORIES):

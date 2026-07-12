@@ -28,7 +28,7 @@ export default function VideoAnalysis() {
 
   const reloadReports = useCallback(async () => setReports(await videoApi.listReports()), []);
   const reloadDetail = useCallback(async (id: number) => {
-    setDetail(await videoApi.getReport_(id));
+    setDetail(await videoApi.getAnalysisReport(id));
   }, []);
 
   useEffect(() => {

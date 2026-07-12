@@ -28,6 +28,10 @@ class HeadCoachAssessment(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow, index=True)
     model: Mapped[str] = mapped_column(String, default="")  # which AI model produced it
+    # generating → done | error. Generation runs on a background task; the GUI
+    # polls /status until it leaves `generating`.
+    status: Mapped[str] = mapped_column(String, default="done")
+    error_msg: Mapped[str | None] = mapped_column(Text, default=None)
 
     overall_assessment: Mapped[str] = mapped_column(Text, default="")
     # JSON-encoded lists (see schemas.AssessmentOut).

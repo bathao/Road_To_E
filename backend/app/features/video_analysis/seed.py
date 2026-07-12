@@ -8,11 +8,16 @@ dead video tables, adds ``source_report_id`` to ``va_trait`` + ``setting`` to
 (aspect, setting) — a separate rating for practice vs match. Profile basics are
 preserved.
 """
+import logging
+
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.core.sqlite_migrate import add_missing_columns, table_columns
 from app.features.video_analysis.models import VAProfile, VASkill
 from app.features.video_analysis.schemas import SETTINGS, SKILL_ASPECTS
+
+log = logging.getLogger(__name__)
 
 # Tables from the abandoned local-VLM/CV pipeline — no longer mapped. The DB had
 # no accepted findings, so nothing valuable is lost (their proposed traits, if
@@ -39,42 +44,30 @@ _VA_SNAPSHOT_COLUMNS = {
 }
 
 
-def _columns(db: Session, table: str) -> set[str]:
-    return {row[1] for row in db.execute(text(f"PRAGMA table_info({table})"))}
-
-
-def _add_missing_columns(db: Session, table: str, columns: dict[str, str]) -> bool:
-    existing = _columns(db, table)
-    if not existing:  # table doesn't exist yet — create_all will make it
-        return False
-    changed = False
-    for name, decl in columns.items():
-        if name not in existing:
-            db.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {decl}"))
-            changed = True
-    return changed
-
-
 def migrate(db: Session) -> None:
-    changed = _add_missing_columns(db, "va_trait", _VA_TRAIT_COLUMNS)
-    changed = _add_missing_columns(db, "va_report", _VA_REPORT_COLUMNS) or changed
-    changed = _add_missing_columns(db, "va_skill_snapshot", _VA_SNAPSHOT_COLUMNS) or changed
+    changed = add_missing_columns(db, "va_trait", _VA_TRAIT_COLUMNS)
+    changed = add_missing_columns(db, "va_report", _VA_REPORT_COLUMNS) or changed
+    changed = add_missing_columns(db, "va_skill_snapshot", _VA_SNAPSHOT_COLUMNS) or changed
 
     # va_skill: the rating is now tracked per (aspect, setting), so the table must
     # have a `setting` column + a composite unique on (aspect, setting). The old
     # table (unique on `aspect` alone) can't be altered in place → drop & recreate
     # once. ONE-TIME: only when the column is missing, so real ratings aren't wiped
     # on every boot. (The old rows were unrated scaffold; nothing lost.)
-    skill_cols = _columns(db, "va_skill")
+    skill_cols = table_columns(db, "va_skill")
     if skill_cols and "setting" not in skill_cols:
         db.execute(text("DROP TABLE va_skill"))
         db.commit()
         VASkill.__table__.create(bind=db.get_bind(), checkfirst=True)
         changed = True
 
+    # Legacy tables from the abandoned local-video pipeline. Only touch (and
+    # commit) when one actually still exists.
     for tbl in _DROPPED_TABLES:
-        db.execute(text(f"DROP TABLE IF EXISTS {tbl}"))
-        changed = True
+        if table_columns(db, tbl):
+            log.info("migrate: dropping legacy table %s", tbl)
+            db.execute(text(f"DROP TABLE {tbl}"))
+            changed = True
     if changed:
         db.commit()
 

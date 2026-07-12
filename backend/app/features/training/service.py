@@ -11,7 +11,7 @@ import datetime as dt
 import json
 
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.features.training import program, schemas
 from app.features.training.models import (
@@ -351,6 +351,12 @@ def substitute_item(
         return None
     state = ensure_state(db)
     session = db.get(TrainingSession, session_id)
+    # Only accept a key actually offered for this item (same alternatives the
+    # GUI shows) — not any arbitrary exercise (e.g. a warm-up move).
+    in_session = {it.exercise_key for it in session.items} if session else set()
+    offered = {a.key for a in program.alternatives_for(item.exercise_key, in_session)}
+    if new_key not in offered:
+        return None
     cycle = (
         program.cycle_of(session.day_index)
         if session and session.level == program.MAINTENANCE_LEVEL
@@ -413,6 +419,8 @@ def complete_session(
     later (e.g. trained yesterday, ticked today). Defaults to today; a future
     date is clamped to today.
     """
+    if level not in program.LEVELS or day_index < 1:
+        raise ValueError(f"Không có buổi tập ({level}, {day_index}).")
     today = dt.date.today()
     when = done_on if (done_on is not None and done_on <= today) else today
     session = _materialise(db, level, day_index)
@@ -519,6 +527,7 @@ def physical_day_map(
     cutover = get_cutover(db)
     rows = (
         db.query(TrainingSession)
+        .options(selectinload(TrainingSession.items))  # avoid per-session lazy loads
         .filter(
             TrainingSession.status == "done",
             TrainingSession.done_on.isnot(None),
@@ -572,9 +581,22 @@ def report(db: Session) -> schemas.ReportOut:
     """Tier-1 brain view for the Head Coach: training load, adherence, volume."""
     state = ensure_state(db)
     today = dt.date.today()
-    done = (
+    # All-time total via COUNT; the detailed scan (items, streak, volume) is
+    # floored to the last year so cost stays flat as history grows.
+    total_done = (
         db.query(TrainingSession)
         .filter(TrainingSession.status == "done", TrainingSession.done_on.isnot(None))
+        .count()
+    )
+    floor = today - dt.timedelta(days=365)
+    done = (
+        db.query(TrainingSession)
+        .options(selectinload(TrainingSession.items))  # avoid per-session lazy loads
+        .filter(
+            TrainingSession.status == "done",
+            TrainingSession.done_on.isnot(None),
+            TrainingSession.done_on >= floor,
+        )
         .order_by(TrainingSession.done_on.desc())
         .all()
     )
@@ -628,7 +650,7 @@ def report(db: Session) -> schemas.ReportOut:
         current_level=state.current_level,
         current_level_vi=level_vi,
         cutover_date=state.cutover_date,
-        total_sessions_done=len(done),
+        total_sessions_done=total_done,
         sessions_last_7d=last7,
         sessions_last_30d=last30,
         last_session_date=last_date,
