@@ -5,7 +5,8 @@ export type CategoryType =
   | "match"
   | "rating"
   | "checklist"
-  | "note";
+  | "note"
+  | "computed"; // auto-calculated read-only row (Racket Time)
 export type ColorGroup = "green" | "yellow" | "none";
 export type Discipline = "singles" | "doubles";
 
@@ -136,6 +137,10 @@ export interface StatsResponse {
   days_physical: number;
   minutes_total: number;
   minutes_by_category: CategoryMinutes[];
+  // Racket time = coach + partner training + match play (sets × ~5 min).
+  racket_minutes_total: number;
+  racket_minutes_training: number;
+  racket_minutes_matches: number;
   overall: MatchStats;
   singles: MatchStats;
   doubles: MatchStats;

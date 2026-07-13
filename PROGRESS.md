@@ -1,9 +1,94 @@
 # Progress Log — Table Tennis Coach
 
-## Current status (2026-07-12)
+## Current status (2026-07-13)
 
-> **Resume (2026-07-12, latest).** **Project-wide hardening pass** (from a full
-> code review): safety, bugs, performance, tests. NOT committed yet. Highlights:
+> **Resume (2026-07-13, latest).** Finished yesterday's three follow-ups:
+>   - **Model A/B (real bundle, 3 rounds):** compared qwen3:14b vs gpt-oss:20b
+>     vs qwen3.5:9b on the live coach bundle. Winner **qwen3.5:9b** — best
+>     Vietnamese, best number-grounding (14b hallucinated units: "4570 phút =
+>     51h/tuần"; gpt-oss mixed English + empty orders), correctly applies the
+>     small-sample rule and uses day notes. `HEAD_COACH_MODEL = "qwen3.5:9b"`
+>     (settings.py, rationale in comment); `resolve_model()` falls back to
+>     TEXT_MODEL with a log warning if the configured model isn't pulled.
+>     Decision: did NOT pull qwen3:30b-a3b (18GB) — better options were already
+>     local. A/B artifacts in the session scratchpad (ab_results*.json).
+>   - **Small-sample guard:** win-rate segments with <5 matches are tagged
+>     `[MẪU NHỎ]` in the context block (`MIN_SAMPLE_MATCHES`, service._wr) and
+>     the prompt forbids concluding from them (h2h person-records exempt).
+>   - **Phase-3 lite (directives → trackable commitments):** Directive gained
+>     `metric` (enum of 7 weekly metrics) + `value`; the model must fill them
+>     (required in RESPONSE_SCHEMA; ""+0 when not quantifiable; service
+>     `_sanitize_directives` drops implausible values by range). New
+>     `GET /api/head-coach/directive-progress` computes THIS WEEK's actual from
+>     the DB (TC sessions, racket hours, coach hours, matches by kind) vs each
+>     target; the Coach tab renders a progress bar per trackable directive
+>     ("Tuần này: 2/4 buổi", green ✓ at 100%). Deliberately NOT auto-injecting
+>     model-chosen exercises into Training Center — targets are tracked, the
+>     knee-safe program stays code-owned. 2 new tests (26 total), build clean.
+>   - NOT committed yet (together with yesterday's uncommitted batch).
+
+## Status (2026-07-12, end of day)
+
+> **Where things stand / pick up tomorrow:**
+>   - App is now 5 tabs: Daily Tracker · Coach · Match Stats · Profile ·
+>     Training Center. Đã bỏ "Phân tích kỹ thuật" + "Tactical Playbook" (chi
+>     tiết ở resume "2026-07-12 b" bên dưới); Head Coach v2 chỉ phân tích sự
+>     thật trong database.
+>   - **Commit state:** the hardening pass IS committed (`4449539`). **NOT yet
+>     committed:** Racket Time (row + summary card + export + 2 tests), the
+>     2-tab retirement + Head Coach v2 (bundle/prompt/UI), tactics-section
+>     removal, VN-timezone fix. All verified: 24/24 pytest, build clean, smoke
+>     tested — chỉ chờ user duyệt rồi commit.
+>   - **User must restart `start.bat`** — the server that's running still has
+>     the pre-refactor backend; frontend dist is already rebuilt.
+>   - **Next candidates (discussed, not started):** (1) A/B thử
+>     `HEAD_COACH_MODEL = "qwen3:30b-a3b"` (MoE, chất lượng hơn 14b, chạy nền
+>     nên chậm chút không sao — knob riêng đã có trong settings.py); (2) Phase 3
+>     write-back: directives của Coach → bài tập thật trong Training Center;
+>     (3) cân nhắc ngưỡng mẫu tối thiểu (ít trận thì đừng kết luận win-rate).
+
+> **Resume (2026-07-12 b).** **Retired 2 tabs + Head Coach v2
+> (database-facts only)** — user decision: model-parsed technique commentary is
+> not trustworthy, so the coach must reason over recorded results only.
+>   - **Tabs removed from the UI:** "Phân tích kỹ thuật" (video-analysis paste
+>     flow: index/PasteForm/ReportList/ReviewPanel deleted; ProfilePanel/
+>     SkillBoard/TraitBoard + api/types/labels KEPT — the Profile tab uses them,
+>     manual findings still work) and "Tactical Playbook" (frontend folder +
+>     backend feature folder deleted, router unregistered). **DB untouched:**
+>     `playbook_tactic` (0 rows — nothing was ever saved) + all `va_*` tables
+>     and rows remain (never delete user data); backend /api/video/* stays for
+>     the Profile tab.
+>   - **Head Coach v2 bundle** (`gather_bundle` rewritten): tracker volume +
+>     racket time, match aggregates, **match detail** (win-rate by opponent
+>     level, TRẬN TẬP vs TRẬN GIẢI, monthly trend, top-8 head-to-head via 3×
+>     `build_match_stats` calls over 180d), Training Center report, and the 12
+>     most recent **day notes** (human signal). No video/tactics sources.
+>     `SourceSummary` keeps legacy `video`/`tactics` fields so old snapshots
+>     still parse/render.
+>   - **Prompt rewritten** (prompt.py): sources = database facts; judge progress
+>     via trends (win-rate by month / by opponent level), practice-vs-official
+>     gap, problem opponents (h2h), vs-pips, volume (racket time); use day notes
+>     as context; **forbidden to invent stroke-technique observations** it
+>     cannot see; thin-data honesty + knee-safety kept. Player name now comes
+>     from the (editable) profile.
+>   - Verified on the real DB: bundle renders ~2.8k chars of pure facts (e.g.
+>     22% vs trên-cơ, TẬP 47% vs GIẢI 30%, July slump 15%) — exactly the
+>     patterns the coach should push on. 24/24 pytest, `npm run build` clean
+>     (bundle −18KB JS / −5KB CSS), OpenAPI types regenerated.
+>   - HEAD_COACH_PLAN.md updated (sources table). Old assessments (4 rows) keep
+>     rendering via legacy fields.
+>   - **Follow-up (same session):** dropped the "Chiến thuật áp dụng trong
+>     trận" section from the verdict entirely (user: the model can't know what
+>     tactics he actually plays) — removed from RESPONSE_SCHEMA, prompt,
+>     DIRECTIVE_AREAS, the UI section + its CSS; `TacticSuggestion`/`tactics`
+>     kept as legacy so old snapshots parse. Also **fixed the verdict
+>     timestamp**: created_at is stored naive-UTC → API now re-attaches UTC
+>     (`Z` suffix) and `fmtTime` renders in Asia/Ho_Chi_Minh (was showing 7h
+>     early, e.g. 16:09 instead of 23:09).
+
+> **Resume (2026-07-12).** **Project-wide hardening pass** (from a full
+> code review): safety, bugs, performance, tests. Committed as `4449539`.
+> Highlights:
 >   - **Data safety:** `tracker/seed.seed_categories` no longer deletes
 >     categories/activities/matches missing from the defaults — it keeps them and
 >     logs a warning (never delete user data). Unique index on

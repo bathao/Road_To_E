@@ -60,6 +60,9 @@ DEFAULT_CATEGORIES = [
     ("physical_training", "Physical Training", "checklist", "yellow"),
     ("practice_match", "Practice Match", "match", "none"),
     ("official_match", "Official Match", "match", "none"),
+    # Auto-computed row (like Overall): coach + partner minutes + match sets
+    # × service.RACKET_MINUTES_PER_SET. Read-only in the grid.
+    ("racket_time", "Racket Time", "computed", "none"),
     ("notes", "Notes", "note", "none"),
     ("overall", "Overall", "rating", "none"),
 ]

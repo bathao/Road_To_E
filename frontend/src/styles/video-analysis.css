@@ -1,4 +1,5 @@
-/* Video / Technique Analysis tab. */
+/* Player profile / skill ledger / manual findings (used by the Profile tab;
+   the paste-analysis tab was retired 2026-07). */
 
 .va-row-gap {
   display: flex;
@@ -17,8 +18,7 @@
   gap: 10px;
 }
 
-.va-form-grid label,
-.va-upload-grid label {
+.va-form-grid label {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -158,15 +158,6 @@
   padding: 2px 0;
 }
 
-.va-review-list {
-  margin: 8px 0 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
 /* ---------------- Skill ledger ---------------- */
 
 .va-skill-list {
@@ -267,156 +258,6 @@
   line-height: 1.55;
 }
 
-/* ---------------- Technique Analysis: paste + reports + review ------------- */
-
-.va-analyze-col {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  max-width: 920px;
-}
-
-.va-paste-area {
-  width: 100%;
-  margin-top: 10px;
-  resize: vertical;
-  font-family: inherit;
-  line-height: 1.5;
-}
-
-.va-row-end {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 10px;
-}
-
-.va-report-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.va-report-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.va-report-item:hover {
-  background: var(--surface);
-}
-
-.va-report-main {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  min-width: 0;
-}
-
-.va-report-date {
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-.va-report-title {
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.va-report-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.va-st-chip {
-  font-size: 12px;
-}
-
-.va-st-processing { color: var(--accent-dark); }
-
-.va-st-await { color: #a4540a; }
-
-.va-st-done { color: #1a7f37; }
-
-.va-st-error { color: #b42318; }
-
-.va-link {
-  background: none;
-  border: none;
-  color: var(--accent-dark);
-  cursor: pointer;
-  font: inherit;
-  padding: 4px 0;
-}
-
-.va-source-text {
-  white-space: pre-wrap;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 10px;
-  max-height: 240px;
-  overflow: auto;
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.va-review-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 8px;
-}
-
-.va-review-row {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  padding: 8px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-
-.va-review-row.va-dropped {
-  opacity: 0.5;
-}
-
-.va-review-body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.va-review-tags {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-/* Footage setting chip (practice vs match) */
-
-.va-set-chip {
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.va-set-practice { color: var(--accent-dark); }
-
-.va-set-match { color: #b42318; }
-
 /* Practice-vs-match contrast list */
 
 .va-pvm-list {
@@ -472,7 +313,3 @@
   font-weight: 600;
   color: var(--muted);
 }
-
-.va-ok { color: #1a7f37; }
-
-.va-warn { color: #a4540a; }

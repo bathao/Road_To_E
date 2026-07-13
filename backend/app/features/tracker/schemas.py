@@ -215,6 +215,10 @@ class StatsResponse(BaseModel):
     days_physical: int
     minutes_total: int
     minutes_by_category: list[CategoryMinutes]
+    # Racket time = coach + partner training + match play (sets × ~5 min).
+    racket_minutes_total: int = 0
+    racket_minutes_training: int = 0
+    racket_minutes_matches: int = 0
     overall: MatchStats
     singles: MatchStats
     doubles: MatchStats

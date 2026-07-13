@@ -98,6 +98,8 @@ export default function WeekGrid({
                 const cell = week.cells[cellKey(cat.id, iso)];
                 const isToday = iso === today;
                 const isRating = cat.type === "rating";
+                // Auto-calculated row (Racket Time): shows text, never editable.
+                const isComputed = cat.type === "computed";
                 // Future days can't be logged yet — only today and the past.
                 const isFuture = iso > today;
                 // From the cutover forward the Physical row is a read-only
@@ -106,10 +108,12 @@ export default function WeekGrid({
                   cat.key === "physical_training" &&
                   week.physical_cutover != null &&
                   iso >= week.physical_cutover;
-                const editable = !isRating && !isFuture && !isPhysicalMirror;
+                const editable =
+                  !isRating && !isComputed && !isFuture && !isPhysicalMirror;
                 const classes = ["cell", `type-${cat.type}`];
                 if (isToday) classes.push("today");
-                if (isRating || isPhysicalMirror) classes.push("readonly");
+                if (isRating || isComputed || isPhysicalMirror)
+                  classes.push("readonly");
                 if (isFuture) classes.push("future");
                 // Fill the whole cell background with the day's color
                 // (Overall row, and Physical Training when >=70% ticked).
@@ -127,13 +131,15 @@ export default function WeekGrid({
                   ? "Future date — you can only log today and past days"
                   : isRating
                     ? "Auto-generated from the day's data"
-                    : viewablePhysical
-                      ? "Bấm để xem buổi Training Center 💪"
-                      : isPhysicalMirror
-                        ? "Quản lý ở tab Training Center 💪"
-                        : fullText
-                          ? `${cat.label} · ${iso}\n${fullText}`
-                          : undefined;
+                    : isComputed
+                      ? "Auto-computed: Coach + Partner training + 5 min per match set"
+                      : viewablePhysical
+                        ? "Bấm để xem buổi Training Center 💪"
+                        : isPhysicalMirror
+                          ? "Quản lý ở tab Training Center 💪"
+                          : fullText
+                            ? `${cat.label} · ${iso}\n${fullText}`
+                            : undefined;
                 const handleClick = editable
                   ? () => onCellClick(cat, iso)
                   : viewablePhysical

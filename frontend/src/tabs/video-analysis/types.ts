@@ -53,15 +53,6 @@ export interface TraitIn {
   confidence?: number | null;
 }
 
-// One reviewed finding sent back to the server.
-export interface FindingDecision {
-  id: number;
-  accept: boolean;
-  text?: string;
-  aspect?: Aspect;
-  polarity?: Polarity;
-}
-
 export type SkillStatus =
   | "strength"
   | "weakness"
@@ -143,31 +134,3 @@ export interface Report {
   findings_accepted: number;
 }
 
-// A pasted-analysis entry, tagged with the date it pertains to.
-export type AnalysisStatus = "parsing" | "awaiting_review" | "reviewed" | "error";
-
-export interface AnalysisReport {
-  id: number;
-  analysis_date: string; // ISO date
-  setting: Setting;
-  title: string;
-  context: string;
-  source_text: string;
-  model: string;
-  status: AnalysisStatus;
-  error_msg: string | null;
-  reviewed_at: string | null;
-  created_at: string;
-}
-
-export interface AnalysisReportDetail extends AnalysisReport {
-  traits: Trait[];
-}
-
-export interface ModelHealth {
-  ollama_up: boolean;
-  models: string[];
-  default_model: string;
-  default_available: boolean;
-  message: string;
-}

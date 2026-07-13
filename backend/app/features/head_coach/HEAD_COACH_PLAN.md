@@ -4,24 +4,28 @@ The north-star module. A single, **strict personal coach** for one player,
 Nguyễn Bá Thảo. Persona (agreed with the user): a professional table-tennis
 coach who looks after one special athlete, knows his stats, and is **demanding**
 — tracks progress, pushes him to train more, log more playing hours, play more
-matches (singles / doubles / vs-pips), sharpen tactics, and proposes concrete
-in-match tactics to follow.
+matches (singles / doubles / vs-pips), and proposes concrete in-match tactics.
 
-## Principle: consumer, not collector
+## Principle: consumer, not collector — DATABASE FACTS ONLY (since 2026-07)
 
-The Head Coach **reads** what the Tier-1 specialists wrote and synthesises a
-verdict. It never re-collects or re-analyses. All four data sources are already
-machine-readable; it calls their service functions **in-process** (no HTTP):
+The Head Coach **reads** hard facts computed by code from the database and
+synthesises a verdict. It never re-collects or re-analyses, and it consumes NO
+AI-derived judgments: the paste-analysis technique pipeline and the Tactical
+Playbook tab were retired (2026-07) because model-parsed technique commentary
+proved unreliable — the coach must not reason over guesses. (Their DB tables
+and rows remain untouched; only the code paths were removed.) It calls service
+functions **in-process** (no HTTP):
 
 | Source | In-process call | Provides |
 |---|---|---|
-| Video Analysis | `video_service.build_report(db)` | 9-aspect skill ledger (rating/status/assessment/priority + evidence), strengths, weaknesses, metric trends |
+| Daily / Match volume | `tracker_service.build_stats(db, from, to)` | days trained / physical, minutes by category, **racket time** (training + ~5 min/set match play), win-rate singles / doubles / overall / vs-pips |
+| Match detail | `tracker_service.build_match_stats(...)` ×3 (all / practice / official) | win-rate by opponent level (below/equal/above), practice-vs-official gap, monthly trend, top head-to-head records |
 | Training Center | `training_service.report(db)` | level, adherence (7/30d, days-since-last), volume by muscle group, streak, intensity_bias |
-| Daily / Match | `tracker_service.build_stats(db, from, to)` | days trained / physical, minutes by category, win-rate singles / doubles / overall / vs-pips |
-| Tactical Playbook | `playbook_service.list_tactics(db)` | the player's known tactics & tendencies |
+| Day notes | `DayNote` (most recent 12) | the player's own dated observations (human signal) |
+| Profile name | `video_analysis.get_or_create_profile(db)` | the editable player name only |
 
-Only **accepted** video findings reach it (Video Analysis already gates), so the
-brain consumes confirmed data, not raw guesses.
+The prompt explicitly forbids inventing stroke-technique observations the data
+cannot show — the coach reasons from results, volume and the player's notes.
 
 ## AI model
 

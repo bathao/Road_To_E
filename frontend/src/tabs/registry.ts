@@ -3,9 +3,7 @@
 import type { ComponentType } from "react";
 import ComingSoon from "./ComingSoon";
 import DailyTracker from "./daily-tracker";
-import TacticalPlaybook from "./tactical-playbook";
 import MatchStats from "./match-stats";
-import VideoAnalysis from "./video-analysis";
 import PlayerProfile from "./profile";
 import TrainingCenter from "./training-center";
 import HeadCoach from "./head-coach";
@@ -34,24 +32,10 @@ export const TABS: TabDef[] = [
     enabled: true,
   },
   {
-    id: "tactical-playbook",
-    label: "Tactical Playbook",
-    icon: "♟️",
-    component: TacticalPlaybook,
-    enabled: true,
-  },
-  {
     id: "match-stats",
     label: "Match Stats",
     icon: "📊",
     component: MatchStats,
-    enabled: true,
-  },
-  {
-    id: "video-analysis",
-    label: "Phân tích kỹ thuật",
-    icon: "📝",
-    component: VideoAnalysis,
     enabled: true,
   },
   {

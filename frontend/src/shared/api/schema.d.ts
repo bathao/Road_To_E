@@ -356,102 +356,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/playbook/meta": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Meta
-         * @description Phases + suggested tag/opponent chips (shared by the editor and library).
-         */
-        get: operations["get_meta_api_playbook_meta_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/playbook/library": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Library
-         * @description The built-in catalog of general tactics (browse-only reference).
-         */
-        get: operations["get_library_api_playbook_library_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/playbook/tactics": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Tactics */
-        get: operations["list_tactics_api_playbook_tactics_get"];
-        put?: never;
-        /**
-         * Create Tactic
-         * @description Create a tactic — hand-entered, or a Library copy carrying source_key.
-         */
-        post: operations["create_tactic_api_playbook_tactics_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/playbook/tactics/reorder": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Reorder Tactics */
-        put: operations["reorder_tactics_api_playbook_tactics_reorder_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/playbook/tactics/{tactic_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Update Tactic */
-        put: operations["update_tactic_api_playbook_tactics__tactic_id__put"];
-        post?: never;
-        /** Delete Tactic */
-        delete: operations["delete_tactic_api_playbook_tactics__tactic_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/video/health/model": {
         parameters: {
             query?: never;
@@ -949,6 +853,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/head-coach/directive-progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Directive Progress
+         * @description This week's database actual vs each trackable directive's weekly target.
+         */
+        get: operations["get_directive_progress_api_head_coach_directive_progress_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -1190,11 +1114,14 @@ export interface components {
             watch_items: string[];
             /**
              * @default {
-             *       "video": {},
+             *       "player": "",
              *       "training": {},
              *       "match": {},
-             *       "tactics": {},
-             *       "generated_for_range": ""
+             *       "match_detail": {},
+             *       "notes": [],
+             *       "generated_for_range": "",
+             *       "video": {},
+             *       "tactics": {}
              *     }
              */
             sources: components["schemas"]["SourceSummary"];
@@ -1368,6 +1295,48 @@ export interface components {
              * @default
              */
             reason: string;
+            /**
+             * Metric
+             * @default
+             */
+            metric: string;
+            /** Value */
+            value?: number | null;
+        };
+        /**
+         * DirectiveProgress
+         * @description Current-week actual vs a directive's weekly target (computed from the
+         *     database, never self-reported).
+         */
+        DirectiveProgress: {
+            /** Index */
+            index: number;
+            /** Area */
+            area: string;
+            /** Order */
+            order: string;
+            /** Metric */
+            metric: string;
+            /** Value */
+            value: number;
+            /** Actual */
+            actual: number;
+            /** Pct */
+            pct: number;
+            /** Unit Vi */
+            unit_vi: string;
+        };
+        /** DirectiveProgressOut */
+        DirectiveProgressOut: {
+            /** Assessment Id */
+            assessment_id?: number | null;
+            /** Week Start */
+            week_start?: string | null;
+            /**
+             * Items
+             * @default []
+             */
+            items: components["schemas"]["DirectiveProgress"][];
         };
         /** DoublesRecord */
         DoublesRecord: {
@@ -1564,37 +1533,6 @@ export interface components {
             /** Level */
             level: string;
             stats: components["schemas"]["MatchStats"];
-        };
-        /** LibraryItem */
-        LibraryItem: {
-            /** Key */
-            key: string;
-            /** Phase */
-            phase: string;
-            /** Title */
-            title: string;
-            /** When To Use */
-            when_to_use?: string | null;
-            /** How To */
-            how_to?: string | null;
-            /** Follow Up */
-            follow_up?: string | null;
-            /** Risk */
-            risk?: string | null;
-            /**
-             * Opponent Styles
-             * @default []
-             */
-            opponent_styles: string[];
-            /**
-             * Tags
-             * @default []
-             */
-            tags: string[];
-            /** Source */
-            source?: string | null;
-            /** Source Url */
-            source_url?: string | null;
         };
         /** MatchIn */
         MatchIn: {
@@ -1902,13 +1840,6 @@ export interface components {
              */
             matches: components["schemas"]["MatchLine"][];
         };
-        /** PhaseMeta */
-        PhaseMeta: {
-            /** Key */
-            key: string;
-            /** Label */
-            label: string;
-        };
         /** PhysicalChecksIn */
         PhysicalChecksIn: {
             /**
@@ -1944,17 +1875,6 @@ export interface components {
             focus: string;
             /** Detail */
             detail: string;
-        };
-        /** PlaybookMeta */
-        PlaybookMeta: {
-            /** Phases */
-            phases: components["schemas"]["PhaseMeta"][];
-            /** Spin Tags */
-            spin_tags: string[];
-            /** Placement Tags */
-            placement_tags: string[];
-            /** Opponent Styles */
-            opponent_styles: string[];
         };
         /** PlayerIn */
         PlayerIn: {
@@ -2107,11 +2027,6 @@ export interface components {
             done_count: number;
             /** Total */
             total: number;
-        };
-        /** ReorderIn */
-        ReorderIn: {
-            /** Ids */
-            ids: number[];
         };
         /**
          * ReportCreateIn
@@ -2317,13 +2232,18 @@ export interface components {
         /**
          * SourceSummary
          * @description A compact, human-readable snapshot of what fed the verdict + freshness.
+         *
+         *     Since 2026-07 the coach reads the DATABASE only: tracker volume/results,
+         *     detailed match analytics, physical training, and the player's day notes.
+         *     ``video``/``tactics`` remain solely so snapshots generated before the
+         *     technique-analysis and playbook tabs were retired still parse and render.
          */
         SourceSummary: {
             /**
-             * Video
-             * @default {}
+             * Player
+             * @default
              */
-            video: Record<string, never>;
+            player: string;
             /**
              * Training
              * @default {}
@@ -2335,15 +2255,30 @@ export interface components {
              */
             match: Record<string, never>;
             /**
-             * Tactics
+             * Match Detail
              * @default {}
              */
-            tactics: Record<string, never>;
+            match_detail: Record<string, never>;
+            /**
+             * Notes
+             * @default []
+             */
+            notes: Record<string, never>[];
             /**
              * Generated For Range
              * @default
              */
             generated_for_range: string;
+            /**
+             * Video
+             * @default {}
+             */
+            video: Record<string, never>;
+            /**
+             * Tactics
+             * @default {}
+             */
+            tactics: Record<string, never>;
         };
         /**
          * SourcesOut
@@ -2374,6 +2309,21 @@ export interface components {
             minutes_total: number;
             /** Minutes By Category */
             minutes_by_category: components["schemas"]["CategoryMinutes"][];
+            /**
+             * Racket Minutes Total
+             * @default 0
+             */
+            racket_minutes_total: number;
+            /**
+             * Racket Minutes Training
+             * @default 0
+             */
+            racket_minutes_training: number;
+            /**
+             * Racket Minutes Matches
+             * @default 0
+             */
+            racket_minutes_matches: number;
             overall: components["schemas"]["MatchStats"];
             singles: components["schemas"]["MatchStats"];
             doubles: components["schemas"]["MatchStats"];
@@ -2384,85 +2334,12 @@ export interface components {
             /** Exercise Key */
             exercise_key: string;
         };
-        /** TacticIn */
-        TacticIn: {
-            /** Phase */
-            phase: string;
-            /** Title */
-            title: string;
-            /** When To Use */
-            when_to_use?: string | null;
-            /** How To */
-            how_to?: string | null;
-            /** Follow Up */
-            follow_up?: string | null;
-            /** Risk */
-            risk?: string | null;
-            /**
-             * Opponent Styles
-             * @default []
-             */
-            opponent_styles: string[];
-            /**
-             * Tags
-             * @default []
-             */
-            tags: string[];
-            /**
-             * Confidence
-             * @default 0
-             */
-            confidence: number;
-            /**
-             * Is Favorite
-             * @default false
-             */
-            is_favorite: boolean;
-            /** Source Key */
-            source_key?: string | null;
-        };
-        /** TacticOut */
-        TacticOut: {
-            /** Phase */
-            phase: string;
-            /** Title */
-            title: string;
-            /** When To Use */
-            when_to_use?: string | null;
-            /** How To */
-            how_to?: string | null;
-            /** Follow Up */
-            follow_up?: string | null;
-            /** Risk */
-            risk?: string | null;
-            /**
-             * Opponent Styles
-             * @default []
-             */
-            opponent_styles: string[];
-            /**
-             * Tags
-             * @default []
-             */
-            tags: string[];
-            /**
-             * Confidence
-             * @default 0
-             */
-            confidence: number;
-            /**
-             * Is Favorite
-             * @default false
-             */
-            is_favorite: boolean;
-            /** Source Key */
-            source_key?: string | null;
-            /** Id */
-            id: number;
-            /** Sort Order */
-            sort_order: number;
-        };
-        /** TacticSuggestion */
+        /**
+         * TacticSuggestion
+         * @description LEGACY — in-match tactic suggestions were dropped from the verdict
+         *     (2026-07: the coach can't know what tactics the player actually uses).
+         *     Kept so snapshots generated before then still parse.
+         */
         TacticSuggestion: {
             /** Situation */
             situation: string;
@@ -3304,196 +3181,6 @@ export interface operations {
                 content: {
                     "application/json": unknown;
                 };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_meta_api_playbook_meta_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PlaybookMeta"];
-                };
-            };
-        };
-    };
-    get_library_api_playbook_library_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LibraryItem"][];
-                };
-            };
-        };
-    };
-    list_tactics_api_playbook_tactics_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TacticOut"][];
-                };
-            };
-        };
-    };
-    create_tactic_api_playbook_tactics_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TacticIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TacticOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    reorder_tactics_api_playbook_tactics_reorder_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ReorderIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_tactic_api_playbook_tactics__tactic_id__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                tactic_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TacticIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TacticOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_tactic_api_playbook_tactics__tactic_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                tactic_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -4350,6 +4037,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SourcesOut"];
+                };
+            };
+        };
+    };
+    get_directive_progress_api_head_coach_directive_progress_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectiveProgressOut"];
                 };
             };
         };

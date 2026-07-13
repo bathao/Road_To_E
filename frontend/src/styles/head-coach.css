@@ -111,24 +111,39 @@
   font-size: 11px;
 }
 
-.hc-tactics { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+/* Live weekly progress inside a directive card (database actual vs target). */
 
-.hc-tactics li {
-  background: #f5f0ff;
-  border: 1px solid #e0d6f5;
-  border-radius: 8px;
-  padding: 8px 12px;
+.hc-progress {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  margin-top: 8px;
 }
 
-.hc-situation { color: #555; }
+.hc-progress-track {
+  flex: 1;
+  height: 8px;
+  background: #eef0f3;
+  border-radius: 5px;
+  overflow: hidden;
+}
 
-.hc-arrow { color: #a08; font-weight: 700; }
+.hc-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 5px;
+  transition: width 0.25s;
+}
 
-.hc-action { font-weight: 600; }
+.hc-progress-fill.done {
+  background: #5fa83c;
+}
+
+.hc-progress-label {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
 
 .hc-week {
   display: grid;

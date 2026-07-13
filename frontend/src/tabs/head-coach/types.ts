@@ -7,12 +7,36 @@ export interface Priority {
 }
 
 export interface Directive {
-  area: string; // training | playing_hours | matches | skill | tactics | recovery
+  area: string; // training | playing_hours | matches | skill | recovery
   order: string;
   target: string;
   reason: string;
+  // Weekly machine-trackable goal ("" when not quantifiable) — the app
+  // computes this week's actual from the database (see DirectiveProgress).
+  metric?: string;
+  value?: number | null;
 }
 
+// Live progress of one trackable directive (GET /head-coach/directive-progress).
+export interface DirectiveProgress {
+  index: number; // position in the assessment's directives list
+  area: string;
+  order: string;
+  metric: string;
+  value: number; // weekly target
+  actual: number; // this week's actual (Mon → today)
+  pct: number; // 0-100
+  unit_vi: string; // buổi | giờ | trận
+}
+
+export interface DirectiveProgressOut {
+  assessment_id: number | null;
+  week_start: string | null;
+  items: DirectiveProgress[];
+}
+
+// LEGACY — tactic suggestions were dropped from the verdict (the coach can't
+// know what tactics the player uses); old snapshots may still carry them.
 export interface TacticSuggestion {
   situation: string;
   action: string;
@@ -42,13 +66,6 @@ export interface SourceMatch {
   [k: string]: unknown;
 }
 
-export interface SourceVideo {
-  player?: string;
-  reports_reviewed?: number;
-  findings_accepted?: number;
-  [k: string]: unknown;
-}
-
 export interface SourceTraining {
   level?: string;
   sessions_last_7d?: number;
@@ -56,12 +73,42 @@ export interface SourceTraining {
   [k: string]: unknown;
 }
 
+export interface SourceH2H {
+  name?: string;
+  level?: string;
+  played?: number;
+  wins?: number;
+  losses?: number;
+  win_rate?: number | null;
+  last?: string;
+}
+
+export interface SourceMatchDetail {
+  window?: string;
+  by_level?: Record<string, SourceMatchSide>;
+  practice?: SourceMatchSide;
+  official?: SourceMatchSide;
+  trend_by_month?: { label?: string; played?: number; win_rate?: number | null }[];
+  top_h2h?: SourceH2H[];
+  [k: string]: unknown;
+}
+
+export interface SourceNote {
+  date?: string;
+  text?: string;
+}
+
 export interface SourceSummary {
-  video: SourceVideo;
+  player?: string;
   training: SourceTraining;
   match: SourceMatch;
-  tactics: Record<string, unknown>;
+  match_detail?: SourceMatchDetail;
+  notes?: SourceNote[];
   generated_for_range: string;
+  // Legacy fields — only present on snapshots generated before the
+  // technique-analysis and playbook tabs were retired.
+  video?: Record<string, unknown>;
+  tactics?: Record<string, unknown>;
 }
 
 export interface Assessment {

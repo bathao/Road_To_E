@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { headCoachApi } from "./api";
 import { useLoad, useMutate } from "../../shared/useApi";
-import type { Assessment, Directive } from "./types";
+import type { Assessment, Directive, DirectiveProgress } from "./types";
 
 const AREA: Record<string, { icon: string; label: string }> = {
   training: { icon: "💪", label: "Thể lực" },
@@ -18,8 +18,11 @@ function areaOf(d: Directive) {
 
 function fmtTime(iso: string | null): string {
   if (!iso) return "";
-  const d = new Date(iso);
-  return d.toLocaleString("vi-VN");
+  // Old snapshots were serialized as naive UTC (no timezone suffix) — treat
+  // them as UTC so they don't render 7 hours early.
+  const hasTz = /Z$|[+-]\d{2}:\d{2}$/.test(iso);
+  const d = new Date(hasTz ? iso : `${iso}Z`);
+  return d.toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
 }
 
 export default function HeadCoach() {
@@ -32,6 +35,16 @@ export default function HeadCoach() {
   } = useLoad<Assessment>(() => headCoachApi.getAssessment(), []);
   const { run, error: mutateError, clearError } = useMutate();
   const error = mutateError ?? loadError;
+
+  // Live weekly progress for trackable directives (re-fetched when a new
+  // verdict arrives, since the deps include the assessment id).
+  const { data: progress } = useLoad(
+    () => headCoachApi.getDirectiveProgress(),
+    [data?.id]
+  );
+  const progressByIndex = new Map<number, DirectiveProgress>(
+    (progress?.items ?? []).map((p) => [p.index, p])
+  );
 
   // On mount, resume the "generating" state if a run is already in flight
   // (e.g. the tab was switched away and back while the local model worked).
@@ -76,8 +89,9 @@ export default function HeadCoach() {
   };
 
   const m = data?.sources.match ?? {};
-  const video = data?.sources.video ?? {};
+  const detail = data?.sources.match_detail ?? {};
   const training = data?.sources.training ?? {};
+  const notes = data?.sources.notes ?? [];
 
   return (
     <div className="hc">
@@ -122,6 +136,7 @@ export default function HeadCoach() {
               <div className="hc-directives">
                 {data.directives.map((d, i) => {
                   const a = areaOf(d);
+                  const p = progressByIndex.get(i);
                   return (
                     <div key={i} className="hc-directive">
                       <div className="hc-directive-head">
@@ -130,6 +145,23 @@ export default function HeadCoach() {
                       </div>
                       <div className="hc-order">{d.order}</div>
                       {d.reason && <div className="hc-reason">↳ {d.reason}</div>}
+                      {p && (
+                        <div
+                          className="hc-progress"
+                          title="Tiến độ tuần này, tính tự động từ dữ liệu đã ghi (Thứ 2 → hôm nay)"
+                        >
+                          <div className="hc-progress-track">
+                            <div
+                              className={`hc-progress-fill${p.pct >= 100 ? " done" : ""}`}
+                              style={{ width: `${p.pct}%` }}
+                            />
+                          </div>
+                          <span className="hc-progress-label">
+                            Tuần này: <b>{p.actual}</b>/{p.value} {p.unit_vi}
+                            {p.pct >= 100 ? " ✓" : ""}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -149,21 +181,6 @@ export default function HeadCoach() {
                   </li>
                 ))}
               </ol>
-            </section>
-          )}
-
-          {data.tactics.length > 0 && (
-            <section className="hc-section">
-              <h3>♟️ Chiến thuật áp dụng trong trận</h3>
-              <ul className="hc-tactics">
-                {data.tactics.map((t, i) => (
-                  <li key={i}>
-                    <span className="hc-situation">{t.situation}</span>
-                    <span className="hc-arrow">→</span>
-                    <span className="hc-action">{t.action}</span>
-                  </li>
-                ))}
-              </ul>
             </section>
           )}
 
@@ -203,12 +220,15 @@ export default function HeadCoach() {
                 {m.overall?.played ?? "—"}
               </div>
               <div>
-                Phân tích kỹ thuật: {video.reports_reviewed ?? 0} bản phân tích ·{" "}
-                {video.findings_accepted ?? 0} nhận xét đã duyệt
+                Phân tích sâu ({detail.window ?? "—"}): trận tập{" "}
+                {detail.practice?.played ?? "—"} · trận giải{" "}
+                {detail.official?.played ?? "—"} · head-to-head{" "}
+                {detail.top_h2h?.length ?? 0} đối thủ
               </div>
               <div>
                 Thể lực: cấp {training.level ?? "—"} ·{" "}
-                {training.sessions_last_7d ?? 0} buổi/7 ngày
+                {training.sessions_last_7d ?? 0} buổi/7 ngày · Ghi chú:{" "}
+                {notes.length} ngày gần nhất
               </div>
             </div>
           </details>

@@ -1,11 +1,4 @@
-import type {
-  Aspect,
-  AnalysisStatus,
-  FindingStatus,
-  Polarity,
-  Setting,
-  SkillStatus,
-} from "./types";
+import type { Aspect, Polarity, Setting, SkillStatus } from "./types";
 
 export const SETTING_LABEL: Record<Setting, string> = {
   practice: "Tập luyện",
@@ -61,15 +54,3 @@ export const SKILL_STATUS_LABEL: Record<SkillStatus, string> = {
   neutral: "Chưa rõ",
 };
 
-export const FINDING_STATUS_LABEL: Record<FindingStatus, string> = {
-  proposed: "Chờ duyệt",
-  accepted: "Đã duyệt",
-  rejected: "Đã bỏ",
-};
-
-export const ANALYSIS_STATUS_LABEL: Record<AnalysisStatus, string> = {
-  parsing: "Đang bóc tách…",
-  awaiting_review: "Chờ duyệt",
-  reviewed: "Đã lưu",
-  error: "Lỗi",
-};

@@ -244,15 +244,15 @@ body {
   display: grid;
   /* auto-fit (not auto-fill) so the cards stretch to fill the full width
      instead of packing left and leaving empty tracks on the right. */
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
 }
 
 .stat-card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 14px 16px;
+  padding: 12px 14px;
   box-shadow: var(--shadow);
 }
 
@@ -265,10 +265,10 @@ body {
 }
 
 .stat-big {
-  font-size: 30px;
+  font-size: 26px;
   font-weight: 700;
   line-height: 1.2;
-  margin-top: 6px;
+  margin-top: 5px;
 }
 
 .stat-line {

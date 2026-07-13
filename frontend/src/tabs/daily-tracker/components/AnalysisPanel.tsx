@@ -221,6 +221,25 @@ export default function AnalysisPanel({
               <div className="stat-sub">total duration logged</div>
             </div>
 
+            <div
+              className="stat-card"
+              title="Coach + Partner training + 5 min per match set"
+            >
+              <div className="stat-card-title">🏓 Racket time</div>
+              <div className="stat-big">
+                {fmtMinutes(stats.racket_minutes_total)}
+              </div>
+              <div className="stat-sub">time with racket in hand</div>
+              <div className="stat-line muted">
+                <span>training</span>
+                <span>{fmtMinutes(stats.racket_minutes_training)}</span>
+              </div>
+              <div className="stat-line muted">
+                <span>matches (~5m/set)</span>
+                <span>{fmtMinutes(stats.racket_minutes_matches)}</span>
+              </div>
+            </div>
+
             <MatchCard title="Singles" s={stats.singles} />
             <MatchCard title="Doubles" s={stats.doubles} />
             <MatchCard title="All matches" s={stats.overall} />

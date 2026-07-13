@@ -68,6 +68,39 @@ _NOTE_SNIPPET_LEN = 22
 COACH_PACKAGE_SIZE = 10
 PACKAGE_MARK = "★"
 
+# ------------------------------------------------------------- racket time
+# "Racket Time" = total time with the racket in hand per day: the coach +
+# partner training minutes plus the match play estimated from set counts
+# (a set averages ~5 minutes). Serve practice / physical work don't count.
+RACKET_MINUTES_PER_SET = 5
+RACKET_DURATION_KEYS = ("train_with_coach", "training_with_partner")
+
+
+def racket_minutes_by_day(
+    categories: list["Category"],
+    activities: list["Activity"],
+    matches: list["Match"],
+) -> tuple[dict[str, int], dict[str, int]]:
+    """Per ISO day: (training minutes from coach+partner, match minutes from
+    sets × RACKET_MINUTES_PER_SET). Non-playing entries (Travel/Rest) don't
+    count. Racket time for a day = the sum of the two maps' values."""
+    racket_ids = {c.id for c in categories if c.key in RACKET_DURATION_KEYS}
+    training: dict[str, int] = {}
+    playing: dict[str, int] = {}
+    for a in activities:
+        if a.category_id in racket_ids and (a.duration_minutes or 0) > 0:
+            iso = a.date.isoformat()
+            training[iso] = training.get(iso, 0) + a.duration_minutes
+    for m in matches:
+        if m.is_nonplaying:
+            continue
+        sets = (m.my_sets or 0) + (m.opp_sets or 0)
+        if sets <= 0:
+            continue
+        iso = m.date.isoformat()
+        playing[iso] = playing.get(iso, 0) + sets * RACKET_MINUTES_PER_SET
+    return training, playing
+
 
 def note_snippet(text: str) -> str:
     """A compact one-line preview for the grid cell ('📝 ...'). Full text lives
@@ -483,6 +516,16 @@ def build_week(
                 color="yellow" if info["is_yellow"] else None,
             )
 
+    # Racket Time cells: auto-computed (coach + partner + 5 min per match set).
+    racket = cat_by_key.get("racket_time")
+    if racket is not None:
+        r_training, r_playing = racket_minutes_by_day(categories, activities, matches)
+        for iso in set(r_training) | set(r_playing):
+            total = r_training.get(iso, 0) + r_playing.get(iso, 0)
+            cells[f"{racket.id}|{iso}"] = schemas.CellData(
+                display=format_duration(total)
+            )
+
     # Notes cells: compact 📝 preview; full text travels in day_notes.
     notes_cat = cat_by_key.get("notes")
     if notes_cat is not None:
@@ -734,6 +777,11 @@ def build_stats(db: Session, date_from: dt.date, date_to: dt.date) -> schemas.St
         for c in duration_cats
     ]
 
+    # Racket time over the range (training with racket + match play from sets).
+    r_training, r_playing = racket_minutes_by_day(rng.categories, activities, matches)
+    racket_training = sum(r_training.values())
+    racket_matches = sum(r_playing.values())
+
     return schemas.StatsResponse(
         date_from=date_from,
         date_to=date_to,
@@ -742,6 +790,9 @@ def build_stats(db: Session, date_from: dt.date, date_to: dt.date) -> schemas.St
         days_physical=days_physical,
         minutes_total=sum(minutes_per_day.values()),
         minutes_by_category=minutes_by_category,
+        racket_minutes_total=racket_training + racket_matches,
+        racket_minutes_training=racket_training,
+        racket_minutes_matches=racket_matches,
         overall=_finalize_match_stats(overall),
         singles=_finalize_match_stats(singles),
         doubles=_finalize_match_stats(doubles),
@@ -1136,6 +1187,14 @@ def _build_grid(db: Session, date_from: dt.date, date_to: dt.date):
             text[(physical.id, iso)] = f"Training Center {info['done']}/{info['total']} · {info['focus_vi']}"
             if info["is_yellow"]:
                 cell_colors[(physical.id, iso)] = "yellow"
+
+    # Racket Time cells: same auto-computed values as the on-screen grid.
+    racket = cat_by_key.get("racket_time")
+    if racket is not None:
+        r_training, r_playing = racket_minutes_by_day(categories, activities, matches)
+        for iso in set(r_training) | set(r_playing):
+            total = r_training.get(iso, 0) + r_playing.get(iso, 0)
+            text[(racket.id, iso)] = format_duration(total)
 
     # Notes cells: export the full text (not the truncated grid preview).
     notes_cat = cat_by_key.get("notes")
