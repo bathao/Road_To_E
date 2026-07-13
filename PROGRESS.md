@@ -25,7 +25,10 @@
 >     ("Tuần này: 2/4 buổi", green ✓ at 100%). Deliberately NOT auto-injecting
 >     model-chosen exercises into Training Center — targets are tracked, the
 >     knee-safe program stays code-owned. 2 new tests (26 total), build clean.
->   - NOT committed yet (together with yesterday's uncommitted batch).
+>   - Committed as `10830c7` (together with yesterday's batch), after one more
+>     A/B round: gemma4:12b tested on the real bundle and rejected (Vietnamese
+>     typos everywhere, 450min-vs-12.5h unit mismatch, self-contradicting week
+>     plan volume, slower) — qwen3.5:9b stays.
 
 ## Status (2026-07-12, end of day)
 
@@ -34,11 +37,9 @@
 >     Training Center. Đã bỏ "Phân tích kỹ thuật" + "Tactical Playbook" (chi
 >     tiết ở resume "2026-07-12 b" bên dưới); Head Coach v2 chỉ phân tích sự
 >     thật trong database.
->   - **Commit state:** the hardening pass IS committed (`4449539`). **NOT yet
->     committed:** Racket Time (row + summary card + export + 2 tests), the
->     2-tab retirement + Head Coach v2 (bundle/prompt/UI), tactics-section
->     removal, VN-timezone fix. All verified: 24/24 pytest, build clean, smoke
->     tested — chỉ chờ user duyệt rồi commit.
+>   - **Commit state:** the hardening pass IS committed (`4449539`); the rest
+>     of this batch (Racket Time, 2-tab retirement + Head Coach v2, tactics
+>     removal, VN-timezone fix) was committed on 2026-07-13 as `10830c7`.
 >   - **User must restart `start.bat`** — the server that's running still has
 >     the pre-refactor backend; frontend dist is already rebuilt.
 >   - **Next candidates (discussed, not started):** (1) A/B thử
