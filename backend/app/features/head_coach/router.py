@@ -1,7 +1,7 @@
 """HTTP API for the Head Coach tab (prefix /api/head-coach)."""
 from __future__ import annotations
 
-from fastapi import APIRouter, BackgroundTasks, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -44,3 +44,52 @@ def get_sources(db: Session = Depends(get_db)):
 def get_directive_progress(db: Session = Depends(get_db)):
     """This week's database actual vs each trackable directive's weekly target."""
     return service.directive_progress(db)
+
+
+# ------------------------------------------------------------------ coach chat
+@router.get("/chat", response_model=schemas.ChatHistoryOut)
+def get_chat(db: Session = Depends(get_db)):
+    """The full conversation (the coach's verbatim memory). While `pending`
+    is true, keep polling — a reply is being generated in the background."""
+    return service.chat_history(db)
+
+
+@router.post("/chat", response_model=schemas.ChatHistoryOut)
+def send_chat(
+    payload: schemas.ChatSendIn,
+    background: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """Send a message to the coach. Returns immediately with the pending
+    coach row appended; poll GET /chat until `pending` is false."""
+    try:
+        out = service.start_chat(db, payload.text)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    background.add_task(service.run_chat_job)
+    return out
+
+
+# --------------------------------------------------------------- coach notebook
+@router.get("/notes", response_model=schemas.NotesOut)
+def get_notes(db: Session = Depends(get_db)):
+    """The coach's notebook (auto-written from chat + player-added)."""
+    return service.list_notes(db)
+
+
+@router.post("/notes", response_model=schemas.NotesOut)
+def post_note(payload: schemas.NoteIn, db: Session = Depends(get_db)):
+    """Add a notebook entry by hand."""
+    return service.add_note(db, payload.text)
+
+
+@router.delete("/notes/{note_id}", response_model=schemas.NotesOut)
+def remove_note(note_id: int, db: Session = Depends(get_db)):
+    """Remove one notebook entry (explicit player action)."""
+    return service.delete_note(db, note_id)
+
+
+@router.get("/debug", response_model=schemas.DebugOut)
+def get_debug():
+    """Dev panel: recent backend log lines + Ollama VRAM occupancy."""
+    return service.debug_info()

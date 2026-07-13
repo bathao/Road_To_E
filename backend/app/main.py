@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.core import logbuffer
 from app.core.db import SessionLocal, init_db
 from app.core.settings import APP_TITLE, FRONTEND_DIST
 from app.features import registry
@@ -19,6 +20,8 @@ from app.features import registry
 # uvicorn only configures its own loggers; give the app's `app.*` loggers a
 # root handler so seed migrations / LLM calls / swallowed errors are visible.
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+# Keep the recent lines in RAM for the dev log panel (GET /head-coach/debug).
+logbuffer.install()
 
 
 @asynccontextmanager

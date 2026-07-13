@@ -132,3 +132,47 @@ export interface GenerateStatus {
   status: "none" | "generating" | "done" | "error";
   error_msg: string | null;
 }
+
+// ---------------------------------------------------------------- coach chat
+export interface ChatMessage {
+  id: number;
+  created_at: string | null;
+  role: "user" | "coach";
+  content: string;
+  status: "pending" | "done" | "error";
+  error_msg: string | null;
+  model: string;
+}
+
+export interface ChatHistory {
+  messages: ChatMessage[];
+  // True while a coach reply is being generated (keep polling GET /chat).
+  pending: boolean;
+}
+
+// ------------------------------------------------------------ coach notebook
+export interface CoachNote {
+  id: number;
+  created_at: string | null;
+  text: string;
+  source: "chat" | "user"; // auto-written from chat | added by the player
+}
+
+export interface NotesOut {
+  notes: CoachNote[];
+}
+
+// -------------------------------------------------------------- dev log panel
+export interface OllamaModelPs {
+  name: string;
+  size_mb: number;
+  size_vram_mb: number;
+  expires_at: string;
+}
+
+export interface DebugOut {
+  logs: string[];
+  ollama_ok: boolean;
+  ollama_error: string;
+  loaded_models: OllamaModelPs[];
+}

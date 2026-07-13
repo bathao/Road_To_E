@@ -1,7 +1,11 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { headCoachApi } from "./api";
 import { useLoad, useMutate } from "../../shared/useApi";
-import type { Assessment, Directive, DirectiveProgress } from "./types";
+import CoachChat from "./components/CoachChat";
+import CoachNotes from "./components/CoachNotes";
+import DevLogs from "./components/DevLogs";
+import { fmtTime } from "./fmt";
+import type { Assessment, Directive, DirectiveProgress, NotesOut } from "./types";
 
 const AREA: Record<string, { icon: string; label: string }> = {
   training: { icon: "💪", label: "Thể lực" },
@@ -10,20 +14,28 @@ const AREA: Record<string, { icon: string; label: string }> = {
   skill: { icon: "🎯", label: "Kỹ năng" },
   tactics: { icon: "♟️", label: "Chiến thuật" },
   recovery: { icon: "🛌", label: "Hồi phục" },
+  // Aliases the model sometimes emits instead of the canonical areas —
+  // mapped so the card never shows a raw English key.
+  playing: { icon: "⏱️", label: "Giờ đánh" },
+  training_hours: { icon: "⏱️", label: "Giờ tập" },
+  physical_training: { icon: "💪", label: "Thể lực" },
 };
 
 function areaOf(d: Directive) {
   return AREA[d.area] ?? { icon: "📌", label: d.area };
 }
 
-function fmtTime(iso: string | null): string {
-  if (!iso) return "";
-  // Old snapshots were serialized as naive UTC (no timezone suffix) — treat
-  // them as UTC so they don't render 7 hours early.
-  const hasTz = /Z$|[+-]\d{2}:\d{2}$/.test(iso);
-  const d = new Date(hasTz ? iso : `${iso}Z`);
-  return d.toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
-}
+// What each trackable metric actually measures (mirrors backend _week_actual)
+// — shown next to the progress bar so the order text can't be misread.
+const METRIC_SCOPE: Record<string, string> = {
+  physical_sessions_per_week: "buổi thể lực Training Center",
+  racket_hours_per_week: "tổng cầm vợt: tập + thi đấu",
+  coach_hours_per_week: "chỉ tính giờ với HLV",
+  matches_per_week: "mọi trận, cả đơn lẫn đôi",
+  singles_matches_per_week: "chỉ trận đơn",
+  doubles_matches_per_week: "chỉ trận đôi",
+  matches_vs_pips_per_week: "trận gặp đối thủ gai",
+};
 
 export default function HeadCoach() {
   const [generating, setGenerating] = useState(false);
@@ -44,6 +56,29 @@ export default function HeadCoach() {
   );
   const progressByIndex = new Map<number, DirectiveProgress>(
     (progress?.items ?? []).map((p) => [p.index, p])
+  );
+
+  // The coach's notebook — refreshed after each chat reply (the coach may
+  // have auto-written notes) and edited from the notes panel.
+  const {
+    data: notesData,
+    reload: reloadNotes,
+    setData: setNotesData,
+  } = useLoad<NotesOut>(() => headCoachApi.getNotes(), []);
+  const { run: runNotes, busy: notesBusy } = useMutate();
+  const addNote = useCallback(
+    async (text: string) => {
+      const out = await runNotes(() => headCoachApi.addNote(text));
+      if (out !== undefined) setNotesData(out);
+    },
+    [runNotes, setNotesData]
+  );
+  const deleteNote = useCallback(
+    async (id: number) => {
+      const out = await runNotes(() => headCoachApi.deleteNote(id));
+      if (out !== undefined) setNotesData(out);
+    },
+    [runNotes, setNotesData]
   );
 
   // On mount, resume the "generating" state if a run is already in flight
@@ -95,6 +130,7 @@ export default function HeadCoach() {
 
   return (
     <div className="hc">
+      <div className="hc-main">
       <div className="hc-top">
         <div>
           <h2 className="hc-title">🧠 HLV trưởng</h2>
@@ -159,6 +195,11 @@ export default function HeadCoach() {
                           <span className="hc-progress-label">
                             Tuần này: <b>{p.actual}</b>/{p.value} {p.unit_vi}
                             {p.pct >= 100 ? " ✓" : ""}
+                            {METRIC_SCOPE[p.metric] && (
+                              <span className="hc-progress-scope">
+                                {" "}· {METRIC_SCOPE[p.metric]}
+                              </span>
+                            )}
                           </span>
                         </div>
                       )}
@@ -238,6 +279,31 @@ export default function HeadCoach() {
           </div>
         </>
       )}
+      <DevLogs />
+      </div>
+
+      <aside className="hc-side">
+        <section className="hc-side-block">
+          <h3>💬 Trao đổi với HLV</h3>
+          <p className="hc-hint">
+            Đặt mục tiêu ngắn hạn, báo lịch bận, hỏi về số liệu — HLV trả lời
+            dựa trên dữ liệu thật và nhớ mọi trao đổi (lưu trong database).
+          </p>
+          <CoachChat onCoachReply={reloadNotes} />
+        </section>
+        <section className="hc-side-block">
+          <h3>📒 Sổ tay HLV</h3>
+          <p className="hc-hint">
+            Điều đã chốt — được đưa vào mọi câu trả lời và cả bản phân tích.
+          </p>
+          <CoachNotes
+            notes={notesData?.notes ?? []}
+            onAdd={addNote}
+            onDelete={deleteNote}
+            busy={notesBusy}
+          />
+        </section>
+      </aside>
     </div>
   );
 }

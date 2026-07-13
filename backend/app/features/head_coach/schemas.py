@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import datetime as dt
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # Areas a directive can push on — keeps the strict "tăng cường" orders typed.
 DIRECTIVE_AREAS = ["training", "playing_hours", "matches", "skill", "recovery"]
@@ -72,6 +72,7 @@ class SourceSummary(BaseModel):
     match: dict = {}  # volume + win-rate aggregates for the stats window
     match_detail: dict = {}  # by-level, practice-vs-official, trend, head-to-head
     notes: list[dict] = []  # recent day notes [{date, text}]
+    coach_notes: list[dict] = []  # coach notebook entries [{date, text}]
     generated_for_range: str = ""  # the date window used for match/training stats
     # Legacy fields (pre-retirement snapshots only).
     video: dict = {}
@@ -129,3 +130,60 @@ class DirectiveProgressOut(BaseModel):
     assessment_id: int | None = None
     week_start: dt.date | None = None
     items: list[DirectiveProgress] = []
+
+
+# ------------------------------------------------------------- coach chat
+class ChatMessageOut(BaseModel):
+    id: int
+    created_at: dt.datetime | None = None
+    role: str  # user | coach
+    content: str = ""
+    status: str = "done"  # pending → done | error (coach rows)
+    error_msg: str | None = None
+    model: str = ""
+
+
+class ChatHistoryOut(BaseModel):
+    messages: list[ChatMessageOut] = []
+    # True while the newest coach reply is still being generated (poll cue).
+    pending: bool = False
+
+
+class ChatSendIn(BaseModel):
+    text: str = Field(min_length=1, max_length=4000)
+
+
+# ---------------------------------------------------------- coach notebook
+class NoteIn(BaseModel):
+    text: str = Field(min_length=1, max_length=500)
+
+
+class NoteOut(BaseModel):
+    id: int
+    created_at: dt.datetime | None = None
+    text: str
+    source: str = "chat"  # chat (auto-written) | user (added by the player)
+
+
+class NotesOut(BaseModel):
+    notes: list[NoteOut] = []
+
+
+# ------------------------------------------------------------- dev log panel
+class OllamaModelPs(BaseModel):
+    """One model currently loaded by Ollama (GPU/VRAM occupancy)."""
+
+    name: str = ""
+    size_mb: int = 0  # total memory footprint
+    size_vram_mb: int = 0  # of which on the GPU
+    expires_at: str = ""  # when Ollama will unload it
+
+
+class DebugOut(BaseModel):
+    """Recent backend log lines + live Ollama state, for the collapsed dev
+    panel on the Coach tab (diagnosing OOM / fallback / slow generations)."""
+
+    logs: list[str] = []
+    ollama_ok: bool = False
+    ollama_error: str = ""
+    loaded_models: list[OllamaModelPs] = []

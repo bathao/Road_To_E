@@ -2,7 +2,36 @@
 
 /* ---------------------------------------------------------- Head Coach tab */
 
-.hc { max-width: 920px; }
+/* Two-column layout: the verdict on the left, the always-visible interaction
+   column (chat + notebook) on the right. Collapses to one column on narrow
+   screens (the interaction moves below the verdict). */
+.hc {
+  /* Full width, like the other tabs — the verdict stretches, the interaction
+     column keeps a comfortable reading width. */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(380px, 30%, 560px);
+  gap: 26px;
+  align-items: start;
+}
+
+.hc-main { min-width: 0; }
+
+.hc-side {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  position: sticky;
+  top: 12px;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+}
+
+.hc-side-block > h3 { margin: 0 0 6px; font-size: 15px; }
+
+@media (max-width: 1100px) {
+  .hc { grid-template-columns: 1fr; }
+  .hc-side { position: static; max-height: none; overflow: visible; }
+}
 
 .hc-top {
   display: flex;
@@ -145,6 +174,8 @@
   white-space: nowrap;
 }
 
+.hc-progress-scope { color: #aab; }
+
 .hc-week {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
@@ -181,3 +212,198 @@
 }
 
 .hc-meta { margin-top: 14px; color: #99a; font-size: 12px; }
+
+/* ------------------------------------------------------------ dev log panel */
+
+.hc-devlogs { margin-top: 18px; }
+
+.hc-devlogs > summary {
+  cursor: pointer;
+  color: #aab;
+  font-size: 12px;
+  user-select: none;
+}
+
+.hc-devlogs > summary:hover { color: #667; }
+
+.hc-devlogs-body { margin-top: 8px; }
+
+.hc-devlogs-gpu {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #667;
+  margin-bottom: 6px;
+}
+
+.hc-devlogs-err { color: #a12; }
+
+.hc-devlogs-pre {
+  margin: 0;
+  max-height: 300px;
+  overflow: auto;
+  background: #1d2129;
+  color: #c8d0dc;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ------------------------------------------- chat + notebook (interaction) */
+
+.hc-hint { margin: 0 0 10px; color: #667; font-size: 12.5px; }
+
+.hc-chat {
+  background: #fff;
+  border: 1px solid #e2e6ec;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.hc-chat-list {
+  max-height: 48vh;
+  min-height: 200px;
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hc-chat-empty {
+  color: #667;
+  font-size: 13px;
+  line-height: 1.55;
+  padding: 10px 6px;
+}
+
+.hc-msg { display: flex; flex-direction: column; max-width: 86%; }
+
+.hc-msg.user { align-self: flex-end; align-items: flex-end; }
+
+.hc-msg.coach { align-self: flex-start; align-items: flex-start; }
+
+.hc-bubble {
+  padding: 8px 12px;
+  border-radius: 12px;
+  line-height: 1.55;
+  font-size: 13.5px;
+  white-space: pre-wrap;
+}
+
+.hc-msg.user .hc-bubble {
+  background: var(--accent);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+
+.hc-msg.coach .hc-bubble {
+  background: #f1f4f9;
+  border: 1px solid #e2e6ec;
+  border-bottom-left-radius: 4px;
+}
+
+.hc-bubble.pending { color: #667; font-style: italic; }
+
+.hc-bubble.error {
+  background: #fdeaea;
+  border-color: #f5c2c2;
+  color: #a12;
+}
+
+.hc-dots span {
+  animation: hc-blink 1.2s infinite;
+}
+
+.hc-dots span:nth-child(2) { animation-delay: 0.2s; }
+
+.hc-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes hc-blink {
+  0%, 60%, 100% { opacity: 0.25; }
+  30% { opacity: 1; }
+}
+
+.hc-msg-time { margin-top: 2px; font-size: 10.5px; color: #aab; }
+
+.hc-chat-input {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  border-top: 1px solid #e9ecf1;
+  background: #fafbfc;
+}
+
+.hc-chat-input textarea {
+  flex: 1;
+  resize: none;
+  border: 1px solid #ccd3dd;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13.5px;
+}
+
+.hc-chat-input textarea:disabled { background: #f2f4f7; color: #99a; }
+
+/* Notebook */
+
+.hc-notes {
+  background: #fffdf5;
+  border: 1px solid #ece4c8;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.hc-notes-empty { color: #887; font-size: 12.5px; line-height: 1.5; }
+
+.hc-notes-list { list-style: none; margin: 0; padding: 0; }
+
+.hc-note {
+  padding: 8px 2px;
+  border-bottom: 1px dashed #e7dfc4;
+}
+
+.hc-note:last-child { border-bottom: none; }
+
+.hc-note-text { font-size: 13px; line-height: 1.5; }
+
+.hc-note-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+  font-size: 11px;
+  color: #99a;
+}
+
+.hc-note-del {
+  margin-left: auto;
+  border: none;
+  background: none;
+  color: #bbb;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 4px;
+}
+
+.hc-note-del:hover { color: #a12; }
+
+.hc-notes-input { display: flex; gap: 6px; margin-top: 10px; }
+
+.hc-notes-input input {
+  flex: 1;
+  border: 1px solid #ddd3b0;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 13px;
+  background: #fff;
+}

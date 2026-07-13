@@ -44,3 +44,39 @@ class HeadCoachAssessment(Base):
     # A compact snapshot of the inputs the verdict was built from (for the
     # "nguồn dữ liệu" transparency view + a freshness check on later loads).
     sources_json: Mapped[str] = mapped_column(Text, default="{}")
+
+
+class CoachChatMessage(Base):
+    """One turn of the player↔coach conversation, kept forever.
+
+    The chat *is* the coach's verbatim memory: every reply is generated with
+    the full history read back from this table, so nothing is ever "forgotten"
+    or paraphrased away. Coach rows start as ``pending`` (a background task
+    fills them in — local LLM, tens of seconds) and become done | error."""
+
+    __tablename__ = "hc_chat_message"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow, index=True)
+    role: Mapped[str] = mapped_column(String)  # user | coach
+    content: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String, default="done")  # pending → done | error
+    error_msg: Mapped[str | None] = mapped_column(Text, default=None)
+    model: Mapped[str] = mapped_column(String, default="")  # coach rows: model used
+
+
+class CoachNote(Base):
+    """The coach's notebook: durable facts distilled from the conversation
+    (goals, deadlines, constraints, injuries, agreements).
+
+    Auto-written by the model after each chat reply (per the user's explicit
+    choice — no confirmation step); the player can also add or delete notes.
+    Injected into every chat reply AND every weekly verdict, so both stay
+    aligned with what was agreed."""
+
+    __tablename__ = "hc_note"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow, index=True)
+    text: Mapped[str] = mapped_column(Text)
+    source: Mapped[str] = mapped_column(String, default="chat")  # chat | user

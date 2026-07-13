@@ -873,6 +873,96 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/head-coach/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Chat
+         * @description The full conversation (the coach's verbatim memory). While `pending`
+         *     is true, keep polling — a reply is being generated in the background.
+         */
+        get: operations["get_chat_api_head_coach_chat_get"];
+        put?: never;
+        /**
+         * Send Chat
+         * @description Send a message to the coach. Returns immediately with the pending
+         *     coach row appended; poll GET /chat until `pending` is false.
+         */
+        post: operations["send_chat_api_head_coach_chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/head-coach/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Notes
+         * @description The coach's notebook (auto-written from chat + player-added).
+         */
+        get: operations["get_notes_api_head_coach_notes_get"];
+        put?: never;
+        /**
+         * Post Note
+         * @description Add a notebook entry by hand.
+         */
+        post: operations["post_note_api_head_coach_notes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/head-coach/notes/{note_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove Note
+         * @description Remove one notebook entry (explicit player action).
+         */
+        delete: operations["remove_note_api_head_coach_notes__note_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/head-coach/debug": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Debug
+         * @description Dev panel: recent backend log lines + Ollama VRAM occupancy.
+         */
+        get: operations["get_debug_api_head_coach_debug_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -1119,6 +1209,7 @@ export interface components {
              *       "match": {},
              *       "match_detail": {},
              *       "notes": [],
+             *       "coach_notes": [],
              *       "generated_for_range": "",
              *       "video": {},
              *       "tactics": {}
@@ -1206,6 +1297,50 @@ export interface components {
             /** Color */
             color?: string | null;
         };
+        /** ChatHistoryOut */
+        ChatHistoryOut: {
+            /**
+             * Messages
+             * @default []
+             */
+            messages: components["schemas"]["ChatMessageOut"][];
+            /**
+             * Pending
+             * @default false
+             */
+            pending: boolean;
+        };
+        /** ChatMessageOut */
+        ChatMessageOut: {
+            /** Id */
+            id: number;
+            /** Created At */
+            created_at?: string | null;
+            /** Role */
+            role: string;
+            /**
+             * Content
+             * @default
+             */
+            content: string;
+            /**
+             * Status
+             * @default done
+             */
+            status: string;
+            /** Error Msg */
+            error_msg?: string | null;
+            /**
+             * Model
+             * @default
+             */
+            model: string;
+        };
+        /** ChatSendIn */
+        ChatSendIn: {
+            /** Text */
+            text: string;
+        };
         /** CoachPackage */
         CoachPackage: {
             /** Number */
@@ -1275,6 +1410,33 @@ export interface components {
             date: string;
             /** Text */
             text: string;
+        };
+        /**
+         * DebugOut
+         * @description Recent backend log lines + live Ollama state, for the collapsed dev
+         *     panel on the Coach tab (diagnosing OOM / fallback / slow generations).
+         */
+        DebugOut: {
+            /**
+             * Logs
+             * @default []
+             */
+            logs: string[];
+            /**
+             * Ollama Ok
+             * @default false
+             */
+            ollama_ok: boolean;
+            /**
+             * Ollama Error
+             * @default
+             */
+            ollama_error: string;
+            /**
+             * Loaded Models
+             * @default []
+             */
+            loaded_models: components["schemas"]["OllamaModelPs"][];
         };
         /**
          * Directive
@@ -1794,6 +1956,59 @@ export interface components {
             /** Times */
             times: number;
         };
+        /** NoteIn */
+        NoteIn: {
+            /** Text */
+            text: string;
+        };
+        /** NoteOut */
+        NoteOut: {
+            /** Id */
+            id: number;
+            /** Created At */
+            created_at?: string | null;
+            /** Text */
+            text: string;
+            /**
+             * Source
+             * @default chat
+             */
+            source: string;
+        };
+        /** NotesOut */
+        NotesOut: {
+            /**
+             * Notes
+             * @default []
+             */
+            notes: components["schemas"]["NoteOut"][];
+        };
+        /**
+         * OllamaModelPs
+         * @description One model currently loaded by Ollama (GPU/VRAM occupancy).
+         */
+        OllamaModelPs: {
+            /**
+             * Name
+             * @default
+             */
+            name: string;
+            /**
+             * Size Mb
+             * @default 0
+             */
+            size_mb: number;
+            /**
+             * Size Vram Mb
+             * @default 0
+             */
+            size_vram_mb: number;
+            /**
+             * Expires At
+             * @default
+             */
+            expires_at: string;
+        };
         /**
          * OpponentBrief
          * @description Lightweight entry for the opponent dropdown.
@@ -2264,6 +2479,11 @@ export interface components {
              * @default []
              */
             notes: Record<string, never>[];
+            /**
+             * Coach Notes
+             * @default []
+             */
+            coach_notes: Record<string, never>[];
             /**
              * Generated For Range
              * @default
@@ -4057,6 +4277,163 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DirectiveProgressOut"];
+                };
+            };
+        };
+    };
+    get_chat_api_head_coach_chat_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatHistoryOut"];
+                };
+            };
+        };
+    };
+    send_chat_api_head_coach_chat_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatSendIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatHistoryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_notes_api_head_coach_notes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotesOut"];
+                };
+            };
+        };
+    };
+    post_note_api_head_coach_notes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NoteIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_note_api_head_coach_notes__note_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                note_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_debug_api_head_coach_debug_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DebugOut"];
                 };
             };
         };

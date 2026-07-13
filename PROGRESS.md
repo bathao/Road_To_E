@@ -1,6 +1,57 @@
 # Progress Log — Table Tennis Coach
 
-## Current status (2026-07-13)
+## Current status (2026-07-13, evening) — Coach chat + notebook
+
+> **Resume.** New feature (user-requested, NOT committed yet): interact with
+> the Head Coach for short-term, specific goals (e.g. "đánh đơn tốt cho giải
+> 2/8") instead of only weekly verdicts.
+>   - **Chat ("Trao đổi với HLV"):** `hc_chat_message` table keeps every turn
+>     forever — the conversation IS the coach's verbatim memory. Each reply is
+>     grounded server-side: live facts bundle + notebook + full history from
+>     the DB (`_CHAT_HISTORY_CHAR_BUDGET=8000` chars per call; DB keeps all).
+>     Same background-job pattern as the verdict: POST /api/head-coach/chat →
+>     pending coach row → poll GET /chat until `pending` clears. One question
+>     at a time (409 while a reply is in flight). CHAT_SYSTEM_PROMPT +
+>     CHAT_RESPONSE_SCHEMA {reply, new_notes} in prompt.py; temperature 0.4.
+>   - **Notebook ("Sổ tay HLV"):** `hc_note` table. The model AUTO-writes
+>     durable facts (goals/deadlines/constraints/agreements) after each reply
+>     — user's explicit choice, no confirmation step. Guardrails: ≤3
+>     notes/reply, ≤300 chars, case-insensitive dedup, blanks skipped. Player
+>     can add (`POST /notes`) and delete (`DELETE /notes/{id}`) by hand.
+>     Notebook is injected into every chat reply AND the weekly verdict
+>     (gather_bundle → coach_notes → "=== SỔ TAY HLV ===" section), so both
+>     stay aligned.
+>   - **Empty-reply retry:** first structured-output call right after model
+>     load can return "" (seen in smoke test turn 1) — run_chat_job retries
+>     once before marking error. `run_chat_job(db_or_none)` accepts a session
+>     for tests/scripts; defaults to SessionLocal.
+>   - **Frontend:** chat bubbles + polling + auto-scroll (CoachChat.tsx),
+>     notebook panel with add/delete (CoachNotes.tsx), section always visible
+>     (even before the first verdict); fmtTime moved to fmt.ts. hc-interact
+>     grid CSS in head-coach.css.
+>   - **Verified:** 34/34 pytest (8 new chat/notes tests), build clean, 3-turn
+>     smoke with real qwen3.5:9b on a **DB copy** (real DB untouched — the
+>     example goal "giải 2/8" must not pollute the real notebook): turn 2/3
+>     perfect, auto-notes correct, turn-3 recall exact.
+>   - New tables are created by Base.metadata.create_all at startup — restart
+>     start.bat, then just chat in tab Coach.
+>   - **Same-evening follow-ups (user feedback):** (1) Coach tab redesigned to
+>     full-width two-column — verdict left, sticky chat+notebook right
+>     (collapses <1100px); (2) pronoun rule in BOTH prompts: coach is younger
+>     → always "anh"/"tôi", never "em/cậu/bạn" (smoke-verified); (3) metric
+>     definitions injected into the verdict prompt so order wording matches
+>     what the app measures + METRIC_SCOPE hints next to progress bars ("tổng
+>     cầm vợt: tập + thi đấu"); (4) dev log panel "🛠️ Log kỹ thuật" (collapsed
+>     details at the bottom of the verdict column): GET /head-coach/debug
+>     returns an in-RAM ring buffer of the last ~400 backend log lines
+>     (core/logbuffer.py, installed in main.py) + Ollama /api/ps VRAM
+>     occupancy — for diagnosing OOM/fallback/slow generations; polls 3s only
+>     while open. (5) User constraints recorded in the real notebook via API:
+>     coach time hard-capped at 2-3h/week (budget+time; extra hours go to
+>     partner), and he wants ~20 matches/week (4/week felt way too low).
+>     35/35 tests, build clean.
+
+## Earlier today (2026-07-13)
 
 > **Resume (2026-07-13, latest).** Finished yesterday's three follow-ups:
 >   - **Model A/B (real bundle, 3 rounds):** compared qwen3:14b vs gpt-oss:20b

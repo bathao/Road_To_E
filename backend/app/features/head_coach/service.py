@@ -19,8 +19,13 @@ from sqlalchemy.orm import Session
 from app.core.db import SessionLocal
 from app.core.settings import HEAD_COACH_MODEL, OLLAMA_BASE_URL, TEXT_MODEL
 from app.features.head_coach import schemas
-from app.features.head_coach.models import HeadCoachAssessment
-from app.features.head_coach.prompt import RESPONSE_SCHEMA, SYSTEM_PROMPT
+from app.features.head_coach.models import CoachChatMessage, CoachNote, HeadCoachAssessment
+from app.features.head_coach.prompt import (
+    CHAT_RESPONSE_SCHEMA,
+    CHAT_SYSTEM_PROMPT,
+    RESPONSE_SCHEMA,
+    SYSTEM_PROMPT,
+)
 from app.features.tracker import service as tracker_service
 from app.features.tracker.models import DayNote
 from app.features.training import service as training_service
@@ -135,12 +140,20 @@ def gather_bundle(db: Session) -> schemas.SourceSummary:
         for n in db.query(DayNote).order_by(DayNote.date.desc()).limit(_RECENT_NOTES).all()
     ]
 
+    # The coach's notebook — goals/deadlines/constraints agreed in chat (or
+    # added by the player). Oldest first so later notes read as refinements.
+    coach_notes = [
+        {"date": n.created_at.date().isoformat() if n.created_at else "", "text": n.text}
+        for n in db.query(CoachNote).order_by(CoachNote.created_at.asc()).all()
+    ]
+
     return schemas.SourceSummary(
         player=profile.name,
         training=training_sum,
         match=match_sum,
         match_detail=match_detail,
         notes=notes,
+        coach_notes=coach_notes,
         generated_for_range=f"{date_from.isoformat()} → {today.isoformat()}",
     )
 
@@ -191,6 +204,10 @@ def _bundle_to_text(b: schemas.SourceSummary) -> str:
         f"  - {n['date']}: {n['text']}" for n in b.notes
     ) or "  (không có ghi chú)"
 
+    coach_note_lines = "\n".join(
+        f"  - {n['date']}: {n['text']}" for n in b.coach_notes
+    ) or "  (sổ tay trống)"
+
     racket_total = m.get("racket_minutes_total", 0)
     racket_tr = m.get("racket_minutes_training", 0)
     racket_ma = m.get("racket_minutes_matches", 0)
@@ -222,7 +239,9 @@ def _bundle_to_text(b: schemas.SourceSummary) -> str:
         f"Khối lượng theo nhóm cơ: {muscle}\n"
         f"Tự nhận xét tuần: {t.get('summary')}\n\n"
         f"=== GHI CHÚ HẰNG NGÀY CỦA HỌC TRÒ (mới nhất trước) ===\n"
-        f"{note_lines}\n"
+        f"{note_lines}\n\n"
+        f"=== SỔ TAY HLV (mục tiêu/mốc thời gian/ràng buộc đã chốt với học trò) ===\n"
+        f"{coach_note_lines}\n"
     )
 
 
@@ -260,13 +279,19 @@ def _call_model(context_text: str, player_name: str, model: str | None = None) -
         "matches/skill/recovery). 'order' PHẢI là một câu mệnh lệnh tiếng Việt "
         "hoàn chỉnh (ví dụ: 'Đánh ít nhất 5 trận đơn mỗi tuần với người ngang cơ "
         "trở lên') — KHÔNG được điền tên metric vào 'order'. Kèm reason từ số "
-        "liệu. Nếu mệnh lệnh quy được về CHỈ TIÊU TUẦN thì điền metric (một "
-        "trong: physical_sessions_per_week, racket_hours_per_week, "
-        "coach_hours_per_week, matches_per_week, singles_matches_per_week, "
-        "doubles_matches_per_week, matches_vs_pips_per_week) + value (con số "
-        "mục tiêu MỖI TUẦN, thực tế với người đi làm) — metric phải KHỚP đúng "
-        "nội dung câu order; app sẽ tự theo dõi tiến độ thật từ database. Không "
-        "quy được thì metric=\"\" và value=0.\n"
+        "liệu. Nếu mệnh lệnh quy được về CHỈ TIÊU TUẦN thì điền metric + value "
+        "(con số mục tiêu MỖI TUẦN, thực tế với người đi làm); app sẽ tự theo "
+        "dõi tiến độ thật từ database. ĐỊNH NGHĨA metric — app đo ĐÚNG như sau, "
+        "nên câu order phải mô tả đúng phạm vi này, không được lệch nghĩa:\n"
+        "  * physical_sessions_per_week: số buổi thể lực hoàn thành (Training Center).\n"
+        "  * racket_hours_per_week: TỔNG giờ cầm vợt = tập với HLV + tập với "
+        "partner + thời gian thi đấu (quy đổi từ số set). Chọn metric này thì "
+        "order phải nói rõ 'tổng thời gian cầm vợt (kể cả thi đấu)'.\n"
+        "  * coach_hours_per_week: CHỈ riêng giờ tập với HLV.\n"
+        "  * matches_per_week: tổng số trận (cả đơn lẫn đôi); "
+        "singles_matches_per_week: chỉ trận đơn; doubles_matches_per_week: chỉ "
+        "trận đôi; matches_vs_pips_per_week: chỉ trận gặp đối thủ đánh gai.\n"
+        "  Không quy được về các metric trên thì metric=\"\" và value=0.\n"
         "- week_plan: kế hoạch 1 tuần, mỗi ngày có focus + detail (gắn với tập thể lực "
         "và loại trận cần đánh; nhớ giới hạn an toàn đầu gối); 'day' dùng tên thứ "
         "tiếng Việt (Thứ 2 … Chủ nhật).\n"
@@ -525,3 +550,254 @@ def directive_progress(db: Session) -> schemas.DirectiveProgressOut:
     return schemas.DirectiveProgressOut(
         assessment_id=latest.id, week_start=week_start, items=items
     )
+
+
+# ------------------------------------------------------------------ coach chat
+# Char budget for the verbatim history injected per reply. The FULL history
+# always lives in the DB; this only bounds what goes into one model call
+# (~8k chars of chat + ~3k bundle fits far inside num_ctx=16384). At the
+# user's current volume this truncates nothing for a very long time.
+_CHAT_HISTORY_CHAR_BUDGET = 8000
+# Guardrails on the auto-written notebook (per reply).
+_MAX_NOTES_PER_REPLY = 3
+_MAX_NOTE_CHARS = 300
+
+
+def _tz(created: dt.datetime | None) -> dt.datetime | None:
+    """Re-attach UTC to a naive SQLite timestamp (same fix as _to_out)."""
+    if created is not None and created.tzinfo is None:
+        return created.replace(tzinfo=dt.timezone.utc)
+    return created
+
+
+def _msg_out(row: CoachChatMessage) -> schemas.ChatMessageOut:
+    return schemas.ChatMessageOut(
+        id=row.id,
+        created_at=_tz(row.created_at),
+        role=row.role,
+        content=row.content,
+        status=row.status or "done",
+        error_msg=row.error_msg,
+        model=row.model or "",
+    )
+
+
+def chat_history(db: Session) -> schemas.ChatHistoryOut:
+    rows = db.query(CoachChatMessage).order_by(CoachChatMessage.id.asc()).all()
+    return schemas.ChatHistoryOut(
+        messages=[_msg_out(r) for r in rows],
+        pending=any(r.status == "pending" for r in rows),
+    )
+
+
+def start_chat(db: Session, text: str) -> schemas.ChatHistoryOut:
+    """Store the player's message + a pending coach row; the reply is filled
+    by run_chat_job on a background task (same pattern as the verdict).
+    Refuses while a reply is already in flight — one question at a time."""
+    pending = (
+        db.query(CoachChatMessage).filter(CoachChatMessage.status == "pending").first()
+    )
+    if pending is not None:
+        raise ValueError("HLV đang trả lời câu trước — chờ xong rồi gửi tiếp.")
+    db.add(CoachChatMessage(role="user", content=text.strip(), status="done"))
+    db.add(CoachChatMessage(role="coach", content="", status="pending"))
+    db.commit()
+    return chat_history(db)
+
+
+def _history_for_prompt(rows: list[CoachChatMessage]) -> list[dict]:
+    """The chat history as Ollama messages, newest-first budgeted then
+    restored to chronological order. Only completed turns are included."""
+    picked: list[dict] = []
+    used = 0
+    for r in reversed(rows):
+        if r.status != "done" or not r.content:
+            continue
+        if used + len(r.content) > _CHAT_HISTORY_CHAR_BUDGET and picked:
+            break
+        used += len(r.content)
+        picked.append(
+            {"role": "user" if r.role == "user" else "assistant", "content": r.content}
+        )
+    return list(reversed(picked))
+
+
+def _call_chat_model(
+    context_text: str, history: list[dict], question: str, model: str
+) -> dict:
+    """One grounded chat turn → {"reply": str, "new_notes": [str]}."""
+    grounding = (
+        "DỮ LIỆU THẬT MỚI NHẤT của học trò (code tính từ cơ sở dữ liệu, kèm SỔ "
+        "TAY của bạn ở cuối). Dùng làm căn cứ cho MỌI nhận định:\n\n"
+        f"{context_text}"
+    )
+    messages = (
+        [
+            {"role": "system", "content": CHAT_SYSTEM_PROMPT},
+            {"role": "user", "content": grounding},
+            {
+                "role": "assistant",
+                "content": "Tôi đã nắm toàn bộ số liệu và sổ tay. Mời anh nói.",
+            },
+        ]
+        + history
+        + [{"role": "user", "content": question}]
+    )
+    payload = {
+        "model": model,
+        "messages": messages,
+        "stream": False,
+        "format": CHAT_RESPONSE_SCHEMA,
+        "options": {"temperature": 0.4, "num_ctx": 16384},
+    }
+    t0 = time.monotonic()
+    resp = httpx.post(f"{OLLAMA_BASE_URL}/api/chat", json=payload, timeout=600.0)
+    resp.raise_for_status()
+    log.info("coach chat: model=%s took=%.1fs", model, time.monotonic() - t0)
+    content = resp.json().get("message", {}).get("content", "{}")
+    return json.loads(content) if content else {}
+
+
+def _save_new_notes(db: Session, raw_notes) -> None:
+    """Auto-write the notebook (user's choice: no confirmation step), with
+    guardrails: cap count/length, skip blanks and case-insensitive duplicates."""
+    if not isinstance(raw_notes, list):
+        return
+    existing = {n.text.strip().lower() for n in db.query(CoachNote).all()}
+    saved = 0
+    for raw in raw_notes:
+        if saved >= _MAX_NOTES_PER_REPLY:
+            break
+        if not isinstance(raw, str):
+            continue
+        text = raw.strip()[:_MAX_NOTE_CHARS]
+        if not text or text.lower() in existing:
+            continue
+        db.add(CoachNote(text=text, source="chat"))
+        existing.add(text.lower())
+        saved += 1
+
+
+def run_chat_job(db_or_none: Session | None = None) -> None:
+    """Background job: answer the oldest pending coach message.
+
+    Injects the live bundle (with notebook) + the verbatim history from the
+    DB, calls the model, saves the reply and auto-writes any new notes."""
+    db = db_or_none or SessionLocal()
+    try:
+        row = (
+            db.query(CoachChatMessage)
+            .filter(CoachChatMessage.status == "pending", CoachChatMessage.role == "coach")
+            .order_by(CoachChatMessage.id.asc())
+            .first()
+        )
+        if row is None:
+            return
+        try:
+            all_rows = (
+                db.query(CoachChatMessage)
+                .filter(CoachChatMessage.id < row.id)
+                .order_by(CoachChatMessage.id.asc())
+                .all()
+            )
+            # The newest user message is the question; everything before it
+            # is history.
+            question_row = all_rows[-1] if all_rows else None
+            if question_row is None or question_row.role != "user":
+                raise ValueError("no user question found for the pending reply")
+            bundle = gather_bundle(db)
+            use_model = resolve_model()
+            row.model = use_model
+            call = lambda: _call_chat_model(  # noqa: E731
+                _bundle_to_text(bundle),
+                history=_history_for_prompt(all_rows[:-1]),
+                question=question_row.content,
+                model=use_model,
+            )
+            data = call()
+            if not (data.get("reply") or "").strip():
+                # The first structured-output call right after the model loads
+                # can come back empty (seen in smoke tests); once warm it
+                # answers fine — retry a single time before reporting an error.
+                log.warning("coach chat: empty reply from %s, retrying once", use_model)
+                data = call()
+        except Exception as exc:  # noqa: BLE001 — surfaced to the GUI via status
+            log.exception("coach chat reply failed")
+            db.rollback()
+            row = (
+                db.query(CoachChatMessage)
+                .filter(CoachChatMessage.status == "pending", CoachChatMessage.role == "coach")
+                .order_by(CoachChatMessage.id.asc())
+                .first()
+            )
+            if row is not None:
+                row.status = "error"
+                row.error_msg = str(exc)[:1000]
+                db.commit()
+            return
+        row.content = (data.get("reply") or "").strip()
+        if not row.content:
+            row.status = "error"
+            row.error_msg = "Model trả về câu trả lời rỗng."
+        else:
+            row.status = "done"
+            row.error_msg = None
+            _save_new_notes(db, data.get("new_notes"))
+        db.commit()
+    finally:
+        if db_or_none is None:
+            db.close()
+
+
+# --------------------------------------------------------------- coach notebook
+def list_notes(db: Session) -> schemas.NotesOut:
+    rows = db.query(CoachNote).order_by(CoachNote.created_at.desc(), CoachNote.id.desc()).all()
+    return schemas.NotesOut(
+        notes=[
+            schemas.NoteOut(
+                id=r.id, created_at=_tz(r.created_at), text=r.text, source=r.source
+            )
+            for r in rows
+        ]
+    )
+
+
+def add_note(db: Session, text: str) -> schemas.NotesOut:
+    db.add(CoachNote(text=text.strip(), source="user"))
+    db.commit()
+    return list_notes(db)
+
+
+def delete_note(db: Session, note_id: int) -> schemas.NotesOut:
+    """Player-initiated removal of one notebook entry (explicit UI action)."""
+    row = db.get(CoachNote, note_id)
+    if row is not None:
+        db.delete(row)
+        db.commit()
+    return list_notes(db)
+
+
+# --------------------------------------------------------------- dev log panel
+def debug_info() -> schemas.DebugOut:
+    """Recent backend log lines + which models Ollama currently holds in
+    VRAM — enough to diagnose OOM (something else hogging the GPU), model
+    fallback, retries and slow generations from the browser."""
+    from app.core import logbuffer  # local import: keeps tests decoupled
+
+    out = schemas.DebugOut(logs=logbuffer.tail())
+    try:
+        resp = httpx.get(f"{OLLAMA_BASE_URL}/api/ps", timeout=5.0)
+        resp.raise_for_status()
+        out.ollama_ok = True
+        for m in resp.json().get("models", []):
+            out.loaded_models.append(
+                schemas.OllamaModelPs(
+                    name=m.get("name", ""),
+                    size_mb=int(m.get("size", 0) / 1_048_576),
+                    size_vram_mb=int(m.get("size_vram", 0) / 1_048_576),
+                    expires_at=str(m.get("expires_at", "")),
+                )
+            )
+    except Exception as exc:  # noqa: BLE001 — the panel must render regardless
+        out.ollama_error = str(exc)[:300]
+    return out
