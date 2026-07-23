@@ -1,8 +1,36 @@
 # Progress Log — Table Tennis Coach
 
-## Current status (2026-07-13, evening) — Coach chat + notebook
+## Current status (2026-07-23) — handicap-aware Head Coach (committed `609e648`)
 
-> **Resume.** New feature (user-requested, NOT committed yet): interact with
+> **Resume.** Head Coach now sees and reasons about HANDICAP (tỉ lệ chấp) —
+> user request: a handicapped match must be read differently from an even one.
+> Committed as `609e648`; nothing in flight after it.
+>   - **New fact block:** `tracker_service.build_handicap_split(db, from, to)`
+>     — win rates by opponent level × handicap direction (even / receive /
+>     give; signed `tracker_match.handicap`, +N = give, −N = receive), named
+>     opponents, same MATCH_STATS_FLOOR clamp; empty cells omitted. Injected
+>     into the bundle as `match_detail.by_level_handicap` and rendered as a
+>     "Tách theo CHẤP" section right under the by-level lines (gets the
+>     [MẪU NHỎ] tag per cell too). No API/GUI change (match_detail is a dict;
+>     the FE type has an index signature).
+>   - **Prompt rules (both SYSTEM_PROMPT + CHAT_SYSTEM_PROMPT):** never pool
+>     handicapped with even matches; receiving points vs above-level = the
+>     match was pre-balanced (winning ≠ caught up — real yardstick is even
+>     play); giving points to below-level = self-imposed disadvantage (losing
+>     more than even play is expected, not regression). "tỉ lệ chấp" added to
+>     the source list in the persona intro.
+>   - **Verified:** 36/36 pytest (new `test_build_handicap_split_directions`);
+>     real-DB render shows e.g. above-level: even 6/25 (24%) vs được chấp
+>     0/13 (0%) — exactly the split the coach needed. Restart start.bat to
+>     load the new backend, then "Phân tích lại" for a fresh verdict.
+> Before this: everything committed (latest `19c38fc`, 2026-07-13 — chat +
+> notebook batch). Next candidates remain the ones under "Status (2026-07-12,
+> end of day)" → Next candidates, minus what's already done (A/B → qwen3.5:9b;
+> Phase-3 lite done; small-sample guard done).
+
+## 2026-07-13, evening — Coach chat + notebook (committed `19c38fc`)
+
+> **Resume.** New feature (user-requested): interact with
 > the Head Coach for short-term, specific goals (e.g. "đánh đơn tốt cho giải
 > 2/8") instead of only weekly verdicts.
 >   - **Chat ("Trao đổi với HLV"):** `hc_chat_message` table keeps every turn
