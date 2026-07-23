@@ -1135,6 +1135,56 @@ def build_match_stats(
     )
 
 
+def build_handicap_split(
+    db: Session, date_from: dt.date, date_to: dt.date
+) -> dict[str, dict[str, dict]]:
+    """Win rates by opponent level × handicap direction, for the Head Coach.
+
+    Handicap is signed (+N = I give N points per set, -N = I receive), so a
+    handicapped match plays out differently from an even one: receiving points
+    against a stronger opponent pre-balances the match, while giving points to
+    a weaker one puts me at a disadvantage. Win rates must therefore not be
+    pooled across the directions. Named-opponent playing matches only, clamped
+    to the same floor as build_match_stats. Empty cells are omitted.
+    """
+    date_from = max(date_from, MATCH_STATS_FLOOR)
+    matches = (
+        db.query(Match)
+        .options(selectinload(Match.opponent))
+        .filter(
+            Match.date >= date_from,
+            Match.date <= date_to,
+            Match.is_nonplaying == False,  # noqa: E712
+            Match.opponent_id.isnot(None),
+        )
+        .all()
+    )
+    acc: dict[str, dict[str, dict]] = {
+        lv: {d: _blank_match_stats() for d in ("even", "receive", "give")}
+        for lv in _LEVEL_ORDER
+    }
+    for m in matches:
+        lv = m.opponent.level if m.opponent else "equal"
+        if lv not in acc:
+            continue
+        h = m.handicap or 0
+        direction = "even" if h == 0 else ("give" if h > 0 else "receive")
+        _tally(acc[lv][direction], m)
+    return {
+        lv: {
+            d: {
+                "played": s["total"],
+                "wins": s["wins"],
+                "losses": s["losses"],
+                "win_rate": win_rate(s["wins"], s["losses"]),
+            }
+            for d, s in dirs.items()
+            if s["total"]
+        }
+        for lv, dirs in acc.items()
+    }
+
+
 # ---------------------------------------------------------------- export
 
 _RATING_HEX = {"green": "FF63BE7B", "yellow": "FFFFEB84", "red": "FFE06666"}

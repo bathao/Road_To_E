@@ -47,6 +47,11 @@ _RECENT_NOTES = 12
 MIN_SAMPLE_MATCHES = 5
 
 _LEVEL_VI = {"below": "dưới cơ", "equal": "ngang cơ", "above": "trên cơ"}
+_HANDICAP_VI = {
+    "even": "đánh đồng",
+    "receive": "học trò ĐƯỢC CHẤP",
+    "give": "học trò CHẤP đối thủ",
+}
 
 
 # ---------------------------------------------------------------- gather inputs
@@ -108,6 +113,11 @@ def gather_bundle(db: Session) -> schemas.SourceSummary:
         "by_level": {
             r.level: _ms(r.stats) for r in detail.by_level
         },
+        # Level × handicap direction (even / receiving / giving points): a
+        # handicapped match must be read differently from an even one.
+        "by_level_handicap": tracker_service.build_handicap_split(
+            db, detail_from, today
+        ),
         "practice": _ms(practice.overall),
         "official": _ms(official.overall),
         "trend_by_month": [
@@ -185,6 +195,15 @@ def _bundle_to_text(b: schemas.SourceSummary) -> str:
         if lv in by_level
     ) or "  (chưa có trận có tên đối thủ)"
 
+    hdc = d.get("by_level_handicap", {})
+    hdc_lines = "\n".join(
+        f"  - Đối thủ {_LEVEL_VI.get(lv, lv)} · {_HANDICAP_VI[dr]}: {_wr(cell)}"
+        for lv in ("below", "equal", "above")
+        for dr in ("even", "receive", "give")
+        for cell in [hdc.get(lv, {}).get(dr)]
+        if cell
+    ) or "  (chưa có dữ liệu)"
+
     trend_lines = "\n".join(
         f"  - {tb['label']}: {_wr(tb)}"
         for tb in d.get("trend_by_month", [])
@@ -226,6 +245,8 @@ def _bundle_to_text(b: schemas.SourceSummary) -> str:
         f"Tổng các trận: {_wr(m.get('overall', {}))}\n\n"
         f"=== PHÂN TÍCH TRẬN SÂU (cửa sổ {d.get('window')}, trận có tên đối thủ) ===\n"
         f"Theo hạng đối thủ (so với học trò):\n{level_lines}\n"
+        f"Tách theo CHẤP (điểm chấp mỗi ván; trận có chấp phải diễn giải khác "
+        f"trận đánh đồng):\n{hdc_lines}\n"
         f"TRẬN TẬP vs TRẬN GIẢI: khi TẬP {_wr(d.get('practice', {}))} · "
         f"khi ĐẤU GIẢI {_wr(d.get('official', {}))}\n"
         f"Xu hướng theo tháng:\n{trend_lines}\n"

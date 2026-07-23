@@ -8,11 +8,11 @@ from app.features.tracker import service
 from app.features.tracker.models import Match, Player
 
 
-def _match(cat, date, my, opp, opponent_id=None):
+def _match(cat, date, my, opp, opponent_id=None, handicap=0):
     return Match(
         date=date, category_id=cat, discipline="singles", best_of=5,
         my_sets=my, opp_sets=opp, is_nonplaying=False, order_index=0,
-        opponent_id=opponent_id,
+        opponent_id=opponent_id, handicap=handicap,
     )
 
 
@@ -58,3 +58,37 @@ def test_build_match_stats_grouping_and_unnamed_exclusion(db):
 
     # Dropdown briefs cover every named opponent seen.
     assert {o.name for o in res.opponents} == {"Anna", "Binh"}
+
+
+def test_build_handicap_split_directions(db):
+    """Level × handicap-direction win rates: +N = I give, -N = I receive,
+    0 = even; empty cells are omitted; unnamed matches excluded."""
+    cat = category_id(db, "practice_match")
+    anna = Player(name="Anna", level="above")
+    cara = Player(name="Cara", level="below")
+    db.add_all([anna, cara])
+    db.commit()
+
+    d = dt.date(2026, 6, 5)
+    db.add_all([
+        _match(cat, d, 3, 1, opponent_id=anna.id, handicap=-2),   # W vs above, receiving
+        _match(cat, d, 3, 2, opponent_id=anna.id, handicap=-2),   # W vs above, receiving
+        _match(cat, d, 1, 3, opponent_id=anna.id),                # L vs above, even
+        _match(cat, d, 2, 3, opponent_id=cara.id, handicap=3),    # L vs below, giving
+        _match(cat, d, 3, 0, opponent_id=cara.id),                # W vs below, even
+        _match(cat, d, 3, 0, opponent_id=None, handicap=-2),      # unnamed -> excluded
+    ])
+    db.commit()
+
+    res = service.build_handicap_split(db, dt.date(2026, 5, 1), dt.date(2026, 6, 30))
+
+    assert res["above"]["receive"] == {
+        "played": 2, "wins": 2, "losses": 0, "win_rate": 1.0
+    }
+    assert res["above"]["even"]["losses"] == 1
+    assert res["below"]["give"] == {
+        "played": 1, "wins": 0, "losses": 1, "win_rate": 0.0
+    }
+    assert res["below"]["even"]["wins"] == 1
+    # No handicapped matches vs equal opponents -> the cells are omitted.
+    assert res["equal"] == {}
