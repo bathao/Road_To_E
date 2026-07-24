@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import type { Category, Discipline, Match, MatchIn, Player } from "../../types";
 import { trackerApi } from "../../api";
 import { validScores } from "../../scores";
-import PlayerPicker, { levelShort } from "./PlayerPicker";
+import PlayerPicker from "./PlayerPicker";
+import { levelShort } from "../../../../shared/levels";
 
 const FORMATS = [3, 5, 7];
 type HandicapDir = "none" | "give" | "receive";

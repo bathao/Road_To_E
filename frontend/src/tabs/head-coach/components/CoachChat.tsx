@@ -44,7 +44,11 @@ function Bubble({ m }: { m: ChatMessage }) {
 }
 
 export default function CoachChat({ onCoachReply }: { onCoachReply: () => void }) {
-  const { data, setData } = useLoad<ChatHistory>(() => headCoachApi.getChat(), []);
+  const {
+    data,
+    setData,
+    error: loadError,
+  } = useLoad<ChatHistory>(() => headCoachApi.getChat(), []);
   const { run, error, busy, clearError } = useMutate();
   const [text, setText] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
@@ -87,7 +91,12 @@ export default function CoachChat({ onCoachReply }: { onCoachReply: () => void }
   return (
     <div className="hc-chat">
       <div className="hc-chat-list" ref={listRef}>
-        {messages.length === 0 && (
+        {loadError && messages.length === 0 && (
+          <div className="hc-error">
+            ⚠️ Không tải được lịch sử trao đổi: {loadError}
+          </div>
+        )}
+        {messages.length === 0 && !loadError && (
           <div className="hc-chat-empty">
             Chưa có trao đổi nào. Hỏi HLV bất cứ điều gì — đặt mục tiêu ngắn hạn
             (ví dụ: <i>“Tôi muốn đánh đơn tốt cho giải 2/8”</i>), báo lịch bận,

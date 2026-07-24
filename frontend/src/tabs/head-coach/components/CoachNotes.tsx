@@ -11,23 +11,27 @@ export default function CoachNotes({
   onAdd,
   onDelete,
   busy,
+  error,
 }: {
   notes: CoachNote[];
-  onAdd: (text: string) => Promise<void>;
+  // Resolves true on success — the input is only cleared then, so a failed
+  // save doesn't silently discard what was typed.
+  onAdd: (text: string) => Promise<boolean>;
   onDelete: (id: number) => Promise<void>;
   busy: boolean;
+  error?: string | null;
 }) {
   const [text, setText] = useState("");
 
   const add = async () => {
     const t = text.trim();
     if (!t || busy) return;
-    await onAdd(t);
-    setText("");
+    if (await onAdd(t)) setText("");
   };
 
   return (
     <div className="hc-notes">
+      {error && <div className="hc-error">⚠️ {error}</div>}
       {notes.length === 0 && (
         <div className="hc-notes-empty">
           Sổ tay trống. HLV sẽ tự ghi lại mục tiêu, mốc thời gian và ràng buộc

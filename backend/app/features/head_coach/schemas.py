@@ -5,23 +5,9 @@ import datetime as dt
 
 from pydantic import BaseModel, Field
 
-# Areas a directive can push on — keeps the strict "tăng cường" orders typed.
-DIRECTIVE_AREAS = ["training", "playing_hours", "matches", "skill", "recovery"]
-
-# Weekly metrics a directive can be measured by. When the model tags an order
-# with one of these + a numeric target, the app computes the CURRENT WEEK's
-# actual from the database and shows live progress (Phase-3 "write-back lite":
-# orders become trackable commitments, not injected model-guessed exercises).
-DIRECTIVE_METRICS = [
-    "physical_sessions_per_week",   # Training Center sessions done
-    "racket_hours_per_week",        # racket time (training + ~5 min/set)
-    "coach_hours_per_week",         # Train with Coach minutes
-    "matches_per_week",             # playing matches (any)
-    "singles_matches_per_week",
-    "doubles_matches_per_week",
-    "matches_vs_pips_per_week",     # matches against a pips opponent
-]
-
+# NOTE: the canonical directive area list lives in the prompt (prompt.py) and
+# the canonical metric list in service._METRIC_RANGE / _METRIC_UNIT_VI +
+# prompt.RESPONSE_SCHEMA's enum — no duplicate constants here.
 
 # ---------------------------------------------------------------- verdict parts
 class Priority(BaseModel):
@@ -33,12 +19,12 @@ class Priority(BaseModel):
 class Directive(BaseModel):
     """A concrete order to step things up, with a measurable target."""
 
-    area: str  # one of DIRECTIVE_AREAS
+    area: str  # training | playing_hours | matches | skill | recovery
     order: str  # the instruction, coach voice
     target: str = ""  # measurable goal, e.g. "≥4 buổi/tuần", "+2 trận đơn/tuần"
     reason: str = ""  # the data that triggered it
     # Machine-trackable weekly goal ("" / None when the order isn't per-week
-    # quantifiable). See DIRECTIVE_METRICS + GET /directive-progress.
+    # quantifiable). See GET /directive-progress.
     metric: str = ""
     value: float | None = None
 
@@ -53,9 +39,13 @@ class TacticSuggestion(BaseModel):
 
 
 class PlanDay(BaseModel):
-    day: str  # e.g. "Thứ 2"
-    focus: str  # short label
-    detail: str  # what to actually do
+    """Defaults on every field: the Ollama structured-output grammar only
+    *requires* day+focus, so a stored plan item may lack the others — parsing
+    it must not turn GET /assessment into a permanent 500."""
+
+    day: str = ""  # e.g. "Thứ 2"
+    focus: str = ""  # short label
+    detail: str = ""  # what to actually do
 
 
 # ---------------------------------------------------------------- source bundle

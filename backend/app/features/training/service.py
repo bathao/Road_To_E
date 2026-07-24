@@ -11,6 +11,7 @@ import datetime as dt
 import json
 
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.features.training import program, schemas
@@ -97,7 +98,17 @@ def _materialise(db: Session, level: str, day_index: int) -> TrainingSession:
             )
         )
     db.add(row)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # Lost a create race on the (level, day_index) UNIQUE constraint — the
+        # Head Coach's background jobs read training data on their own session
+        # while the user browses the tab. The winner's row is the right one.
+        db.rollback()
+        row = get_session_row(db, level, day_index)
+        if row is None:  # pragma: no cover — constraint hit but row missing
+            raise
+        return row
     db.refresh(row)
     return row
 

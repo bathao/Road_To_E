@@ -337,6 +337,35 @@ def _call_model(context_text: str, player_name: str, model: str | None = None) -
     return json.loads(content) if content else {}
 
 
+def recover_stuck_jobs(db: Session) -> None:
+    """Mark rows orphaned by a crash/restart as errors (run at startup).
+
+    Background jobs die with the process. A verdict left `generating` keeps
+    the GUI's Generate button disabled forever, and a chat reply left
+    `pending` blocks the chat input AND every new POST /chat (409) — with no
+    job alive to ever finish them. Flip them to a visible error instead."""
+    msg = "Server restarted trong lúc đang chạy — bấm chạy lại."
+    stuck_rows = (
+        db.query(HeadCoachAssessment)
+        .filter(HeadCoachAssessment.status == "generating")
+        .all()
+    )
+    stuck_chats = (
+        db.query(CoachChatMessage)
+        .filter(CoachChatMessage.status == "pending")
+        .all()
+    )
+    for row in stuck_rows + stuck_chats:
+        row.status = "error"
+        row.error_msg = msg
+    if stuck_rows or stuck_chats:
+        log.warning(
+            "head coach: recovered %d stuck assessment(s) + %d stuck chat row(s)",
+            len(stuck_rows), len(stuck_chats),
+        )
+        db.commit()
+
+
 def start_generate(db: Session) -> schemas.AssessmentOut:
     """Create a `generating` placeholder row; the heavy work (gather + local
     LLM, up to minutes) runs in run_generate_job on a background task. Mirrors
@@ -360,11 +389,39 @@ def run_generate_job(assessment_id: int) -> None:
             bundle = gather_bundle(db)
             use_model = resolve_model()
             row.model = use_model  # record the model actually used
-            data = _call_model(
-                _bundle_to_text(bundle),
-                player_name=bundle.player or "vận động viên",
-                model=use_model,
+
+            def call() -> dict:
+                out = _call_model(
+                    _bundle_to_text(bundle),
+                    player_name=bundle.player or "vận động viên",
+                    model=use_model,
+                )
+                return out if isinstance(out, dict) else {}
+
+            data = call()
+            if not (data.get("overall_assessment") or "").strip():
+                # Same quirk as chat: the first structured-output call right
+                # after the model loads can come back empty — retry once.
+                log.warning("head coach: empty verdict from %s, retrying once", use_model)
+                data = call()
+            if not (data.get("overall_assessment") or "").strip():
+                raise ValueError("Model trả về bản đánh giá rỗng.")
+
+            # Persistence stays inside the try: a failure here (busy DB,
+            # bad payload) must mark the row `error`, never leave it stuck
+            # in `generating` with no job alive to finish it.
+            row.overall_assessment = data.get("overall_assessment", "")
+            row.top_priorities_json = json.dumps(data.get("top_priorities", []), ensure_ascii=False)
+            row.directives_json = json.dumps(
+                _sanitize_directives(data.get("directives", [])), ensure_ascii=False
             )
+            row.tactics_json = json.dumps(data.get("tactics", []), ensure_ascii=False)
+            row.week_plan_json = json.dumps(data.get("week_plan", []), ensure_ascii=False)
+            row.watch_items_json = json.dumps(data.get("watch_items", []), ensure_ascii=False)
+            row.sources_json = bundle.model_dump_json()
+            row.status = "done"
+            row.error_msg = None
+            db.commit()
         except Exception as exc:  # noqa: BLE001 — surfaced to the GUI via status
             log.exception("head coach generate(%d) failed", assessment_id)
             db.rollback()
@@ -374,18 +431,6 @@ def run_generate_job(assessment_id: int) -> None:
                 row.error_msg = str(exc)[:1000]
                 db.commit()
             return
-        row.overall_assessment = data.get("overall_assessment", "")
-        row.top_priorities_json = json.dumps(data.get("top_priorities", []), ensure_ascii=False)
-        row.directives_json = json.dumps(
-            _sanitize_directives(data.get("directives", [])), ensure_ascii=False
-        )
-        row.tactics_json = json.dumps(data.get("tactics", []), ensure_ascii=False)
-        row.week_plan_json = json.dumps(data.get("week_plan", []), ensure_ascii=False)
-        row.watch_items_json = json.dumps(data.get("watch_items", []), ensure_ascii=False)
-        row.sources_json = bundle.model_dump_json()
-        row.status = "done"
-        row.error_msg = None
-        db.commit()
     finally:
         db.close()
 
@@ -729,12 +774,16 @@ def run_chat_job(db_or_none: Session | None = None) -> None:
             bundle = gather_bundle(db)
             use_model = resolve_model()
             row.model = use_model
-            call = lambda: _call_chat_model(  # noqa: E731
-                _bundle_to_text(bundle),
-                history=_history_for_prompt(all_rows[:-1]),
-                question=question_row.content,
-                model=use_model,
-            )
+            def call() -> dict:
+                # Coerce non-dict JSON to {} — `data` is read after the try
+                # block, so it must always be a dict.
+                out = _call_chat_model(
+                    _bundle_to_text(bundle),
+                    history=_history_for_prompt(all_rows[:-1]),
+                    question=question_row.content,
+                    model=use_model,
+                )
+                return out if isinstance(out, dict) else {}
             data = call()
             if not (data.get("reply") or "").strip():
                 # The first structured-output call right after the model loads

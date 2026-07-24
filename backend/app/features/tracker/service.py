@@ -587,7 +587,7 @@ def compute_coach_packages(db: Session) -> schemas.CoachPackagesResponse:
     size = COACH_PACKAGE_SIZE
     packages: list[schemas.CoachPackage] = []
     for i, a in enumerate(sessions):
-        opens = a.is_package_start or i == 0 or not packages
+        opens = a.is_package_start or i == 0
         if opens:
             packages.append(
                 schemas.CoachPackage(
@@ -609,19 +609,20 @@ def compute_coach_packages(db: Session) -> schemas.CoachPackagesResponse:
             p.remaining = max(0, size - p.used)
             p.over = max(0, p.used - size)
 
+    # Status for every package (history included), not just the current one —
+    # a past block that ran over should read "over" in the history list too.
     for p in packages:
         p.is_current = False
-    if packages:
-        cur = packages[-1]
-        cur.is_current = True
-        if cur.over > 0:
-            cur.status = "over"
-        elif cur.remaining == 0:
-            cur.status = "done"
-        elif cur.remaining <= 2:
-            cur.status = "low"
+        if p.over > 0:
+            p.status = "over"
+        elif p.remaining == 0:
+            p.status = "done"
+        elif p.remaining <= 2:
+            p.status = "low"
         else:
-            cur.status = "ok"
+            p.status = "ok"
+    if packages:
+        packages[-1].is_current = True
 
     return schemas.CoachPackagesResponse(size=size, packages=packages)
 
@@ -953,7 +954,8 @@ def build_match_stats(
     if category in _CATEGORY_KEY:
         cat = db.query(Category).filter(Category.key == _CATEGORY_KEY[category]).first()
         q = q.filter(Match.category_id == (cat.id if cat else -1))
-    matches = q.order_by(Match.date).all()
+    # order_index breaks same-day ties so "last_result" is truly the last match.
+    matches = q.order_by(Match.date, Match.order_index).all()
 
     overall = _blank_match_stats()
     by_level: dict[str, dict] = {lv: _blank_match_stats() for lv in _LEVEL_ORDER}
@@ -1211,13 +1213,26 @@ def _build_grid(db: Session, date_from: dt.date, date_to: dt.date):
     cell_colors: dict[tuple[int, str], str] = {}
 
     mins: dict[tuple[int, str], int] = {}
+    # Same note/★ suffixes as the on-screen grid (build_week) so the export
+    # doesn't silently drop information.
+    grid_notes: dict[tuple[int, str], str] = {}
+    grid_starts: set[tuple[int, str]] = set()
     for a in activities:
         if a.category_id not in duration_ids:
             continue
         key = (a.category_id, a.date.isoformat())
         mins[key] = mins.get(key, 0) + (a.duration_minutes or 0)
+        if a.note:
+            grid_notes[key] = a.note
+        if a.is_package_start:
+            grid_starts.add(key)
     for key, m in mins.items():
-        text[key] = format_duration(m)
+        cell = format_duration(m)
+        if key in grid_notes:
+            cell = f"{cell} ({grid_notes[key]})".strip()
+        if key in grid_starts:
+            cell = f"{cell} {PACKAGE_MARK}".strip()
+        text[key] = cell
 
     by_cell: dict[tuple[int, str], list[Match]] = {}
     for mt in matches:

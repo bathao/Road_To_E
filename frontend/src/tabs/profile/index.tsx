@@ -98,27 +98,36 @@ export default function PlayerProfile() {
         setReport(rp);
         setLastDate(ld.date);
         setTrainingReport(tr);
+        setError(null); // a success clears any earlier banner
       } catch (e) {
         fail(e);
       }
     })();
   }, []);
 
-  // Training + match aggregates follow the range selector.
+  // Training + match aggregates follow the range selector. `alive` drops
+  // out-of-order responses (fast range clicks) so the cards never show a
+  // different range than the selected button.
   useEffect(() => {
     const { from, to } = isoRange(range);
+    let alive = true;
     (async () => {
       try {
         const [tr, ms] = await Promise.all([
           profileApi.trainingStats(from, to),
           profileApi.matchStats(from, to),
         ]);
+        if (!alive) return;
         setTraining(tr);
         setMatch(ms);
+        setError(null);
       } catch (e) {
-        fail(e);
+        if (alive) fail(e);
       }
     })();
+    return () => {
+      alive = false;
+    };
   }, [range]);
 
   // ---- profile (basics + AI summary) ----

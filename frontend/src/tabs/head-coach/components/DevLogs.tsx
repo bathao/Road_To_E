@@ -10,6 +10,9 @@ export default function DevLogs() {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<DebugOut | null>(null);
   const preRef = useRef<HTMLPreElement>(null);
+  // True while the user is (near) the bottom of the log pane. Scrolling up to
+  // read older lines must not be undone by the 3s refresh.
+  const stickBottom = useRef(true);
 
   useEffect(() => {
     if (!open) return;
@@ -30,10 +33,10 @@ export default function DevLogs() {
     };
   }, [open]);
 
-  // Keep the newest lines in view.
+  // Keep the newest lines in view — only while the user hasn't scrolled up.
   useEffect(() => {
     const el = preRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (el && stickBottom.current) el.scrollTop = el.scrollHeight;
   }, [data?.logs]);
 
   return (
@@ -67,7 +70,17 @@ export default function DevLogs() {
               </span>
             )}
           </div>
-          <pre ref={preRef} className="hc-devlogs-pre">
+          <pre
+            ref={preRef}
+            className="hc-devlogs-pre"
+            onScroll={() => {
+              const el = preRef.current;
+              if (el) {
+                stickBottom.current =
+                  el.scrollHeight - el.scrollTop - el.clientHeight < 20;
+              }
+            }}
+          >
             {data.logs.length ? data.logs.join("\n") : "(chưa có log nào từ khi server khởi động)"}
           </pre>
         </div>

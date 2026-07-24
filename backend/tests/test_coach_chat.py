@@ -190,3 +190,26 @@ def test_history_budget_keeps_newest(db):
     # Newest messages survive the budget; the oldest 5k blob is dropped.
     assert picked[-1]["content"] == "câu mới nhất"
     assert len(picked) == 2
+
+
+def test_recover_stuck_jobs_unbricks_chat_and_generate(db):
+    """Rows orphaned by a crash mid-LLM-call must flip to `error` at startup:
+    a stuck `pending` chat row blocks the input + 409s every new message, and
+    a stuck `generating` assessment disables the Generate button forever."""
+    from app.features.head_coach.models import HeadCoachAssessment
+
+    db.add(CoachChatMessage(role="user", content="q", status="done"))
+    db.add(CoachChatMessage(role="coach", content="", status="pending"))
+    db.add(HeadCoachAssessment(model="m", status="generating"))
+    db.commit()
+
+    hc_service.recover_stuck_jobs(db)
+
+    coach_rows = db.query(CoachChatMessage).filter(CoachChatMessage.role == "coach").all()
+    assert all(r.status == "error" and r.error_msg for r in coach_rows)
+    assert not hc_service.chat_history(db).pending  # input unblocked
+    row = db.query(HeadCoachAssessment).one()
+    assert row.status == "error" and row.error_msg
+
+    # And a fresh message can be sent again (no 409).
+    hc_service.start_chat(db, "still alive?")

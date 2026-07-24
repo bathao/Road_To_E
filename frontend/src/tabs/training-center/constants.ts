@@ -67,12 +67,6 @@ export const DAY_ICON: Record<DayType, string> = {
   balance: "⚖️",
 };
 
-export const DAY_LABEL: Record<DayType, string> = {
-  legs: "Chân",
-  core: "Lõi",
-  balance: "Cân bằng",
-};
-
 // "3×20" / "3×45s", with a per-side suffix when relevant.
 export function formatTarget(t: ExerciseTarget, perSide: boolean): string {
   const sets = t.sets ?? 1;

@@ -6,9 +6,7 @@ export interface Bar {
   label: string;
   value: number; // numeric height driver
   display: string; // text shown above the bar
-  title?: string; // native hover tooltip
   tip?: string; // rich-tooltip heading
-  highlight?: boolean;
 }
 
 // A YouTube-style area + line trend chart. SVG draws the gridlines, filled
@@ -24,6 +22,7 @@ export default function LineChart({
 }) {
   const [hover, setHover] = useState<number | null>(null);
   const n = points.length;
+  if (n === 0) return null; // coords[0] below would throw
   const max = Math.max(1, ...points.map((p) => p.value));
 
   const coords = points.map((p, i) => ({

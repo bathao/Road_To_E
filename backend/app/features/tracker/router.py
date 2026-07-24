@@ -20,6 +20,19 @@ from app.features.tracker.models import (
 router = APIRouter(prefix="/api/tracker", tags=["tracker"])
 
 
+def _next_order(db: Session, date: dt.date, category_id: int) -> int:
+    """Next free order_index in a cell — max+1, not count(), so the index
+    stays unique after deletes/moves leave holes."""
+    current_max = (
+        db.query(Match.order_index)
+        .filter(Match.date == date, Match.category_id == category_id)
+        .order_by(Match.order_index.desc())
+        .limit(1)
+        .scalar()
+    )
+    return 0 if current_max is None else current_max + 1
+
+
 # ---------------------------------------------------------------- categories
 @router.get("/categories", response_model=list[schemas.CategoryOut])
 def list_categories(db: Session = Depends(get_db)):
@@ -70,27 +83,37 @@ def coach_package_start_allowed(
 @router.put("/activities", response_model=schemas.ActivityOut | None)
 def upsert_activity(payload: schemas.ActivityIn, db: Session = Depends(get_db)):
     """One call for the duration chips: upsert by (date, category). Empty -> delete."""
-    existing = (
+    rows = (
         db.query(Activity)
         .filter(Activity.date == payload.date, Activity.category_id == payload.category_id)
-        .first()
+        .order_by(Activity.id)
+        .all()
     )
-    if payload.duration_minutes <= 0 and not payload.note and not payload.is_package_start:
+    # Legacy DBs (created before the unique index) can hold duplicate rows for
+    # the pair; a single-row delete would let the extra resurrect the value —
+    # always collapse to one row.
+    for extra in rows[1:]:
+        db.delete(extra)
+    existing = rows[0] if rows else None
+    # A package can only start on a real session: a ★ on a 0-minute row would
+    # show in the grid while being invisible to the package math.
+    star = payload.is_package_start and payload.duration_minutes > 0
+    if payload.duration_minutes <= 0 and not payload.note and not star:
         if existing:
             db.delete(existing)
-            db.commit()
+        db.commit()
         return None
     if existing:
         existing.duration_minutes = payload.duration_minutes
         existing.note = payload.note
-        existing.is_package_start = payload.is_package_start
+        existing.is_package_start = star
     else:
         existing = Activity(
             date=payload.date,
             category_id=payload.category_id,
             duration_minutes=payload.duration_minutes,
             note=payload.note,
-            is_package_start=payload.is_package_start,
+            is_package_start=star,
         )
         db.add(existing)
     db.commit()
@@ -111,12 +134,6 @@ def delete_activity(activity_id: int, db: Session = Depends(get_db)):
 @router.post("/matches", response_model=schemas.MatchOut)
 def create_match(payload: schemas.MatchIn, db: Session = Depends(get_db)):
     event = service.get_or_create_event(db, payload.event_name)
-    # Place the new match after existing ones in the same cell.
-    next_order = (
-        db.query(Match)
-        .filter(Match.date == payload.date, Match.category_id == payload.category_id)
-        .count()
-    )
     match = Match(
         date=payload.date,
         category_id=payload.category_id,
@@ -128,7 +145,11 @@ def create_match(payload: schemas.MatchIn, db: Session = Depends(get_db)):
         is_nonplaying=payload.is_nonplaying,
         nonplaying_label=payload.nonplaying_label,
         note=payload.note,
-        order_index=payload.order_index or next_order,
+        order_index=(
+            payload.order_index
+            if payload.order_index is not None
+            else _next_order(db, payload.date, payload.category_id)
+        ),
         opponent_id=payload.opponent_id,
         opponent2_id=payload.opponent2_id,
         partner_id=payload.partner_id,
@@ -149,11 +170,7 @@ def update_match(match_id: int, payload: schemas.MatchIn, db: Session = Depends(
     if (payload.date, payload.category_id) != (match.date, match.category_id):
         # Moved to another cell → append after that cell's existing matches so
         # order_index stays unique within the cell.
-        match.order_index = (
-            db.query(Match)
-            .filter(Match.date == payload.date, Match.category_id == payload.category_id)
-            .count()
-        )
+        match.order_index = _next_order(db, payload.date, payload.category_id)
     match.date = payload.date
     match.category_id = payload.category_id
     match.discipline = payload.discipline

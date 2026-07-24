@@ -129,7 +129,12 @@ export default function DailyTracker() {
   };
 
   const deleteMatch = async (id: number) => {
-    const ok = await run(() => trackerApi.deleteMatch(id));
+    // DELETE returns 204 (no body) → the api client resolves to undefined,
+    // which is also run()'s failure sentinel — wrap so success stays truthy.
+    const ok = await run(async () => {
+      await trackerApi.deleteMatch(id);
+      return true;
+    });
     if (ok === undefined) return;
     afterMutate();
   };
@@ -262,7 +267,7 @@ export default function DailyTracker() {
           )}
           {editing.category.type === "note" && (
             <NoteEditor
-              current={editing && week ? week.day_notes[editing.dateIso] ?? "" : ""}
+              current={week ? week.day_notes[editing.dateIso] ?? "" : ""}
               onSave={saveNote}
             />
           )}

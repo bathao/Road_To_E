@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   BreakdownBucket,
   CoachPackage,
@@ -117,7 +117,11 @@ export default function AnalysisPanel({
 
   const chartUnit: Unit | null = chartUnitFor(mode, "line", fromIso, rangeToIso);
 
+  // Drops out-of-order responses (rapid Prev/Prev clicks): only the newest
+  // in-flight load may write state. Same pattern as useLoad's seq counter.
+  const seq = useRef(0);
   const load = useCallback(async () => {
+    const mySeq = ++seq.current;
     if (fromIso > rangeToIso) {
       setError("'From' date is after 'To' date.");
       setStats(null);
@@ -132,9 +136,11 @@ export default function AnalysisPanel({
           ? trackerApi.getBreakdown(fromIso, rangeToIso, chartUnit)
           : Promise.resolve(null),
       ]);
+      if (mySeq !== seq.current) return; // stale response
       setStats(s);
       setBuckets(b ? b.buckets : []);
     } catch (e) {
+      if (mySeq !== seq.current) return;
       setError(e instanceof Error ? e.message : String(e));
     }
   }, [fromIso, rangeToIso, chartUnit]);

@@ -26,9 +26,17 @@ class ActivityIn(BaseModel):
     is_package_start: bool = False  # first session of a coaching package
 
 
-class ActivityOut(ActivityIn):
+class ActivityOut(BaseModel):
+    """Output side is deliberately unconstrained: one legacy out-of-range row
+    must not 500 every /weeks response that contains it."""
+
     model_config = ConfigDict(from_attributes=True)
     id: int
+    date: dt.date
+    category_id: int
+    duration_minutes: int
+    note: str | None = None
+    is_package_start: bool = False
 
 
 # ---------- Coach packages (10-session blocks) ----------
@@ -90,7 +98,9 @@ class MatchIn(BaseModel):
     is_nonplaying: bool = False
     nonplaying_label: str | None = None  # Travel | Rest
     note: str | None = None
-    order_index: int = 0
+    # None = "append after the cell's existing matches" (an explicit 0 means
+    # "insert first" and must not be treated as unset).
+    order_index: int | None = None
     # Who played (player ids). Handicap signed: +N = I give N, -N = I receive.
     opponent_id: int | None = None
     opponent2_id: int | None = None

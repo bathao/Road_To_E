@@ -38,7 +38,7 @@ export default function MatchStats() {
   );
   const unit = chartUnitFor(mode, "line", range.fromIso, range.toIso) ?? "day";
 
-  const { data, error } = useLoad<MatchStatsResponse>(() => {
+  const { data, error, loading } = useLoad<MatchStatsResponse>(() => {
     setSelOpp(""); // reset the head-to-head pick when the dataset changes
     return matchStatsApi.get(range.fromIso, range.toIso, discipline, category, unit);
   }, [range.fromIso, range.toIso, discipline, category, unit]);
@@ -110,7 +110,9 @@ export default function MatchStats() {
 
       {error && <div className="pb-error">{error}</div>}
 
-      {!hasMatches ? (
+      {loading && !data ? (
+        <div className="loading">Loading…</div>
+      ) : !hasMatches ? (
         <p className="stats-empty">
           Chưa có trận nào (có tên đối thủ) trong khoảng này. Tab thống kê chỉ tính
           các trận đã chọn đối thủ — hãy ghi vài trận ở Daily Tracker, hoặc đổi

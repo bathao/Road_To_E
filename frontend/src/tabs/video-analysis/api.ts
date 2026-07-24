@@ -22,8 +22,6 @@ export const videoApi = {
   listTraits: (status?: string) =>
     api.get<Trait[]>(`/video/traits${status ? `?status=${status}` : ""}`),
   createTrait: (payload: TraitIn) => api.post<Trait>("/video/traits", payload),
-  updateTrait: (id: number, payload: TraitIn) =>
-    api.put<Trait>(`/video/traits/${id}`, payload),
   deleteTrait: (id: number) => api.del<void>(`/video/traits/${id}`),
 
   // ---- skill ledger + player report ----

@@ -153,7 +153,8 @@ export default function WorkoutPlayer({
     advance();
   }, [secLeft]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const total = steps.length - 1; // exclude the 'done' step
+  // Exclude the 'done' step; max(1) so an all-skipped session can't divide by 0.
+  const total = Math.max(1, steps.length - 1);
   const progress = Math.round((Math.min(idx, total) / total) * 100);
 
   return (
@@ -193,7 +194,14 @@ export default function WorkoutPlayer({
           </div>
         ) : (
           <div className="tc-wp-body">
-            <ExerciseImage gif={step.gif} alt={step.title} className="tc-wp-thumb" />
+            {/* key: consecutive steps reuse this tree position — remount so
+                one step's failed-GIF fallback doesn't stick to the next. */}
+            <ExerciseImage
+              key={step.gif}
+              gif={step.gif}
+              alt={step.title}
+              className="tc-wp-thumb"
+            />
             <div className="tc-wp-sub">{step.sub}</div>
             <h2 className="tc-wp-title">{step.title}</h2>
             {step.type === "timed" ? (

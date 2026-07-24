@@ -65,11 +65,12 @@ export default function HeadCoach() {
     reload: reloadNotes,
     setData: setNotesData,
   } = useLoad<NotesOut>(() => headCoachApi.getNotes(), []);
-  const { run: runNotes, busy: notesBusy } = useMutate();
+  const { run: runNotes, busy: notesBusy, error: notesError } = useMutate();
   const addNote = useCallback(
     async (text: string) => {
       const out = await runNotes(() => headCoachApi.addNote(text));
       if (out !== undefined) setNotesData(out);
+      return out !== undefined; // tells the input whether to clear
     },
     [runNotes, setNotesData]
   );
@@ -97,22 +98,26 @@ export default function HeadCoach() {
   }, []);
 
   // While generating, poll the status every 3s; when the run finishes, stop
-  // and refetch the completed assessment (or surface the error).
+  // and refetch the completed assessment (or surface the error). A rejected
+  // poll (dev-server reload, one dropped request) is transient — keep
+  // polling; only a *returned* error status is terminal.
   useEffect(() => {
     if (!generating) return;
     const timer = setInterval(async () => {
+      let s;
       try {
-        const s = await headCoachApi.getStatus();
-        if (s.status === "generating") return;
-        setGenerating(false);
-        if (s.status === "error") {
-          throw new Error(s.error_msg || "Phân tích thất bại.");
-        }
-        reload();
-      } catch (e) {
-        setGenerating(false);
-        void run(() => Promise.reject(e)); // surface via the shared error state
+        s = await headCoachApi.getStatus();
+      } catch {
+        return; // transient fetch failure — try again next tick
       }
+      if (s.status === "generating") return;
+      setGenerating(false);
+      if (s.status === "error") {
+        const msg = s.error_msg || "Phân tích thất bại.";
+        void run(() => Promise.reject(new Error(msg))); // surface via shared error state
+        return;
+      }
+      reload();
     }, 3000);
     return () => clearInterval(timer);
   }, [generating, reload, run]);
@@ -301,6 +306,7 @@ export default function HeadCoach() {
             onAdd={addNote}
             onDelete={deleteNote}
             busy={notesBusy}
+            error={notesError}
           />
         </section>
       </aside>

@@ -1,11 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { Player } from "../../types";
 import { trackerApi } from "../../api";
-// Level metadata lives in shared/; re-export so existing siblings keep importing
-// LEVELS / levelShort from the picker.
 import { LEVELS, levelShort } from "../../../../shared/levels";
 import type { PlayerLevel } from "../../../../shared/levels";
-export { LEVELS, levelShort };
 
 // A combobox to pick a player from the shared pool, or add a new one inline
 // (name + relative level). Returns the selected Player (or null when cleared).
@@ -29,19 +26,26 @@ export default function PlayerPicker({
   const [newLevel, setNewLevel] = useState<PlayerLevel>("equal");
   const [newPips, setNewPips] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const closeTimer = useRef<number | undefined>(undefined);
 
-  // Debounced search whenever the dropdown is open.
+  // Debounced search whenever the dropdown is open. `alive` drops responses
+  // that land after the query changed (out-of-order results).
   useEffect(() => {
     if (!open) return;
+    let alive = true;
     const t = setTimeout(async () => {
       try {
-        setResults(await trackerApi.searchPlayers(query.trim()));
+        const r = await trackerApi.searchPlayers(query.trim());
+        if (alive) setResults(r);
       } catch {
-        setResults([]);
+        if (alive) setResults([]);
       }
     }, 180);
-    return () => clearTimeout(t);
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
   }, [query, open]);
 
   const select = (p: Player) => {
@@ -62,7 +66,10 @@ export default function PlayerPicker({
         level: newLevel,
         plays_pips: newPips,
       });
+      setError(null);
       select(p);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
@@ -80,7 +87,10 @@ export default function PlayerPicker({
         note: value.note,
         plays_pips: !value.plays_pips,
       });
+      setError(null);
       onChange(updated);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
@@ -123,6 +133,7 @@ export default function PlayerPicker({
             ✕
           </button>
         </div>
+        {error && <div className="pb-error">⚠ {error}</div>}
       </div>
     );
   }
@@ -213,6 +224,7 @@ export default function PlayerPicker({
                     >
                       Lưu người mới
                     </button>
+                    {error && <div className="pb-error">⚠ {error}</div>}
                   </div>
                 )}
               </div>

@@ -81,6 +81,10 @@ export default function DurationEditor({
         />
         <button
           className="btn primary"
+          // A blank/invalid number would save 0 minutes, which the backend
+          // treats as "delete the entry" — require a real number instead
+          // (the explicit "Clear entry" button below handles deletion).
+          disabled={custom.trim() === "" || Number.isNaN(Number(custom))}
           onClick={() => onSave(Number(custom) || 0, note, packageStart)}
         >
           Save
