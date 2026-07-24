@@ -1,6 +1,92 @@
 # Progress Log — Table Tennis Coach
 
-## Current status (2026-07-23) — handicap-aware Head Coach (committed `609e648`)
+## Current status (2026-07-24, evening) — project-wide audit batch (committed `490fe63`)
+
+> **Resume.** Full-project review (4 parallel review agents, every finding
+> re-verified against the code before touching it), then fixes applied.
+> 37/37 pytest (1 new test), `npm run build` clean. Committed as `490fe63`;
+> nothing in flight after it.
+>
+> **Bugs fixed — backend:**
+> - head_coach: crash/restart mid-LLM-call left `pending` chat / `generating`
+>   verdict rows forever → chat input + Generate button bricked (409, no job
+>   alive). New `recover_stuck_jobs()` runs from seed at startup, flips them
+>   to visible errors (+ regression test).
+> - head_coach: `run_generate_job` persisted OUTSIDE its try (a commit failure
+>   stranded the row in `generating`); moved inside + one retry on empty
+>   verdict (same first-call-after-load quirk as chat) + non-dict guard (both
+>   jobs). `PlanDay` fields got defaults so a stored plan item missing
+>   `detail` can't 500 GET /assessment permanently.
+> - training: `_materialise` SELECT-then-INSERT race (coach background jobs
+>   read training data on their own session) → IntegrityError caught,
+>   winner's row re-fetched.
+> - tracker: `order_index` now max+1 (was count() → duplicates after
+>   delete/move); explicit `order_index=0` no longer treated as unset
+>   (schema default None); match-stats ordering ties broken by order_index so
+>   `last_result` is right on multi-match days; coach-package status computed
+>   for EVERY package (history said "ok" for overrun blocks); upsert-activity
+>   collapses legacy duplicate rows (pre-unique-index DBs) and drops ★ on
+>   0-minute rows (star was visible in grid but invisible to package math);
+>   xlsx/csv export now includes the cell note + ★ like the on-screen grid;
+>   ActivityOut unconstrained (one legacy out-of-range row must not 500
+>   /weeks).
+>
+> **Bugs fixed — frontend:**
+> - daily-tracker: deleting a match never refreshed the UI (DELETE→204→
+>   undefined == run()'s failure sentinel); AnalysisPanel out-of-order
+>   response race (seq guard); PlayerPicker add/toggle-pips swallowed errors
+>   into unhandled rejections (now caught + shown) + stale search-result
+>   guard; DurationEditor Save disabled on blank input (blank saved 0 =
+>   silent delete).
+> - head-coach: one transient status-poll failure ended polling with a false
+>   "Phân tích thất bại" (now only a *returned* error status is terminal);
+>   notebook add/delete errors were invisible and the typed note was lost
+>   (error shown, input cleared only on success); chat history load error
+>   showed as fake empty state; DevLogs autoscroll no longer yanks you down
+>   every 3s while reading scrollback.
+> - profile: error banner never cleared after recovery + range-switch race
+>   (alive guard); match-stats: empty-state text no longer flashes during
+>   first load; WorkoutPlayer: ExerciseImage keyed by gif (fallback no longer
+>   sticks across consecutive steps) + NaN progress guard; LineChart guards
+>   empty points.
+> - Dead code removed: videoApi.updateTrait, DAY_LABEL, Bar.title/highlight,
+>   LEVELS re-export shim (MatchEditor imports shared/levels directly),
+>   DIRECTIVE_AREAS/DIRECTIVE_METRICS duplicate constants, redundant
+>   `editing &&`.
+>
+> **Known findings deliberately NOT fixed (candidates, in rough priority):**
+> - Retired paste-analysis pipeline still alive in backend (video router
+>   /reports* + /health/model endpoints, service create/parse/list/delete
+>   report, text_synth.extract_findings) — delete when convenient. Also
+>   `prescription_for` still injects exercises from the RETIRED va_skill
+>   ratings into every new training session — product decision needed
+>   (contradicts the "no model guesswork" head-coach principle).
+> - FE `tabs/video-analysis/` folder is the Profile tab's engine, misnamed —
+>   move under tabs/profile/ someday. Profile tab still hand-rolls fetch
+>   state (port to useLoad would also fix editors closing on failed saves);
+>   a shared usePoll hook would unify 3 polling loops.
+> - SQLite FK pragma still OFF (dangling ids accepted silently);
+>   start_chat double-send race (mostly neutralized by startup recovery);
+>   build_week vs _build_grid ~70-line duplication (they drift — the export
+>   parity bug came from exactly this); legacy physical-checks writes allowed
+>   post-cutover; DELETE /tracker/activities/{id} endpoint unused by FE.
+> Restart start.bat to load the new backend.
+
+## Earlier 2026-07-24 — all committed, no work in flight
+
+> Working tree clean; latest commits `609e648` (handicap-aware Head Coach,
+> below) + `e341cea` (PROGRESS). Today's only event was DATA, not code: the
+> user renewed the coaching package after session 10 and marked session 11
+> with the existing ★ "Start of a new 10-session package" checkbox (open the
+> Train-with-Coach cell of that day in the grid; enabled only on session 1 or
+> 11+ via /coach-package-start-allowed). Known UX gap / next candidate: the
+> Coach Package card only ASKS "mark the new package's start?" — no action
+> button; a one-click "start new package from session 11 (date X)" button on
+> the card was offered and the user may want it at the next renewal (~2
+> months). Other next candidates remain under "Status (2026-07-12, end of
+> day)" → Next candidates.
+
+## 2026-07-23 — handicap-aware Head Coach (committed `609e648`)
 
 > **Resume.** Head Coach now sees and reasons about HANDICAP (tỉ lệ chấp) —
 > user request: a handicapped match must be read differently from an even one.
