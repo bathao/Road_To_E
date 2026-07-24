@@ -25,6 +25,11 @@ export const trackerApi = {
   getCoachPackages: () =>
     api.get<CoachPackagesResponse>("/tracker/coach-packages"),
 
+  // One-click card action: flag the over-run block's 11th session as the
+  // next package's start (equivalent to ticking ★ on that day by hand).
+  startNextCoachPackage: () =>
+    api.post<CoachPackagesResponse>("/tracker/coach-packages/start-next", {}),
+
   coachPackageStartAllowed: (dateIso: string) =>
     api.get<{ allowed: boolean }>(
       `/tracker/coach-package-start-allowed?date=${dateIso}`

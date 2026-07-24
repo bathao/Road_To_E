@@ -60,3 +60,32 @@ def test_coach_packages_numbering_used_remaining(db):
     # Position 1 of package #2 stays allowed; position 3 of package #2 is not.
     assert service.coach_package_start_allowed(db, BASE + dt.timedelta(days=10)) is True
     assert service.coach_package_start_allowed(db, BASE + dt.timedelta(days=12)) is False
+
+
+def test_start_next_coach_package_flags_session_11(db):
+    """The card's one-click action: with 12 sessions and no marker, session 11
+    becomes the new package's start (sessions 12+ belong to the NEW package)."""
+    coach_id = category_id(db, "train_with_coach")
+
+    # Not over yet -> refused.
+    for i in range(10):
+        _add_session(db, coach_id, i)
+    import pytest
+
+    with pytest.raises(ValueError):
+        service.start_next_coach_package(db)
+
+    # Two sessions past the block size.
+    _add_session(db, coach_id, 10)
+    _add_session(db, coach_id, 11)
+
+    resp = service.start_next_coach_package(db)
+    assert [p.number for p in resp.packages] == [1, 2]
+    p1, p2 = resp.packages
+    assert (p1.used, p1.status, p1.is_current) == (10, "done", False)
+    assert (p2.used, p2.remaining, p2.is_current) == (2, 8, True)
+    assert p2.start_date == BASE + dt.timedelta(days=10)  # session 11's day
+
+    # Idempotence guard: the new block only has 2 sessions -> refused again.
+    with pytest.raises(ValueError):
+        service.start_next_coach_package(db)

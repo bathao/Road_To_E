@@ -65,6 +65,18 @@ def get_coach_packages(db: Session = Depends(get_db)):
     return service.compute_coach_packages(db)
 
 
+@router.post(
+    "/coach-packages/start-next", response_model=schemas.CoachPackagesResponse
+)
+def start_next_coach_package(db: Session = Depends(get_db)):
+    """Flag the over-run block's (size+1)-th session as the new package's start
+    (the one-click button on the Coach Package card)."""
+    try:
+        return service.start_next_coach_package(db)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.get(
     "/coach-package-start-allowed",
     response_model=schemas.CoachStartAllowedResponse,

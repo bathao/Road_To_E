@@ -78,7 +78,16 @@ function pkgStatusText(p: CoachPackage): string {
 
 // Coaching package (10-session block) status: how many sessions are left in the
 // current package. Range-independent — it's about "now".
-function CoachPackageCard({ current }: { current: CoachPackage }) {
+function CoachPackageCard({
+  current,
+  onStartNext,
+  busy,
+}: {
+  current: CoachPackage;
+  // Renew action: mark session size+1 as the new package's start.
+  onStartNext: () => void;
+  busy: boolean;
+}) {
   return (
     <div className={`stat-card pkg-card pkg-${current.status}`}>
       <div className="stat-card-title">Coach package</div>
@@ -88,6 +97,11 @@ function CoachPackageCard({ current }: { current: CoachPackage }) {
       </div>
       <div className="stat-sub">started {prettyDate(current.start_date)}</div>
       <div className="pkg-status">{pkgStatusText(current)}</div>
+      {current.status === "over" && (
+        <button className="btn primary" onClick={onStartNext} disabled={busy}>
+          ★ Bắt đầu gói mới từ buổi {current.size + 1}
+        </button>
+      )}
     </div>
   );
 }
@@ -113,7 +127,23 @@ export default function AnalysisPanel({
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [buckets, setBuckets] = useState<BreakdownBucket[]>([]);
   const [packages, setPackages] = useState<CoachPackage[]>([]);
+  const [pkgBusy, setPkgBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Renew flow: the card's button flags session size+1 as the new package's
+  // start; the response already carries the recomputed package list.
+  const startNextPackage = async () => {
+    setPkgBusy(true);
+    try {
+      const r = await trackerApi.startNextCoachPackage();
+      setPackages(r.packages);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setPkgBusy(false);
+    }
+  };
 
   const chartUnit: Unit | null = chartUnitFor(mode, "line", fromIso, rangeToIso);
 
@@ -257,6 +287,8 @@ export default function AnalysisPanel({
                   packages.find((p) => p.is_current) ??
                   packages[packages.length - 1]
                 }
+                onStartNext={startNextPackage}
+                busy={pkgBusy}
               />
             )}
           </div>

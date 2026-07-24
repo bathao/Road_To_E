@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.core import logbuffer
+from app.core.backup import backup_database
 from app.core.db import SessionLocal, init_db
 from app.core.settings import APP_TITLE, FRONTEND_DIST
 from app.features import registry
@@ -26,6 +27,8 @@ logbuffer.install()
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    # Snapshot BEFORE init_db/seeds so a bad migration can't taint the backup.
+    backup_database()
     init_db()
     db = SessionLocal()
     try:

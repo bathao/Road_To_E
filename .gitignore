@@ -11,6 +11,8 @@ backend/.venv/
 *.db-shm
 *.sqlite-wal
 *.sqlite-shm
+# Daily on-startup snapshots (app/core/backup.py) — local safety net only.
+backend/data/backups/
 
 # ---- Uploaded videos (Video Analysis tab) ----
 # Clips can be large; keep them out of the repo. The DB still tracks their

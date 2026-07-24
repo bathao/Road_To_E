@@ -627,6 +627,41 @@ def compute_coach_packages(db: Session) -> schemas.CoachPackagesResponse:
     return schemas.CoachPackagesResponse(size=size, packages=packages)
 
 
+def start_next_coach_package(db: Session) -> schemas.CoachPackagesResponse:
+    """One-click card action: when the current block ran over its size, flag
+    its (size+1)-th session as the next package's first session.
+
+    Equivalent to opening that day's coach cell and ticking the ★ box — this
+    just finds the right day automatically (always session 11, so sessions
+    12+ stay in the NEW package, never inflate the old one)."""
+    coach = db.query(Category).filter(Category.key == "train_with_coach").first()
+    sessions: list[Activity] = []
+    if coach is not None:
+        sessions = (
+            db.query(Activity)
+            .filter(
+                Activity.category_id == coach.id,
+                Activity.duration_minutes > 0,
+            )
+            .order_by(Activity.date)
+            .all()
+        )
+    # Current block = everything from the last flagged start (or session #1).
+    start_idx = 0
+    for i, a in enumerate(sessions):
+        if a.is_package_start:
+            start_idx = i
+    block = sessions[start_idx:]
+    if len(block) <= COACH_PACKAGE_SIZE:
+        raise ValueError(
+            f"Gói hiện tại mới có {len(block)}/{COACH_PACKAGE_SIZE} buổi — "
+            "chưa có buổi nào vượt gói để mở gói mới."
+        )
+    block[COACH_PACKAGE_SIZE].is_package_start = True
+    db.commit()
+    return compute_coach_packages(db)
+
+
 def coach_package_start_allowed(db: Session, date: dt.date) -> bool:
     """Whether `date` may be marked as the start of a new coaching package.
 
