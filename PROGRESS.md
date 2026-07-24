@@ -1,6 +1,32 @@
 # Progress Log — Table Tennis Coach
 
-## Current status (2026-07-24, evening) — project-wide audit batch (committed `490fe63`)
+## Current status (2026-07-24, night) — roadmap wave 1: backup + package button (committed `2476c1d`)
+
+> **Resume.** First wave of the enhancement roadmap (proposed same day; full
+> roadmap in the chat: ELO-with-handicap rating next, then weekly auto-verdict
+> + tournament goals, then set scores + mobile quick-log, then opponent
+> dossiers). This wave:
+>   - **Daily DB auto-backup** (`app/core/backup.py`): every server start
+>     snapshots tabletennis.db → `backend/data/backups/<name>-YYYY-MM-DD.db`
+>     (once/day, keeps 30, WAL-safe via sqlite3 backup API, never blocks
+>     startup). Runs FIRST in lifespan — before init_db/seeds — so a bad
+>     migration can't taint the snapshot. backups/ is gitignored. Gotcha
+>     found by test: sqlite3's `with` is a transaction context, NOT a closer —
+>     connections must be closed explicitly or Windows keeps the file locked
+>     (WinError 32 on prune). Smoke-tested on the real DB (0.34 MB snapshot).
+>   - **Coach Package renew button**: when the card shows status `over`, a
+>     "★ Bắt đầu gói mới từ buổi 11" button appears; POST
+>     /tracker/coach-packages/start-next flags the over-run block's 11th
+>     session as the new package's start (always session size+1, so sessions
+>     12+ land in the NEW package). 400 when the block isn't over yet.
+>     Backend service + endpoint + FE card wiring (AnalysisPanel local busy/
+>     error states).
+>   - Note: pytest's tmp_path fixture is broken on this machine (Temp\
+>     pytest-of-MSI has denied ACLs; undeletable) — test_backup.py uses its
+>     own tempfile fixture instead.
+>   - **Verified:** 40/40 pytest (3 new), build + tsc clean.
+
+## Earlier 2026-07-24 (evening) — project-wide audit batch (committed `490fe63`)
 
 > **Resume.** Full-project review (4 parallel review agents, every finding
 > re-verified against the code before touching it), then fixes applied.
