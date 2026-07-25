@@ -1,11 +1,97 @@
-# Progress Log — Table Tennis Coach
+# Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-07-24, night) — roadmap wave 1: backup + package button (committed `2476c1d`)
+## Current status (2026-07-25, end of day) — Tournaments + rename (committed `9e93606`)
 
-> **Resume.** First wave of the enhancement roadmap (proposed same day; full
-> roadmap in the chat: ELO-with-handicap rating next, then weekly auto-verdict
-> + tournament goals, then set scores + mobile quick-log, then opponent
-> dossiers). This wave:
+> **Built & verified:** 42/42 pytest, tsc + vite build clean, coach-bundle
+> render smoke-tested. User has real data in already (3+ tournaments). Restart
+> start.bat once (new table tournament_entry_member + new APP_TITLE).
+> Same-day iterations after the base feature (all in this batch):
+>   - **Strip v2:** shows up to 3 nearest upcoming (one line each, per-row
+>     urgent color); "+N more" button (stopPropagation) expands to ALL
+>     upcoming, "Show less" collapses. English labels by user request.
+>   - **PlayerPicker bugfix (pre-existing, exposed by the team picker):**
+>     after a pick the input keeps focus, so onFocus never re-fires and the
+>     dropdown stayed closed while typing — the "+ Thêm" button could never
+>     appear. Fix: setOpen(true) in the input's onChange. Benefits
+>     MatchEditor too.
+>   - **App renamed "Road To E"** (was "Table Tennis Coach"): AppShell header
+>     (🏓 kept), index.html title, APP_TITLE, package.json/lock
+>     (road-to-e-frontend), README/start.bat/PROGRESS headers.
+> Implementation notes:
+>   - `level_limit` (tournament-level rank limit) added same day on request —
+>     amber "Trình: …" chip on card + strip, shown to the coach, migrated via
+>     seed add_missing_columns (table may pre-exist). v2 same day: input is a
+>     TOGGLE ROW of the fixed ladder A..I + an explicit "Open" button (user is
+>     rank G; tournaments look like "D E F"/"E F G"/"G H"/Open). Stored
+>     unchanged as a string ("E F G" normalized A→I, or "Open", or null =
+>     unspecified). The per-entry free-text `division` input was REMOVED from
+>     the form (redundant with the tournament-level limit; column + display
+>     of old values kept).
+>   - Team entries v2 (same day): roster picked from the shared player pool
+>     via PlayerPicker (add-new inline works) — new table
+>     `tournament_entry_member` (entry_id, player_id; created by create_all,
+>     needs a start.bat restart), EntryIn.teammate_ids / EntryOut
+>     .teammate_names; `team_members` text now means optional team name.
+>     Card/strip/coach labels combine both ("Đồng đội — CLB X · Nam, Bình").
+>   - Backend `app/features/tournament/` (models/schemas/service/router/seed,
+>     registered in registry.py). API: GET/POST /api/tournaments,
+>     PUT/DELETE /api/tournaments/{id} — every mutation returns the fresh
+>     full list (deliberately NOT 204: a 204 body reads as `undefined` in the
+>     FE client, which is useMutate's failure sentinel — the audit's
+>     deleteMatch lesson).
+>   - `upcoming_for_coach(db, horizon_days=90)` feeds the bundle section
+>     "GIẢI ĐẤU SẮP TỚI" (+ SYSTEM_PROMPT rule: week plan MUST aim at the
+>     nearest tournament, right discipline/partner, taper before match day).
+>   - FE: `components/tournaments/` (helpers + TournamentStrip +
+>     TournamentSection). index.tsx holds ONE useLoad shared by both; strip
+>     click anchor-scrolls to the section. Countdown is local-calendar
+>     (fromIso), "HÔM NAY"/"ĐANG DIỄN RA" for day-0/multi-day-running.
+>     Strip horizon 45d, urgent (<=7d) turns red. Form collapsed by default;
+>     past capped at 3 with toggle. Partner picked via existing PlayerPicker
+>     (kept as {id,name} pill when prefilled from an entry).
+>
+> **Approved design (2026-07-25, after two rounds of debate):** tournaments
+> are a *scheduling commitment*, NOT a results store — match results keep
+> flowing into the Daily Tracker as usual (user never logs team-event
+> matches). Purpose: the user pins "on day X I play discipline Y" and the
+> Head Coach plans training toward it.
+>   - NO new tab, NO modal. Daily Tracker hosts both pieces:
+>     * **Strip** (one line, under the toolbar, ABOVE the grid): nearest
+>       upcoming tournament within 45 days — "🏆 name · còn N ngày · chips";
+>       click = anchor-scroll to the section. Hidden when nothing upcoming.
+>     * **`<TournamentSection />` at the very bottom** (below AnalysisPanel —
+>       ordered by usage frequency): upcoming cards with countdown +
+>       entry chips, add-form COLLAPSED behind "＋ Thêm giải", past
+>       tournaments capped at 3 with a toggle.
+>   - Backend: new feature `tournament/` — `Tournament` (name, location,
+>     start/end date, note) + `TournamentEntry` (discipline singles|doubles|
+>     team, partner_id FK tracker_player for doubles, team_members free text
+>     for team, division text). NO result fields (cut deliberately).
+>   - Head Coach bundle gains "GIẢI ĐẤU SẮP TỚI" (name, days left, entries,
+>     partner) — the actual point of the feature.
+>   - Graduation rule: if tournament history/results/analytics is ever
+>     wanted, THAT is when this becomes its own tab.
+
+## Earlier (2026-07-24, night) — wave 1 done (`2476c1d`); NEXT after tournaments: ELO rating
+
+> **Resume here tomorrow (2026-07-25).** Everything committed (`2476c1d` code
+> + `2cefbc8` PROGRESS), tree clean, 40/40 pytest, build clean. Restart
+> start.bat once so the first DB backup runs.
+>
+> **Next up — roadmap wave 2: ELO-with-handicap rating** (agreed 2026-07-24):
+>   - One rating per player (me + every opponent), updated per match in date
+>     order; the signed `tracker_match.handicap` (+N = I give N points/set)
+>     folds into the expected score, so handicapped matches move ratings less
+>     when the result matches the rebalance. Levels (below/equal/above) stay
+>     as the user's static labels; rating is the objective view next to them.
+>   - GUI: rating trend line on Match Stats + Profile; feed rating trend into
+>     the Head Coach bundle ("lên trình" gets real math instead of raw
+>     win-rate, which is biased by how often he plays up).
+>   - Full roadmap (waves 3-5): weekly auto-verdict + tournament goals →
+>     set scores + mobile quick-log → opponent dossiers + tech-debt items
+>     listed in the audit entry below.
+>
+> **Wave 1 (this batch, committed `2476c1d`):**
 >   - **Daily DB auto-backup** (`app/core/backup.py`): every server start
 >     snapshots tabletennis.db → `backend/data/backups/<name>-YYYY-MM-DD.db`
 >     (once/day, keeps 30, WAL-safe via sqlite3 backup API, never blocks
