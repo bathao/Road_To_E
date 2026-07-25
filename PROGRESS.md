@@ -1,6 +1,21 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-07-25, night) — per-set handicap patterns (committed `d6e7faf`)
+## Current status (2026-07-25, night) — handicap memory per opponent (committed `9629149`)
+
+> **Resume.** Picking a singles opponent in MatchEditor now pre-fills the
+> handicap from the LAST singles match against them (Tuấn Gỗ → được chấp
+> 4-4-4; Lợi Phạm → 2-2-2) — user just confirms or adjusts.
+>   - GET /tracker/players/{id}/last-handicap (service.last_handicap_vs:
+>     newest singles playing match by date/order_index/id; doubles excluded —
+>     team handicap isn't personal). Returns {found, handicap, pattern}.
+>   - MatchEditor effect on [opponent, discipline]: maps the stored value
+>     back onto the dropdown (uniform int → N-N-N preset, else custom
+>     digits); handicap 0 → direction "Không". Suggestion only — fetch
+>     failure never blocks entry.
+>   - 44/44 pytest (new last_handicap_vs test), build clean. No new columns —
+>     no restart strictly needed beyond the previous batch's.
+
+## Earlier (2026-07-25, night) — per-set handicap patterns (committed `d6e7faf`)
 
 > **Resume.** Handicap ratios are per-set sequences in real play ("chấp 202"
 > = set 1: 2, set 2: 0, set 3: 2), not one fixed number. Implemented per the
