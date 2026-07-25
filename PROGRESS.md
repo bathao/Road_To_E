@@ -1,6 +1,28 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-07-25, end of day) — Tournaments + rename (committed `9e93606`)
+## Current status (2026-07-25, night) — per-set handicap patterns (committed `d6e7faf`)
+
+> **Resume.** Handicap ratios are per-set sequences in real play ("chấp 202"
+> = set 1: 2, set 2: 0, set 3: 2), not one fixed number. Implemented per the
+> agreed design (dropdown of the 9 common ratios, no typing):
+>   - **Storage:** new `tracker_match.handicap_pattern` VARCHAR (normalized
+>     "2-0-2"), NULL = uniform — all 267 existing rows untouched (seed
+>     add_missing_columns migration). The signed `handicap` int now stores
+>     the per-set AVERAGE (rounded, min 1 so the sign survives) when a
+>     pattern exists → every sign-based analytic (build_handicap_split, coach
+>     bundle, future ELO scalar) keeps working unchanged.
+>     `service.normalize_handicap_pattern` collapses uniform ("222") and
+>     empty input to None; uniform ratios still store as plain ints.
+>   - **MatchEditor:** stepper replaced by a dropdown — presets 0-2-0, 2-0-2,
+>     2-2-2, 2-3-2, 3-2-3, 3-3-3, 3-4-3, 4-3-4, 4-4-4 (default 2-2-2) +
+>     "Khác…" free-digit input (digits only, e.g. "42024") for exceptions.
+>     Direction seg (Không / Tôi chấp / Được chấp) unchanged.
+>   - **Display:** MatchEditor list + Match Stats h2h lines show the sequence
+>     ("chấp 2-0-2") for patterned matches, the plain number otherwise.
+>   - 43/43 pytest (new normalize test), build clean. Restart start.bat
+>     (new column via seed).
+
+## Earlier (2026-07-25, end of day) — Tournaments + rename (committed `9e93606`)
 
 > **Built & verified:** 42/42 pytest, tsc + vite build clean, coach-bundle
 > render smoke-tested. User has real data in already (3+ tournaments). Restart
