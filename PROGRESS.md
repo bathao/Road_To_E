@@ -1,6 +1,68 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-07-25, night) — handicap memory per opponent (committed `9629149`)
+## Current status (2026-07-25, latest) — points entered 70/70; Database tab + points-first player flow
+
+> **Where we are:** ALL 70 players have points in the DB (user finished
+> entering; distribution H:6 G:28 F:14 E:9 D:7 C+:6). The user's own rating
+> is still the default 950/G (never edited — `tracker_setting.my_points`
+> unset, service default applies). NEXT (explicit user sequencing): propose
+> the update formula for the user's dynamic points vs the static anchors
+> ("Chốt điểm từng người trước đã, rồi mới đề xuất cách tăng/giảm điểm của
+> tôi với họ sau"). v1 sketch from the planning debate: singles-only,
+> handicap folded into expected score (~40 Elo per point/set) — re-confirm
+> under the static-anchor model before building. Also pending (needs a plan
+> first): retire vs-below/equal/above from Match Stats analytics + picker
+> option chips in favour of points comparison.
+>
+> **Wording (user decision):** never say "điểm BBTV" in the GUI — just
+> "điểm". Legacy labels (trên/ngang/dưới cơ) are hidden from the Database
+> tab; the DB column stays and is still used by Match Stats/coach bundle.
+>
+> **Fixed this batch — points vanished on reload (report: "refresh mất hết
+> điểm"):** `player_to_out` built PlayerOut by hand and OMITTED `points`, so
+> every player API returned points=null; the tab only looked right while
+> local state patched saves. Data was never lost. Fix: pass `points=p.points`.
+> Test gap closed: tests asserted ordering + ORM values but never the
+> serialized response — now assert points in `list_players_db` output, before
+> and after update.
+>
+> **Built this batch — points-first add-player flow:**
+>   - PlayerPicker "+ Thêm" asks for POINTS (optional, empty = unrated) with
+>     a live rank chip instead of the below/equal/above buttons; gai checkbox
+>     kept. New players land in the Database tab automatically (same table).
+>   - Backend derives the legacy label from points vs the user's rating
+>     (same rank band = equal — service._rank_band/_level_vs_me, mirrors
+>     shared/rank.ts) so old vs-level analytics stay coherent. PlayerIn.level
+>     is now OPTIONAL (None): creates derive it, updates leave it untouched.
+>   - Database tab: legacy-label column removed; save feedback added (green ✓
+>     fades ~1.5s on success, red ✕ + red border on failure, ● = unsaved).
+>   - Sorting was already points-desc; it only LOOKED alphabetical because of
+>     the serialization bug above.
+>   - 47/47 pytest, build clean.
+>
+> **Earlier same day — new "Database" tab (🗄️, after Training Center):**
+>
+> **ELO design pivot (user decision):** only the USER's rating is dynamic;
+> every other player has STATIC points maintained BY HAND (user bumps them
+> manually if someone improves). BBTV Open scale: G 800–1000, F ≤1200,
+> E ≤1400, D ≤1600, C ≤1800, B ≤2000, A ≤2200; <800 = H (rank derives from
+> points — frontend/src/shared/rank.ts). User seeds at 950 (G), stored in
+> `tracker_setting` key `my_points`, NOT as a player row.
+>   - Backend: `tracker_player.points` INTEGER NULL (seed migration) +
+>     `tracker_setting` key-value table (create_all) holding `my_points`
+>     (default 950). PlayerIn.points=None means "leave unchanged" so the
+>     picker's pips toggle can't wipe ratings. GET /tracker/players-db (all
+>     70 players + matches_played counted across opponent/opponent2/partner,
+>     rated first by points desc, unrated last alphabetically),
+>     GET/PUT /tracker/my-rating.
+>   - FE `tabs/database/` (api/types/index) + styles/database.css +
+>     registry entry: my-rating card (edit inline; noted as the only dynamic
+>     rating), search box, "Đã xếp điểm x/70" progress, table rows: points
+>     input (save on blur/Enter, ● = unsaved), auto rank chip, gai checkbox
+>     (instant save), match count, legacy label muted. Local patch after
+>     save — no reload, keeps scroll position while entering 70 rows.
+
+## Earlier (2026-07-25, night) — handicap memory per opponent (committed `9629149`)
 
 > **Resume.** Picking a singles opponent in MatchEditor now pre-fills the
 > handicap from the LAST singles match against them (Tuấn Gỗ → được chấp
