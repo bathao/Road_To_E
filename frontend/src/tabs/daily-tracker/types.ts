@@ -38,13 +38,17 @@ export interface Player {
   level: PlayerLevel;
   note?: string | null;
   plays_pips: boolean; // opponent uses pimpled rubber ("đánh gai")
+  points?: number | null; // BBTV points (Database tab); null = not rated
 }
 
 export interface PlayerIn {
   name: string;
-  level: PlayerLevel;
+  // Omitted on create = backend derives the legacy label from points;
+  // omitted on update = label left untouched.
+  level?: PlayerLevel;
   note?: string | null;
   plays_pips?: boolean;
+  points?: number | null; // omitted/null on update = leave unchanged
 }
 
 export interface Match {

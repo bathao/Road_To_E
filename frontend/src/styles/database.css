@@ -1,0 +1,198 @@
+/* Database tab: player pool with hand-maintained BBTV points. */
+
+.db-tab {
+  max-width: 900px;
+}
+
+.db-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.db-head h2 {
+  margin: 0 0 4px;
+}
+
+.db-sub {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 0;
+  max-width: 460px;
+}
+
+/* "My rating" card — the only dynamic rating in the system. */
+.db-me {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: var(--surface);
+}
+
+.db-me-label {
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.db-me-points {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--accent-dark);
+}
+
+.db-me input {
+  width: 90px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+.db-me-note {
+  flex-basis: 100%;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.db-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 14px 0 10px;
+}
+
+.db-search {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  width: 240px;
+}
+
+.db-progress {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.db-table-wrap {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  overflow-x: auto;
+}
+
+.db-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.db-table th {
+  text-align: left;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.db-table td {
+  padding: 7px 12px;
+  border-bottom: 1px solid #f0f2f5;
+}
+
+.db-name {
+  font-weight: 600;
+}
+
+.db-points input {
+  width: 84px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.db-dirty {
+  color: #f59e0b;
+  margin-left: 6px;
+}
+
+/* Save feedback: ✓ fades out after a successful write, ✕ + red border on failure. */
+.db-saved {
+  color: #16a34a;
+  font-weight: 700;
+  margin-left: 6px;
+  animation: db-fade-out 1.5s ease-in forwards;
+}
+
+.db-failed {
+  color: #dc2626;
+  font-weight: 700;
+  margin-left: 6px;
+}
+
+.db-points input.db-input-failed {
+  border-color: #dc2626;
+}
+
+@keyframes db-fade-out {
+  0%,
+  55% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.db-rank {
+  display: inline-block;
+  min-width: 26px;
+  text-align: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  background: #eef2ff;
+  color: var(--accent-dark);
+  border: 1px solid var(--border);
+}
+
+.db-rank-none {
+  background: #f3f4f6;
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.78rem;
+}
+
+.db-pips label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.db-count {
+  color: var(--muted);
+  text-align: center;
+}
+
+.db-row-unrated {
+  background: #fffdf3;
+}
+
+.db-empty {
+  padding: 16px;
+  color: var(--muted);
+}

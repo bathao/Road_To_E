@@ -64,9 +64,14 @@ class CoachStartAllowedResponse(BaseModel):
 # ---------- Player (opponent / partner pool) ----------
 class PlayerIn(BaseModel):
     name: str
-    level: Literal["below", "equal", "above"] = "equal"
+    # None = caller doesn't manage the legacy label: creates derive it from
+    # points (vs the user's own rating), updates leave it untouched.
+    level: Literal["below", "equal", "above"] | None = None
     note: str | None = None
     plays_pips: bool = False  # opponent uses pimpled rubber ("đánh gai")
+    # Points. None = leave unchanged on update (e.g. the picker's pips
+    # toggle), "unrated" on create.
+    points: int | None = Field(default=None, ge=0, le=3000)
 
     @field_validator("name")
     @classmethod
@@ -84,6 +89,27 @@ class PlayerOut(BaseModel):
     level: str
     note: str | None = None
     plays_pips: bool = False
+    points: int | None = None
+
+
+class PlayerDbRow(PlayerOut):
+    """One row of the Database tab: player + how often they appear."""
+
+    matches_played: int = 0
+
+
+class PlayersDbResponse(BaseModel):
+    players: list[PlayerDbRow] = []
+
+
+class MyRatingOut(BaseModel):
+    """The user's own points (the only DYNAMIC rating; players are static)."""
+
+    points: int
+
+
+class MyRatingIn(BaseModel):
+    points: int = Field(ge=0, le=3000)
 
 
 # ---------- Match ----------

@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import type { Player } from "../../types";
 import { trackerApi } from "../../api";
-import { LEVELS, levelShort } from "../../../../shared/levels";
-import type { PlayerLevel } from "../../../../shared/levels";
+import { levelShort } from "../../../../shared/levels";
+import { rankOf } from "../../../../shared/rank";
 
 // A combobox to pick a player from the shared pool, or add a new one inline
-// (name + relative level). Returns the selected Player (or null when cleared).
+// (name + points; the legacy relative label is derived server-side). New
+// players land in the Database tab automatically — same table.
+// Returns the selected Player (or null when cleared).
 export default function PlayerPicker({
   label,
   value,
@@ -23,7 +25,7 @@ export default function PlayerPicker({
   const [results, setResults] = useState<Player[]>([]);
   const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState(false);
-  const [newLevel, setNewLevel] = useState<PlayerLevel>("equal");
+  const [newPoints, setNewPoints] = useState(""); // empty = unrated (fill in later)
   const [newPips, setNewPips] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,18 +55,24 @@ export default function PlayerPicker({
     setOpen(false);
     setAdding(false);
     setQuery("");
+    setNewPoints("");
     setNewPips(false);
   };
 
+  const parsedPoints = newPoints.trim() === "" ? null : Number(newPoints);
+  const pointsValid =
+    parsedPoints === null ||
+    (!Number.isNaN(parsedPoints) && parsedPoints >= 0 && parsedPoints <= 3000);
+
   const addNew = async () => {
     const name = query.trim();
-    if (!name || busy) return;
+    if (!name || busy || !pointsValid) return;
     setBusy(true);
     try {
       const p = await trackerApi.createPlayer({
         name,
-        level: newLevel,
         plays_pips: newPips,
+        points: parsedPoints,
       });
       setError(null);
       select(p);
@@ -201,18 +209,23 @@ export default function PlayerPicker({
                 ) : (
                   <div className="player-add-form">
                     <div className="player-add-name">
-                      Thêm <b>{query.trim()}</b> — trình độ:
+                      Thêm <b>{query.trim()}</b> — điểm:
                     </div>
-                    <div className="seg">
-                      {LEVELS.map((l) => (
-                        <button
-                          key={l.key}
-                          className={`seg-btn${newLevel === l.key ? " active" : ""}`}
-                          onClick={() => setNewLevel(l.key)}
-                        >
-                          {l.label}
-                        </button>
-                      ))}
+                    <div className="player-add-points">
+                      <input
+                        type="number"
+                        min={0}
+                        max={3000}
+                        placeholder="chưa rõ"
+                        value={newPoints}
+                        onChange={(e) => setNewPoints(e.target.value)}
+                      />
+                      {pointsValid && parsedPoints !== null && (
+                        <span className="db-rank">{rankOf(parsedPoints)}</span>
+                      )}
+                      {!pointsValid && (
+                        <span className="pb-error">0–3000</span>
+                      )}
                     </div>
                     {pipsEditable && (
                       <label className="pips-check">
@@ -227,7 +240,7 @@ export default function PlayerPicker({
                     <button
                       className="btn primary"
                       onClick={addNew}
-                      disabled={busy}
+                      disabled={busy || !pointsValid}
                     >
                       Lưu người mới
                     </button>

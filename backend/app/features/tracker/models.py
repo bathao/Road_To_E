@@ -70,6 +70,19 @@ class Player(Base):
     # person (by name), not of an individual match — all existing players default
     # to False; flip it once and every match against them counts as "vs pips".
     plays_pips: Mapped[bool] = mapped_column(Boolean, default=False)
+    # BBTV Open points (G = 800–1000, F ≤1200, E ≤1400, …), maintained BY HAND
+    # in the Database tab. Static anchors: only the user's own rating is
+    # dynamic (ELO); NULL = not rated yet. Supersedes `level` eventually.
+    points: Mapped[int | None] = mapped_column(Integer, default=None)
+
+
+class Setting(Base):
+    """Tiny key-value store for app-level knobs (e.g. the user's own points)."""
+
+    __tablename__ = "tracker_setting"
+
+    key: Mapped[str] = mapped_column(String, primary_key=True)
+    value: Mapped[str] = mapped_column(String, nullable=False)
 
 
 class Match(Base):

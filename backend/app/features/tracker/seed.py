@@ -18,6 +18,8 @@ log = logging.getLogger(__name__)
 _PLAYER_COLUMNS = {
     # Opponent uses pimpled rubber ("đánh gai"). Existing players default to 0.
     "plays_pips": "BOOLEAN DEFAULT 0",
+    # BBTV Open points (Database tab); NULL = not rated yet.
+    "points": "INTEGER",
 }
 _MATCH_COLUMNS = {
     # Per-set handicap sequence ("2-0-2"); NULL = uniform handicap (existing

@@ -3,6 +3,7 @@
 import type { ComponentType } from "react";
 import ComingSoon from "./ComingSoon";
 import DailyTracker from "./daily-tracker";
+import DatabaseTab from "./database";
 import MatchStats from "./match-stats";
 import PlayerProfile from "./profile";
 import TrainingCenter from "./training-center";
@@ -50,6 +51,13 @@ export const TABS: TabDef[] = [
     label: "Training Center",
     icon: "💪",
     component: TrainingCenter,
+    enabled: true,
+  },
+  {
+    id: "database",
+    label: "Database",
+    icon: "🗄️",
+    component: DatabaseTab,
     enabled: true,
   },
   {

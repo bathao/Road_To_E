@@ -560,6 +560,21 @@
   color: var(--muted);
 }
 
+/* Points input in the add-new form; the rank chip (.db-rank) updates live. */
+.player-add-points {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.player-add-points input {
+  width: 90px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+}
+
 .player-selected {
   flex: 1;
   display: flex;

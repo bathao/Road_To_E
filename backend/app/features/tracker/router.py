@@ -287,7 +287,8 @@ def list_players(q: str = Query("", description="search term"), db: Session = De
 
 @router.post("/players", response_model=schemas.PlayerOut)
 def create_player(payload: schemas.PlayerIn, db: Session = Depends(get_db)):
-    """Add a new player (get-or-create by name) with a relative level."""
+    """Add a new player (get-or-create by name); points optional, the legacy
+    relative label is derived from them server-side."""
     return service.create_or_get_player(db, payload)
 
 
@@ -297,6 +298,24 @@ def update_player(player_id: int, payload: schemas.PlayerIn, db: Session = Depen
     if updated is None:
         raise HTTPException(status_code=404, detail="Player not found")
     return updated
+
+
+# ---------------------------------------------------------------- database tab
+@router.get("/players-db", response_model=schemas.PlayersDbResponse)
+def players_db(db: Session = Depends(get_db)):
+    """Every player + match count, rated first (the Database tab)."""
+    return service.list_players_db(db)
+
+
+@router.get("/my-rating", response_model=schemas.MyRatingOut)
+def get_my_rating(db: Session = Depends(get_db)):
+    """The user's own points — the only dynamic rating in the system."""
+    return schemas.MyRatingOut(points=service.get_my_points(db))
+
+
+@router.put("/my-rating", response_model=schemas.MyRatingOut)
+def set_my_rating(payload: schemas.MyRatingIn, db: Session = Depends(get_db)):
+    return schemas.MyRatingOut(points=service.set_my_points(db, payload.points))
 
 
 # ---------------------------------------------------------------- stats

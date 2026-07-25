@@ -18,6 +18,7 @@ from app.features.tracker.models import (
     Match,
     PhysicalCheck,
     Player,
+    Setting,
 )
 from app.features.training import service as training_service
 
@@ -237,6 +238,7 @@ def player_to_out(p: Player) -> schemas.PlayerOut:
         level=p.level,
         note=p.note,
         plays_pips=bool(p.plays_pips),
+        points=p.points,
     )
 
 
@@ -248,14 +250,42 @@ def list_players(db: Session, q: str = "") -> list[schemas.PlayerOut]:
     return [player_to_out(p) for p in rows]
 
 
+# Rank bands (H=0, then G..A per 200 points) — mirrors frontend shared/rank.ts.
+_RANK_TOPS = (1000, 1200, 1400, 1600, 1800, 2000)
+
+
+def _rank_band(points: int) -> int:
+    if points < 800:
+        return 0  # H
+    for band, top in enumerate(_RANK_TOPS, start=1):
+        if points <= top:
+            return band  # G..B
+    return 7  # A
+
+
+def _level_vs_me(db: Session, points: int) -> str:
+    """Legacy relative label derived from points: same rank band as the user's
+    own rating = equal. Keeps the old vs-level analytics coherent while new
+    players are created with points instead of a hand-picked label."""
+    theirs, mine = _rank_band(points), _rank_band(get_my_points(db))
+    return "above" if theirs > mine else "below" if theirs < mine else "equal"
+
+
 def create_or_get_player(db: Session, payload: schemas.PlayerIn) -> schemas.PlayerOut:
     """Get-or-create by name. If the player exists, keep it (level unchanged)."""
     name = (payload.name or "").strip()
-    level = payload.level if payload.level in _PLAYER_LEVELS else "equal"
     existing = db.query(Player).filter(Player.name == name).first()
     if existing is None:
+        if payload.points is not None:
+            level = _level_vs_me(db, payload.points)
+        else:
+            level = payload.level if payload.level in _PLAYER_LEVELS else "equal"
         existing = Player(
-            name=name, level=level, note=payload.note, plays_pips=payload.plays_pips
+            name=name,
+            level=level,
+            note=payload.note,
+            plays_pips=payload.plays_pips,
+            points=payload.points,
         )
         db.add(existing)
         db.commit()
@@ -274,9 +304,68 @@ def update_player(
         p.level = payload.level
     p.note = payload.note
     p.plays_pips = payload.plays_pips
+    # None = caller doesn't manage points (e.g. the picker's pips toggle) —
+    # never wipe a rating the user set in the Database tab.
+    if payload.points is not None:
+        p.points = payload.points
     db.commit()
     db.refresh(p)
     return player_to_out(p)
+
+
+def list_players_db(db: Session) -> schemas.PlayersDbResponse:
+    """Every player + how often they appear in matches (the Database tab).
+
+    Rated players first (highest points on top — a ranking table), unrated
+    last alphabetically so they're easy to work through."""
+    players = db.query(Player).all()
+    counts: dict[int, int] = {}
+    for col in (Match.opponent_id, Match.opponent2_id, Match.partner_id):
+        rows = (
+            db.query(col, func.count(Match.id))
+            .filter(col.isnot(None))
+            .group_by(col)
+            .all()
+        )
+        for pid, n in rows:
+            counts[pid] = counts.get(pid, 0) + n
+    ordered = sorted(
+        players,
+        key=lambda p: (
+            p.points is None,  # rated first
+            -(p.points or 0),
+            p.name.lower(),
+        ),
+    )
+    return schemas.PlayersDbResponse(
+        players=[
+            schemas.PlayerDbRow(
+                **player_to_out(p).model_dump(), matches_played=counts.get(p.id, 0)
+            )
+            for p in ordered
+        ]
+    )
+
+
+# The user's own points — the only DYNAMIC rating (player points are static
+# anchors maintained by hand). Stored in the key-value settings table.
+_MY_POINTS_KEY = "my_points"
+_MY_POINTS_DEFAULT = 950  # rank G, set 2026-07-25
+
+
+def get_my_points(db: Session) -> int:
+    row = db.get(Setting, _MY_POINTS_KEY)
+    return int(row.value) if row is not None else _MY_POINTS_DEFAULT
+
+
+def set_my_points(db: Session, points: int) -> int:
+    row = db.get(Setting, _MY_POINTS_KEY)
+    if row is None:
+        db.add(Setting(key=_MY_POINTS_KEY, value=str(points)))
+    else:
+        row.value = str(points)
+    db.commit()
+    return points
 
 
 # ---------------------------------------------------------------- events
