@@ -686,3 +686,234 @@
   color: #9a7d00;
   font-weight: 600;
 }
+
+/* ---------------------------------------------------------- tournaments */
+/* Strip: one line above the grid; hidden entirely when nothing upcoming. */
+.tour-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+}
+.tour-strip.urgent {
+  border-left-color: #dc2626;
+}
+.tour-strip-rows {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.tour-strip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tour-strip-name {
+  font-weight: 700;
+}
+.tour-strip-count {
+  font-weight: 700;
+  color: var(--accent-dark);
+}
+.tour-strip-count.urgent {
+  color: #dc2626;
+}
+.tour-strip-more {
+  color: var(--accent);
+  font-size: 0.85rem;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.tour-strip-manage {
+  margin-left: auto;
+  color: var(--accent);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.tour-chip {
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #f3f4f6;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+/* Section at the bottom of the page. */
+.tour-section {
+  margin-top: 28px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.tour-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.tour-head h2 {
+  margin: 0;
+}
+.tour-hint {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 4px 0 12px;
+}
+.tour-empty {
+  color: var(--muted);
+  padding: 12px 0;
+}
+.tour-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.tour-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: #fff;
+  min-width: 260px;
+  max-width: 360px;
+}
+.tour-card.urgent {
+  border-color: #dc2626;
+}
+.tour-card.past {
+  opacity: 0.65;
+}
+.tour-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+}
+.tour-card-name {
+  font-weight: 700;
+}
+.tour-card-count {
+  font-weight: 700;
+  color: var(--accent-dark);
+  white-space: nowrap;
+}
+.tour-card.urgent .tour-card-count {
+  color: #dc2626;
+}
+.tour-card-meta {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 2px 0 6px;
+}
+.tour-card-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tour-card-note {
+  margin-top: 6px;
+  font-size: 0.85rem;
+}
+.tour-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.tour-past-head {
+  font-weight: 600;
+  color: var(--muted);
+  margin: 10px 0 6px;
+}
+
+/* Add/edit form (collapsed behind the button). */
+.tour-form {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  background: #fafafa;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.tour-form-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: end;
+}
+.tour-form-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.tour-name {
+  min-width: 240px;
+  font-weight: 600;
+}
+.tour-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+.tour-entries-head {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.tour-entry-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.tour-levels {
+  display: inline-flex;
+  flex-wrap: wrap;
+}
+.tour-levels .seg-btn {
+  min-width: 34px;
+  justify-content: center;
+}
+.tour-partner {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #eef2ff;
+}
+.tour-form-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Tournament rank-limit chip ("Trình: E F G") — visually distinct from
+   the discipline chips. */
+.tour-chip-limit {
+  background: #fef3c7;
+  border-color: #f59e0b;
+}
+
+/* Team-entry roster editor: pills + picker + optional team name. */
+.tour-team {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}

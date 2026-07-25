@@ -26,6 +26,7 @@ from app.features.head_coach.prompt import (
     RESPONSE_SCHEMA,
     SYSTEM_PROMPT,
 )
+from app.features.tournament import service as tournament_service
 from app.features.tracker import service as tracker_service
 from app.features.tracker.models import DayNote
 from app.features.training import service as training_service
@@ -164,6 +165,8 @@ def gather_bundle(db: Session) -> schemas.SourceSummary:
         match_detail=match_detail,
         notes=notes,
         coach_notes=coach_notes,
+        # Registered upcoming competitions — the week plan aims at these.
+        tournaments=tournament_service.upcoming_for_coach(db),
         generated_for_range=f"{date_from.isoformat()} → {today.isoformat()}",
     )
 
@@ -219,6 +222,23 @@ def _bundle_to_text(b: schemas.SourceSummary) -> str:
         for r in d.get("top_h2h", [])
     ) or "  (chưa có)"
 
+    def _tour_line(t: dict) -> str:
+        d = t.get("days_left", 0)
+        when = (
+            "ĐANG DIỄN RA"
+            if d < 0
+            else ("HÔM NAY" if d == 0 else f"còn {d} ngày (bắt đầu {t.get('start_date')})")
+        )
+        loc = f" tại {t['location']}" if t.get("location") else ""
+        limit = f" Giới hạn trình: {t['level_limit']}." if t.get("level_limit") else ""
+        entries = "; ".join(t.get("entries", [])) or "chưa ghi nội dung"
+        note = f" Ghi chú: {t['note']}" if t.get("note") else ""
+        return f"  - {t.get('name')}{loc}: {when}.{limit} Nội dung: {entries}.{note}"
+
+    tour_lines = "\n".join(_tour_line(t) for t in b.tournaments) or (
+        "  (chưa đăng ký giải nào)"
+    )
+
     note_lines = "\n".join(
         f"  - {n['date']}: {n['text']}" for n in b.notes
     ) or "  (không có ghi chú)"
@@ -259,6 +279,8 @@ def _bundle_to_text(b: schemas.SourceSummary) -> str:
         f"điều chỉnh cường độ: {t.get('intensity_bias')}.\n"
         f"Khối lượng theo nhóm cơ: {muscle}\n"
         f"Tự nhận xét tuần: {t.get('summary')}\n\n"
+        f"=== GIẢI ĐẤU SẮP TỚI (học trò đã đăng ký) ===\n"
+        f"{tour_lines}\n\n"
         f"=== GHI CHÚ HẰNG NGÀY CỦA HỌC TRÒ (mới nhất trước) ===\n"
         f"{note_lines}\n\n"
         f"=== SỔ TAY HLV (mục tiêu/mốc thời gian/ràng buộc đã chốt với học trò) ===\n"

@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 
 from app.features.head_coach import router as head_coach_router
 from app.features.head_coach import seed as head_coach_seed
+from app.features.tournament import router as tournament_router
+from app.features.tournament import seed as tournament_seed
 from app.features.tracker import router as tracker_router
 from app.features.tracker import seed as tracker_seed
 from app.features.training import router as training_router
@@ -26,6 +28,7 @@ FEATURE_ROUTERS = [
     video_router.router,
     training_router.router,
     head_coach_router.router,
+    tournament_router.router,
 ]
 
 # Idempotent seed callables run on startup.
@@ -34,6 +37,7 @@ SEED_FUNCS = [
     video_seed.seed_profile,
     training_seed.migrate,
     head_coach_seed.migrate,
+    tournament_seed.migrate,
 ]
 
 

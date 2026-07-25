@@ -63,6 +63,8 @@ class SourceSummary(BaseModel):
     match_detail: dict = {}  # by-level, practice-vs-official, trend, head-to-head
     notes: list[dict] = []  # recent day notes [{date, text}]
     coach_notes: list[dict] = []  # coach notebook entries [{date, text}]
+    # Upcoming registered tournaments [{name, start_date, days_left, entries…}].
+    tournaments: list[dict] = []
     generated_for_range: str = ""  # the date window used for match/training stats
     # Legacy fields (pre-retirement snapshots only).
     video: dict = {}

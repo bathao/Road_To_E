@@ -31,4 +31,4 @@ HEAD_COACH_MODEL = "qwen3.5:9b"
 # Built frontend (Vite output). Served as the SPA in production.
 FRONTEND_DIST = PROJECT_DIR / "frontend" / "dist"
 
-APP_TITLE = "Table Tennis Coach"
+APP_TITLE = "Road To E"

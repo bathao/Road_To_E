@@ -156,6 +156,54 @@ export interface ActivityIn {
   is_package_start?: boolean;
 }
 
+// ---- tournaments (scheduling commitments; match results stay in the grid) ----
+export type TournamentDiscipline = "singles" | "doubles" | "team";
+
+export interface TournamentEntry {
+  id: number;
+  discipline: TournamentDiscipline;
+  partner_id?: number | null;
+  partner_name?: string | null; // resolved by the backend for display
+  teammate_ids?: number[]; // team roster (players from the shared pool)
+  teammate_names?: string[]; // resolved, same order as ids
+  team_members?: string | null; // optional team name / note
+  division?: string | null; // "hạng E", "U40"…
+}
+
+export interface Tournament {
+  id: number;
+  name: string;
+  location?: string | null;
+  start_date: string;
+  end_date?: string | null; // null = single-day
+  level_limit?: string | null; // allowed ranks, free text ("E F G"…)
+  note?: string | null;
+  entries: TournamentEntry[];
+}
+
+export interface TournamentEntryIn {
+  discipline: TournamentDiscipline;
+  partner_id?: number | null;
+  teammate_ids?: number[];
+  team_members?: string | null;
+  division?: string | null;
+}
+
+export interface TournamentIn {
+  name: string;
+  location?: string | null;
+  start_date: string;
+  end_date?: string | null;
+  level_limit?: string | null;
+  note?: string | null;
+  entries: TournamentEntryIn[];
+}
+
+export interface TournamentsResponse {
+  // Upcoming first (soonest on top), then past (newest first).
+  tournaments: Tournament[];
+}
+
 // ---- coach packages (10-session blocks) ----
 export type CoachPackageStatus = "ok" | "low" | "done" | "over";
 

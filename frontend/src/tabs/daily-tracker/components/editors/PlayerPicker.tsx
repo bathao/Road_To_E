@@ -158,7 +158,14 @@ export default function PlayerPicker({
         <input
           type="text"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            // Typing = searching. After a pick the input may still hold
+            // focus (mousedown is prevented), so onFocus won't re-fire —
+            // without this the dropdown stays closed while typing (seen in
+            // the tournament team picker, which keeps the combo mounted).
+            setOpen(true);
+          }}
           placeholder="Tìm hoặc thêm người…"
         />
         {open && (

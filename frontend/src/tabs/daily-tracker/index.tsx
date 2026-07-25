@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import type { Category, MatchIn, WeekResponse } from "./types";
-import { trackerApi } from "./api";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { Category, MatchIn, TournamentsResponse, WeekResponse } from "./types";
+import { tournamentApi, trackerApi } from "./api";
 import { fromIso, startOfMonth, toIso } from "../../shared/dates";
 import type { Mode } from "../../shared/period";
 import { resolveRange, stepAnchor } from "../../shared/period";
@@ -13,6 +13,8 @@ import MatchEditor from "./components/editors/MatchEditor";
 import ChecklistEditor from "./components/editors/ChecklistEditor";
 import NoteEditor from "./components/editors/NoteEditor";
 import AnalysisPanel from "./components/AnalysisPanel";
+import TournamentStrip from "./components/tournaments/TournamentStrip";
+import TournamentSection from "./components/tournaments/TournamentSection";
 import { trainingApi } from "../training-center/api";
 import SessionCard from "../training-center/components/SessionCard";
 import type { TrainingSession } from "../training-center/types";
@@ -57,6 +59,13 @@ export default function DailyTracker() {
   );
   const { run, error: mutateError, clearError } = useMutate();
   const error = mutateError ?? loadError;
+
+  // Tournaments: one load shared by the strip (top) and the section (bottom);
+  // section mutations push the fresh list back via setTournaments.
+  const { data: tournData, setData: setTournaments } =
+    useLoad<TournamentsResponse>(() => tournamentApi.list(), []);
+  const tournaments = tournData?.tournaments ?? [];
+  const tournRef = useRef<HTMLDivElement>(null);
 
   // On first mount, jump the timeline to the most recent day that has data
   // (today is usually empty until it is logged).
@@ -207,6 +216,13 @@ export default function DailyTracker() {
         </div>
       </div>
 
+      <TournamentStrip
+        tournaments={tournaments}
+        onManage={() =>
+          tournRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+        }
+      />
+
       {error && (
         <div className="error-banner" onClick={clearError}>
           ⚠ {error}
@@ -235,6 +251,12 @@ export default function DailyTracker() {
         reloadSignal={dataVersion}
         gutterPx={gridGutter}
       />
+
+      {/* Bottom by design: input is rare (the strip on top does the daily
+          job); ordered below the daily-use Analysis panel. */}
+      <div ref={tournRef}>
+        <TournamentSection tournaments={tournaments} onData={setTournaments} />
+      </div>
 
       {editing && (
         <Modal

@@ -11,6 +11,8 @@ import type {
   Player,
   PlayerIn,
   StatsResponse,
+  TournamentIn,
+  TournamentsResponse,
   WeekResponse,
 } from "./types";
 
@@ -79,4 +81,15 @@ export const trackerApi = {
 
   exportUrl: (fromIso: string, toIso: string, format: "xlsx" | "csv") =>
     apiUrl(`/tracker/export?from=${fromIso}&to=${toIso}&format=${format}`),
+};
+
+// Tournaments: scheduling commitments shown in the Daily Tracker (strip on
+// top + section at the bottom). Every mutation returns the fresh full list.
+export const tournamentApi = {
+  list: () => api.get<TournamentsResponse>("/tournaments"),
+  create: (payload: TournamentIn) =>
+    api.post<TournamentsResponse>("/tournaments", payload),
+  update: (id: number, payload: TournamentIn) =>
+    api.put<TournamentsResponse>(`/tournaments/${id}`, payload),
+  remove: (id: number) => api.del<TournamentsResponse>(`/tournaments/${id}`),
 };

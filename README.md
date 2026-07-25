@@ -1,6 +1,7 @@
-# Table Tennis Coach
+# Road To E 🏓
 
-A local web tool that acts as a personal table tennis coach: plan, log daily
+A local web tool that acts as a personal table tennis coach on the road from
+rank G to rank E: plan, log daily
 activity, analyze, and track progress. Built one tab at a time on an extensible
 multi-tab architecture.
 

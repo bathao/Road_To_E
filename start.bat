@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================================
-REM  Table Tennis Coach - one-click launcher (Windows)
+REM  Road To E - one-click launcher (Windows)
 REM  - installs backend + frontend deps on first run
 REM  - rebuilds the frontend fresh (clears old dist so the browser gets new code)
 REM  - starts the FastAPI server on port 8000

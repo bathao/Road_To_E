@@ -16,7 +16,7 @@ export default function AppShell() {
       <header className="app-header">
         <div className="app-title">
           <span className="app-logo">🏓</span>
-          <span>Table Tennis Coach</span>
+          <span>Road To E</span>
         </div>
         <nav className="tab-bar">
           {TABS.map((tab) => (
