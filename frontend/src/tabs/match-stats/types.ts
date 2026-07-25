@@ -16,6 +16,7 @@ export interface MatchLine {
   opp_sets: number;
   result: "W" | "L" | "T";
   handicap: number;
+  handicap_pattern?: string | null; // per-set sequence ("2-0-2"); null = uniform
   event_name: string | null;
 }
 

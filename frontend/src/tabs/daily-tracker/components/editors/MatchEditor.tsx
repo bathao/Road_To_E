@@ -28,10 +28,26 @@ function playersLabel(m: Match): string {
     const gai = m.opponent_plays_pips ? " 🏓gai" : "";
     parts.push(`vs ${m.opponent_name} (${levelShort(m.opponent_level)})${gai}`);
   }
-  if (m.handicap > 0) parts.push(`chấp ${m.handicap}`);
-  else if (m.handicap < 0) parts.push(`được chấp ${-m.handicap}`);
+  // Non-uniform ratios show the per-set sequence ("2-0-2"), uniform the number.
+  const hdc = m.handicap_pattern ?? String(Math.abs(m.handicap));
+  if (m.handicap > 0) parts.push(`chấp ${hdc}`);
+  else if (m.handicap < 0) parts.push(`được chấp ${hdc}`);
   return parts.join(" ");
 }
+
+// Common per-set handicap ratios ("2-0-2" = set 1: 2, set 2: 0, set 3: 2).
+// Anything else goes through "Khác…" (digits typed by hand).
+const HANDICAP_PATTERNS = [
+  "0-2-0",
+  "2-0-2",
+  "2-2-2",
+  "2-3-2",
+  "3-2-3",
+  "3-3-3",
+  "3-4-3",
+  "4-3-4",
+  "4-4-4",
+];
 
 // Dropdown-driven match entry. Pick discipline + format + the player(s) + an
 // optional handicap, then tap a final score. Plus event autocomplete & Travel/Rest.
@@ -56,7 +72,9 @@ export default function MatchEditor({
   const [partner, setPartner] = useState<Player | null>(null);
 
   const [handicapDir, setHandicapDir] = useState<HandicapDir>("none");
-  const [handicapPoints, setHandicapPoints] = useState(2);
+  // A preset from HANDICAP_PATTERNS, or "custom" (digits in customPattern).
+  const [handicapChoice, setHandicapChoice] = useState("2-2-2");
+  const [customPattern, setCustomPattern] = useState("");
 
   // Event autocomplete (debounced).
   useEffect(() => {
@@ -78,12 +96,32 @@ export default function MatchEditor({
 
   const { wins, losses } = validScores(bestOf);
 
+  // Per-set digits of the chosen ratio. Uniform ("2-2-2") is stored as the
+  // plain signed int like before; only mixed ratios carry a pattern, with
+  // `handicap` = signed rounded per-set average (min 1 so the sign survives)
+  // — sign-based analytics stay valid either way.
+  const patternDigits = (
+    handicapChoice === "custom" ? customPattern : handicapChoice
+  )
+    .split("")
+    .filter((c) => c >= "0" && c <= "9")
+    .map(Number);
+  const uniform = new Set(patternDigits).size <= 1;
+  const points =
+    patternDigits.length === 0
+      ? 0
+      : uniform
+      ? patternDigits[0]
+      : Math.max(
+          1,
+          Math.round(
+            patternDigits.reduce((a, b) => a + b, 0) / patternDigits.length
+          )
+        );
   const handicap =
-    handicapDir === "give"
-      ? handicapPoints
-      : handicapDir === "receive"
-      ? -handicapPoints
-      : 0;
+    handicapDir === "give" ? points : handicapDir === "receive" ? -points : 0;
+  const handicapPattern =
+    handicapDir !== "none" && !uniform ? patternDigits.join("-") : null;
 
   const addScore = (my: number, opp: number) => {
     onAdd({
@@ -96,6 +134,7 @@ export default function MatchEditor({
       opponent2_id: discipline === "doubles" ? opponent2?.id ?? null : null,
       partner_id: discipline === "doubles" ? partner?.id ?? null : null,
       handicap,
+      handicap_pattern: handicapPattern,
     });
     // Clear the opponent(s) so the next person can be picked right away.
     // Partner + handicap + format are kept (usually the same across a session).
@@ -191,21 +230,31 @@ export default function MatchEditor({
           ))}
         </div>
         {handicapDir !== "none" && (
-          <div className="handicap-stepper">
-            <button
-              className="icon-btn"
-              onClick={() => setHandicapPoints((n) => Math.max(1, n - 1))}
+          <div className="handicap-pick">
+            <select
+              className="pb-select"
+              value={handicapChoice}
+              onChange={(e) => setHandicapChoice(e.target.value)}
             >
-              −
-            </button>
-            <span className="handicap-num">{handicapPoints}</span>
-            <button
-              className="icon-btn"
-              onClick={() => setHandicapPoints((n) => Math.min(20, n + 1))}
-            >
-              +
-            </button>
-            <span className="handicap-unit">quả</span>
+              {HANDICAP_PATTERNS.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+              <option value="custom">Khác…</option>
+            </select>
+            {handicapChoice === "custom" && (
+              <input
+                type="text"
+                inputMode="numeric"
+                className="pb-input handicap-custom"
+                placeholder="vd: 42024"
+                value={customPattern}
+                onChange={(e) =>
+                  setCustomPattern(e.target.value.replace(/\D/g, ""))
+                }
+              />
+            )}
           </div>
         )}
       </div>

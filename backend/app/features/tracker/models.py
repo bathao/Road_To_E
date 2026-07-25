@@ -98,6 +98,11 @@ class Match(Base):
     opponent2_id: Mapped[int | None] = mapped_column(ForeignKey("tracker_player.id"), default=None)
     partner_id: Mapped[int | None] = mapped_column(ForeignKey("tracker_player.id"), default=None)
     handicap: Mapped[int] = mapped_column(Integer, default=0)
+    # Per-set handicap sequence for non-uniform ratios ("2-0-2" = set 1: 2,
+    # set 2: 0, set 3: 2). None = uniform (`handicap` alone carries it). When
+    # set, `handicap` stores the signed per-set AVERAGE (rounded, min 1) so
+    # sign-based analytics keep working unchanged.
+    handicap_pattern: Mapped[str | None] = mapped_column(String, default=None)
 
     # Default (lazy="select") loading. The bulk readers eager-load these with
     # selectinload() in service._load_range / build_match_stats to avoid N+1;

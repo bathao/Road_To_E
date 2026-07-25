@@ -220,6 +220,7 @@ def match_to_out(m: Match) -> schemas.MatchOut:
         partner_name=m.partner.name if m.partner else None,
         partner_level=m.partner.level if m.partner else None,
         handicap=m.handicap or 0,
+        handicap_pattern=m.handicap_pattern,
     )
 
 
@@ -720,6 +721,16 @@ def win_rate(wins: int, losses: int) -> float | None:
     return (wins / decided) if decided else None
 
 
+def normalize_handicap_pattern(raw: str | None) -> str | None:
+    """"202" / "2-0-2" → "2-0-2". Uniform sequences ("222") and empty input
+    collapse to None — the plain signed `handicap` int already carries a
+    uniform per-set value, so only genuinely mixed ratios store a pattern."""
+    digits = [c for c in (raw or "") if c.isdigit()]
+    if not digits or len(set(digits)) == 1:
+        return None
+    return "-".join(digits)
+
+
 def _result_of(m: Match) -> str:
     return _result_letter(m.my_sets, m.opp_sets)
 
@@ -1068,6 +1079,7 @@ def build_match_stats(
                 opp_sets=m.opp_sets,
                 result=_result_of(m),
                 handicap=m.handicap or 0,
+                handicap_pattern=m.handicap_pattern,
                 event_name=m.event.name if m.event else None,
             )
         )

@@ -106,6 +106,8 @@ class MatchIn(BaseModel):
     opponent2_id: int | None = None
     partner_id: int | None = None
     handicap: int = 0
+    # Per-set sequence for non-uniform ratios ("2-0-2"); None = uniform.
+    handicap_pattern: str | None = None
 
 
 class MatchOut(BaseModel):
@@ -135,6 +137,7 @@ class MatchOut(BaseModel):
     partner_name: str | None = None
     partner_level: str | None = None
     handicap: int = 0
+    handicap_pattern: str | None = None
 
 
 class EventOut(BaseModel):
@@ -249,6 +252,7 @@ class MatchLine(BaseModel):
     opp_sets: int
     result: str  # W | L | T
     handicap: int = 0
+    handicap_pattern: str | None = None
     event_name: str | None = None
 
 

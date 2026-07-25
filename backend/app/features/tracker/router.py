@@ -166,6 +166,7 @@ def create_match(payload: schemas.MatchIn, db: Session = Depends(get_db)):
         opponent2_id=payload.opponent2_id,
         partner_id=payload.partner_id,
         handicap=payload.handicap or 0,
+        handicap_pattern=service.normalize_handicap_pattern(payload.handicap_pattern),
     )
     db.add(match)
     db.commit()
@@ -197,6 +198,7 @@ def update_match(match_id: int, payload: schemas.MatchIn, db: Session = Depends(
     match.opponent2_id = payload.opponent2_id
     match.partner_id = payload.partner_id
     match.handicap = payload.handicap or 0
+    match.handicap_pattern = service.normalize_handicap_pattern(payload.handicap_pattern)
     db.commit()
     db.refresh(match)
     return service.match_to_out(match)

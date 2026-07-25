@@ -19,11 +19,17 @@ _PLAYER_COLUMNS = {
     # Opponent uses pimpled rubber ("đánh gai"). Existing players default to 0.
     "plays_pips": "BOOLEAN DEFAULT 0",
 }
+_MATCH_COLUMNS = {
+    # Per-set handicap sequence ("2-0-2"); NULL = uniform handicap (existing
+    # rows stay as-is — the signed `handicap` int already carries them).
+    "handicap_pattern": "VARCHAR",
+}
 
 
 def migrate(db: Session) -> None:
     """Idempotent column migrations for tables that predate a new field."""
     changed = add_missing_columns(db, "tracker_player", _PLAYER_COLUMNS)
+    changed = add_missing_columns(db, "tracker_match", _MATCH_COLUMNS) or changed
     changed = _ensure_activity_unique_index(db) or changed
     if changed:
         db.commit()

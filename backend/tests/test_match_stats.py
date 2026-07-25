@@ -92,3 +92,15 @@ def test_build_handicap_split_directions(db):
     assert res["below"]["even"]["wins"] == 1
     # No handicapped matches vs equal opponents -> the cells are omitted.
     assert res["equal"] == {}
+
+
+def test_normalize_handicap_pattern():
+    """Digits in any format -> "a-b-c"; uniform/empty collapse to None (the
+    signed handicap int alone carries uniform ratios)."""
+    assert service.normalize_handicap_pattern("202") == "2-0-2"
+    assert service.normalize_handicap_pattern("2-3-2") == "2-3-2"
+    assert service.normalize_handicap_pattern(" 4 3 4 ") == "4-3-4"
+    assert service.normalize_handicap_pattern("222") is None
+    assert service.normalize_handicap_pattern("2") is None
+    assert service.normalize_handicap_pattern("") is None
+    assert service.normalize_handicap_pattern(None) is None

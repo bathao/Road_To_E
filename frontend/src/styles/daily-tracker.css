@@ -614,21 +614,13 @@
   flex-wrap: wrap;
 }
 
-.handicap-stepper {
-  display: inline-flex;
+.handicap-pick {
+  display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
-
-.handicap-num {
-  min-width: 20px;
-  text-align: center;
-  font-weight: 600;
-}
-
-.handicap-unit {
-  font-size: 13px;
-  color: var(--muted);
+.handicap-custom {
+  width: 110px;
 }
 
 /* Notes cell: small, left-aligned snippet that never blows up the row. */

@@ -8,11 +8,13 @@ export default function MatchLines({ rows }: { rows: MatchLine[] }) {
   return (
     <ol className="match-lines">
       {rows.map((m, i) => {
+        // Non-uniform ratios show the per-set sequence ("2-0-2").
+        const amount = m.handicap_pattern ?? String(Math.abs(m.handicap));
         const hc =
           m.handicap > 0
-            ? `chấp ${m.handicap}`
+            ? `chấp ${amount}`
             : m.handicap < 0
-            ? `được chấp ${-m.handicap}`
+            ? `được chấp ${amount}`
             : null;
         return (
           <li className="match-line" key={i}>

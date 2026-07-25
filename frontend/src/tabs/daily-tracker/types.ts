@@ -74,6 +74,8 @@ export interface Match {
   partner_name: string | null;
   partner_level: PlayerLevel | null;
   handicap: number; // signed: +N = I give N points, -N = I receive
+  // Per-set sequence for non-uniform ratios ("2-0-2"); null = uniform.
+  handicap_pattern?: string | null;
 }
 
 export interface CellData {
@@ -240,6 +242,7 @@ export interface MatchIn {
   opponent2_id?: number | null;
   partner_id?: number | null;
   handicap?: number;
+  handicap_pattern?: string | null;
 }
 
 export interface EventOut {
