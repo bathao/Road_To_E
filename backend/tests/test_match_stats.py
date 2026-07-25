@@ -104,3 +104,29 @@ def test_normalize_handicap_pattern():
     assert service.normalize_handicap_pattern("2") is None
     assert service.normalize_handicap_pattern("") is None
     assert service.normalize_handicap_pattern(None) is None
+
+
+def test_last_handicap_vs_returns_most_recent_singles(db):
+    """Editor pre-fill: newest singles match vs the opponent wins (same-day
+    ties broken by order_index); doubles and other opponents are ignored."""
+    cat = category_id(db, "practice_match")
+    anna = Player(name="Anna", level="above")
+    binh = Player(name="Binh", level="equal")
+    db.add_all([anna, binh])
+    db.commit()
+
+    d = dt.date(2026, 6, 5)
+    db.add_all([
+        _match(cat, d, 1, 3, opponent_id=anna.id, handicap=-2),
+        _match(cat, d + dt.timedelta(days=3), 2, 3, opponent_id=binh.id, handicap=3),
+    ])
+    # Newest vs Anna: received 4-3-4 (avg 4 stored, pattern kept).
+    m = _match(cat, d + dt.timedelta(days=9), 3, 2, opponent_id=anna.id, handicap=-4)
+    m.handicap_pattern = "4-3-4"
+    db.add(m)
+    db.commit()
+
+    latest = service.last_handicap_vs(db, anna.id)
+    assert (latest.handicap, latest.handicap_pattern) == (-4, "4-3-4")
+    assert service.last_handicap_vs(db, binh.id).handicap == 3
+    assert service.last_handicap_vs(db, 9999) is None

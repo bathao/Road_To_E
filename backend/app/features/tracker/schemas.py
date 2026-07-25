@@ -150,6 +150,14 @@ class LastDateResponse(BaseModel):
     date: dt.date | None  # most recent day with any data; None if empty
 
 
+class LastHandicapResponse(BaseModel):
+    """The most recent singles handicap vs one opponent (GUI pre-fill)."""
+
+    found: bool = False
+    handicap: int = 0  # signed, as stored
+    handicap_pattern: str | None = None
+
+
 # ---------- Physical Training checklist ----------
 class PhysicalItemOut(BaseModel):
     key: str

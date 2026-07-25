@@ -213,6 +213,21 @@ def delete_match(match_id: int, db: Session = Depends(get_db)):
     return Response(status_code=204)
 
 
+@router.get(
+    "/players/{player_id}/last-handicap",
+    response_model=schemas.LastHandicapResponse,
+)
+def last_handicap(player_id: int, db: Session = Depends(get_db)):
+    """Most recent singles handicap vs this opponent — the editor pre-fills
+    the ratio when the opponent is picked (user can still change it)."""
+    m = service.last_handicap_vs(db, player_id)
+    if m is None:
+        return schemas.LastHandicapResponse()
+    return schemas.LastHandicapResponse(
+        found=True, handicap=m.handicap or 0, handicap_pattern=m.handicap_pattern
+    )
+
+
 # ---------------------------------------------------------------- physical checklist
 @router.get("/physical-items", response_model=list[schemas.PhysicalItemOut])
 def list_physical_items():

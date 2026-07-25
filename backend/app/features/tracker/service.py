@@ -731,6 +731,22 @@ def normalize_handicap_pattern(raw: str | None) -> str | None:
     return "-".join(digits)
 
 
+def last_handicap_vs(db: Session, player_id: int) -> Match | None:
+    """The most recent singles playing match against `player_id` — its
+    handicap is the best guess for the next match's ratio (the GUI pre-fills
+    it when the opponent is picked; the user can still change it)."""
+    return (
+        db.query(Match)
+        .filter(
+            Match.opponent_id == player_id,
+            Match.discipline == "singles",
+            Match.is_nonplaying == False,  # noqa: E712
+        )
+        .order_by(Match.date.desc(), Match.order_index.desc(), Match.id.desc())
+        .first()
+    )
+
+
 def _result_of(m: Match) -> str:
     return _result_letter(m.my_sets, m.opp_sets)
 

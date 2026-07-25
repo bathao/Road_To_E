@@ -54,6 +54,12 @@ export const trackerApi = {
   createPlayer: (payload: PlayerIn) =>
     api.post<Player>("/tracker/players", payload),
 
+  // Most recent singles handicap vs an opponent (editor pre-fill).
+  lastHandicap: (playerId: number) =>
+    api.get<{ found: boolean; handicap: number; handicap_pattern: string | null }>(
+      `/tracker/players/${playerId}/last-handicap`
+    ),
+
   updatePlayer: (id: number, payload: PlayerIn) =>
     api.put<Player>(`/tracker/players/${id}`, payload),
 

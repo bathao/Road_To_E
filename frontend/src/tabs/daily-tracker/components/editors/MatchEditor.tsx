@@ -94,6 +94,40 @@ export default function MatchEditor({
     return () => clearTimeout(t);
   }, [eventName]);
 
+  // Remember the ratio per opponent: picking a singles opponent pre-fills
+  // the handicap from the last match against them (Tuấn Gỗ → được chấp
+  // 4-4-4, Lợi Phạm → 2-2-2…). The user can still change it before saving.
+  useEffect(() => {
+    if (discipline !== "singles" || !opponent) return;
+    let alive = true;
+    trackerApi
+      .lastHandicap(opponent.id)
+      .then((r) => {
+        if (!alive || !r.found) return;
+        if (r.handicap === 0) {
+          setHandicapDir("none");
+          return;
+        }
+        setHandicapDir(r.handicap > 0 ? "give" : "receive");
+        const digits = (r.handicap_pattern ?? "").replace(/\D/g, "");
+        const abs = Math.abs(r.handicap);
+        // Uniform ratios come back as a plain int → present as N-N-N.
+        const pattern = digits
+          ? digits.split("").join("-")
+          : `${abs}-${abs}-${abs}`;
+        if (HANDICAP_PATTERNS.includes(pattern)) {
+          setHandicapChoice(pattern);
+        } else {
+          setHandicapChoice("custom");
+          setCustomPattern(digits || String(abs).repeat(3));
+        }
+      })
+      .catch(() => {}); // suggestion only — never block entry
+    return () => {
+      alive = false;
+    };
+  }, [opponent, discipline]);
+
   const { wins, losses } = validScores(bestOf);
 
   // Per-set digits of the chosen ratio. Uniform ("2-2-2") is stored as the
