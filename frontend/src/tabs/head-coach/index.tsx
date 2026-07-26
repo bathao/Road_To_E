@@ -266,9 +266,10 @@ export default function HeadCoach() {
                 {m.overall?.played ?? "—"}
               </div>
               <div>
-                Phân tích sâu ({detail.window ?? "—"}): trận tập{" "}
-                {detail.practice?.played ?? "—"} · trận giải{" "}
-                {detail.official?.played ?? "—"} · head-to-head{" "}
+                Phân tích sâu ({detail.window ?? "—"}): đánh chơi{" "}
+                {detail.practice?.played ?? "—"} · đánh độ{" "}
+                {detail.official?.played ?? "—"} · đánh giải{" "}
+                {detail.tournament?.played ?? "—"} · head-to-head{" "}
                 {detail.top_h2h?.length ?? 0} đối thủ
               </div>
               <div>

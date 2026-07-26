@@ -309,13 +309,15 @@ def players_db(db: Session = Depends(get_db)):
 
 @router.get("/my-rating", response_model=schemas.MyRatingOut)
 def get_my_rating(db: Session = Depends(get_db)):
-    """The user's own points — the only dynamic rating in the system."""
-    return schemas.MyRatingOut(points=service.get_my_points(db))
+    """The user's rating — static anchor + replayed dynamic ELO (Phase 1a)."""
+    return service.compute_my_rating(db)
 
 
 @router.put("/my-rating", response_model=schemas.MyRatingOut)
 def set_my_rating(payload: schemas.MyRatingIn, db: Session = Depends(get_db)):
-    return schemas.MyRatingOut(points=service.set_my_points(db, payload.points))
+    """Set a new anchor (today, points); the replay restarts from here."""
+    service.set_my_points(db, payload.points)
+    return service.compute_my_rating(db)
 
 
 # ---------------------------------------------------------------- stats
@@ -343,7 +345,7 @@ def match_stats(
     date_from: dt.date = Query(..., alias="from"),
     date_to: dt.date = Query(..., alias="to"),
     discipline: str = Query("all", pattern="^(all|singles|doubles)$"),
-    category: str = Query("all", pattern="^(all|practice|official)$"),
+    category: str = Query("all", pattern="^(all|practice|official|tournament)$"),
     unit: str = Query("month", pattern="^(month|week|day)$"),
     db: Session = Depends(get_db),
 ):

@@ -359,13 +359,107 @@ def get_my_points(db: Session) -> int:
 
 
 def set_my_points(db: Session, points: int) -> int:
+    """Manual edit of "Điểm của tôi" = a NEW ANCHOR from today: the replay in
+    compute_my_rating restarts at (today, points). Matches dated today still
+    count (the anchor date is inclusive)."""
     row = db.get(Setting, _MY_POINTS_KEY)
     if row is None:
         db.add(Setting(key=_MY_POINTS_KEY, value=str(points)))
     else:
         row.value = str(points)
+    date_row = db.get(Setting, _MY_ANCHOR_DATE_KEY)
+    today = dt.date.today().isoformat()
+    if date_row is None:
+        db.add(Setting(key=_MY_ANCHOR_DATE_KEY, value=today))
+    else:
+        date_row.value = today
     db.commit()
     return points
+
+
+# ------------------------------------------------- my dynamic rating (ELO 1a)
+# Replay-from-anchor Elo for the USER's rating only (opponent points stay
+# static). A match moves the rating only if it is: singles, playing, a NAMED
+# opponent WITH points, handicap 0, dated on/after the anchor. Doubles,
+# unrated opponents and handicapped matches are deferred (Phase 1b+).
+#
+#   dR = K_BASE × t(kind) × m(margin) × (S − E)
+#   E  = 1 / (1 + 10^((R_opp − R_me)/400)),  S = 1 win / 0 loss
+#
+# Constants settled with the user 2026-07-26 (PROGRESS.md): K sized for ~20
+# matches/week and a 3-4 MONTH skill timescale — luck noise stays ~±20/week.
+ELO_K_BASE = 12.0
+ELO_KIND_MULT = {
+    "practice_match": 0.5,  # đánh chơi
+    "official_match": 1.0,  # đánh độ nhẹ
+    "tournament_match": 1.5,  # đánh giải (placeholder until real data exists)
+}
+ELO_SWEEP_MULT = 1.25  # 3-0 / 2-0 / 4-0: a sweep moves the rating more
+ELO_DECIDER_MULT = 0.75  # 3-2 / 2-1 / 4-3: a deciding set moves it less
+# User decision 2026-07-26: rating counts from 2026-07-27; older matches never.
+_MY_ANCHOR_DATE_KEY = "my_points_date"
+_MY_ANCHOR_DATE_DEFAULT = dt.date(2026, 7, 27)
+
+
+def get_my_anchor_date(db: Session) -> dt.date:
+    row = db.get(Setting, _MY_ANCHOR_DATE_KEY)
+    return dt.date.fromisoformat(row.value) if row is not None else _MY_ANCHOR_DATE_DEFAULT
+
+
+def _margin_mult(m: Match) -> float:
+    if min(m.my_sets, m.opp_sets) == 0:
+        return ELO_SWEEP_MULT
+    if m.my_sets + m.opp_sets == m.best_of:
+        return ELO_DECIDER_MULT
+    return 1.0
+
+
+def compute_my_rating(db: Session) -> schemas.MyRatingOut:
+    """Current dynamic rating = anchor points + replay of every eligible match
+    since the anchor date. Nothing is stored per match, so editing, deleting
+    or backfilling old matches self-corrects on the next read."""
+    anchor_points = get_my_points(db)
+    anchor_date = get_my_anchor_date(db)
+    kind_mult_by_cat = {
+        c.id: ELO_KIND_MULT[c.key]
+        for c in db.query(Category).filter(Category.key.in_(list(ELO_KIND_MULT))).all()
+    }
+    matches = (
+        db.query(Match)
+        .options(selectinload(Match.opponent))
+        .filter(
+            Match.date >= anchor_date,
+            Match.is_nonplaying == False,  # noqa: E712
+            Match.discipline == "singles",
+            Match.opponent_id.isnot(None),
+            Match.category_id.in_(list(kind_mult_by_cat)),
+            Match.handicap == 0,
+            Match.handicap_pattern.is_(None),
+        )
+        .order_by(Match.date, Match.order_index, Match.id)
+        .all()
+    )
+    rating = float(anchor_points)
+    counted = 0
+    for m in matches:
+        opp_points = m.opponent.points if m.opponent is not None else None
+        if opp_points is None or m.my_sets == m.opp_sets:
+            continue  # unrated opponent / no result recorded
+        expected = 1.0 / (1.0 + 10 ** ((opp_points - rating) / 400.0))
+        score = 1.0 if m.my_sets > m.opp_sets else 0.0
+        rating += (
+            ELO_K_BASE
+            * kind_mult_by_cat[m.category_id]
+            * _margin_mult(m)
+            * (score - expected)
+        )
+        counted += 1
+    return schemas.MyRatingOut(
+        points=anchor_points,
+        current=round(rating),
+        anchor_date=anchor_date.isoformat(),
+        counted_matches=counted,
+    )
 
 
 # ---------------------------------------------------------------- events
@@ -1063,7 +1157,11 @@ def build_breakdown(
 # ---------------------------------------------------------------- match stats (Tab 3)
 
 _LEVEL_ORDER = ["below", "equal", "above"]
-_CATEGORY_KEY = {"practice": "practice_match", "official": "official_match"}
+_CATEGORY_KEY = {
+    "practice": "practice_match",
+    "official": "official_match",
+    "tournament": "tournament_match",
+}
 # Match tracking with opponents began June 2026; ignore anything before.
 MATCH_STATS_FLOOR = dt.date(2026, 6, 1)
 

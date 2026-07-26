@@ -86,8 +86,9 @@ export interface SourceH2H {
 export interface SourceMatchDetail {
   window?: string;
   by_level?: Record<string, SourceMatchSide>;
-  practice?: SourceMatchSide;
-  official?: SourceMatchSide;
+  practice?: SourceMatchSide; // đánh chơi
+  official?: SourceMatchSide; // đánh độ nhẹ
+  tournament?: SourceMatchSide; // đánh giải
   trend_by_month?: { label?: string; played?: number; win_rate?: number | null }[];
   top_h2h?: SourceH2H[];
   [k: string]: unknown;

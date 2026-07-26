@@ -9,6 +9,12 @@ import { pointsLabel, rankOf } from "../../shared/rank";
 import { databaseApi } from "./api";
 import type { MyRating, PlayerDbRow, PlayersDbResponse } from "./types";
 
+// "2026-07-27" → "27/07/2026" for the anchor note.
+function fmtAnchor(iso: string): string {
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
 function RankChip({ points }: { points: number | null }) {
   const rank = rankOf(points);
   if (!rank) return <span className="db-rank db-rank-none">chưa xếp</span>;
@@ -169,10 +175,11 @@ export default function DatabaseTab() {
           {myDraft === null ? (
             <>
               <span className="db-me-points">
-                {pointsLabel(myRating?.points)}
+                {pointsLabel(myRating?.current)}
               </span>
               <button
                 className="btn"
+                title="Sửa mốc neo — ELO sẽ tính lại từ hôm nay"
                 onClick={() => setMyDraft(String(myRating?.points ?? ""))}
               >
                 Sửa
@@ -198,7 +205,13 @@ export default function DatabaseTab() {
               </button>
             </>
           )}
-          <span className="db-me-note">duy nhất điểm này là động (ELO sắp tới)</span>
+          <span className="db-me-note">
+            {myRating
+              ? `ELO động · neo ${myRating.points} từ ${fmtAnchor(
+                  myRating.anchor_date
+                )} · đã tính ${myRating.counted_matches} trận đơn đánh đồng`
+              : "điểm động duy nhất (ELO)"}
+          </span>
         </div>
       </div>
 

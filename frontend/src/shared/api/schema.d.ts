@@ -78,6 +78,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tracker/coach-packages/start-next": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Next Coach Package
+         * @description Flag the over-run block's (size+1)-th session as the new package's start
+         *     (the one-click button on the Coach Package card).
+         */
+        post: operations["start_next_coach_package_api_tracker_coach_packages_start_next_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tracker/coach-package-start-allowed": {
         parameters: {
             query?: never;
@@ -165,6 +186,27 @@ export interface paths {
         post?: never;
         /** Delete Match */
         delete: operations["delete_match_api_tracker_matches__match_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tracker/players/{player_id}/last-handicap": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Last Handicap
+         * @description Most recent singles handicap vs this opponent — the editor pre-fills
+         *     the ratio when the opponent is picked (user can still change it).
+         */
+        get: operations["last_handicap_api_tracker_players__player_id__last_handicap_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -259,7 +301,8 @@ export interface paths {
         put?: never;
         /**
          * Create Player
-         * @description Add a new player (get-or-create by name) with a relative level.
+         * @description Add a new player (get-or-create by name); points optional, the legacy
+         *     relative label is derived from them server-side.
          */
         post: operations["create_player_api_tracker_players_post"];
         delete?: never;
@@ -278,6 +321,50 @@ export interface paths {
         get?: never;
         /** Update Player */
         put: operations["update_player_api_tracker_players__player_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tracker/players-db": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Players Db
+         * @description Every player + match count, rated first (the Database tab).
+         */
+        get: operations["players_db_api_tracker_players_db_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tracker/my-rating": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get My Rating
+         * @description The user's rating — static anchor + replayed dynamic ELO (Phase 1a).
+         */
+        get: operations["get_my_rating_api_tracker_my_rating_get"];
+        /**
+         * Set My Rating
+         * @description Set a new anchor (today, points); the replay restarts from here.
+         */
+        put: operations["set_my_rating_api_tracker_my_rating_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -963,6 +1050,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tournaments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Tournaments
+         * @description All tournaments: upcoming first (soonest on top), then past (newest first).
+         */
+        get: operations["list_tournaments_api_tournaments_get"];
+        put?: never;
+        /** Create Tournament */
+        post: operations["create_tournament_api_tournaments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tournaments/{tournament_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Tournament */
+        put: operations["update_tournament_api_tournaments__tournament_id__put"];
+        post?: never;
+        /**
+         * Delete Tournament
+         * @description Returns the remaining list (NOT 204 — a 204 body reads as `undefined`
+         *     in the frontend api client, which is also useMutate's failure sentinel).
+         */
+        delete: operations["delete_tournament_api_tournaments__tournament_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -1024,8 +1154,14 @@ export interface components {
              */
             is_package_start: boolean;
         };
-        /** ActivityOut */
+        /**
+         * ActivityOut
+         * @description Output side is deliberately unconstrained: one legacy out-of-range row
+         *     must not 500 every /weeks response that contains it.
+         */
         ActivityOut: {
+            /** Id */
+            id: number;
             /**
              * Date
              * Format: date
@@ -1042,8 +1178,6 @@ export interface components {
              * @default false
              */
             is_package_start: boolean;
-            /** Id */
-            id: number;
         };
         /** AnalysisReportDetailOut */
         AnalysisReportDetailOut: {
@@ -1210,6 +1344,7 @@ export interface components {
              *       "match_detail": {},
              *       "notes": [],
              *       "coach_notes": [],
+             *       "tournaments": [],
              *       "generated_for_range": "",
              *       "video": {},
              *       "tactics": {}
@@ -1546,6 +1681,47 @@ export interface components {
              */
             matches: components["schemas"]["MatchLine"][];
         };
+        /** EntryIn */
+        EntryIn: {
+            /** Discipline */
+            discipline: string;
+            /** Partner Id */
+            partner_id?: number | null;
+            /**
+             * Teammate Ids
+             * @default []
+             */
+            teammate_ids: number[];
+            /** Team Members */
+            team_members?: string | null;
+            /** Division */
+            division?: string | null;
+        };
+        /** EntryOut */
+        EntryOut: {
+            /** Id */
+            id: number;
+            /** Discipline */
+            discipline: string;
+            /** Partner Id */
+            partner_id?: number | null;
+            /** Partner Name */
+            partner_name?: string | null;
+            /**
+             * Teammate Ids
+             * @default []
+             */
+            teammate_ids: number[];
+            /**
+             * Teammate Names
+             * @default []
+             */
+            teammate_names: string[];
+            /** Team Members */
+            team_members?: string | null;
+            /** Division */
+            division?: string | null;
+        };
         /** EventOut */
         EventOut: {
             /** Id */
@@ -1668,6 +1844,24 @@ export interface components {
             /** Date */
             date: string | null;
         };
+        /**
+         * LastHandicapResponse
+         * @description The most recent singles handicap vs one opponent (GUI pre-fill).
+         */
+        LastHandicapResponse: {
+            /**
+             * Found
+             * @default false
+             */
+            found: boolean;
+            /**
+             * Handicap
+             * @default 0
+             */
+            handicap: number;
+            /** Handicap Pattern */
+            handicap_pattern?: string | null;
+        };
         /** LevelInfo */
         LevelInfo: {
             /** Key */
@@ -1738,11 +1932,8 @@ export interface components {
             nonplaying_label?: string | null;
             /** Note */
             note?: string | null;
-            /**
-             * Order Index
-             * @default 0
-             */
-            order_index: number;
+            /** Order Index */
+            order_index?: number | null;
             /** Opponent Id */
             opponent_id?: number | null;
             /** Opponent2 Id */
@@ -1754,6 +1945,8 @@ export interface components {
              * @default 0
              */
             handicap: number;
+            /** Handicap Pattern */
+            handicap_pattern?: string | null;
         };
         /**
          * MatchLine
@@ -1778,6 +1971,8 @@ export interface components {
              * @default 0
              */
             handicap: number;
+            /** Handicap Pattern */
+            handicap_pattern?: string | null;
             /** Event Name */
             event_name?: string | null;
         };
@@ -1845,6 +2040,8 @@ export interface components {
              * @default 0
              */
             handicap: number;
+            /** Handicap Pattern */
+            handicap_pattern?: string | null;
         };
         /** MatchStats */
         MatchStats: {
@@ -1955,6 +2152,29 @@ export interface components {
             muscle: string;
             /** Times */
             times: number;
+        };
+        /** MyRatingIn */
+        MyRatingIn: {
+            /** Points */
+            points: number;
+        };
+        /**
+         * MyRatingOut
+         * @description The user's rating (the only DYNAMIC one; players are static anchors).
+         *
+         *     `points` is the editable ANCHOR; `current` is the replayed ELO rating —
+         *     anchor + every eligible match since `anchor_date` (singles, named rated
+         *     opponent, no handicap). PUT /my-rating = a new anchor from today.
+         */
+        MyRatingOut: {
+            /** Points */
+            points: number;
+            /** Current */
+            current: number;
+            /** Anchor Date */
+            anchor_date: string;
+            /** Counted Matches */
+            counted_matches: number;
         };
         /** NoteIn */
         NoteIn: {
@@ -2082,25 +2302,40 @@ export interface components {
             /** Label */
             label: string;
         };
-        /** PlanDay */
+        /**
+         * PlanDay
+         * @description Defaults on every field: the Ollama structured-output grammar only
+         *     *requires* day+focus, so a stored plan item may lack the others — parsing
+         *     it must not turn GET /assessment into a permanent 500.
+         */
         PlanDay: {
-            /** Day */
+            /**
+             * Day
+             * @default
+             */
             day: string;
-            /** Focus */
+            /**
+             * Focus
+             * @default
+             */
             focus: string;
-            /** Detail */
+            /**
+             * Detail
+             * @default
+             */
             detail: string;
         };
-        /** PlayerIn */
-        PlayerIn: {
+        /**
+         * PlayerDbRow
+         * @description One row of the Database tab: player + how often they appear.
+         */
+        PlayerDbRow: {
+            /** Id */
+            id: number;
             /** Name */
             name: string;
-            /**
-             * Level
-             * @default equal
-             * @enum {string}
-             */
-            level: "below" | "equal" | "above";
+            /** Level */
+            level: string;
             /** Note */
             note?: string | null;
             /**
@@ -2108,6 +2343,29 @@ export interface components {
              * @default false
              */
             plays_pips: boolean;
+            /** Points */
+            points?: number | null;
+            /**
+             * Matches Played
+             * @default 0
+             */
+            matches_played: number;
+        };
+        /** PlayerIn */
+        PlayerIn: {
+            /** Name */
+            name: string;
+            /** Level */
+            level?: ("below" | "equal" | "above") | null;
+            /** Note */
+            note?: string | null;
+            /**
+             * Plays Pips
+             * @default false
+             */
+            plays_pips: boolean;
+            /** Points */
+            points?: number | null;
         };
         /** PlayerOut */
         PlayerOut: {
@@ -2124,6 +2382,16 @@ export interface components {
              * @default false
              */
             plays_pips: boolean;
+            /** Points */
+            points?: number | null;
+        };
+        /** PlayersDbResponse */
+        PlayersDbResponse: {
+            /**
+             * Players
+             * @default []
+             */
+            players: components["schemas"]["PlayerDbRow"][];
         };
         /** Priority */
         Priority: {
@@ -2485,6 +2753,11 @@ export interface components {
              */
             coach_notes: Record<string, never>[];
             /**
+             * Tournaments
+             * @default []
+             */
+            tournaments: Record<string, never>[];
+            /**
              * Generated For Range
              * @default
              */
@@ -2586,6 +2859,62 @@ export interface components {
             status: string;
             /** Thumb */
             thumb: string;
+        };
+        /** TournamentIn */
+        TournamentIn: {
+            /** Name */
+            name: string;
+            /** Location */
+            location?: string | null;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /** End Date */
+            end_date?: string | null;
+            /** Level Limit */
+            level_limit?: string | null;
+            /** Note */
+            note?: string | null;
+            /**
+             * Entries
+             * @default []
+             */
+            entries: components["schemas"]["EntryIn"][];
+        };
+        /** TournamentOut */
+        TournamentOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Location */
+            location?: string | null;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /** End Date */
+            end_date?: string | null;
+            /** Level Limit */
+            level_limit?: string | null;
+            /** Note */
+            note?: string | null;
+            /**
+             * Entries
+             * @default []
+             */
+            entries: components["schemas"]["EntryOut"][];
+        };
+        /** TournamentsResponse */
+        TournamentsResponse: {
+            /**
+             * Tournaments
+             * @default []
+             */
+            tournaments: components["schemas"]["TournamentOut"][];
         };
         /** TraitIn */
         TraitIn: {
@@ -2871,6 +3200,26 @@ export interface operations {
             };
         };
     };
+    start_next_coach_package_api_tracker_coach_packages_start_next_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoachPackagesResponse"];
+                };
+            };
+        };
+    };
     coach_package_start_allowed_api_tracker_coach_package_start_allowed_get: {
         parameters: {
             query: {
@@ -3050,6 +3399,37 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    last_handicap_api_tracker_players__player_id__last_handicap_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                player_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LastHandicapResponse"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -3267,6 +3647,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlayerOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    players_db_api_tracker_players_db_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlayersDbResponse"];
+                };
+            };
+        };
+    };
+    get_my_rating_api_tracker_my_rating_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyRatingOut"];
+                };
+            };
+        };
+    };
+    set_my_rating_api_tracker_my_rating_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MyRatingIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyRatingOut"];
                 };
             };
             /** @description Validation Error */
@@ -4434,6 +4887,125 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DebugOut"];
+                };
+            };
+        };
+    };
+    list_tournaments_api_tournaments_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TournamentsResponse"];
+                };
+            };
+        };
+    };
+    create_tournament_api_tournaments_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TournamentIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TournamentsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_tournament_api_tournaments__tournament_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tournament_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TournamentIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TournamentsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_tournament_api_tournaments__tournament_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tournament_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TournamentsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

@@ -78,7 +78,7 @@ export interface MatchTrendBucket {
 }
 
 export type DisciplineFilter = "all" | "singles" | "doubles";
-export type CategoryFilter = "all" | "practice" | "official";
+export type CategoryFilter = "all" | "practice" | "official" | "tournament";
 
 export interface MatchStatsResponse {
   date_from: string;

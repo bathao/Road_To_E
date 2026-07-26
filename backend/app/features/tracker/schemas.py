@@ -103,9 +103,17 @@ class PlayersDbResponse(BaseModel):
 
 
 class MyRatingOut(BaseModel):
-    """The user's own points (the only DYNAMIC rating; players are static)."""
+    """The user's rating (the only DYNAMIC one; players are static anchors).
+
+    `points` is the editable ANCHOR; `current` is the replayed ELO rating —
+    anchor + every eligible match since `anchor_date` (singles, named rated
+    opponent, no handicap). PUT /my-rating = a new anchor from today.
+    """
 
     points: int
+    current: int
+    anchor_date: str
+    counted_matches: int
 
 
 class MyRatingIn(BaseModel):
@@ -352,7 +360,7 @@ class MatchStatsResponse(BaseModel):
     date_from: dt.date
     date_to: dt.date
     discipline: str  # all | singles | doubles
-    category: str  # all | practice | official
+    category: str  # all | practice | official | tournament
     unit: str  # month | week | day
     overall: MatchStats
     by_level: list[LevelRecord]

@@ -68,6 +68,9 @@ DEFAULT_CATEGORIES = [
     ("physical_training", "Physical Training", "checklist", "yellow"),
     ("practice_match", "Practice Match", "match", "none"),
     ("official_match", "Official Match", "match", "none"),
+    # Tournament play (đánh giải) — kept separate from official (đánh độ nhẹ)
+    # so the ELO rating can weight it higher (t = 1.5, see service ELO_KIND_MULT).
+    ("tournament_match", "Tournament Match", "match", "none"),
     # Auto-computed row (like Overall): coach + partner minutes + match sets
     # × service.RACKET_MINUTES_PER_SET. Read-only in the grid.
     ("racket_time", "Racket Time", "computed", "none"),

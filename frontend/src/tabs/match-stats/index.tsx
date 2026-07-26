@@ -95,6 +95,7 @@ export default function MatchStats() {
               ["all", "Mọi loại"],
               ["practice", "Practice"],
               ["official", "Official"],
+              ["tournament", "Tournament"],
             ] as [CategoryFilter, string][]
           ).map(([k, lbl]) => (
             <button

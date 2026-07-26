@@ -78,6 +78,7 @@ def gather_bundle(db: Session) -> schemas.SourceSummary:
     detail = tracker_service.build_match_stats(db, detail_from, today, "all", "all", "month")
     practice = tracker_service.build_match_stats(db, detail_from, today, "all", "practice", "month")
     official = tracker_service.build_match_stats(db, detail_from, today, "all", "official", "month")
+    tournament = tracker_service.build_match_stats(db, detail_from, today, "all", "tournament", "month")
 
     training_sum = {
         "level": training.current_level_vi,
@@ -119,8 +120,11 @@ def gather_bundle(db: Session) -> schemas.SourceSummary:
         "by_level_handicap": tracker_service.build_handicap_split(
             db, detail_from, today
         ),
+        # Kinds: practice = đánh chơi, official = đánh độ nhẹ, tournament =
+        # đánh giải (new 2026-07-26 — zero rows until the user logs one).
         "practice": _ms(practice.overall),
         "official": _ms(official.overall),
+        "tournament": _ms(tournament.overall),
         "trend_by_month": [
             {
                 "label": b.label,
@@ -267,8 +271,9 @@ def _bundle_to_text(b: schemas.SourceSummary) -> str:
         f"Theo hạng đối thủ (so với học trò):\n{level_lines}\n"
         f"Tách theo CHẤP (điểm chấp mỗi ván; trận có chấp phải diễn giải khác "
         f"trận đánh đồng):\n{hdc_lines}\n"
-        f"TRẬN TẬP vs TRẬN GIẢI: khi TẬP {_wr(d.get('practice', {}))} · "
-        f"khi ĐẤU GIẢI {_wr(d.get('official', {}))}\n"
+        f"THEO LOẠI TRẬN: đánh chơi (tập) {_wr(d.get('practice', {}))} · "
+        f"đánh độ nhẹ {_wr(d.get('official', {}))} · "
+        f"đánh giải (tournament) {_wr(d.get('tournament', {}))}\n"
         f"Xu hướng theo tháng:\n{trend_lines}\n"
         f"Đối đầu nhiều nhất (head-to-head, đơn):\n{h2h_lines}\n\n"
         f"=== THỂ LỰC (Training Center) ===\n"
