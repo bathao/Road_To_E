@@ -2163,8 +2163,9 @@ export interface components {
          * @description The user's rating (the only DYNAMIC one; players are static anchors).
          *
          *     `points` is the editable ANCHOR; `current` is the replayed ELO rating —
-         *     anchor + every eligible match since `anchor_date` (singles, named rated
-         *     opponent, no handicap). PUT /my-rating = a new anchor from today.
+         *     anchor + every eligible match since `anchor_date`: no handicap and every
+         *     involved player named + rated (doubles compare team averages and count
+         *     at FULL weight, like singles). PUT /my-rating = a new anchor from today.
          */
         MyRatingOut: {
             /** Points */

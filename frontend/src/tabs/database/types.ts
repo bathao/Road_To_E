@@ -16,8 +16,9 @@ export interface PlayersDbResponse {
 }
 
 // The user's rating: `points` is the editable ANCHOR; `current` is the
-// replayed dynamic ELO (anchor + eligible matches since anchor_date —
-// singles, named rated opponent, no handicap). PUT = new anchor from today.
+// replayed dynamic ELO (anchor + eligible matches since anchor_date — no
+// handicap, every involved player named + rated; doubles count at FULL
+// weight on team averages). PUT = new anchor from today.
 export interface MyRating {
   points: number;
   current: number;

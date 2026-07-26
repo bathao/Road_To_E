@@ -40,6 +40,21 @@
 >     harness ready in this session's scratchpad); doubles/unrated policy;
 >     Phase 2 display (±Δ per match, chart, "còn X tới E", coach bundle
 >     rating trend); retire legacy vs-level labels (plan first).
+>
+> **DOUBLES — DECIDED + BUILT (2026-07-26, uncommitted).** User picked
+> option B ("đánh đôi cũng rất quan trọng… nên tính vào"): doubles COUNT.
+> Compare TEAM AVERAGES on the same /400 curve (user's original sum idea
+> would double the sensitivity). Attribution d: proposed 0.5, but USER
+> OVERRODE to **d = 1.0** ("tác động của tôi trong trận đánh đôi vẫn phải
+> tốt nếu thắng — tính thắng như đánh đơn") — a doubles result moves the
+> rating exactly like a singles one, BOTH ways (partner's bad day costs
+> full points; consequence was stated and accepted). ΔR = 12 × t × d × m ×
+> (S − E) with d kept as a knob (ELO_DOUBLES_MULT = 1.0). Eligibility:
+> partner + BOTH opponents named and rated, else skipped; handicapped
+> doubles wait for Phase 1b. Card note: "trận đánh đồng (đơn + đôi)".
+> Even-teams official 3-0 example: +7.5, same as singles. 51/51 pytest,
+> build + gen:api clean. Alternatives A (singles-only rating, FFTT/USATT
+> style) and C (separate doubles rating) were rejected by the user.
 
 > **Where we are:** user redirected Phase 1: build the update rule for EVEN
 > (handicap = 0) SINGLES matches FIRST; handicapped matches get their own

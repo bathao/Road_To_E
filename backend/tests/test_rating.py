@@ -70,7 +70,8 @@ def test_rating_skips_everything_out_of_scope(db):
     db.add_all([
         # Before the anchor date — user decision: old matches never count.
         _match(off, equal.id, date=dt.date(2026, 7, 26)),
-        # Doubles (deferred), unrated opponent (deferred), no named opponent.
+        # Doubles missing partner/opponent2 (whole pair must be named+rated),
+        # unrated opponent (deferred), no named opponent.
         _match(off, equal.id, discipline="doubles"),
         _match(off, unrated.id),
         _match(off, None),
@@ -84,6 +85,35 @@ def test_rating_skips_everything_out_of_scope(db):
     db.commit()
     r = service.compute_my_rating(db)
     assert (r.current, r.counted_matches) == (950, 0)
+
+
+def test_rating_counts_doubles_at_full_weight(db):
+    off = category_id(db, "official_match")
+    partner = Player(name="DongDoi", points=1050)
+    opp1 = Player(name="DoiThu1", points=1100)
+    opp2 = Player(name="DoiThu2", points=900)
+    unrated = Player(name="ChuaRo")
+    db.add_all([partner, opp1, opp2, unrated])
+    db.commit()
+
+    # My team averages (950+1050)/2 = 1000, theirs (1100+900)/2 = 1000 —
+    # even. Official 3-0 sweep counts like singles (d = 1, user decision):
+    # 12 × 1.0 × 1.0 × 1.25 × (1 − 0.5) = +7.5.
+    db.add(_match(off, opp1.id, discipline="doubles",
+                  opponent2_id=opp2.id, partner_id=partner.id))
+    db.commit()
+    r = service.compute_my_rating(db)
+    assert r.current == 958 and r.counted_matches == 1  # 957.5 rounds up
+
+    # An unrated partner or a missing second opponent skips the match.
+    db.add_all([
+        _match(off, opp1.id, discipline="doubles", opponent2_id=opp2.id,
+               partner_id=unrated.id, order_index=1),
+        _match(off, opp1.id, discipline="doubles", partner_id=partner.id,
+               order_index=2),
+    ])
+    db.commit()
+    assert service.compute_my_rating(db).counted_matches == 1
 
 
 def test_manual_edit_becomes_new_anchor(db):

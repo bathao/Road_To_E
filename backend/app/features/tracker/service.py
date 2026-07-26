@@ -378,17 +378,25 @@ def set_my_points(db: Session, points: int) -> int:
 
 
 # ------------------------------------------------- my dynamic rating (ELO 1a)
-# Replay-from-anchor Elo for the USER's rating only (opponent points stay
-# static). A match moves the rating only if it is: singles, playing, a NAMED
-# opponent WITH points, handicap 0, dated on/after the anchor. Doubles,
-# unrated opponents and handicapped matches are deferred (Phase 1b+).
+# Replay-from-anchor Elo for the USER's rating only (all other players are
+# static anchors). A match moves the rating only if it is: playing, handicap 0,
+# dated on/after the anchor, and every involved player is NAMED and RATED —
+# singles: the opponent; doubles: partner + both opponents (one missing rating
+# skips the match). Handicapped matches are deferred (Phase 1b).
 #
-#   dR = K_BASE × t(kind) × m(margin) × (S − E)
-#   E  = 1 / (1 + 10^((R_opp − R_me)/400)),  S = 1 win / 0 loss
+#   dR = K_BASE × t(kind) × d(discipline) × m(margin) × (S − E)
+#   E  = 1 / (1 + 10^((R_theirs − R_mine)/400)),  S = 1 win / 0 loss
+#
+# Doubles compare TEAM AVERAGES on the same /400 curve (a sum would silently
+# double the sensitivity). d = 1.0 by USER DECISION 2026-07-26 ("tác động
+# của tôi trong trận đánh đôi vẫn phải tốt nếu thắng"): a doubles result
+# moves the rating exactly like a singles one, both ways — a partner's bad
+# day costs full points too. (0.5 = half attribution was the alternative.)
 #
 # Constants settled with the user 2026-07-26 (PROGRESS.md): K sized for ~20
 # matches/week and a 3-4 MONTH skill timescale — luck noise stays ~±20/week.
 ELO_K_BASE = 12.0
+ELO_DOUBLES_MULT = 1.0  # full weight — user decision (see above)
 ELO_KIND_MULT = {
     "practice_match": 0.5,  # đánh chơi
     "official_match": 1.0,  # đánh độ nhẹ
@@ -426,11 +434,15 @@ def compute_my_rating(db: Session) -> schemas.MyRatingOut:
     }
     matches = (
         db.query(Match)
-        .options(selectinload(Match.opponent))
+        .options(
+            selectinload(Match.opponent),
+            selectinload(Match.opponent2),
+            selectinload(Match.partner),
+        )
         .filter(
             Match.date >= anchor_date,
             Match.is_nonplaying == False,  # noqa: E712
-            Match.discipline == "singles",
+            Match.discipline.in_(("singles", "doubles")),
             Match.opponent_id.isnot(None),
             Match.category_id.in_(list(kind_mult_by_cat)),
             Match.handicap == 0,
@@ -442,14 +454,28 @@ def compute_my_rating(db: Session) -> schemas.MyRatingOut:
     rating = float(anchor_points)
     counted = 0
     for m in matches:
+        if m.my_sets == m.opp_sets:
+            continue  # no result recorded
         opp_points = m.opponent.points if m.opponent is not None else None
-        if opp_points is None or m.my_sets == m.opp_sets:
-            continue  # unrated opponent / no result recorded
-        expected = 1.0 / (1.0 + 10 ** ((opp_points - rating) / 400.0))
+        if opp_points is None:
+            continue  # unrated opponent
+        if m.discipline == "doubles":
+            partner_points = m.partner.points if m.partner is not None else None
+            opp2_points = m.opponent2.points if m.opponent2 is not None else None
+            if partner_points is None or opp2_points is None:
+                continue  # the whole pair must be named and rated
+            mine = (rating + partner_points) / 2.0
+            theirs = (opp_points + opp2_points) / 2.0
+            attribution = ELO_DOUBLES_MULT
+        else:
+            mine, theirs = rating, float(opp_points)
+            attribution = 1.0
+        expected = 1.0 / (1.0 + 10 ** ((theirs - mine) / 400.0))
         score = 1.0 if m.my_sets > m.opp_sets else 0.0
         rating += (
             ELO_K_BASE
             * kind_mult_by_cat[m.category_id]
+            * attribution
             * _margin_mult(m)
             * (score - expected)
         )
