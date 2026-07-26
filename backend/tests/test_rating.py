@@ -75,9 +75,6 @@ def test_rating_skips_everything_out_of_scope(db):
         _match(off, equal.id, discipline="doubles"),
         _match(off, unrated.id),
         _match(off, None),
-        # Handicapped, both uniform and per-set pattern (Phase 1b).
-        _match(off, equal.id, handicap=2),
-        _match(off, equal.id, handicap=-1, handicap_pattern="2-0-2"),
         # Non-playing / no result recorded.
         _match(off, equal.id, is_nonplaying=True, nonplaying_label="Travel"),
         _match(off, equal.id, my=0, opp_sets=0),
@@ -114,6 +111,77 @@ def test_rating_counts_doubles_at_full_weight(db):
     ])
     db.commit()
     assert service.compute_my_rating(db).counted_matches == 1
+
+
+def test_handicap_bonus_ladder_and_cap(db):
+    """The user's ladder (2026-07-26): each rung +50, 0-2-0 → 50 … 5-5-5 →
+    600 max; formula form 25×s (s ≤ 6) / 50×s − 150 over the 3-set sum s."""
+    cases = [
+        ((1, "0-2-0"), 50), ((1, "2-0-2"), 100), ((2, None), 150),
+        ((2, "2-3-2"), 200), ((3, "3-2-3"), 250), ((3, None), 300),
+        ((3, "3-4-3"), 350), ((4, "4-3-4"), 400), ((4, None), 450),
+        ((4, "4-5-4"), 500), ((5, "5-4-5"), 550), ((5, None), 600),
+        ((1, None), 75),          # uniform 1-1-1 sits between 0-2-0 and 2-0-2
+        ((2, "4-2-0-2-4"), 210),  # free-digit custom: 5 sets, avg 2.4/set
+        ((6, None), 600),         # beyond 5-5-5 clamps to the maximum
+    ]
+    for (h, pattern), expected in cases:
+        assert service.handicap_bonus(h, pattern) == expected, (h, pattern)
+    assert service.handicap_bonus(0, None) == 0.0
+
+
+def test_rating_folds_handicap_at_full_value(db):
+    """User decision: the receiver gets the FULL ladder bonus — a big chấp
+    can flip the receiver into favourite, and the ± consequences follow:
+    win as chấp-favourite → small gain; lose as chấp-favourite → big loss."""
+    off = category_id(db, "official_match")
+    strong = Player(name="Manh", points=1100)
+    close = Player(name="Gan", points=1000)
+    db.add_all([strong, close])
+    db.commit()
+
+    # Receiving 2-2-2 (+150) from a +150-stronger opponent: exactly
+    # equalized (E = 0.5). Official 3-0 sweep: 12 × 1.25 × 0.5 = +7.5.
+    db.add(_match(off, strong.id, handicap=-2))
+    db.commit()
+    r = service.compute_my_rating(db)
+    assert r.current == 958 and r.counted_matches == 1
+
+    # Receiving 4-4-4 (+450) from a barely-stronger opponent makes ME the
+    # favourite (957.5 + 450 = 1407.5 vs 1000, E ≈ 0.91): winning a 3-0
+    # sweep earns almost nothing — 12 × 1.25 × 0.087 ≈ +1.3.
+    db.add(_match(off, close.id, handicap=-4, order_index=1))
+    db.commit()
+    r = service.compute_my_rating(db)
+    assert r.current == 959 and r.counted_matches == 2
+
+    # Same big chấp but LOSING 0-3 as the favourite: the full deduction —
+    # 12 × 1.25 × −0.913 ≈ −13.7 ("được chấp nhiều mà thua thì xứng đáng
+    # bị trừ nhiều điểm").
+    db.add(_match(off, close.id, handicap=-4, my=0, opp_sets=3, order_index=2))
+    db.commit()
+    r = service.compute_my_rating(db)
+    assert r.current == 945 and r.counted_matches == 3
+
+
+def test_doubles_handicap_counts_for_one_member_only(db):
+    """User rule: in doubles the chấp ELO applies to ONE member — on the
+    team-average scale that is half the ladder value."""
+    off = category_id(db, "official_match")
+    partner = Player(name="DongDoi", points=1050)
+    opp1 = Player(name="DoiThu1", points=1100)
+    opp2 = Player(name="DoiThu2", points=1100)
+    db.add_all([partner, opp1, opp2])
+    db.commit()
+
+    # Team avg 1000 vs 1100; receiving 2-2-2 → ladder 150, halved to 75
+    # (< gap 100, so the cap does not bite): mine 1075 vs 1100, E ≈ 0.464.
+    # Official 3-0 sweep: 12 × 1.25 × (1 − 0.464) ≈ +8.0 → 958.
+    db.add(_match(off, opp1.id, discipline="doubles", opponent2_id=opp2.id,
+                  partner_id=partner.id, handicap=-2))
+    db.commit()
+    r = service.compute_my_rating(db)
+    assert r.current == 958 and r.counted_matches == 1
 
 
 def test_rating_uses_at_match_time_snapshots(db):

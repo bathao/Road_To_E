@@ -209,7 +209,7 @@ export default function DatabaseTab() {
             {myRating
               ? `ELO động · neo ${myRating.points} từ ${fmtAnchor(
                   myRating.anchor_date
-                )} · đã tính ${myRating.counted_matches} trận đánh đồng (đơn + đôi)`
+                )} · đã tính ${myRating.counted_matches} trận (đơn + đôi, chấp đã quy đổi)`
               : "điểm động duy nhất (ELO)"}
           </span>
         </div>

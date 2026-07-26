@@ -106,9 +106,10 @@ class MyRatingOut(BaseModel):
     """The user's rating (the only DYNAMIC one; players are static anchors).
 
     `points` is the editable ANCHOR; `current` is the replayed ELO rating —
-    anchor + every eligible match since `anchor_date`: no handicap and every
-    involved player named + rated (doubles compare team averages and count
-    at FULL weight, like singles). PUT /my-rating = a new anchor from today.
+    anchor + every eligible match since `anchor_date`: every involved player
+    named + rated (doubles compare team averages at FULL weight; a chấp adds
+    the receiver's full ladder bonus — a big chấp can make the receiver the
+    favourite). PUT /my-rating = a new anchor from today.
     """
 
     points: int

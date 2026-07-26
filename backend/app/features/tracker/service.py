@@ -379,13 +379,15 @@ def set_my_points(db: Session, points: int) -> int:
 
 # ------------------------------------------------- my dynamic rating (ELO 1a)
 # Replay-from-anchor Elo for the USER's rating only (all other players are
-# static anchors). A match moves the rating only if it is: playing, handicap 0,
-# dated on/after the anchor, and every involved player is NAMED and RATED —
+# static anchors). A match moves the rating only if it is: playing, dated
+# on/after the anchor, and every involved player is NAMED and RATED —
 # singles: the opponent; doubles: partner + both opponents (one missing rating
-# skips the match). Handicapped matches are deferred (Phase 1b).
+# skips the match). Handicapped matches count too: the receiver's effective
+# rating gains handicap_bonus() before the comparison (Phase 1b).
 #
 #   dR = K_BASE × t(kind) × d(discipline) × m(margin) × (S − E)
 #   E  = 1 / (1 + 10^((R_theirs − R_mine)/400)),  S = 1 win / 0 loss
+#   with R_receiver += handicap_bonus(...) when the match has a chấp
 #
 # Doubles compare TEAM AVERAGES on the same /400 curve (a sum would silently
 # double the sensitivity). d = 1.0 by USER DECISION 2026-07-26 ("tác động
@@ -455,6 +457,35 @@ def _margin_mult(m: Match) -> float:
     return 1.0
 
 
+# Handicap → Elo bonus (Phase 1b, user ladder 2026-07-26): the RECEIVER's
+# effective rating gains the bonus before the normal comparison. The ladder
+# (0-2-0 → +50, 2-0-2 → +100, 2-2-2 → +150, 2-3-2 → +200, … 5-5-5 → +600,
+# the maximum) reduces to a formula over s = handicap points normalized to a
+# 3-set sum: 25×s up to s=6, then 50×s − 150 — so uniform ints (1-1-1 → 75)
+# and free-digit patterns ("4-2-0-2-4" → 210) get consistent values too.
+HANDICAP_BONUS_MAX_S3 = 15.0  # 5-5-5 is the maximum handicap ratio
+# Global calibration knob. 1.0 = the user's ladder as agreed. Revisit with a
+# backtest once a few months of post-anchor handicapped matches exist (the 20
+# pre-anchor ones hinted the ladder may overvalue chấp, but the sample was
+# too small and too concentrated on a few opponents to override it).
+HANDICAP_SCALE = 1.0
+
+
+def handicap_bonus(handicap: int, pattern: str | None) -> float:
+    """Elo equivalent of a per-set handicap (always ≥ 0; caller picks the side
+    via the sign of `handicap`)."""
+    if handicap == 0 and not pattern:
+        return 0.0
+    if pattern:
+        digits = [int(d) for d in pattern.split("-")]
+        s3 = 3.0 * sum(digits) / len(digits) if digits else 0.0
+    else:
+        s3 = 3.0 * abs(handicap)
+    s3 = min(s3, HANDICAP_BONUS_MAX_S3)
+    base = 25.0 * s3 if s3 <= 6.0 else 50.0 * s3 - 150.0
+    return base * HANDICAP_SCALE
+
+
 def compute_my_rating(db: Session) -> schemas.MyRatingOut:
     """Current dynamic rating = anchor points + replay of every eligible match
     since the anchor date. Nothing is stored per match, so editing, deleting
@@ -478,8 +509,6 @@ def compute_my_rating(db: Session) -> schemas.MyRatingOut:
             Match.discipline.in_(("singles", "doubles")),
             Match.opponent_id.isnot(None),
             Match.category_id.in_(list(kind_mult_by_cat)),
-            Match.handicap == 0,
-            Match.handicap_pattern.is_(None),
         )
         .order_by(Match.date, Match.order_index, Match.id)
         .all()
@@ -517,6 +546,21 @@ def compute_my_rating(db: Session) -> schemas.MyRatingOut:
         else:
             mine, theirs = rating, float(opp_points)
             attribution = 1.0
+        # Handicap: the receiving side plays "up" by the FULL ladder bonus —
+        # even past the opponent's rating (user decision 2026-07-26: a big
+        # chấp CAN make the receiver the favourite; losing from there
+        # deserves the big deduction, winning from there earns little).
+        # Sign of the stored handicap: +N = I (my team) give, −N = I receive.
+        bonus = handicap_bonus(m.handicap, m.handicap_pattern)
+        if m.discipline == "doubles":
+            # User rule 2026-07-26: in doubles the chấp ELO belongs to ONE
+            # member, not both — on the team-AVERAGE scale that is half the
+            # ladder value (avoids inflating the receiving pair abnormally).
+            bonus /= 2.0
+        if m.handicap > 0:
+            theirs += bonus
+        elif m.handicap < 0:
+            mine += bonus
         expected = 1.0 / (1.0 + 10 ** ((theirs - mine) / 400.0))
         score = 1.0 if m.my_sets > m.opp_sets else 0.0
         rating += (

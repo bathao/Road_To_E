@@ -1,6 +1,44 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-07-26) — ELO Phase 1a BUILT; points frozen at match time (uncommitted); restart start.bat
+## Current status (2026-07-26) — ELO Phase 1b (handicap) BUILT (uncommitted); restart start.bat
+
+> **PHASE 1b — HANDICAP FOLDING, decided and built 2026-07-26 (uncommitted).**
+> User ladder: each preset rung = +50 Elo for the RECEIVER — 0-2-0→50,
+> 2-0-2→100, 2-2-2→150, 2-3-2→200, 3-2-3→250, 3-3-3→300, 3-4-3→350,
+> 4-3-4→400, 4-4-4→450, 4-5-4→500, 5-4-5→550, 5-5-5→600 (max). Implemented
+> as a FORMULA, not a table (service.handicap_bonus): s = handicap points
+> normalized to a 3-set sum → bonus = 25×s (s ≤ 6) else 50×s − 150, capped
+> at s=15 — so uniform 1-1-1 (75) and free-digit "Khác…" patterns
+> (4-2-0-2-4 → 210) get consistent values. Knob HANDICAP_SCALE = 1.0.
+>   - **FULL bonus, NO cap (user corrected mid-discussion):** a first
+>     reading ("chấp chỉ thu hẹp khoảng cách") was briefly implemented as
+>     a cap-at-the-gap; the user clarified that sentence described typical
+>     kèo practice, NOT a formula rule — the receiver gets the full ladder
+>     value even past the opponent's rating. Consequences are the point:
+>     win as chấp-favourite → tiny gain; lose as chấp-favourite → big
+>     deduction ("được chấp nhiều mà thua thì xứng đáng bị trừ nhiều").
+>   - **Doubles (user rule, mid-discussion):** the chấp ELO belongs to ONE
+>     member, not both — on the team-average scale bonus/2, then the cap.
+>     (Counterpoint stated once: mechanically a team chấp shifts set scores
+>     like in singles, arguing full value; user's sum-of-two-ELO model says
+>     half. User's rule shipped.)
+>   - Sign source: stored signed `handicap` (+N give / −N receive); rating
+>     eligibility no longer excludes handicapped matches. MatchEditor
+>     dropdown gained 4-5-4, 5-4-5, 5-5-5 presets (5-5-5 = max). Card note:
+>     "trận (đơn + đôi, chấp đã quy đổi)".
+>   - **Sanity analysis on the 20 pre-anchor handicapped matches** (they
+>     never touch the live rating): results tracked the RAW gap as if chấp
+>     didn't exist (receiving: 0/13 actual vs 0.29 expected-with-bonus;
+>     giving: 71% actual vs 34%) — flagged as possible ladder overvaluation
+>     OR mis-set anchors of frequent chấp partners; sample too small/
+>     concentrated to override the user's ladder. Revisit HANDICAP_SCALE
+>     with a backtest after months of post-anchor data. NOTE: an earlier
+>     message misattributed 1200 to Tuấn gỗ — he is 1550 (D) in the DB; his
+>     3× "4-4-4, thua 0-3" results are CONSISTENT with the ladder (E≈0.30).
+>   - 56/56 pytest (ladder rungs/custom/cap, gap-cap integration, doubles
+>     half rule), build clean. Restart start.bat.
+
+## Earlier same day (2026-07-26) — Phase 1a snapshots (committed `74cb256`)
 
 > **AT-MATCH-TIME SNAPSHOTS (user decision + built 2026-07-26, uncommitted).**
 > User corrected the replay semantics: raising an opponent's static points

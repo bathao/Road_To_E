@@ -47,6 +47,9 @@ const HANDICAP_PATTERNS = [
   "3-4-3",
   "4-3-4",
   "4-4-4",
+  "4-5-4",
+  "5-4-5",
+  "5-5-5", // maximum chấp ratio (the ELO bonus ladder caps here too)
 ];
 
 // Dropdown-driven match entry. Pick discipline + format + the player(s) + an
