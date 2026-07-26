@@ -1,6 +1,117 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-07-26) — ELO Phase 1b (handicap) BUILT (uncommitted); restart start.bat
+## Current status (2026-07-27, end of session) — Phase 2 + scale 0.5 + labels retired, committed `108d50d`
+
+> **Resume tomorrow.** Everything committed (`108d50d` code, this file
+> right after); tree clean; 58/58 pytest; build clean. USER MUST RESTART
+> start.bat once — the running server predates today's whole ELO stack
+> (tournament_match category, snapshots, /my-rating/history, derived
+> levels). Today (27/7) is the first day matches actually move the rating.
+> **Next candidates (none started):** watch the first real days of ELO in
+> the wild (chips/curve/coach line render on real entries); mis-anchored-
+> opponent report (deviation detector from the backtest scripts → a
+> Database-tab section) once matches accumulate; re-run scale_backtest.py
+> after ~2-3 months; old audit debt (delete retired video pipeline, rename
+> tabs/video-analysis, SQLite FK pragma, build_week/_build_grid dedup).
+
+> **HANDICAP_SCALE backtest → 0.5 (user picked, 2026-07-27).** Re-ran the
+> grid with the PRODUCTION engine on the 23 pre-anchor handicapped matches
+> (copy DB, anchor temporarily 2026-05-01): bias grows monotonically with
+> scale (log-loss 0.227 at scale 0 vs 0.548 at 1.0) — results track the
+> RAW gap; most plausible cause is kèo-selection (chấp is offered exactly
+> when the true gap exceeds the anchors). User chose the 0.5 midpoint:
+> 2-2-2 = +75, 4-4-4 = +225, 5-5-5 = +300. Ladder-shape tests pin scale
+> 1.0 via monkeypatch; scratchpad harness: scale_backtest.py — re-run
+> after months of post-anchor data.
+>
+> **LEGACY vs-LEVEL LABELS RETIRED (plan approved + built 2026-07-27).**
+> Relative levels (dưới/ngang/trên cơ) now DERIVE from points vs my
+> CURRENT dynamic ELO (service.level_from_points; per-match grouping uses
+> the at-match-time snapshot via _level_of); a 4th bucket "unrated"
+> (= "chưa có điểm") covers players without points.
+>   - `tracker_player.level` column FROZEN: never written again (creates
+>     get the column default, updates ignore payload.level; _level_vs_me
+>     deleted); data kept, PlayerIn.level still accepted for old clients.
+>   - match_to_out(m, my_points) derives opponent/opponent2/partner_level;
+>     build_week reuses its ELO replay pass for my_points; router CRUD
+>     passes compute_my_rating().current.
+>   - build_match_stats + build_handicap_split group by derived level;
+>     _LEVEL_ORDER gained "unrated". API field names/values unchanged
+>     (below/equal/above/unrated) so FE shapes stayed put.
+>   - Head-coach: _LEVEL_VI + level/handicap render loops gained unrated;
+>     prompt explains levels are derived from points and forbids concluding
+>     from the "chưa có điểm" group.
+>   - FE: PlayerLevel union + LEVELS gained "unrated"; PlayerPicker chips
+>     now show POINTS + real rank ("1550 · D", grey "chưa xếp" when null)
+>     instead of Trên/Ngang/Dưới; MatchEditor keeps the relative word but
+>     it's now derived (dynamic). NOTE: groupings shift as my rating moves
+>     (e.g. I hit 1010 → a 1000-point player flips ngang→dưới cơ) — correct
+>     behaviour for a relative measure, by design.
+>   - GOTCHA hit during the work: a PowerShell -replace pipeline corrupted
+>     router.py's UTF-8 (mojibake) — restored via git checkout + Edit tool.
+>     Lesson: never round-trip UTF-8 source through Get-/Set-Content.
+>   - 58/58 pytest (frozen-column test replaces the derive test; stats
+>     fixtures now points-based), build + gen:api clean, smoke on real-DB
+>     copy: below 6 / equal 22 / above 47 / unrated 0.
+
+## Earlier same day (2026-07-27) — ELO Phase 2 (display + coach)
+
+> **Phase 2 built 2026-07-27 (uncommitted, includes the re-anchor guard
+> below):**
+>   - **rating.py extracted** — everything ELO now lives in
+>     `tracker/rating.py` (constants, anchor store, snapshots, handicap
+>     ladder, replay engine); service.py re-exports the old names
+>     (compute_my_rating, get/set_my_points, snapshot_match_points,
+>     get_my_anchor_date, handicap_bonus) so router/tests/_level_vs_me keep
+>     working. service.py 1720 → ~1500 lines.
+>   - **Replay refactor:** `rating.replay(db)` returns (final, ReplayStep[])
+>     — the single engine behind the current rating, per-match ±Δ and the
+>     daily curve. `skip_reason(m, anchor)` is the single source of truth
+>     for why a match doesn't count ("nonplaying" | "before_anchor" |
+>     "no_opponent" | "no_result" | "unrated").
+>   - **±Δ per match:** WeekResponse matches now carry elo_delta/elo_status
+>     (annotated in build_week, one replay pass). MatchEditor shows a green
+>     +Δ / red −Δ chip per counted match; ACTIONABLE skips get a muted
+>     "không tính" chip with the reason tooltip (no_opponent/unrated/
+>     no_result). before_anchor + nonplaying stay untagged — nothing to fix.
+>   - **Daily curve:** GET /tracker/my-rating/history (anchor day + last
+>     rating of each day with counted matches; replayed, nothing stored) →
+>     Database tab renders a LineChart card "Đường điểm ELO" (values
+>     re-based near min so the ~950 curve doesn't flatten; gridlines map
+>     back to real ratings). Chart hidden until ≥2 points.
+>   - **"Còn X tới E" chip** next to the big rating on the Database card
+>     (E floor = 1201, rating.RANK_E_FLOOR).
+>   - **Coach learns ELO:** bundle match_sum.my_elo {current, anchor,
+>     anchor_date, counted_matches, to_rank_e}; context gets an "ĐIỂM ELO
+>     ĐỘNG" line (blank for old snapshots); SYSTEM_PROMPT: ELO trend is the
+>     #1 objective progress yardstick, ahead of raw win-rate (biased by
+>     playing up / handicaps).
+>   - 57/57 pytest (history curve + week annotation test), build + gen:api
+>     clean; smoked on a real-DB copy (pre-anchor matches → before_anchor).
+>   - NOT done yet (next candidates): retire legacy vs-level labels (plan
+>     first); HANDICAP_SCALE backtest + mis-anchored-opponent report after
+>     months of data; old audit debt list.
+
+## Earlier (2026-07-26) — ELO Phase 1 complete + re-anchor guard (guard ships in the Phase 2 commit)
+
+> **Post-review bugfix (2026-07-26, uncommitted):** saving "Điểm của tôi"
+> UNCHANGED used to re-anchor at today and silently drop every replayed
+> match. Now: set_my_points is a no-op when the value equals the stored
+> points, and the FE Lưu button is disabled (with tooltip) until the draft
+> differs. Test added in test_manual_edit_becomes_new_anchor. 56/56, build
+> clean.
+>
+> **Code review verdict (same session):** ELO code otherwise clean — no
+> refactor needed NOW; extract tracker/rating.py + split compute_my_rating
+> into a per-step _replay() WHEN Phase 2 starts (it needs per-match Δ and a
+> daily series anyway; doing it earlier = doing it twice). Next-step list
+> (ranked): Phase 2 display (±Δ per match + "không tính" tags in
+> MatchEditor, /my-rating/history + chart, "còn X tới E" chip) → coach
+> bundle learns ELO (rating + trend + movers replaces raw win-rate
+> "lên trình" talk) → retire legacy vs-level labels (plan first) →
+> HANDICAP_SCALE backtest + mis-anchored-opponent report after 2-3 months
+> of data → old audit debt (delete retired video pipeline, rename
+> tabs/video-analysis, SQLite FK pragma, build_week/_build_grid dedup).
 
 > **PHASE 1b — HANDICAP FOLDING, decided and built 2026-07-26 (uncommitted).**
 > User ladder: each preset rung = +50 Elo for the RECEIVER — 0-2-0→50,
