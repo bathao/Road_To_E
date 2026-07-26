@@ -1,18 +1,192 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-07-25, latest) — points entered 70/70; Database tab + points-first player flow
+## Current status (2026-07-26) — ELO Phase 1a BUILT (committed `da1efcd`); restart start.bat
 
-> **Where we are:** ALL 70 players have points in the DB (user finished
-> entering; distribution H:6 G:28 F:14 E:9 D:7 C+:6). The user's own rating
-> is still the default 950/G (never edited — `tracker_setting.my_points`
-> unset, service default applies). NEXT (explicit user sequencing): propose
-> the update formula for the user's dynamic points vs the static anchors
-> ("Chốt điểm từng người trước đã, rồi mới đề xuất cách tăng/giảm điểm của
-> tôi với họ sau"). v1 sketch from the planning debate: singles-only,
-> handicap folded into expected score (~40 Elo per point/set) — re-confirm
-> under the static-anchor model before building. Also pending (needs a plan
-> first): retire vs-below/equal/above from Match Stats analytics + picker
-> option chips in favour of points comparison.
+> **GO decision (user, 2026-07-26):** code with the settled constants,
+> scoped to EVEN (handicap=0) SINGLES matches only. The other cases
+> (handicap folding, doubles, unrated opponents) are NOT dropped — they
+> are deferred, to be added later on top of this base. Also requested: a
+> THIRD match kind "tournament_match" so tournament matches can be INPUT
+> from now on.
+>
+> **Built this batch (2026-07-26, committed `da1efcd`):**
+>   - **Rating service** (tracker/service.py "my dynamic rating" section):
+>     `compute_my_rating` replays eligible matches from the anchor — no
+>     stored deltas; edit/delete/backfill self-corrects. Eligible: singles,
+>     playing, named opponent WITH points, handicap 0 + no pattern, date >=
+>     anchor (inclusive), category in ELO_KIND_MULT. Constants live there:
+>     ELO_K_BASE=12, kind t 0.5/1.0/1.5, margin m 1.25 sweep / 0.75 decider.
+>   - **Anchor:** `tracker_setting` my_points (existing) + new key
+>     `my_points_date` (default 2026-07-27). PUT /my-rating = new anchor at
+>     TODAY (inclusive — today's matches still count); GET/PUT now return
+>     `{points (anchor), current (replayed), anchor_date, counted_matches}`.
+>   - **tournament_match category** seeded (sort 6, before racket_time).
+>     Grid + MatchEditor pick it up generically (any type=="match" row).
+>     Match Stats filter + router pattern + FE chip gained "tournament".
+>     Racket time & directive-progress already category-agnostic — no change.
+>   - **Wording fixed** (the official≠giải trap): coach bundle now reports
+>     "THEO LOẠI TRẬN: đánh chơi · đánh độ nhẹ · đánh giải" (3 kinds, new
+>     tournament stats call), prompt rule updated (pressure rises by kind);
+>     head-coach sources panel FE shows đánh chơi/đánh độ/đánh giải.
+>   - **Database tab card:** big number = CURRENT replayed rating; "Sửa"
+>     edits the anchor; note line shows "neo X từ dd/mm/yyyy · đã tính N
+>     trận đơn đánh đồng".
+>   - **Verified:** 50/50 pytest (3 new in test_rating.py: formula/kind/
+>     margin math, out-of-scope skips, anchor re-anchoring), npm build clean,
+>     gen:api regenerated, smoke on a real-DB copy (seed adds the category,
+>     rating = 950/0 counted — correct, anchor is tomorrow).
+>   - **Restart start.bat** to seed tournament_match + load the new API.
+>   - **Deferred next:** Phase 1b handicap folding (constant C, backtest
+>     harness ready in this session's scratchpad); doubles/unrated policy;
+>     Phase 2 display (±Δ per match, chart, "còn X tới E", coach bundle
+>     rating trend); retire legacy vs-level labels (plan first).
+
+> **Where we are:** user redirected Phase 1: build the update rule for EVEN
+> (handicap = 0) SINGLES matches FIRST; handicapped matches get their own
+> analysis later (Phase 1b). New hard requirement: SET MARGIN must matter —
+> a 3-0 win gains more than a 3-2 win; an 0-3 loss drops more than 2-3.
+>
+> **Reference systems studied (user request) before planning:**
+> - FFTT (France): lookup table by rating gap, ASYMMETRIC normal vs upset
+>   (gap 200: normal win +2 / normal loss −1, upset win +17 / upset loss
+>   −12.5; gap 500+: normal 0/0, upset +40/−29). Tournament coefficients
+>   0.5–1.25. Monthly batches.
+> - USATT (US): SYMMETRIC exchange table by point spread — expected result
+>   8→0 points as the gap grows 0→238+, upset 8→50. Table-based Elo.
+> - BBTV (VN): rank bands identical to our shared/rank.ts scale (H ≤800 …
+>   A* >2200), new players seeded at band midpoint, tournament placement
+>   bonuses (+50/+30/+20/+10 singles); the actual per-match exchange table
+>   is behind a Google Drive link — NOT retrievable, don't cite it as known.
+> - Invariants across all three: winner NEVER loses points, loser NEVER
+>   gains; upsets move far more than expected results; NONE uses set score —
+>   margin sensitivity is OUR extension, not borrowed.
+>
+> **Revised formula proposal (SUPERSEDES the earlier "S = set share" idea —
+> set-share would SUBTRACT points on a sloppy 3-2 win over a weak opponent
+> and could ADD points on a close loss, both contradicting the user's spec
+> and all 3 references):**
+>     ΔR = K × m × (S − E),  S = 1 win / 0 loss,
+>     E = 1/(1+10^((R_opp − R_me)/400)),
+>     m (margin multiplier) = 1.25 sweep (3-0, 2-0, 4-0) /
+>                             1.0 normal / 0.75 deciding set (3-2, 2-1, 4-3).
+>   Open decision #1 from the previous session is thereby resolved as
+>   "binary S + margin multiplier", NOT set-share. K proposed 20 — but the
+>   backtest, not debate, picks the final constants.
+>
+> **Per-match-kind K — t APPROVED by user 2026-07-26 ("0.5, 1 và 1.5 ok").**
+> User redefined the kinds:
+> practice = đánh chơi (casual), official = đánh độ nhẹ (small stakes,
+> nước/10-20k), tournament = real tournament play. Proposal: one more
+> multiplier t on the same formula — ΔR = K_base × t × m × (S − E):
+>     practice t = 0.5 (K_eff 10) · official t = 1.0 (K_eff 20) ·
+>     tournament t = 1.5 (K_eff 30, PLACEHOLDER — no tournament matches are
+>     logged yet, so the backtest cannot tune it; revisit when data exists).
+>   Precedent: FFTT event coefficients 0.5–1.25. Backtest grid should also
+>   sweep the practice coefficient {0.4, 0.5, 0.75, 1.0}.
+>
+> **Deferred feature (user: "sẽ làm sau"): tournament_match category.**
+> Today matches live in 2 seeded categories (practice_match/official_match,
+> seed.py); adding tournament_match touches: seed, match-stats category
+> filter (_CATEGORY_KEY service.py:1066 + router pattern + FE chips/types),
+> directive-progress match counts, racket time, coach bundle. WORDING TRAP:
+> the coach bundle/GUI currently call official "TRẬN GIẢI/trận giải"
+> (head-coach index.tsx:270) — under the new semantics official = đánh độ,
+> tournament = đánh giải; relabel when the kind lands.
+>
+> **ANCHOR DECISION (user, 2026-07-26): rating starts counting on
+> 2026-07-27.** All older matches in the DB are IGNORED by the rating —
+> first anchor = (2026-07-27, 950). Replay-from-anchor handles this natively.
+>
+> **BACKTEST RAN 2026-07-26 (scratchpad only, DB copy — no app code yet).**
+> Purpose shifted to sanity check + volatility sizing since old matches
+> won't count. Results:
+>   - Only 33 eligible even rated singles matches exist (2026-05-29..07-23;
+>     17 practice / 16 official; 11W-22L = 33%). 133 singles rows have NO
+>     named opponent (mostly Mar–May imports — moot now, but going forward a
+>     match only moves the rating if the opponent is named AND rated);
+>     20 matches handicapped (Phase 1b).
+>   - Sanity: replayed final rating lands 906–941 vs seed 950 across the
+>     whole grid (K 12–32 × t_practice 0.2–1.0 × m on/off) — user's 33% win
+>     rate vs median-1050 opponents ≈ expectation at ~950, so the 950 seed
+>     and the static anchors are mutually consistent. No opponent flagged as
+>     mis-entered (Trần Quang Vinh 1200: 3W-5L ≈ slightly above the ~0.2
+>     expectation, not anomalous).
+>   - m on/off changes the final by only ~5 pts; t_practice 0.2→1.0 by
+>     ~15 pts. Constants are NOT identifiable from 33 matches — they must be
+>     sized for the FUTURE volume instead.
+>   - Volatility sizing: user corrected the volume target to ~20 matches/
+>     week (not 30–40) and set the signal timescale: skill moves over 3–4
+>     MONTHS, never weeks ("3 tháng 4 tháng lên là nhanh"), and may DROP
+>     first (he loses a lot — a slide below 950 is the system working, not a
+>     bug; backtest suggests the slide is shallow, replay lands ~930).
+>     Noise math at 20/week: K_base 12 → ~±20/week luck swing, 16 → ~±25,
+>     20 → ~±32. With a 3-4-month signal horizon, minimize noise: K=12
+>     still tracks +40–90 pts/quarter at 5–10% sustained overperformance.
+>
+> **CONSTANTS SETTLED 2026-07-26 (t/m/anchor approved by user; K_base=12
+> agreed after two rounds of volume/timescale discussion):**
+>     ΔR = 12 × t × m × (S − E)
+>     t = 0.5 practice / 1.0 official / 1.5 tournament (tournament is a
+>         placeholder until tournament matches are actually stored)
+>     m = 1.25 sweep / 1.0 normal / 0.75 deciding set
+>     Anchor: (2026-07-27, 950); older matches never counted.
+>     Eligible: singles + named rated opponent + handicap 0 only.
+>     Even-opponent 3-0 examples: practice +3.75 / official +7.5 /
+>     tournament +11.25.
+>
+> **Plan (proposed 2026-07-26, NOT yet approved — code only after OK):**
+>   1. BACKTEST script (read-only, runs on a DB copy): replay all even rated
+>      singles matches in date order over a grid of variants (K ∈ {16,20,24,
+>      32} × m on/off); outputs rating curve over time, final rating,
+>      biggest single-match movers, and opponents whose results deviate most
+>      from expectation (mis-entered static points suspects). User picks the
+>      constants from real numbers.
+>   2. Rating service (after constants OK'd): replay from anchor (agreed
+>      earlier — no stored deltas; PUT my-points = new anchor), counting
+>      ONLY singles + rated opponent + handicap 0; doubles/unrated/
+>      handicapped matches skipped for now.
+>   3. Minimal display only: computed rating on the Database my-rating card
+>      (full Phase 2 display work stays deferred).
+>   4. Phase 1b: handicap folding (the C constant) analysed with the same
+>      backtest harness.
+
+## Earlier (2026-07-25) — ELO Phase 1 first proposal (superseded above)
+
+> **Where we are:** all 70 players have points (H:6 G:28 F:14 E:9 D:7 C+:6);
+> the user's own rating is the default 950/G. The ELO roadmap was presented
+> as 3 phases; user said: start with PHASE 1 ONLY (the formula), do NOT
+> discuss phase 2/3 yet. User left mid-discussion — NEXT SESSION: continue
+> the Phase 1 debate below until the 3 open decisions are settled, get an
+> explicit OK, only then code.
+>
+> **PHASE 1 (proposed, NOT yet agreed) — update formula for the user's
+> dynamic rating vs static anchors:**
+>   - Scope: SINGLES playing matches vs RATED opponents only. Doubles and
+>     unrated opponents don't move the rating (UI must say so per match).
+>   - Standard Elo with handicap folded into the opponent's effective
+>     rating: `R_eff = R_opp + C × handicap` (signed int from the DB; the
+>     per-set average already covers patterns like 2-0-2).
+>     `E = 1/(1+10^((R_eff − R_me)/400))`, `R_me += K × (S − E)`.
+>   - Architecture (key decision, recommended): NO stored per-match deltas —
+>     REPLAY. Store an anchor (date, points=950); current rating = replay all
+>     singles matches since the anchor. Editing/deleting/backfilling old
+>     matches self-corrects. A manual edit of "Điểm của tôi" in the Database
+>     tab = a new anchor from that day.
+>   - OPEN DECISIONS (user has NOT answered yet):
+>     1. S = set share (3-2 → 0.6; recommended — smoother, rewards close
+>        losses vs strong opponents) vs plain win/loss 1/0.
+>     2. K factor: proposed 20 per match.
+>     3. C (Elo per handicap point/set): proposed ~50, but the REAL value
+>        comes from a backtest — replay the user's full singles history and
+>        tune constants so the replayed rating converges near ~950. The
+>        backtest also flags players whose static points look mis-entered
+>        (frequent opponents with results far off expectation).
+>   - Phases 2 (display: auto card, ±Δ per match, chart, "còn X tới E",
+>     coach bundle) and 3 (retire legacy labels from analytics/picker) were
+>     shown but the user explicitly deferred discussing them.
+>
+> **Also pending (needs a plan first):** retire vs-below/equal/above from
+> Match Stats analytics + picker option chips in favour of points comparison.
 >
 > **Wording (user decision):** never say "điểm BBTV" in the GUI — just
 > "điểm". Legacy labels (trên/ngang/dưới cơ) are hidden from the Database
