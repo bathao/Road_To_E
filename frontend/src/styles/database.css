@@ -196,3 +196,26 @@
   padding: 16px;
   color: var(--muted);
 }
+
+/* "con X toi E" chip next to the dynamic rating */
+.db-me-to-e {
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: rgba(95, 168, 60, 0.14);
+  color: #5fa83c;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ELO curve card */
+.db-chart {
+  margin: 14px 0 4px;
+  padding: 10px 12px 4px;
+  border: 1px solid var(--border, rgba(128, 128, 128, 0.25));
+  border-radius: 10px;
+}
+.db-chart h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+}

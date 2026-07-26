@@ -924,3 +924,38 @@
   gap: 8px;
   align-items: center;
 }
+
+/* ELO annotation chips on match rows (MatchEditor list) */
+.elo-chip {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  vertical-align: 1px;
+}
+.elo-chip.elo-up {
+  background: rgba(95, 168, 60, 0.16);
+  color: #5fa83c;
+}
+.elo-chip.elo-down {
+  background: rgba(214, 69, 69, 0.14);
+  color: #d64545;
+}
+.elo-chip.elo-skip {
+  background: rgba(128, 128, 128, 0.14);
+  color: #8a8a8a;
+  font-weight: 500;
+}
+
+/* Points-rank chip (replaces the retired relative-level chips) */
+.level-chip.level-points {
+  background: rgba(74, 144, 217, 0.14);
+  color: #4a90d9;
+}
+.level-chip.level-unrated {
+  background: rgba(128, 128, 128, 0.14);
+  color: #8a8a8a;
+}

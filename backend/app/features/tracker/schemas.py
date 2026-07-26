@@ -122,6 +122,22 @@ class MyRatingIn(BaseModel):
     points: int = Field(ge=0, le=3000)
 
 
+class RatingPoint(BaseModel):
+    date: dt.date
+    rating: int
+
+
+class MyRatingHistoryOut(BaseModel):
+    """Daily ELO curve since the anchor, reconstructed by replay (nothing is
+    stored): the anchor day plus the last rating of each day with counted
+    matches."""
+
+    anchor_date: dt.date
+    anchor_points: int
+    current: int
+    points: list[RatingPoint]
+
+
 # ---------- Match ----------
 class MatchIn(BaseModel):
     date: dt.date
@@ -174,6 +190,12 @@ class MatchOut(BaseModel):
     partner_level: str | None = None
     handicap: int = 0
     handicap_pattern: str | None = None
+    # ELO annotation (week view only; None on single-match CRUD responses):
+    # the ±Δ this match contributed to MY rating, and its status — "counted"
+    # or the skip reason ("nonplaying" | "before_anchor" | "no_opponent" |
+    # "no_result" | "unrated") so the GUI can tag "không tính" matches.
+    elo_delta: float | None = None
+    elo_status: str | None = None
 
 
 class EventOut(BaseModel):

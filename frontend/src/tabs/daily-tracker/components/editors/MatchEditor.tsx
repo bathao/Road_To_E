@@ -35,6 +35,34 @@ function playersLabel(m: Match): string {
   return parts.join(" ");
 }
 
+// Why a match doesn't move the ELO — only ACTIONABLE reasons get a tag
+// (fix = name the opponent / enter points in the Database tab / log the
+// score). Pre-anchor and Travel/Rest rows stay untagged: nothing to fix.
+const ELO_SKIP_LABEL: Record<string, string> = {
+  no_opponent: "chưa ghi tên đối thủ",
+  unrated: "người chơi chưa có điểm (tab Database)",
+  no_result: "chưa có tỉ số",
+};
+
+function EloChip({ m }: { m: Match }) {
+  if (m.elo_delta != null) {
+    const up = m.elo_delta >= 0;
+    return (
+      <span className={`elo-chip ${up ? "elo-up" : "elo-down"}`} title="Điểm ELO thay đổi sau trận này">
+        {up ? "+" : ""}
+        {m.elo_delta.toFixed(1)}
+      </span>
+    );
+  }
+  const label = m.elo_status ? ELO_SKIP_LABEL[m.elo_status] : undefined;
+  if (!label) return null;
+  return (
+    <span className="elo-chip elo-skip" title={`Trận không tính ELO: ${label}`}>
+      không tính
+    </span>
+  );
+}
+
 // Common per-set handicap ratios ("2-0-2" = set 1: 2, set 2: 0, set 3: 2).
 // Anything else goes through "Khác…" (digits typed by hand).
 const HANDICAP_PATTERNS = [
@@ -198,6 +226,7 @@ export default function MatchEditor({
                   : `${m.discipline === "doubles" ? "D" : "S"} ${resultLetter(m)} ${m.my_sets}-${m.opp_sets}`}
                 {playersLabel(m) ? ` · ${playersLabel(m)}` : ""}
                 {m.event_name ? ` · ${m.event_name}` : ""}
+                <EloChip m={m} />
               </span>
               <button
                 className="icon-btn danger"

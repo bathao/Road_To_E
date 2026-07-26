@@ -80,6 +80,11 @@ export interface Match {
   handicap: number; // signed: +N = I give N points, -N = I receive
   // Per-set sequence for non-uniform ratios ("2-0-2"); null = uniform.
   handicap_pattern?: string | null;
+  // ELO annotation (week view): ±Δ this match moved MY rating, or why it
+  // doesn't count ("counted" | "nonplaying" | "before_anchor" |
+  // "no_opponent" | "no_result" | "unrated").
+  elo_delta?: number | null;
+  elo_status?: string | null;
 }
 
 export interface CellData {

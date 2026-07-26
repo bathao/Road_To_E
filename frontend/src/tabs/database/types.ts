@@ -26,3 +26,16 @@ export interface MyRating {
   anchor_date: string;
   counted_matches: number;
 }
+
+export interface RatingPoint {
+  date: string; // ISO
+  rating: number;
+}
+
+// Daily ELO curve since the anchor (replayed server-side, nothing stored).
+export interface MyRatingHistory {
+  anchor_date: string;
+  anchor_points: number;
+  current: number;
+  points: RatingPoint[];
+}

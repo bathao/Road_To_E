@@ -194,7 +194,10 @@ def format_match_cell(matches: list[Match]) -> str:
     return "\n".join(lines)
 
 
-def match_to_out(m: Match) -> schemas.MatchOut:
+def match_to_out(m: Match, my_points: int) -> schemas.MatchOut:
+    """`my_points` = my CURRENT dynamic rating — the *_level fields are
+    derived from points (at-match-time snapshot first), not the retired
+    hand-picked label."""
     return schemas.MatchOut(
         id=m.id,
         date=m.date,
@@ -211,15 +214,15 @@ def match_to_out(m: Match) -> schemas.MatchOut:
         order_index=m.order_index,
         opponent_id=m.opponent_id,
         opponent_name=m.opponent.name if m.opponent else None,
-        opponent_level=m.opponent.level if m.opponent else None,
+        opponent_level=_level_of(m.opp_points_snap, m.opponent, my_points),
         opponent_plays_pips=bool(m.opponent.plays_pips) if m.opponent else False,
         opponent2_id=m.opponent2_id,
         opponent2_name=m.opponent2.name if m.opponent2 else None,
-        opponent2_level=m.opponent2.level if m.opponent2 else None,
+        opponent2_level=_level_of(m.opp2_points_snap, m.opponent2, my_points),
         opponent2_plays_pips=bool(m.opponent2.plays_pips) if m.opponent2 else False,
         partner_id=m.partner_id,
         partner_name=m.partner.name if m.partner else None,
-        partner_level=m.partner.level if m.partner else None,
+        partner_level=_level_of(m.partner_points_snap, m.partner, my_points),
         handicap=m.handicap or 0,
         handicap_pattern=m.handicap_pattern,
     )
@@ -228,7 +231,6 @@ def match_to_out(m: Match) -> schemas.MatchOut:
 # ---------------------------------------------------------------- players
 
 
-_PLAYER_LEVELS = {"below", "equal", "above"}
 
 
 def player_to_out(p: Player) -> schemas.PlayerOut:
@@ -263,26 +265,34 @@ def _rank_band(points: int) -> int:
     return 7  # A
 
 
-def _level_vs_me(db: Session, points: int) -> str:
-    """Legacy relative label derived from points: same rank band as the user's
-    own rating = equal. Keeps the old vs-level analytics coherent while new
-    players are created with points instead of a hand-picked label."""
-    theirs, mine = _rank_band(points), _rank_band(get_my_points(db))
+def level_from_points(points: int | None, my_points: int) -> str:
+    """Relative level derived from POINTS (retired the hand-picked label,
+    2026-07-27): same rank band as my current dynamic rating = equal;
+    no points yet = its own "unrated" bucket."""
+    if points is None:
+        return "unrated"
+    theirs, mine = _rank_band(points), _rank_band(my_points)
     return "above" if theirs > mine else "below" if theirs < mine else "equal"
 
 
+def _level_of(snap: int | None, player: Player | None, my_points: int) -> str | None:
+    """Level of one match slot — at-match-time snapshot first, like the ELO."""
+    if player is None:
+        return None
+    return level_from_points(snap if snap is not None else player.points, my_points)
+
+
 def create_or_get_player(db: Session, payload: schemas.PlayerIn) -> schemas.PlayerOut:
-    """Get-or-create by name. If the player exists, keep it (level unchanged)."""
+    """Get-or-create by name. If the player exists, keep it.
+
+    `level` is FROZEN legacy (2026-07-27): no longer written from payloads —
+    analytics derive the relative level from points instead. New rows get the
+    column default; the field is still accepted so old clients don't break."""
     name = (payload.name or "").strip()
     existing = db.query(Player).filter(Player.name == name).first()
     if existing is None:
-        if payload.points is not None:
-            level = _level_vs_me(db, payload.points)
-        else:
-            level = payload.level if payload.level in _PLAYER_LEVELS else "equal"
         existing = Player(
             name=name,
-            level=level,
             note=payload.note,
             plays_pips=payload.plays_pips,
             points=payload.points,
@@ -300,8 +310,7 @@ def update_player(
     if p is None:
         return None
     p.name = (payload.name or "").strip() or p.name
-    if payload.level in _PLAYER_LEVELS:
-        p.level = payload.level
+    # payload.level is ignored — the column is frozen legacy (see above).
     p.note = payload.note
     p.plays_pips = payload.plays_pips
     # None = caller doesn't manage points (e.g. the picker's pips toggle) —
@@ -347,236 +356,18 @@ def list_players_db(db: Session) -> schemas.PlayersDbResponse:
     )
 
 
-# The user's own points — the only DYNAMIC rating (player points are static
-# anchors maintained by hand). Stored in the key-value settings table.
-_MY_POINTS_KEY = "my_points"
-_MY_POINTS_DEFAULT = 950  # rank G, set 2026-07-25
-
-
-def get_my_points(db: Session) -> int:
-    row = db.get(Setting, _MY_POINTS_KEY)
-    return int(row.value) if row is not None else _MY_POINTS_DEFAULT
-
-
-def set_my_points(db: Session, points: int) -> int:
-    """Manual edit of "Điểm của tôi" = a NEW ANCHOR from today: the replay in
-    compute_my_rating restarts at (today, points). Matches dated today still
-    count (the anchor date is inclusive)."""
-    row = db.get(Setting, _MY_POINTS_KEY)
-    if row is None:
-        db.add(Setting(key=_MY_POINTS_KEY, value=str(points)))
-    else:
-        row.value = str(points)
-    date_row = db.get(Setting, _MY_ANCHOR_DATE_KEY)
-    today = dt.date.today().isoformat()
-    if date_row is None:
-        db.add(Setting(key=_MY_ANCHOR_DATE_KEY, value=today))
-    else:
-        date_row.value = today
-    db.commit()
-    return points
-
-
-# ------------------------------------------------- my dynamic rating (ELO 1a)
-# Replay-from-anchor Elo for the USER's rating only (all other players are
-# static anchors). A match moves the rating only if it is: playing, dated
-# on/after the anchor, and every involved player is NAMED and RATED —
-# singles: the opponent; doubles: partner + both opponents (one missing rating
-# skips the match). Handicapped matches count too: the receiver's effective
-# rating gains handicap_bonus() before the comparison (Phase 1b).
-#
-#   dR = K_BASE × t(kind) × d(discipline) × m(margin) × (S − E)
-#   E  = 1 / (1 + 10^((R_theirs − R_mine)/400)),  S = 1 win / 0 loss
-#   with R_receiver += handicap_bonus(...) when the match has a chấp
-#
-# Doubles compare TEAM AVERAGES on the same /400 curve (a sum would silently
-# double the sensitivity). d = 1.0 by USER DECISION 2026-07-26 ("tác động
-# của tôi trong trận đánh đôi vẫn phải tốt nếu thắng"): a doubles result
-# moves the rating exactly like a singles one, both ways — a partner's bad
-# day costs full points too. (0.5 = half attribution was the alternative.)
-#
-# Constants settled with the user 2026-07-26 (PROGRESS.md): K sized for ~20
-# matches/week and a 3-4 MONTH skill timescale — luck noise stays ~±20/week.
-ELO_K_BASE = 12.0
-ELO_DOUBLES_MULT = 1.0  # full weight — user decision (see above)
-ELO_KIND_MULT = {
-    "practice_match": 0.5,  # đánh chơi
-    "official_match": 1.0,  # đánh độ nhẹ
-    "tournament_match": 1.5,  # đánh giải (placeholder until real data exists)
-}
-ELO_SWEEP_MULT = 1.25  # 3-0 / 2-0 / 4-0: a sweep moves the rating more
-ELO_DECIDER_MULT = 0.75  # 3-2 / 2-1 / 4-3: a deciding set moves it less
-# User decision 2026-07-26: rating counts from 2026-07-27; older matches never.
-_MY_ANCHOR_DATE_KEY = "my_points_date"
-_MY_ANCHOR_DATE_DEFAULT = dt.date(2026, 7, 27)
-
-
-def get_my_anchor_date(db: Session) -> dt.date:
-    row = db.get(Setting, _MY_ANCHOR_DATE_KEY)
-    return dt.date.fromisoformat(row.value) if row is not None else _MY_ANCHOR_DATE_DEFAULT
-
-
-def _current_points(db: Session, player_id: int | None) -> int | None:
-    if player_id is None:
-        return None
-    player = db.get(Player, player_id)
-    return player.points if player is not None else None
-
-
-def snapshot_match_points(
-    db: Session,
-    match: Match,
-    prev_ids: tuple[int | None, int | None, int | None] | None = None,
-) -> None:
-    """Freeze the involved players' CURRENT points onto the match row.
-
-    User decision 2026-07-26: the rating replay must use the points that were
-    in effect when the match was played — raising a player's static points
-    later only applies from that moment on. On update pass ``prev_ids`` =
-    (opponent_id, opponent2_id, partner_id) as they were BEFORE the edit:
-    only a slot whose player changed is re-snapshotted, so editing a score or
-    a date never silently refreshes an old snapshot.
-    """
-    slots = (
-        ("opponent_id", "opp_points_snap"),
-        ("opponent2_id", "opp2_points_snap"),
-        ("partner_id", "partner_points_snap"),
-    )
-    for i, (id_attr, snap_attr) in enumerate(slots):
-        player_id = getattr(match, id_attr)
-        if prev_ids is not None and prev_ids[i] == player_id:
-            continue  # same player as before — keep the original snapshot
-        setattr(match, snap_attr, _current_points(db, player_id))
-
-
-def _margin_mult(m: Match) -> float:
-    if min(m.my_sets, m.opp_sets) == 0:
-        return ELO_SWEEP_MULT
-    if m.my_sets + m.opp_sets == m.best_of:
-        return ELO_DECIDER_MULT
-    return 1.0
-
-
-# Handicap → Elo bonus (Phase 1b, user ladder 2026-07-26): the RECEIVER's
-# effective rating gains the bonus before the normal comparison. The ladder
-# (0-2-0 → +50, 2-0-2 → +100, 2-2-2 → +150, 2-3-2 → +200, … 5-5-5 → +600,
-# the maximum) reduces to a formula over s = handicap points normalized to a
-# 3-set sum: 25×s up to s=6, then 50×s − 150 — so uniform ints (1-1-1 → 75)
-# and free-digit patterns ("4-2-0-2-4" → 210) get consistent values too.
-HANDICAP_BONUS_MAX_S3 = 15.0  # 5-5-5 is the maximum handicap ratio
-# Global calibration knob. 1.0 = the user's ladder as agreed. Revisit with a
-# backtest once a few months of post-anchor handicapped matches exist (the 20
-# pre-anchor ones hinted the ladder may overvalue chấp, but the sample was
-# too small and too concentrated on a few opponents to override it).
-HANDICAP_SCALE = 1.0
-
-
-def handicap_bonus(handicap: int, pattern: str | None) -> float:
-    """Elo equivalent of a per-set handicap (always ≥ 0; caller picks the side
-    via the sign of `handicap`)."""
-    if handicap == 0 and not pattern:
-        return 0.0
-    if pattern:
-        digits = [int(d) for d in pattern.split("-")]
-        s3 = 3.0 * sum(digits) / len(digits) if digits else 0.0
-    else:
-        s3 = 3.0 * abs(handicap)
-    s3 = min(s3, HANDICAP_BONUS_MAX_S3)
-    base = 25.0 * s3 if s3 <= 6.0 else 50.0 * s3 - 150.0
-    return base * HANDICAP_SCALE
-
-
-def compute_my_rating(db: Session) -> schemas.MyRatingOut:
-    """Current dynamic rating = anchor points + replay of every eligible match
-    since the anchor date. Nothing is stored per match, so editing, deleting
-    or backfilling old matches self-corrects on the next read."""
-    anchor_points = get_my_points(db)
-    anchor_date = get_my_anchor_date(db)
-    kind_mult_by_cat = {
-        c.id: ELO_KIND_MULT[c.key]
-        for c in db.query(Category).filter(Category.key.in_(list(ELO_KIND_MULT))).all()
-    }
-    matches = (
-        db.query(Match)
-        .options(
-            selectinload(Match.opponent),
-            selectinload(Match.opponent2),
-            selectinload(Match.partner),
-        )
-        .filter(
-            Match.date >= anchor_date,
-            Match.is_nonplaying == False,  # noqa: E712
-            Match.discipline.in_(("singles", "doubles")),
-            Match.opponent_id.isnot(None),
-            Match.category_id.in_(list(kind_mult_by_cat)),
-        )
-        .order_by(Match.date, Match.order_index, Match.id)
-        .all()
-    )
-    rating = float(anchor_points)
-    counted = 0
-    for m in matches:
-        if m.my_sets == m.opp_sets:
-            continue  # no result recorded
-        # At-match-time snapshot first; current points only as a fallback for
-        # legacy rows written before snapshots existed.
-        opp_points = (
-            m.opp_points_snap
-            if m.opp_points_snap is not None
-            else (m.opponent.points if m.opponent is not None else None)
-        )
-        if opp_points is None:
-            continue  # unrated opponent
-        if m.discipline == "doubles":
-            partner_points = (
-                m.partner_points_snap
-                if m.partner_points_snap is not None
-                else (m.partner.points if m.partner is not None else None)
-            )
-            opp2_points = (
-                m.opp2_points_snap
-                if m.opp2_points_snap is not None
-                else (m.opponent2.points if m.opponent2 is not None else None)
-            )
-            if partner_points is None or opp2_points is None:
-                continue  # the whole pair must be named and rated
-            mine = (rating + partner_points) / 2.0
-            theirs = (opp_points + opp2_points) / 2.0
-            attribution = ELO_DOUBLES_MULT
-        else:
-            mine, theirs = rating, float(opp_points)
-            attribution = 1.0
-        # Handicap: the receiving side plays "up" by the FULL ladder bonus —
-        # even past the opponent's rating (user decision 2026-07-26: a big
-        # chấp CAN make the receiver the favourite; losing from there
-        # deserves the big deduction, winning from there earns little).
-        # Sign of the stored handicap: +N = I (my team) give, −N = I receive.
-        bonus = handicap_bonus(m.handicap, m.handicap_pattern)
-        if m.discipline == "doubles":
-            # User rule 2026-07-26: in doubles the chấp ELO belongs to ONE
-            # member, not both — on the team-AVERAGE scale that is half the
-            # ladder value (avoids inflating the receiving pair abnormally).
-            bonus /= 2.0
-        if m.handicap > 0:
-            theirs += bonus
-        elif m.handicap < 0:
-            mine += bonus
-        expected = 1.0 / (1.0 + 10 ** ((theirs - mine) / 400.0))
-        score = 1.0 if m.my_sets > m.opp_sets else 0.0
-        rating += (
-            ELO_K_BASE
-            * kind_mult_by_cat[m.category_id]
-            * attribution
-            * _margin_mult(m)
-            * (score - expected)
-        )
-        counted += 1
-    return schemas.MyRatingOut(
-        points=anchor_points,
-        current=round(rating),
-        anchor_date=anchor_date.isoformat(),
-        counted_matches=counted,
-    )
+# The user's dynamic ELO rating moved to rating.py (constants, anchor
+# store, snapshots, handicap ladder, replay engine). Re-exported names
+# below keep existing call sites (router pieces, _level_vs_me, tests).
+from app.features.tracker import rating  # noqa: E402
+from app.features.tracker.rating import (  # noqa: E402,F401
+    compute_my_rating,
+    get_my_anchor_date,
+    get_my_points,
+    handicap_bonus,
+    set_my_points,
+    snapshot_match_points,
+)
 
 
 # ---------------------------------------------------------------- events
@@ -850,12 +641,26 @@ def build_week(
         for iso, color in colors.items():
             cells[f"{overall.id}|{iso}"] = schemas.CellData(display="", color=color)
 
+    # ELO annotation: one replay pass, then tag every match with its ±Δ or
+    # the reason it doesn't count (the GUI shows actionable "không tính").
+    # The same pass yields my current rating for the derived *_level fields.
+    my_final, elo_steps = rating.replay(db)
+    match_outs = [match_to_out(m, round(my_final)) for m in matches]
+    elo_deltas = {s.match_id: s.delta for s in elo_steps}
+    anchor_date = rating.get_my_anchor_date(db)
+    for out, m in zip(match_outs, matches):
+        if m.id in elo_deltas:
+            out.elo_delta = round(elo_deltas[m.id], 1)
+            out.elo_status = rating.STATUS_COUNTED
+        else:
+            out.elo_status = rating.skip_reason(m, anchor_date)
+
     return schemas.WeekResponse(
         start=start,
         days=days,
         categories=[schemas.CategoryOut.model_validate(c) for c in categories],
         activities=[schemas.ActivityOut.model_validate(a) for a in activities],
-        matches=[match_to_out(m) for m in matches],
+        matches=match_outs,
         cells=cells,
         physical_checks=checks_by_date,
         day_notes=notes_by_date,
@@ -1273,7 +1078,9 @@ def build_breakdown(
 
 # ---------------------------------------------------------------- match stats (Tab 3)
 
-_LEVEL_ORDER = ["below", "equal", "above"]
+# Relative levels are DERIVED from points (vs my current dynamic rating);
+# "unrated" = opponent has no points yet. Hand-picked labels are retired.
+_LEVEL_ORDER = ["below", "equal", "above", "unrated"]
 _CATEGORY_KEY = {
     "practice": "practice_match",
     "official": "official_match",
@@ -1323,6 +1130,11 @@ def build_match_stats(
     # order_index breaks same-day ties so "last_result" is truly the last match.
     matches = q.order_by(Match.date, Match.order_index).all()
 
+    # Relative levels derive from POINTS vs my current dynamic rating (the
+    # hand-picked label was retired 2026-07-27). Per-MATCH grouping honours
+    # the at-match-time snapshot; per-PLAYER listings use current points.
+    my_now = round(rating.replay(db)[0])
+
     overall = _blank_match_stats()
     by_level: dict[str, dict] = {lv: _blank_match_stats() for lv in _LEVEL_ORDER}
     singles_h2h: dict[int, dict] = {}  # keyed by opponent_id
@@ -1331,7 +1143,7 @@ def build_match_stats(
 
     for m in matches:
         _tally(overall, m)
-        lvl = m.opponent.level if m.opponent else "equal"
+        lvl = _level_of(m.opp_points_snap, m.opponent, my_now) or "unrated"
         if lvl in by_level:
             _tally(by_level[lvl], m)
 
@@ -1341,7 +1153,10 @@ def build_match_stats(
                 b = opp_brief.get(opp.id)
                 if b is None:
                     b = opp_brief[opp.id] = {
-                        "id": opp.id, "name": opp.name, "level": opp.level, "played": 0
+                        "id": opp.id,
+                        "name": opp.name,
+                        "level": level_from_points(opp.points, my_now),
+                        "played": 0,
                     }
                 b["played"] += 1
 
@@ -1350,9 +1165,9 @@ def build_match_stats(
             opps = sorted(
                 [
                     (m.opponent_id, m.opponent.name if m.opponent else "?",
-                     m.opponent.level if m.opponent else "equal"),
+                     _level_of(m.opp_points_snap, m.opponent, my_now)),
                     (m.opponent2_id, m.opponent2.name if m.opponent2 else None,
-                     m.opponent2.level if m.opponent2 else None),
+                     _level_of(m.opp2_points_snap, m.opponent2, my_now)),
                 ],
                 key=lambda t: (t[1] is None, (t[1] or "").lower()),
             )
@@ -1364,10 +1179,12 @@ def build_match_stats(
                     "key": key,
                     "partner_id": m.partner_id,
                     "partner_name": m.partner.name if m.partner else None,
-                    "partner_level": m.partner.level if m.partner else None,
+                    "partner_level": _level_of(
+                        m.partner_points_snap, m.partner, my_now
+                    ),
                     "opp1_id": opps[0][0],
                     "opp1_name": opps[0][1] or "?",
-                    "opp1_level": opps[0][2] or "equal",
+                    "opp1_level": opps[0][2] or "unrated",
                     "opp2_id": opps[1][0],
                     "opp2_name": opps[1][1],
                     "opp2_level": opps[1][2],
@@ -1528,12 +1345,13 @@ def build_handicap_split(
         )
         .all()
     )
+    my_now = round(rating.replay(db)[0])
     acc: dict[str, dict[str, dict]] = {
         lv: {d: _blank_match_stats() for d in ("even", "receive", "give")}
         for lv in _LEVEL_ORDER
     }
     for m in matches:
-        lv = m.opponent.level if m.opponent else "equal"
+        lv = _level_of(m.opp_points_snap, m.opponent, my_now) or "unrated"
         if lv not in acc:
             continue
         h = m.handicap or 0

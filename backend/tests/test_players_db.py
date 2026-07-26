@@ -61,27 +61,29 @@ def test_players_db_ordering_counts_and_points_update(db):
     assert b.points == 950 and b.plays_pips is True
 
 
-def test_create_player_with_points_derives_legacy_level(db):
-    # My rating defaults to 950 (rank G) — labels derive from rank bands.
+def test_player_level_column_is_frozen_legacy(db):
+    """Since 2026-07-27 the relative label derives from points at read time
+    (service.level_from_points); the stored column is never written again."""
     above = service.create_or_get_player(db, schemas.PlayerIn(name="Cao", points=1250))
-    assert above.points == 1250 and above.level == "above"  # E vs my G
-    below = service.create_or_get_player(db, schemas.PlayerIn(name="Thap", points=700))
-    assert below.level == "below"  # H vs G
-    equal = service.create_or_get_player(db, schemas.PlayerIn(name="Ngang", points=1000))
-    assert equal.level == "equal"  # G vs G
-    unrated = service.create_or_get_player(db, schemas.PlayerIn(name="ChuaRo"))
-    assert unrated.points is None and unrated.level == "equal"
+    assert above.points == 1250
+    assert db.get(Player, above.id).level == "equal"  # column default, untouched
 
     # Get-or-create: an existing name never has its rating overwritten.
     again = service.create_or_get_player(db, schemas.PlayerIn(name="Cao", points=800))
     assert again.id == above.id and again.points == 1250
 
-    # Update without a level (new callers) leaves the legacy label untouched.
+    # Updates ignore the level field entirely, even when a client sends one.
     service.update_player(
-        db, above.id, schemas.PlayerIn(name="Cao", plays_pips=True)
+        db, above.id, schemas.PlayerIn(name="Cao", level="below", plays_pips=True)
     )
     p = db.get(Player, above.id)
-    assert p.level == "above" and p.plays_pips is True and p.points == 1250
+    assert p.level == "equal" and p.plays_pips is True and p.points == 1250
+
+    # The derivation itself (vs my 950/G default rating).
+    assert service.level_from_points(1250, 950) == "above"  # E vs G
+    assert service.level_from_points(700, 950) == "below"  # H vs G
+    assert service.level_from_points(1000, 950) == "equal"  # G vs G
+    assert service.level_from_points(None, 950) == "unrated"
 
 
 def test_my_rating_default_and_roundtrip(db):

@@ -9,7 +9,7 @@ from __future__ import annotations
 import datetime as dt
 
 from conftest import category_id
-from app.features.tracker import service
+from app.features.tracker import rating, service
 from app.features.tracker.models import Match, Player, Setting
 
 D = dt.date(2026, 7, 28)  # first day after the default anchor with play
@@ -113,9 +113,19 @@ def test_rating_counts_doubles_at_full_weight(db):
     assert service.compute_my_rating(db).counted_matches == 1
 
 
-def test_handicap_bonus_ladder_and_cap(db):
+def test_handicap_scale_is_half(db):
+    """User decision 2026-07-27 after the backtest: the ladder applies at
+    HANDICAP_SCALE = 0.5 (2-2-2 → +75, 4-4-4 → +225, 5-5-5 → +300)."""
+    assert rating.HANDICAP_SCALE == 0.5
+    assert service.handicap_bonus(2, None) == 75
+    assert service.handicap_bonus(5, None) == 300
+
+
+def test_handicap_bonus_ladder_and_cap(db, monkeypatch):
     """The user's ladder (2026-07-26): each rung +50, 0-2-0 → 50 … 5-5-5 →
-    600 max; formula form 25×s (s ≤ 6) / 50×s − 150 over the 3-set sum s."""
+    600 max; formula form 25×s (s ≤ 6) / 50×s − 150 over the 3-set sum s.
+    Pinned to scale 1.0 — the ladder SHAPE is what's under test here."""
+    monkeypatch.setattr(rating, "HANDICAP_SCALE", 1.0)
     cases = [
         ((1, "0-2-0"), 50), ((1, "2-0-2"), 100), ((2, None), 150),
         ((2, "2-3-2"), 200), ((3, "3-2-3"), 250), ((3, None), 300),
@@ -130,10 +140,12 @@ def test_handicap_bonus_ladder_and_cap(db):
     assert service.handicap_bonus(0, None) == 0.0
 
 
-def test_rating_folds_handicap_at_full_value(db):
+def test_rating_folds_handicap_at_full_value(db, monkeypatch):
     """User decision: the receiver gets the FULL ladder bonus — a big chấp
     can flip the receiver into favourite, and the ± consequences follow:
-    win as chấp-favourite → small gain; lose as chấp-favourite → big loss."""
+    win as chấp-favourite → small gain; lose as chấp-favourite → big loss.
+    Pinned to scale 1.0 so the documented example numbers stay exact."""
+    monkeypatch.setattr(rating, "HANDICAP_SCALE", 1.0)
     off = category_id(db, "official_match")
     strong = Player(name="Manh", points=1100)
     close = Player(name="Gan", points=1000)
@@ -164,9 +176,10 @@ def test_rating_folds_handicap_at_full_value(db):
     assert r.current == 945 and r.counted_matches == 3
 
 
-def test_doubles_handicap_counts_for_one_member_only(db):
+def test_doubles_handicap_counts_for_one_member_only(db, monkeypatch):
     """User rule: in doubles the chấp ELO applies to ONE member — on the
-    team-average scale that is half the ladder value."""
+    team-average scale that is half the ladder value. Pinned to scale 1.0."""
+    monkeypatch.setattr(rating, "HANDICAP_SCALE", 1.0)
     off = category_id(db, "official_match")
     partner = Player(name="DongDoi", points=1050)
     opp1 = Player(name="DoiThu1", points=1100)
@@ -252,6 +265,35 @@ def test_match_api_writes_snapshots(client, db):
     assert db.get(Match, m.id).opp_points_snap == 1200
 
 
+def test_history_curve_and_week_annotation(db):
+    off = category_id(db, "official_match")
+    equal = Player(name="Ngang", points=950)
+    unrated = Player(name="ChuaRo")
+    db.add_all([equal, unrated])
+    db.commit()
+    d1, d2 = dt.date(2026, 7, 28), dt.date(2026, 7, 29)
+    win = _match(off, equal.id, date=d1)  # 3-0 sweep: +7.5 → 957.5
+    loss = _match(off, equal.id, my=0, opp_sets=3, date=d2)  # −7.7 → ~949.8
+    skip = _match(off, unrated.id, date=d2, order_index=1)  # unrated → tagged
+    db.add_all([win, loss, skip])
+    db.commit()
+
+    h = rating.build_history(db)
+    # Anchor day first, then the LAST rating of each day with counted matches.
+    assert h.anchor_points == 950
+    assert [p.date for p in h.points] == [dt.date(2026, 7, 27), d1, d2]
+    assert h.points[1].rating == 958
+    assert h.current == h.points[-1].rating == 950
+
+    week = service.build_week(db, dt.date(2026, 7, 27))
+    by_id = {m.id: m for m in week.matches}
+    assert by_id[win.id].elo_delta == 7.5
+    assert by_id[win.id].elo_status == "counted"
+    assert by_id[loss.id].elo_delta == -7.7
+    assert by_id[skip.id].elo_delta is None
+    assert by_id[skip.id].elo_status == "unrated"
+
+
 def test_manual_edit_becomes_new_anchor(db):
     off = category_id(db, "official_match")
     equal = Player(name="Ngang", points=950)
@@ -266,6 +308,11 @@ def test_manual_edit_becomes_new_anchor(db):
     r = service.compute_my_rating(db)
     assert (r.current, r.counted_matches) == (950, 0)
     assert r.anchor_date == "2026-08-01"
+
+    # Re-saving the UNCHANGED value must NOT move the anchor — an accidental
+    # re-save would otherwise silently drop every replayed match.
+    service.set_my_points(db, 950)
+    assert service.get_my_anchor_date(db) == dt.date(2026, 8, 1)
 
     # A manual points edit re-anchors at TODAY (whatever the clock says).
     service.set_my_points(db, 1000)

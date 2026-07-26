@@ -18,8 +18,10 @@ def _match(cat, date, my, opp, opponent_id=None, handicap=0):
 
 def test_build_match_stats_grouping_and_unnamed_exclusion(db):
     cat = category_id(db, "practice_match")
-    anna = Player(name="Anna", level="above")
-    binh = Player(name="Binh", level="equal")
+    # Levels derive from POINTS vs my rating (950 default): 1250 = above (E
+    # band vs my G), 950 = equal. The stored label is frozen legacy.
+    anna = Player(name="Anna", points=1250)
+    binh = Player(name="Binh", points=950)
     db.add_all([anna, binh])
     db.commit()
 
@@ -64,8 +66,8 @@ def test_build_handicap_split_directions(db):
     """Level × handicap-direction win rates: +N = I give, -N = I receive,
     0 = even; empty cells are omitted; unnamed matches excluded."""
     cat = category_id(db, "practice_match")
-    anna = Player(name="Anna", level="above")
-    cara = Player(name="Cara", level="below")
+    anna = Player(name="Anna", points=1250)  # above (derived from points)
+    cara = Player(name="Cara", points=700)  # below (H band vs my G)
     db.add_all([anna, cara])
     db.commit()
 

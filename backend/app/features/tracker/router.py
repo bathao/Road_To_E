@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
-from app.features.tracker import schemas, service
+from app.features.tracker import rating, schemas, service
 from app.features.tracker.models import (
     Activity,
     Category,
@@ -173,7 +173,7 @@ def create_match(payload: schemas.MatchIn, db: Session = Depends(get_db)):
     db.add(match)
     db.commit()
     db.refresh(match)
-    return service.match_to_out(match)
+    return service.match_to_out(match, service.compute_my_rating(db).current)
 
 
 @router.put("/matches/{match_id}", response_model=schemas.MatchOut)
@@ -207,7 +207,7 @@ def update_match(match_id: int, payload: schemas.MatchIn, db: Session = Depends(
     service.snapshot_match_points(db, match, prev_ids=prev_ids)
     db.commit()
     db.refresh(match)
-    return service.match_to_out(match)
+    return service.match_to_out(match, service.compute_my_rating(db).current)
 
 
 @router.delete("/matches/{match_id}", status_code=204)
@@ -324,6 +324,12 @@ def set_my_rating(payload: schemas.MyRatingIn, db: Session = Depends(get_db)):
     """Set a new anchor (today, points); the replay restarts from here."""
     service.set_my_points(db, payload.points)
     return service.compute_my_rating(db)
+
+
+@router.get("/my-rating/history", response_model=schemas.MyRatingHistoryOut)
+def my_rating_history(db: Session = Depends(get_db)):
+    """Daily ELO curve since the anchor (replayed on demand, nothing stored)."""
+    return rating.build_history(db)
 
 
 # ---------------------------------------------------------------- stats

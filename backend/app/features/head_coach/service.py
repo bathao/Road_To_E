@@ -27,6 +27,7 @@ from app.features.head_coach.prompt import (
     SYSTEM_PROMPT,
 )
 from app.features.tournament import service as tournament_service
+from app.features.tracker import rating as tracker_rating
 from app.features.tracker import service as tracker_service
 from app.features.tracker.models import DayNote
 from app.features.training import service as training_service
@@ -47,7 +48,14 @@ _RECENT_NOTES = 12
 # and the prompt forbids drawing win-rate conclusions from it.
 MIN_SAMPLE_MATCHES = 5
 
-_LEVEL_VI = {"below": "dưới cơ", "equal": "ngang cơ", "above": "trên cơ"}
+# Relative levels are derived from POINTS vs the athlete's dynamic ELO
+# (hand-picked labels retired 2026-07-27); "unrated" = no points entered yet.
+_LEVEL_VI = {
+    "below": "dưới cơ",
+    "equal": "ngang cơ",
+    "above": "trên cơ",
+    "unrated": "chưa có điểm",
+}
 _HANDICAP_VI = {
     "even": "đánh đồng",
     "receive": "học trò ĐƯỢC CHẤP",
@@ -105,6 +113,17 @@ def gather_bundle(db: Session) -> schemas.SourceSummary:
         "singles": _ms(stats.singles),
         "doubles": _ms(stats.doubles),
         "vs_pips": _ms(stats.vs_pips),
+    }
+
+    # The user's dynamic ELO — the coach's objective progress yardstick
+    # (replayed live; opponents/kinds/handicap/margin already folded in).
+    my_elo = tracker_service.compute_my_rating(db)
+    match_sum["my_elo"] = {
+        "current": my_elo.current,
+        "anchor": my_elo.points,
+        "anchor_date": my_elo.anchor_date,
+        "counted_matches": my_elo.counted_matches,
+        "to_rank_e": max(0, tracker_rating.RANK_E_FLOOR - my_elo.current),
     }
 
     # Head-to-head: the most-played singles opponents (problem opponents float
@@ -186,6 +205,23 @@ def _wr(d: dict) -> str:
     return line
 
 
+def _elo_line(m: dict) -> str:
+    """One context line for the user's dynamic ELO. Empty string for old
+    snapshots stored before the rating existed (they must keep rendering)."""
+    elo = m.get("my_elo") or {}
+    if not elo:
+        return ""
+    line = (
+        f"ĐIỂM ELO ĐỘNG của học trò: {elo.get('current')} "
+        f"(neo {elo.get('anchor')} từ {elo.get('anchor_date')}, "
+        f"đã tính {elo.get('counted_matches')} trận)"
+    )
+    to_e = elo.get("to_rank_e")
+    if to_e:
+        line += f" · còn {to_e} điểm nữa tới hạng E"
+    return line + "\n"
+
+
 def _bundle_to_text(b: schemas.SourceSummary) -> str:
     """Render the bundle into the Vietnamese context block fed to the model.
     Every number here is computed by code from the database — the model only
@@ -198,14 +234,14 @@ def _bundle_to_text(b: schemas.SourceSummary) -> str:
     by_level = d.get("by_level", {})
     level_lines = "\n".join(
         f"  - Đối thủ {_LEVEL_VI.get(lv, lv)}: {_wr(by_level[lv])}"
-        for lv in ("below", "equal", "above")
-        if lv in by_level
+        for lv in ("below", "equal", "above", "unrated")
+        if lv in by_level and by_level[lv].get("played")
     ) or "  (chưa có trận có tên đối thủ)"
 
     hdc = d.get("by_level_handicap", {})
     hdc_lines = "\n".join(
         f"  - Đối thủ {_LEVEL_VI.get(lv, lv)} · {_HANDICAP_VI[dr]}: {_wr(cell)}"
-        for lv in ("below", "equal", "above")
+        for lv in ("below", "equal", "above", "unrated")
         for dr in ("even", "receive", "give")
         for cell in [hdc.get(lv, {}).get(dr)]
         if cell
@@ -266,7 +302,8 @@ def _bundle_to_text(b: schemas.SourceSummary) -> str:
         f"Đơn: {_wr(m.get('singles', {}))}\n"
         f"Đôi: {_wr(m.get('doubles', {}))}\n"
         f"Gặp đối thủ đánh gai: {_wr(m.get('vs_pips', {}))}\n"
-        f"Tổng các trận: {_wr(m.get('overall', {}))}\n\n"
+        f"Tổng các trận: {_wr(m.get('overall', {}))}\n"
+        f"{_elo_line(m)}\n"
         f"=== PHÂN TÍCH TRẬN SÂU (cửa sổ {d.get('window')}, trận có tên đối thủ) ===\n"
         f"Theo hạng đối thủ (so với học trò):\n{level_lines}\n"
         f"Tách theo CHẤP (điểm chấp mỗi ván; trận có chấp phải diễn giải khác "

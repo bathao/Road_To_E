@@ -372,6 +372,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tracker/my-rating/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My Rating History
+         * @description Daily ELO curve since the anchor (replayed on demand, nothing stored).
+         */
+        get: operations["my_rating_history_api_tracker_my_rating_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tracker/stats": {
         parameters: {
             query?: never;
@@ -2042,6 +2062,10 @@ export interface components {
             handicap: number;
             /** Handicap Pattern */
             handicap_pattern?: string | null;
+            /** Elo Delta */
+            elo_delta?: number | null;
+            /** Elo Status */
+            elo_status?: string | null;
         };
         /** MatchStats */
         MatchStats: {
@@ -2152,6 +2176,25 @@ export interface components {
             muscle: string;
             /** Times */
             times: number;
+        };
+        /**
+         * MyRatingHistoryOut
+         * @description Daily ELO curve since the anchor, reconstructed by replay (nothing is
+         *     stored): the anchor day plus the last rating of each day with counted
+         *     matches.
+         */
+        MyRatingHistoryOut: {
+            /**
+             * Anchor Date
+             * Format: date
+             */
+            anchor_date: string;
+            /** Anchor Points */
+            anchor_points: number;
+            /** Current */
+            current: number;
+            /** Points */
+            points: components["schemas"]["RatingPoint"][];
         };
         /** MyRatingIn */
         MyRatingIn: {
@@ -2494,6 +2537,16 @@ export interface components {
             progress_pct: number;
             /** Tiles */
             tiles: components["schemas"]["TileOut"][];
+        };
+        /** RatingPoint */
+        RatingPoint: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Rating */
+            rating: number;
         };
         /** RecentSession */
         RecentSession: {
@@ -3731,6 +3784,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    my_rating_history_api_tracker_my_rating_history_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyRatingHistoryOut"];
                 };
             };
         };

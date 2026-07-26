@@ -1,8 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import type { Player } from "../../types";
 import { trackerApi } from "../../api";
-import { levelShort } from "../../../../shared/levels";
 import { rankOf } from "../../../../shared/rank";
+
+// Points + real rank ("1550 · D") — replaced the retired relative label
+// chips (Trên/Ngang/Dưới) on 2026-07-27.
+function PointsChip({ p }: { p: Player }) {
+  if (p.points == null) {
+    return <span className="level-chip level-unrated">chưa xếp</span>;
+  }
+  return (
+    <span className="level-chip level-points">
+      {p.points} · {rankOf(p.points)}
+    </span>
+  );
+}
 
 // A combobox to pick a player from the shared pool, or add a new one inline
 // (name + points; the legacy relative label is derived server-side). New
@@ -111,9 +123,7 @@ export default function PlayerPicker({
         <span className="seg-label">{label}</span>
         <div className="player-selected">
           <span className="player-name">{value.name}</span>
-          <span className={`level-chip level-${value.level}`}>
-            {levelShort(value.level)}
-          </span>
+          <PointsChip p={value} />
           {value.plays_pips && (
             <span className="pips-chip" title="Đối thủ đánh gai">
               🏓 Gai
@@ -186,9 +196,7 @@ export default function PlayerPicker({
                 onClick={() => select(p)}
               >
                 <span className="player-name">{p.name}</span>
-                <span className={`level-chip level-${p.level}`}>
-                  {levelShort(p.level)}
-                </span>
+                <PointsChip p={p} />
                 {p.plays_pips && (
                   <span className="pips-chip" title="Đối thủ đánh gai">
                     🏓 Gai

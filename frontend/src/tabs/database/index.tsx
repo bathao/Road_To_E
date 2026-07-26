@@ -6,8 +6,45 @@
 import { useMemo, useRef, useState } from "react";
 import { useLoad, useMutate } from "../../shared/useApi";
 import { pointsLabel, rankOf } from "../../shared/rank";
+import LineChart from "../../shared/ui/LineChart";
 import { databaseApi } from "./api";
-import type { MyRating, PlayerDbRow, PlayersDbResponse } from "./types";
+import type {
+  MyRating,
+  MyRatingHistory,
+  PlayerDbRow,
+  PlayersDbResponse,
+} from "./types";
+
+// The whole project's target band: E starts at 1201 BBTV points.
+const RANK_E_FLOOR = 1201;
+
+// "2026-07-27" → "27/07" for chart labels.
+function shortDate(iso: string): string {
+  const [, m, d] = iso.split("-");
+  return `${d}/${m}`;
+}
+
+// ELO curve since the anchor. LineChart scales 0..max, which would flatten a
+// curve hovering around ~950 — so values are re-based near the observed min
+// and formatY maps gridline values back to real ratings.
+function RatingChart({ history }: { history: MyRatingHistory }) {
+  if (history.points.length < 2) return null;
+  const base = Math.min(...history.points.map((p) => p.rating)) - 20;
+  return (
+    <div className="db-chart">
+      <h3>📈 Đường điểm ELO (từ neo {shortDate(history.anchor_date)})</h3>
+      <LineChart
+        points={history.points.map((p) => ({
+          label: shortDate(p.date),
+          value: p.rating - base,
+          display: String(p.rating),
+          tip: p.date,
+        }))}
+        formatY={(v) => String(Math.round(v + base))}
+      />
+    </div>
+  );
+}
 
 // "2026-07-27" → "27/07/2026" for the anchor note.
 function fmtAnchor(iso: string): string {
@@ -115,6 +152,11 @@ export default function DatabaseTab() {
     () => databaseApi.getMyRating(),
     []
   );
+  // Refetches whenever the anchor moves (a manual save changes myRating).
+  const { data: history } = useLoad<MyRatingHistory>(
+    () => databaseApi.ratingHistory(),
+    [myRating?.points, myRating?.anchor_date]
+  );
   const { run, error, busy, clearError } = useMutate();
   const [query, setQuery] = useState("");
   const [myDraft, setMyDraft] = useState<string | null>(null); // null = not editing
@@ -150,9 +192,17 @@ export default function DatabaseTab() {
     return true;
   };
 
+  // Saving the unchanged anchor is blocked: a new anchor restarts the ELO
+  // replay from today, so an accidental re-save would drop every counted
+  // match (the backend guards this too).
+  const myDraftDirty =
+    myDraft !== null &&
+    myDraft.trim() !== "" &&
+    Number(myDraft) !== myRating?.points;
+
   const saveMyRating = async () => {
     const n = Number(myDraft);
-    if (myDraft === null || Number.isNaN(n) || n < 0 || n > 3000) return;
+    if (!myDraftDirty || Number.isNaN(n) || n < 0 || n > 3000) return;
     const out = await run(() => databaseApi.setMyRating(n));
     if (out !== undefined) {
       setMyRating(out);
@@ -177,6 +227,14 @@ export default function DatabaseTab() {
               <span className="db-me-points">
                 {pointsLabel(myRating?.current)}
               </span>
+              {myRating && myRating.current < RANK_E_FLOOR && (
+                <span
+                  className="db-me-to-e"
+                  title={`Hạng E bắt đầu từ ${RANK_E_FLOOR} điểm`}
+                >
+                  còn {RANK_E_FLOOR - myRating.current} tới E
+                </span>
+              )}
               <button
                 className="btn"
                 title="Sửa mốc neo — ELO sẽ tính lại từ hôm nay"
@@ -197,7 +255,16 @@ export default function DatabaseTab() {
                   if (e.key === "Enter") void saveMyRating();
                 }}
               />
-              <button className="btn primary" disabled={busy} onClick={saveMyRating}>
+              <button
+                className="btn primary"
+                disabled={busy || !myDraftDirty}
+                title={
+                  myDraftDirty
+                    ? "Đặt neo mới từ hôm nay — ELO tính lại từ đây"
+                    : "Điểm neo chưa thay đổi"
+                }
+                onClick={saveMyRating}
+              >
                 Lưu
               </button>
               <button className="btn" onClick={() => setMyDraft(null)}>
@@ -233,6 +300,8 @@ export default function DatabaseTab() {
           Đã xếp điểm {rated}/{players.length} người
         </span>
       </div>
+
+      {history && <RatingChart history={history} />}
 
       <div className="db-table-wrap">
         <table className="db-table">
