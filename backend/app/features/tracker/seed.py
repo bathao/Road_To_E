@@ -25,6 +25,11 @@ _MATCH_COLUMNS = {
     # Per-set handicap sequence ("2-0-2"); NULL = uniform handicap (existing
     # rows stay as-is — the signed `handicap` int already carries them).
     "handicap_pattern": "VARCHAR",
+    # Player points frozen at match time (ELO); NULL = legacy row → replay
+    # falls back to the player's current points.
+    "opp_points_snap": "INTEGER",
+    "opp2_points_snap": "INTEGER",
+    "partner_points_snap": "INTEGER",
 }
 
 

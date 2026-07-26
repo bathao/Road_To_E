@@ -117,6 +117,16 @@ class Match(Base):
     # sign-based analytics keep working unchanged.
     handicap_pattern: Mapped[str | None] = mapped_column(String, default=None)
 
+    # Points of the involved players AT MATCH TIME (user decision 2026-07-26:
+    # raising a player's static points later must NOT rewrite old matches —
+    # the new value only applies from the raise onward). Snapshotted on create
+    # and re-snapshotted only for a slot whose PLAYER changes on update.
+    # NULL = no snapshot (legacy/backfilled row) → the ELO replay falls back
+    # to the player's current points.
+    opp_points_snap: Mapped[int | None] = mapped_column(Integer, default=None)
+    opp2_points_snap: Mapped[int | None] = mapped_column(Integer, default=None)
+    partner_points_snap: Mapped[int | None] = mapped_column(Integer, default=None)
+
     # Default (lazy="select") loading. The bulk readers eager-load these with
     # selectinload() in service._load_range / build_match_stats to avoid N+1;
     # single-match CRUD paths just lazy-load on access while the session is open.

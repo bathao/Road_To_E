@@ -116,6 +116,74 @@ def test_rating_counts_doubles_at_full_weight(db):
     assert service.compute_my_rating(db).counted_matches == 1
 
 
+def test_rating_uses_at_match_time_snapshots(db):
+    off = category_id(db, "official_match")
+    vinh = Player(name="Vinh", points=1200)
+    db.add(vinh)
+    db.commit()
+
+    m = _match(off, vinh.id, my=3, opp_sets=0)
+    service.snapshot_match_points(db, m)
+    assert m.opp_points_snap == 1200
+    db.add(m)
+    db.commit()
+    before = service.compute_my_rating(db).current
+
+    # Raising Vinh's static points later must NOT rewrite the old match —
+    # the new value only applies to matches snapshotted from now on.
+    vinh.points = 1400
+    db.commit()
+    assert service.compute_my_rating(db).current == before
+
+    # Editing without changing the player keeps the original snapshot…
+    service.snapshot_match_points(
+        db, m, prev_ids=(m.opponent_id, m.opponent2_id, m.partner_id)
+    )
+    assert m.opp_points_snap == 1200
+    # …changing the player in that slot re-snapshots at current points.
+    other = Player(name="Khac", points=1000)
+    db.add(other)
+    db.commit()
+    prev = (m.opponent_id, m.opponent2_id, m.partner_id)
+    m.opponent_id = other.id
+    service.snapshot_match_points(db, m, prev_ids=prev)
+    assert m.opp_points_snap == 1000
+
+    # A legacy row (no snapshot) falls back to the player's CURRENT points.
+    db.add(_match(off, vinh.id, my=0, opp_sets=3, order_index=1))
+    db.commit()
+    r = service.compute_my_rating(db)
+    assert r.counted_matches == 2  # snapshot row + legacy fallback row
+
+
+def test_match_api_writes_snapshots(client, db):
+    off = category_id(db, "official_match")
+    vinh = Player(name="Vinh", points=1200)
+    db.add(vinh)
+    db.commit()
+    r = client.post(
+        "/api/tracker/matches",
+        json={"date": "2026-07-28", "category_id": off, "discipline": "singles",
+              "best_of": 5, "my_sets": 3, "opp_sets": 0, "opponent_id": vinh.id},
+    )
+    assert r.status_code == 200
+    db.expire_all()
+    m = db.get(Match, r.json()["id"])
+    assert m.opp_points_snap == 1200 and m.partner_points_snap is None
+
+    # Score-only edit keeps the snapshot even after the player's points move.
+    vinh.points = 1400
+    db.commit()
+    r2 = client.put(
+        f"/api/tracker/matches/{m.id}",
+        json={"date": "2026-07-28", "category_id": off, "discipline": "singles",
+              "best_of": 5, "my_sets": 3, "opp_sets": 2, "opponent_id": vinh.id},
+    )
+    assert r2.status_code == 200
+    db.expire_all()
+    assert db.get(Match, m.id).opp_points_snap == 1200
+
+
 def test_manual_edit_becomes_new_anchor(db):
     off = category_id(db, "official_match")
     equal = Player(name="Ngang", points=950)

@@ -168,6 +168,8 @@ def create_match(payload: schemas.MatchIn, db: Session = Depends(get_db)):
         handicap=payload.handicap or 0,
         handicap_pattern=service.normalize_handicap_pattern(payload.handicap_pattern),
     )
+    # Freeze the involved players' points at match time (ELO reads these).
+    service.snapshot_match_points(db, match)
     db.add(match)
     db.commit()
     db.refresh(match)
@@ -180,6 +182,7 @@ def update_match(match_id: int, payload: schemas.MatchIn, db: Session = Depends(
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
     event = service.get_or_create_event(db, payload.event_name)
+    prev_ids = (match.opponent_id, match.opponent2_id, match.partner_id)
     if (payload.date, payload.category_id) != (match.date, match.category_id):
         # Moved to another cell → append after that cell's existing matches so
         # order_index stays unique within the cell.
@@ -199,6 +202,9 @@ def update_match(match_id: int, payload: schemas.MatchIn, db: Session = Depends(
     match.partner_id = payload.partner_id
     match.handicap = payload.handicap or 0
     match.handicap_pattern = service.normalize_handicap_pattern(payload.handicap_pattern)
+    # Re-snapshot points ONLY for slots whose player changed; editing a score
+    # or date keeps the original at-match-time snapshots.
+    service.snapshot_match_points(db, match, prev_ids=prev_ids)
     db.commit()
     db.refresh(match)
     return service.match_to_out(match)

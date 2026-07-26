@@ -1,6 +1,31 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-07-26) — ELO Phase 1a BUILT (committed `da1efcd`); restart start.bat
+## Current status (2026-07-26) — ELO Phase 1a BUILT; points frozen at match time (uncommitted); restart start.bat
+
+> **AT-MATCH-TIME SNAPSHOTS (user decision + built 2026-07-26, uncommitted).**
+> User corrected the replay semantics: raising an opponent's static points
+> later must NOT rewrite old matches — the new value applies only from the
+> raise onward. Replay previously used CURRENT points everywhere. Built the
+> federation-style fix (FFTT/USATT rate with points as of match day):
+>   - `tracker_match` gains `opp_points_snap` / `opp2_points_snap` /
+>     `partner_points_snap` (seed add_missing_columns; NULL on all existing
+>     rows). POST /matches freezes the involved players' current points onto
+>     the row; PUT re-snapshots ONLY slots whose PLAYER changed (score/date
+>     edits keep the original snapshot).
+>   - compute_my_rating prefers snapshots; NULL falls back to current points
+>     (legacy/backfilled rows).
+>   - ACCEPTED TRADE-OFF (stated to user): fixing a TYPO in a player's
+>     points no longer heals already-played matches — re-pick the player in
+>     those matches to refresh the snapshot, or accept the error.
+>   - 53/53 pytest (snapshot freeze/re-snapshot/fallback + API wiring),
+>     migration smoke-tested on a real-DB copy. Restart start.bat.
+>
+> **ELO history by day:** NOT stored anywhere (user asked 2026-07-26) — by
+> design. Any time series is reconstructable by replaying and sampling per
+> day; Phase 2 adds GET /tracker/my-rating/history for charts. With
+> snapshots the reconstruction is now stable against later points bumps.
+
+## Earlier same day (2026-07-26) — ELO Phase 1a first cut (committed `da1efcd`)
 
 > **GO decision (user, 2026-07-26):** code with the settled constants,
 > scoped to EVEN (handicap=0) SINGLES matches only. The other cases

@@ -414,6 +414,39 @@ def get_my_anchor_date(db: Session) -> dt.date:
     return dt.date.fromisoformat(row.value) if row is not None else _MY_ANCHOR_DATE_DEFAULT
 
 
+def _current_points(db: Session, player_id: int | None) -> int | None:
+    if player_id is None:
+        return None
+    player = db.get(Player, player_id)
+    return player.points if player is not None else None
+
+
+def snapshot_match_points(
+    db: Session,
+    match: Match,
+    prev_ids: tuple[int | None, int | None, int | None] | None = None,
+) -> None:
+    """Freeze the involved players' CURRENT points onto the match row.
+
+    User decision 2026-07-26: the rating replay must use the points that were
+    in effect when the match was played — raising a player's static points
+    later only applies from that moment on. On update pass ``prev_ids`` =
+    (opponent_id, opponent2_id, partner_id) as they were BEFORE the edit:
+    only a slot whose player changed is re-snapshotted, so editing a score or
+    a date never silently refreshes an old snapshot.
+    """
+    slots = (
+        ("opponent_id", "opp_points_snap"),
+        ("opponent2_id", "opp2_points_snap"),
+        ("partner_id", "partner_points_snap"),
+    )
+    for i, (id_attr, snap_attr) in enumerate(slots):
+        player_id = getattr(match, id_attr)
+        if prev_ids is not None and prev_ids[i] == player_id:
+            continue  # same player as before — keep the original snapshot
+        setattr(match, snap_attr, _current_points(db, player_id))
+
+
 def _margin_mult(m: Match) -> float:
     if min(m.my_sets, m.opp_sets) == 0:
         return ELO_SWEEP_MULT
@@ -456,12 +489,26 @@ def compute_my_rating(db: Session) -> schemas.MyRatingOut:
     for m in matches:
         if m.my_sets == m.opp_sets:
             continue  # no result recorded
-        opp_points = m.opponent.points if m.opponent is not None else None
+        # At-match-time snapshot first; current points only as a fallback for
+        # legacy rows written before snapshots existed.
+        opp_points = (
+            m.opp_points_snap
+            if m.opp_points_snap is not None
+            else (m.opponent.points if m.opponent is not None else None)
+        )
         if opp_points is None:
             continue  # unrated opponent
         if m.discipline == "doubles":
-            partner_points = m.partner.points if m.partner is not None else None
-            opp2_points = m.opponent2.points if m.opponent2 is not None else None
+            partner_points = (
+                m.partner_points_snap
+                if m.partner_points_snap is not None
+                else (m.partner.points if m.partner is not None else None)
+            )
+            opp2_points = (
+                m.opp2_points_snap
+                if m.opp2_points_snap is not None
+                else (m.opponent2.points if m.opponent2 is not None else None)
+            )
             if partner_points is None or opp2_points is None:
                 continue  # the whole pair must be named and rated
             mine = (rating + partner_points) / 2.0
