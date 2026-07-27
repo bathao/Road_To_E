@@ -1,13 +1,13 @@
-"""Local text-model calls for the Technique Analysis tab.
+"""Local text-model calls for the player profile engine.
 
-This module holds the (only) AI used by this tab now that video processing is
-gone: it runs the **shared local text model** (``settings.TEXT_MODEL`` — the same
-one the Head Coach uses) over Ollama to
+Runs the **shared local text model** (``settings.TEXT_MODEL`` — the same one
+the Head Coach uses) over Ollama to
 
-1. ``extract_findings``    – parse a pasted analysis into structured findings,
-2. ``synthesize_profile``  – fold accepted findings into the living profile,
-3. ``synthesize_skills``   – turn accepted findings into the skill ledger,
-4. ``check_models``        – probe Ollama + report whether the model is pulled.
+1. ``synthesize_profile``  – fold accepted findings into the living profile,
+2. ``synthesize_skills``   – turn accepted findings into the skill ledger.
+
+(The paste-analysis parser ``extract_findings`` and the ``check_models`` probe
+were deleted 2026-07-27 with the retired intake pipeline.)
 
 All output is Vietnamese (content); code stays English. Calls use Ollama's
 ``format`` (JSON-schema) so the model returns parseable JSON directly.
@@ -42,9 +42,6 @@ _ASPECT_VI = {
     "physical": "thể lực",
     "other": "khác",
 }
-_ASPECTS = list(_ASPECT_VI.keys())
-
-
 def _chat(user_text: str, system: str, schema: dict, *, temperature: float = 0.2,
           num_ctx: int = 8192, timeout: float = 600.0) -> dict:
     """One structured-output chat call to the shared local text model."""
@@ -69,90 +66,7 @@ def _chat(user_text: str, system: str, schema: dict, *, temperature: float = 0.2
     return json.loads(content) if content else {}
 
 
-# ---------------------------------------------------------------- 1. parse text
-_FINDINGS_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "properties": {
-        "findings": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "aspect": {"type": "string", "enum": _ASPECTS},
-                    "polarity": {
-                        "type": "string",
-                        "enum": ["strength", "weakness", "neutral"],
-                    },
-                    "text": {"type": "string"},
-                    "confidence": {"type": "number"},  # 0..1
-                },
-                "required": ["aspect", "polarity", "text"],
-            },
-        }
-    },
-    "required": ["findings"],
-}
-
-
-def extract_findings(
-    text: str, basics: dict[str, Any], context: str = ""
-) -> list[dict[str, Any]]:
-    """Parse a pasted analysis (produced elsewhere) into atomic findings.
-
-    Returns ``[{aspect, polarity, text, confidence}]``. Each finding is ONE
-    concrete strength or weakness about a single aspect. ``neutral`` is for notes
-    that are neither (e.g. "không quan sát được giao bóng"). The pasted analysis
-    was already curated by the user, so parsed findings are auto-accepted (they
-    can still be edited/removed afterwards)."""
-    if not (text or "").strip():
-        raise RuntimeError("Chưa có nội dung phân tích để bóc tách.")
-    aspect_lines = "\n".join(f"  - {k}: {v}" for k, v in _ASPECT_VI.items())
-    ctx = f"\nBối cảnh buổi này: {context}.\n" if context.strip() else "\n"
-    user_text = (
-        "Đây là một bản phân tích kỹ thuật bóng bàn (do một công cụ khác tạo ra) "
-        f"về vận động viên {_player_name(basics)} (thuận tay {basics.get('handed')}, cầm "
-        f"vợt {basics.get('grip')}, lối đánh {basics.get('style') or 'chưa rõ'})."
-        f"{ctx}"
-        "Hãy ĐỌC KỸ và bóc tách thành các NHẬN XÉT riêng lẻ, mỗi nhận xét nói về "
-        "MỘT ý cụ thể (một điểm mạnh hoặc một điểm yếu) thuộc một mảng kỹ năng.\n"
-        "- aspect: chọn 1 trong các mảng sau:\n"
-        f"{aspect_lines}\n"
-        "- polarity: strength (điểm mạnh) / weakness (điểm yếu) / neutral (chỉ là "
-        "ghi chú trung tính hoặc 'không quan sát được').\n"
-        "- text: câu nhận xét súc tích bằng tiếng Việt, giữ nguyên ý của bản gốc, "
-        "KHÔNG bịa thêm thông tin không có trong văn bản.\n"
-        "- confidence: 0..1, mức chắc chắn của nhận xét.\n\n"
-        "=== BẢN PHÂN TÍCH ===\n"
-        f"{text.strip()}\n"
-        "=== HẾT ===\n"
-        "Trả về JSON đúng schema. Nếu văn bản không có nội dung kỹ thuật rõ ràng, "
-        "trả về danh sách rỗng."
-    )
-    data = _chat(
-        user_text,
-        system="Bạn là trợ lý HLV bóng bàn, bóc tách nhận xét kỹ thuật bằng tiếng Việt.",
-        schema=_FINDINGS_SCHEMA,
-        temperature=0.1,
-        num_ctx=16384,  # the pasted analysis can be long
-    )
-    items = data.get("findings", []) if isinstance(data, dict) else []
-    out: list[dict[str, Any]] = []
-    for it in items:
-        txt = (it.get("text") or "").strip()
-        if not txt:
-            continue
-        aspect = it.get("aspect")
-        out.append({
-            "aspect": aspect if aspect in _ASPECTS else "other",
-            "polarity": it.get("polarity") if it.get("polarity") in
-            ("strength", "weakness", "neutral") else "neutral",
-            "text": txt,
-            "confidence": it.get("confidence"),
-        })
-    return out
-
-
-# ------------------------------------------------------------- 2. profile synth
+# ------------------------------------------------------------- 1. profile synth
 _PROFILE_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
@@ -194,7 +108,7 @@ def synthesize_profile(basics: dict[str, Any], traits: list[dict[str, Any]]) -> 
     )
 
 
-# --------------------------------------------------------------- 3. skill synth
+# --------------------------------------------------------------- 2. skill synth
 _SKILLS_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
@@ -263,32 +177,3 @@ def synthesize_skills(
         num_ctx=16384,  # accumulated findings can be long
     )
     return data.get("skills", []) if isinstance(data, dict) else []
-
-
-# ------------------------------------------------------------------- 4. health
-def check_models() -> dict[str, Any]:
-    """Probe Ollama: is it up, and is the shared text model pulled?"""
-    try:
-        resp = httpx.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=5.0)
-        resp.raise_for_status()
-        models = [m["name"] for m in resp.json().get("models", [])]
-    except Exception:
-        return {
-            "ollama_up": False,
-            "models": [],
-            "default_model": TEXT_MODEL,
-            "default_available": False,
-            "message": "Không kết nối được Ollama. Hãy chắc chắn Ollama đang chạy (ollama serve).",
-        }
-    available = TEXT_MODEL in models
-    msg = "OK" if available else (
-        f"Ollama đang chạy nhưng thiếu model '{TEXT_MODEL}'. "
-        f"Chạy: ollama pull {TEXT_MODEL}"
-    )
-    return {
-        "ollama_up": True,
-        "models": models,
-        "default_model": TEXT_MODEL,
-        "default_available": available,
-        "message": msg,
-    }

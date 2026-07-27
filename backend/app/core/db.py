@@ -15,12 +15,15 @@ engine = create_engine(
 
 @event.listens_for(engine, "connect")
 def _sqlite_pragmas(dbapi_conn, _record) -> None:
-    """WAL + busy timeout: background writers (report parsing, head coach) and
-    interactive clicks share this file — without these, concurrent writes can
-    surface as 'database is locked'."""
+    """WAL + busy timeout: background writers (head coach jobs) and interactive
+    clicks share this file — without these, concurrent writes can surface as
+    'database is locked'. foreign_keys=ON (off by default in SQLite) so a
+    dangling player/event id is rejected at write time instead of silently
+    accepted (audit item, enabled 2026-07-27)."""
     cur = dbapi_conn.cursor()
     cur.execute("PRAGMA journal_mode=WAL")
     cur.execute("PRAGMA busy_timeout=5000")
+    cur.execute("PRAGMA foreign_keys=ON")
     cur.close()
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 

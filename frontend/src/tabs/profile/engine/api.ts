@@ -1,7 +1,7 @@
 // API for the player profile / skill ledger / manual findings, used by the
-// Profile tab. (The paste-analysis tab was retired; the backend /video/reports
-// endpoints still exist but have no UI.)
-import { api } from "../../shared/api/client";
+// Profile tab. (The retired paste-analysis /video/reports endpoints were
+// deleted 2026-07-27; /api/video stays as the historical prefix.)
+import { api } from "../../../shared/api/client";
 import type {
   Profile,
   ProfileIn,

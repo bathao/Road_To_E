@@ -1,22 +1,17 @@
-"""HTTP API for the Technique Analysis tab (prefix /api/video).
+"""HTTP API for the player profile engine (prefix /api/video, historical name).
 
-Text intake: paste an analysis produced elsewhere, tagged with the date it
-pertains to; the local text model parses it into findings; the user reviews
-them; accepted findings feed the skill ledger + profile, read by the Head Coach.
+Serves the Profile tab: identity + AI summary, confirmed findings (traits),
+the skill ledger and the structured player report the Head Coach reads. The
+paste-analysis intake pipeline was retired and its endpoints deleted
+(2026-07-27); stored findings/reports data remains readable through /report.
 """
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
-from app.features.video_analysis import schemas, service, text_synth
+from app.features.video_analysis import schemas, service
 
 router = APIRouter(prefix="/api/video", tags=["video_analysis"])
-
-
-# ------------------------------------------------------------------ health
-@router.get("/health/model", response_model=schemas.ModelHealthOut)
-def model_health():
-    return text_synth.check_models()
 
 
 # ----------------------------------------------------------------- profile
@@ -95,48 +90,3 @@ def regenerate_skills(db: Session = Depends(get_db)):
 @router.get("/report", response_model=schemas.ReportOut)
 def get_player_report(db: Session = Depends(get_db)):
     return service.build_report(db)
-
-
-# ------------------------------------------------------------------ reports
-@router.get("/reports", response_model=list[schemas.AnalysisReportOut])
-def list_reports(db: Session = Depends(get_db)):
-    return service.list_reports(db)
-
-
-@router.post("/reports", response_model=schemas.AnalysisReportOut)
-def create_report(
-    payload: schemas.ReportCreateIn,
-    background: BackgroundTasks,
-    db: Session = Depends(get_db),
-):
-    """Save a pasted analysis (tagged with its date) and kick off parsing."""
-    try:
-        report = service.create_report(db, payload)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    background.add_task(service.parse_report, report.id)
-    return report
-
-
-@router.get("/reports/{report_id}", response_model=schemas.AnalysisReportDetailOut)
-def get_report(report_id: int, db: Session = Depends(get_db)):
-    report = service.get_report(db, report_id)
-    if report is None:
-        raise HTTPException(status_code=404, detail="Report not found")
-    return service.report_detail_out(report)
-
-
-@router.post("/reports/{report_id}/review", response_model=schemas.AnalysisReportDetailOut)
-def review_report(report_id: int, payload: schemas.ReviewIn, db: Session = Depends(get_db)):
-    """User confirms which findings are correct → only accepted ones count."""
-    report = service.review_report(db, report_id, payload)
-    if report is None:
-        raise HTTPException(status_code=404, detail="Report not found")
-    return service.report_detail_out(report)
-
-
-@router.delete("/reports/{report_id}", status_code=204)
-def delete_report(report_id: int, db: Session = Depends(get_db)):
-    if not service.delete_report(db, report_id):
-        raise HTTPException(status_code=404, detail="Report not found")
-    return Response(status_code=204)

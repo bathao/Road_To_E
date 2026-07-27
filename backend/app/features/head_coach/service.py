@@ -127,6 +127,22 @@ def gather_bundle(db: Session) -> schemas.SourceSummary:
         "counted_matches": my_elo.counted_matches,
         "to_rank_e": max(0, tracker_rating.RANK_E_FLOOR - my_elo.current),
     }
+    # Weekly ELO trend (last ~6 weeks): the DIRECTION matters more than any
+    # single number — win-rate is biased by playing up/handicaps, this isn't.
+    elo_trend = tracker_service.build_rating_breakdown(
+        db, today - dt.timedelta(days=41), today, unit="week"
+    )
+    match_sum["my_elo"]["weekly"] = [
+        {
+            "from": b.date_from.isoformat(),
+            "to": b.date_to.isoformat(),
+            "delta": b.delta,
+            "counted": b.counted,
+            "rating_end": b.rating_end,
+        }
+        for b in elo_trend.buckets
+        if b.rating_end is not None  # weeks fully before the anchor: no rating
+    ]
 
     # Head-to-head: the most-played singles opponents (problem opponents float
     # up via win_rate), plus level splits, practice-vs-official and the trend.
@@ -221,6 +237,20 @@ def _elo_line(m: dict) -> str:
     to_e = elo.get("to_rank_e")
     if to_e:
         line += f" · còn {to_e} điểm nữa tới hạng E"
+
+    def _dm(iso: str) -> str:  # "2026-07-21" → "21/07"
+        return f"{iso[8:10]}/{iso[5:7]}"
+
+    weekly = elo.get("weekly") or []
+    if weekly:
+        parts = []
+        for w in weekly:
+            d = w.get("delta", 0)
+            parts.append(
+                f"{_dm(w['from'])}–{_dm(w['to'])}: {'+' if d > 0 else ''}{d} "
+                f"({w.get('counted')} trận, cuối tuần {w.get('rating_end')})"
+            )
+        line += "\nDiễn biến ELO theo TUẦN (cũ → mới): " + " · ".join(parts)
     return line + "\n"
 
 

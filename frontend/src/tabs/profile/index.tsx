@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { videoApi } from "../video-analysis/api";
+import { videoApi } from "./engine/api";
 import {
   ASPECT_LABEL,
   SKILL_STATUS_CLASS,
   SKILL_STATUS_LABEL,
-} from "../video-analysis/labels";
+} from "./engine/labels";
 import type {
   Aspect,
   Profile,
@@ -15,10 +15,10 @@ import type {
   SkillIn,
   Trait,
   TraitIn,
-} from "../video-analysis/types";
-import ProfilePanel from "../video-analysis/components/ProfilePanel";
-import SkillBoard from "../video-analysis/components/SkillBoard";
-import TraitBoard from "../video-analysis/components/TraitBoard";
+} from "./engine/types";
+import ProfilePanel from "./engine/components/ProfilePanel";
+import SkillBoard from "./engine/components/SkillBoard";
+import TraitBoard from "./engine/components/TraitBoard";
 import { LEVELS } from "../../shared/levels";
 import { pct } from "../../shared/format";
 import { addDays, toIso } from "../../shared/dates";

@@ -1,10 +1,9 @@
-"""Business logic for the Technique Analysis tab.
+"""Business logic for the player profile engine (historical name "video_analysis").
 
-The tab no longer processes video. The user pastes an analysis produced
-elsewhere (e.g. a cloud model), tagged with the date it pertains to; the local
-text model parses it into proposed findings; the user reviews them; accepted
-findings feed the skill ledger + profile summaries and a dated skill-history
-series, all read by the Head Coach to track development over time.
+The paste-analysis intake pipeline was retired and deleted (2026-07-27). What
+remains serves the Profile tab: the editable profile + AI summary, confirmed
+findings (traits), the skill ledger with its dated history, and the structured
+player report the Head Coach reads. Stored va_report rows are kept as data.
 """
 from __future__ import annotations
 
@@ -13,8 +12,6 @@ import logging
 
 from sqlalchemy.orm import Session
 
-from app.core.db import SessionLocal
-from app.core.settings import TEXT_MODEL
 from app.features.video_analysis import schemas, text_synth
 from app.features.video_analysis.models import (
     VAProfile,
@@ -42,13 +39,6 @@ def _basics(profile: VAProfile) -> dict:
         "grip": profile.grip,
         "style": profile.style,
     }
-
-
-def _clamp01(v: object) -> float | None:
-    try:
-        return max(0.0, min(1.0, float(v)))  # type: ignore[arg-type]
-    except (TypeError, ValueError):
-        return None
 
 
 # ----------------------------------------------------------------- profile
@@ -152,153 +142,8 @@ def delete_trait(db: Session, trait_id: int) -> None:
         db.commit()
 
 
-# ------------------------------------------------------------------ reports
-def list_reports(db: Session) -> list[VAReport]:
-    """Newest analysis first (by the date it pertains to, then by creation)."""
-    return (
-        db.query(VAReport)
-        .order_by(VAReport.analysis_date.desc(), VAReport.created_at.desc())
-        .all()
-    )
-
-
-def get_report(db: Session, report_id: int) -> VAReport | None:
-    return db.get(VAReport, report_id)
-
-
-def _clamp_date(d: dt.date | None) -> dt.date:
-    """Default to today; never accept a future date (clamp to today)."""
-    today = dt.date.today()
-    return d if (d is not None and d <= today) else today
-
-
-def create_report(db: Session, payload: schemas.ReportCreateIn) -> VAReport:
-    """Persist a pasted analysis and queue parsing. Status starts 'parsing'."""
-    text = (payload.source_text or "").strip()
-    if not text:
-        raise ValueError("Chưa có nội dung phân tích để lưu.")
-    when = _clamp_date(payload.analysis_date)
-    setting = payload.setting if payload.setting in schemas.SETTINGS else "practice"
-    report = VAReport(
-        analysis_date=when,
-        setting=setting,
-        title=(payload.title or "").strip() or f"Phân tích {when.isoformat()}",
-        context=(payload.context or "").strip(),
-        source_text=text,
-        model=TEXT_MODEL,
-        status="parsing",
-    )
-    db.add(report)
-    db.commit()
-    db.refresh(report)
-    return report
-
-
-def parse_report(report_id: int) -> None:
-    """Background job: parse the report's text into proposed findings."""
-    db = SessionLocal()
-    try:
-        report = db.get(VAReport, report_id)
-        if report is None or report.status != "parsing":
-            return
-        profile = get_or_create_profile(db)
-        try:
-            findings = text_synth.extract_findings(
-                report.source_text, _basics(profile), report.context
-            )
-        except Exception as exc:  # noqa: BLE001 — surface to the GUI
-            log.exception("parse_report(%d): extract_findings failed", report_id)
-            report.status = "error"
-            report.error_msg = str(exc)[:1000]
-            db.commit()
-            return
-
-        # The pasted analysis was already curated by the user before copying it
-        # in, so parsed findings are auto-accepted (no review gate). The user can
-        # still edit/remove individual findings afterwards.
-        # Replace any prior findings for this report (re-parse is idempotent).
-        db.query(VATrait).filter(VATrait.source_report_id == report_id).delete()
-        now = _utcnow()
-        for f in findings:
-            db.add(VATrait(
-                aspect=f["aspect"],
-                polarity=f["polarity"],
-                text=f["text"],
-                ai_text=f["text"],
-                confidence=_clamp01(f.get("confidence")),
-                status="accepted",
-                reviewed_at=now,
-                source_report_id=report_id,
-            ))
-        report.error_msg = None
-        report.reviewed_at = now
-        db.commit()  # findings persisted (status still 'parsing' → UI keeps polling)
-
-        # Auto-rebuild the skill ledger (per setting) from all accepted findings,
-        # so progress updates without a manual "Cập nhật hồ sơ kỹ năng" click. A
-        # model/Ollama failure here is non-fatal: the findings are already saved
-        # and the user can rebuild manually later.
-        try:
-            regenerate_skills(db)
-        except Exception:  # noqa: BLE001
-            log.exception(
-                "parse_report(%d): auto regenerate_skills failed — findings are "
-                "saved; rebuild the ledger manually from the GUI", report_id,
-            )
-            db.rollback()
-
-        report.status = "reviewed"
-        db.commit()
-    finally:
-        db.close()
-
-
-def delete_report(db: Session, report_id: int) -> bool:
-    """Delete a report and its findings (cascade)."""
-    report = db.get(VAReport, report_id)
-    if report is None:
-        return False
-    db.delete(report)
-    db.commit()
-    return True
-
-
-def report_detail_out(report: VAReport) -> schemas.AnalysisReportDetailOut:
-    base = schemas.AnalysisReportOut.model_validate(report)
-    return schemas.AnalysisReportDetailOut(
-        **base.model_dump(),
-        traits=[
-            schemas.TraitOut.model_validate(t)
-            for t in sorted(report.traits, key=lambda t: (t.polarity, t.id))
-        ],
-    )
-
-
-def review_report(db: Session, report_id: int, payload: schemas.ReviewIn) -> VAReport | None:
-    """Apply the user's accept/reject (and edits) to a report's findings, then
-    mark the report reviewed. Only accepted findings count towards the profile."""
-    report = db.get(VAReport, report_id)
-    if report is None:
-        return None
-    by_id = {t.id: t for t in report.traits}
-    now = _utcnow()
-    for d in payload.decisions:
-        trait = by_id.get(d.id)
-        if trait is None:
-            continue
-        trait.status = "accepted" if d.accept else "rejected"
-        trait.reviewed_at = now
-        if d.text is not None and d.text.strip():
-            trait.text = d.text.strip()
-        if d.aspect:
-            trait.aspect = d.aspect
-        if d.polarity:
-            trait.polarity = d.polarity
-    report.reviewed_at = now
-    report.status = "reviewed"
-    db.commit()
-    db.refresh(report)
-    return report
+# (Reports intake functions deleted 2026-07-27 with the retired pipeline;
+# build_report below still counts the stored reviewed va_report rows.)
 
 
 # ------------------------------------------------------------- skill ledger

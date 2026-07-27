@@ -537,6 +537,104 @@ def _physical_dates(rng: RangeData) -> set[str]:
     return set(rng.checks_by_date.keys()) | set(rng.tc_physical.keys())
 
 
+# ---------------------------------------------------------------- grid cells
+
+
+def _grid_cells(
+    db: Session, rng: RangeData, days: list[dt.date], *, for_export: bool
+) -> tuple[dict[tuple[int, str], str], dict[tuple[int, str], str], dict[str, str]]:
+    """The ONE cell renderer behind both the on-screen grid (build_week) and
+    the export (_build_grid). They used to be two ~70-line near-copies that
+    drifted (the export-parity bug came from exactly that), so every row type
+    renders here exactly once.
+
+    Returns (text, colors, overall_color_by_date); text/colors are keyed by
+    (category_id, iso date). ``for_export``: day notes render in full (the
+    screen shows the compact 📝 snippet; full text travels in day_notes) and
+    the Training-Center mirror uses words instead of the 💪 emoji.
+    """
+    categories = rng.categories
+    cat_by_key = {c.key: c for c in categories}
+    duration_ids = {c.id for c in categories if c.type == "duration"}
+    activities, matches = rng.activities, rng.matches
+
+    text: dict[tuple[int, str], str] = {}
+    colors: dict[tuple[int, str], str] = {}
+
+    # Duration cells (sum minutes per category/day) + note/★ suffixes.
+    mins: dict[tuple[int, str], int] = {}
+    cell_notes: dict[tuple[int, str], str] = {}  # per-cell activity note
+    starts: set[tuple[int, str]] = set()  # cells whose day starts a package
+    for a in activities:
+        if a.category_id not in duration_ids:
+            continue
+        key = (a.category_id, a.date.isoformat())
+        mins[key] = mins.get(key, 0) + (a.duration_minutes or 0)
+        if a.note:
+            cell_notes[key] = a.note
+        if a.is_package_start:
+            starts.add(key)
+    for key, m in mins.items():
+        cell = format_duration(m)
+        if key in cell_notes:
+            cell = f"{cell} ({cell_notes[key]})".strip()
+        if key in starts:  # first session of a new 10-session coaching package
+            cell = f"{cell} {PACKAGE_MARK}".strip()
+        text[key] = cell
+
+    # Match cells.
+    by_cell: dict[tuple[int, str], list[Match]] = {}
+    for mt in matches:
+        by_cell.setdefault((mt.category_id, mt.date.isoformat()), []).append(mt)
+    for key, ms in by_cell.items():
+        text[key] = format_match_cell(ms)
+
+    # Physical Training cells. Before the cutover: the legacy checklist (ticked
+    # labels, yellow at >=70%). From the cutover forward: a read-only mirror of
+    # the Training Center session done that day.
+    physical = cat_by_key.get("physical_training")
+    if physical is not None:
+        for iso, keys in rng.checks_by_date.items():
+            text[(physical.id, iso)] = format_physical_cell(keys)
+            if physical_is_yellow(keys):
+                colors[(physical.id, iso)] = "yellow"
+        tc_prefix = "Training Center" if for_export else "💪"
+        for iso, info in rng.tc_physical.items():
+            text[(physical.id, iso)] = (
+                f"{tc_prefix} {info['done']}/{info['total']} · {info['focus_vi']}"
+            )
+            if info["is_yellow"]:
+                colors[(physical.id, iso)] = "yellow"
+
+    # Racket Time cells: auto-computed (coach + partner + 5 min per match set).
+    racket = cat_by_key.get("racket_time")
+    if racket is not None:
+        r_training, r_playing = racket_minutes_by_day(categories, activities, matches)
+        for iso in set(r_training) | set(r_playing):
+            total = r_training.get(iso, 0) + r_playing.get(iso, 0)
+            text[(racket.id, iso)] = format_duration(total)
+
+    # Notes cells.
+    notes_cat = cat_by_key.get("notes")
+    if notes_cat is not None:
+        for iso, note_text in rng.notes_by_date.items():
+            text[(notes_cat.id, iso)] = (
+                note_text if for_export else note_snippet(note_text)
+            )
+
+    # Overall: auto-generated colors from the day's data (not a manual rating).
+    overall_colors = compute_overall_colors(
+        categories,
+        activities,
+        matches,
+        _physical_dates(rng),
+        all_days=days,
+        today=dt.date.today(),
+        earliest=earliest_data_date(db),
+    )
+    return text, colors, overall_colors
+
+
 # ---------------------------------------------------------------- week
 
 
@@ -560,85 +658,16 @@ def build_week(
     checks_by_date = rng.checks_by_date
     notes_by_date = rng.notes_by_date
 
-    cells: dict[str, schemas.CellData] = {}
-
-    duration_ids = {c.id for c in categories if c.type == "duration"}
-
-    # Duration cells (sum minutes per category/day).
-    minutes: dict[str, int] = {}
-    cell_notes: dict[str, str] = {}  # per-cell activity note (not the day note)
-    starts: set[str] = set()  # keys whose day starts a coaching package
-    for a in activities:
-        if a.category_id not in duration_ids:
-            continue
-        k = f"{a.category_id}|{a.date.isoformat()}"
-        minutes[k] = minutes.get(k, 0) + (a.duration_minutes or 0)
-        if a.note:
-            cell_notes[k] = a.note
-        if a.is_package_start:
-            starts.add(k)
-    for k, mins in minutes.items():
-        text = format_duration(mins)
-        if k in cell_notes:
-            text = f"{text} ({cell_notes[k]})".strip()
-        if k in starts:  # first session of a new 10-session coaching package
-            text = f"{text} {PACKAGE_MARK}".strip()
-        cells[k] = schemas.CellData(display=text)
-
-    # Match cells.
-    by_cell: dict[str, list[Match]] = {}
-    for m in matches:
-        by_cell.setdefault(f"{m.category_id}|{m.date.isoformat()}", []).append(m)
-    for k, ms in by_cell.items():
-        cells[k] = schemas.CellData(display=format_match_cell(ms))
-
-    # Physical Training cells. Before the cutover: the legacy checklist (ticked
-    # labels, yellow at >=70%). From the cutover forward: a read-only mirror of
-    # the Training Center session done that day.
-    physical = cat_by_key.get("physical_training")
-    if physical is not None:
-        for iso, keys in checks_by_date.items():
-            cells[f"{physical.id}|{iso}"] = schemas.CellData(
-                display=format_physical_cell(keys),
-                color="yellow" if physical_is_yellow(keys) else None,
-            )
-        for iso, info in rng.tc_physical.items():
-            cells[f"{physical.id}|{iso}"] = schemas.CellData(
-                display=f"💪 {info['done']}/{info['total']} · {info['focus_vi']}",
-                color="yellow" if info["is_yellow"] else None,
-            )
-
-    # Racket Time cells: auto-computed (coach + partner + 5 min per match set).
-    racket = cat_by_key.get("racket_time")
-    if racket is not None:
-        r_training, r_playing = racket_minutes_by_day(categories, activities, matches)
-        for iso in set(r_training) | set(r_playing):
-            total = r_training.get(iso, 0) + r_playing.get(iso, 0)
-            cells[f"{racket.id}|{iso}"] = schemas.CellData(
-                display=format_duration(total)
-            )
-
-    # Notes cells: compact 📝 preview; full text travels in day_notes.
-    notes_cat = cat_by_key.get("notes")
-    if notes_cat is not None:
-        for iso, text in notes_by_date.items():
-            cells[f"{notes_cat.id}|{iso}"] = schemas.CellData(
-                display=note_snippet(text)
-            )
-
-    # Overall cells: auto-generated from the day's data (not a manual rating).
+    text, colors, overall_colors = _grid_cells(db, rng, days, for_export=False)
+    cells: dict[str, schemas.CellData] = {
+        f"{cid}|{iso}": schemas.CellData(
+            display=display, color=colors.get((cid, iso))
+        )
+        for (cid, iso), display in text.items()
+    }
     overall = cat_by_key.get("overall")
     if overall is not None:
-        colors = compute_overall_colors(
-            categories,
-            activities,
-            matches,
-            _physical_dates(rng),
-            all_days=days,
-            today=dt.date.today(),
-            earliest=earliest_data_date(db),
-        )
-        for iso, color in colors.items():
+        for iso, color in overall_colors.items():
             cells[f"{overall.id}|{iso}"] = schemas.CellData(display="", color=color)
 
     # ELO annotation: one replay pass, then tag every match with its ±Δ or
@@ -1482,85 +1511,14 @@ def _date_range(date_from: dt.date, date_to: dt.date) -> list[dt.date]:
 
 
 def _build_grid(db: Session, date_from: dt.date, date_to: dt.date):
-    """Return (categories, dates, cell_text, rating_by_date, cell_colors)."""
+    """Return (categories, dates, cell_text, rating_by_date, cell_colors).
+
+    Same _grid_cells renderer as the on-screen grid, so the export can never
+    silently drop information the grid shows."""
     dates = _date_range(date_from, date_to)
     rng = _load_range(db, date_from, date_to)
-    categories = rng.categories
-    cat_by_key = {c.key: c for c in categories}
-    duration_ids = {c.id for c in categories if c.type == "duration"}
-    activities = rng.activities
-    matches = rng.matches
-    checks_by_date = rng.checks_by_date
-
-    text: dict[tuple[int, str], str] = {}
-    cell_colors: dict[tuple[int, str], str] = {}
-
-    mins: dict[tuple[int, str], int] = {}
-    # Same note/★ suffixes as the on-screen grid (build_week) so the export
-    # doesn't silently drop information.
-    grid_notes: dict[tuple[int, str], str] = {}
-    grid_starts: set[tuple[int, str]] = set()
-    for a in activities:
-        if a.category_id not in duration_ids:
-            continue
-        key = (a.category_id, a.date.isoformat())
-        mins[key] = mins.get(key, 0) + (a.duration_minutes or 0)
-        if a.note:
-            grid_notes[key] = a.note
-        if a.is_package_start:
-            grid_starts.add(key)
-    for key, m in mins.items():
-        cell = format_duration(m)
-        if key in grid_notes:
-            cell = f"{cell} ({grid_notes[key]})".strip()
-        if key in grid_starts:
-            cell = f"{cell} {PACKAGE_MARK}".strip()
-        text[key] = cell
-
-    by_cell: dict[tuple[int, str], list[Match]] = {}
-    for mt in matches:
-        by_cell.setdefault((mt.category_id, mt.date.isoformat()), []).append(mt)
-    for key, ms in by_cell.items():
-        text[key] = format_match_cell(ms)
-
-    # Physical Training cells: legacy checklist before the cutover, Training
-    # Center session mirror from the cutover forward.
-    physical = cat_by_key.get("physical_training")
-    if physical is not None:
-        for iso, keys in checks_by_date.items():
-            text[(physical.id, iso)] = format_physical_cell(keys)
-            if physical_is_yellow(keys):
-                cell_colors[(physical.id, iso)] = "yellow"
-        for iso, info in rng.tc_physical.items():
-            text[(physical.id, iso)] = f"Training Center {info['done']}/{info['total']} · {info['focus_vi']}"
-            if info["is_yellow"]:
-                cell_colors[(physical.id, iso)] = "yellow"
-
-    # Racket Time cells: same auto-computed values as the on-screen grid.
-    racket = cat_by_key.get("racket_time")
-    if racket is not None:
-        r_training, r_playing = racket_minutes_by_day(categories, activities, matches)
-        for iso in set(r_training) | set(r_playing):
-            total = r_training.get(iso, 0) + r_playing.get(iso, 0)
-            text[(racket.id, iso)] = format_duration(total)
-
-    # Notes cells: export the full text (not the truncated grid preview).
-    notes_cat = cat_by_key.get("notes")
-    if notes_cat is not None:
-        for iso, note_text in rng.notes_by_date.items():
-            text[(notes_cat.id, iso)] = note_text
-
-    # Overall row colors are auto-generated, matching the on-screen grid.
-    rating_by_date = compute_overall_colors(
-        categories,
-        activities,
-        matches,
-        _physical_dates(rng),
-        all_days=dates,
-        today=dt.date.today(),
-        earliest=earliest_data_date(db),
-    )
-    return categories, dates, text, rating_by_date, cell_colors
+    text, cell_colors, rating_by_date = _grid_cells(db, rng, dates, for_export=True)
+    return rng.categories, dates, text, rating_by_date, cell_colors
 
 
 def export_csv(db: Session, date_from: dt.date, date_to: dt.date) -> bytes:

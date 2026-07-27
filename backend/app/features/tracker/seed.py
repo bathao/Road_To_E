@@ -38,8 +38,80 @@ def migrate(db: Session) -> None:
     changed = add_missing_columns(db, "tracker_player", _PLAYER_COLUMNS)
     changed = add_missing_columns(db, "tracker_match", _MATCH_COLUMNS) or changed
     changed = _ensure_activity_unique_index(db) or changed
+    changed = _rebuild_match_player_fks(db) or changed
     if changed:
         db.commit()
+
+
+def _rebuild_match_player_fks(db: Session) -> bool:
+    """One-time rebuild of tracker_match so the PLAYER columns get real FK
+    constraints.
+
+    opponent_id/opponent2_id/partner_id were ALTER-added, and SQLite cannot
+    attach a FK constraint in ALTER TABLE — so on DBs that predate those
+    columns, PRAGMA foreign_keys has nothing to enforce there. Rebuild per
+    sqlite.org/lang_altertable.html: create from the canonical model DDL,
+    copy every row by name, verify the count, drop the old table, rename.
+    Idempotent (skips when the player FKs already exist) and NEVER destroys
+    data: any dangling id or copy mismatch aborts with the original intact.
+    """
+    refs = {
+        row[2] for row in db.execute(text("PRAGMA foreign_key_list(tracker_match)"))
+    }
+    if "tracker_player" in refs:
+        return False
+
+    # A dangling player id would make the copy fail mid-way — check first and
+    # leave everything untouched (the user decides how to fix such rows).
+    dangling = db.execute(text(
+        "SELECT COUNT(*) FROM tracker_match m WHERE "
+        "(m.opponent_id IS NOT NULL AND NOT EXISTS "
+        " (SELECT 1 FROM tracker_player p WHERE p.id = m.opponent_id)) OR "
+        "(m.opponent2_id IS NOT NULL AND NOT EXISTS "
+        " (SELECT 1 FROM tracker_player p WHERE p.id = m.opponent2_id)) OR "
+        "(m.partner_id IS NOT NULL AND NOT EXISTS "
+        " (SELECT 1 FROM tracker_player p WHERE p.id = m.partner_id))"
+    )).scalar()
+    if dangling:
+        log.warning(
+            "tracker_match FK rebuild skipped: %s rows reference missing "
+            "players — fix them first", dangling,
+        )
+        return False
+
+    from sqlalchemy.schema import CreateIndex, CreateTable
+
+    bind = db.get_bind()
+    ddl = str(CreateTable(Match.__table__).compile(bind)).replace(
+        "CREATE TABLE tracker_match", "CREATE TABLE tracker_match_rebuild", 1
+    )
+    cols = ", ".join(c.name for c in Match.__table__.columns)
+    try:
+        db.execute(text(ddl))
+        db.execute(text(
+            f"INSERT INTO tracker_match_rebuild ({cols}) "
+            f"SELECT {cols} FROM tracker_match"
+        ))
+        old_n = db.execute(text("SELECT COUNT(*) FROM tracker_match")).scalar()
+        new_n = db.execute(
+            text("SELECT COUNT(*) FROM tracker_match_rebuild")
+        ).scalar()
+        if old_n != new_n:
+            db.rollback()
+            log.error(
+                "tracker_match FK rebuild aborted: %s vs %s rows", old_n, new_n
+            )
+            return False
+        db.execute(text("DROP TABLE tracker_match"))
+        db.execute(text("ALTER TABLE tracker_match_rebuild RENAME TO tracker_match"))
+        for idx in Match.__table__.indexes:
+            db.execute(text(str(CreateIndex(idx).compile(bind))))
+    except OperationalError:
+        db.rollback()
+        log.exception("tracker_match FK rebuild failed — original table kept")
+        return False
+    log.info("tracker_match rebuilt with player FK constraints (%s rows)", new_n)
+    return True
 
 
 def _ensure_activity_unique_index(db: Session) -> bool:

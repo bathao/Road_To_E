@@ -102,21 +102,6 @@ class TraitIn(BaseModel):
 
 
 # --------------------------------------------------------- review findings
-class FindingDecisionIn(BaseModel):
-    """One reviewed finding: keep it (accept) or drop it (reject), optionally
-    with user edits to the text/aspect/polarity."""
-
-    id: int
-    accept: bool = True
-    text: str | None = None
-    aspect: str | None = None
-    polarity: str | None = None
-
-
-class ReviewIn(BaseModel):
-    decisions: list[FindingDecisionIn] = []
-
-
 # ------------------------------------------------------------- skill ledger
 class SkillOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -140,37 +125,8 @@ class SkillIn(BaseModel):
     priority: int | None = None
 
 
-# --------------------------------------------------------------- reports
-class ReportCreateIn(BaseModel):
-    """Paste an analysis produced elsewhere, tagged with the date + setting."""
-
-    source_text: str
-    analysis_date: dt.date | None = None  # default today; backdatable; not future
-    setting: str = "practice"  # practice | match
-    title: str = ""
-    context: str = ""
-
-
-class AnalysisReportOut(BaseModel):
-    """A pasted-analysis entry (the list/detail item)."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    analysis_date: dt.date
-    setting: str
-    title: str
-    context: str
-    source_text: str
-    model: str
-    status: str
-    error_msg: str | None = None
-    reviewed_at: dt.datetime | None = None
-    created_at: dt.datetime
-
-
-class AnalysisReportDetailOut(AnalysisReportOut):
-    traits: list[TraitOut] = []
+# (Paste-analysis intake schemas deleted 2026-07-27 with the retired pipeline;
+# the stored va_report ROWS stay — build_report still counts reviewed ones.)
 
 
 # ----------------------------------------- progress over time (for the Coach)
@@ -237,12 +193,3 @@ class ReportOut(BaseModel):
     practice_vs_match: list[AspectSettingStat] = []
     reports_reviewed: int = 0
     findings_accepted: int = 0
-
-
-# ------------------------------------------------------------------ health
-class ModelHealthOut(BaseModel):
-    ollama_up: bool
-    models: list[str]
-    default_model: str
-    default_available: bool
-    message: str

@@ -1,4 +1,4 @@
-import type { Aspect, Skill } from "../../video-analysis/types";
+import type { Aspect, Skill } from "../engine/types";
 
 interface Props {
   skills: Skill[];

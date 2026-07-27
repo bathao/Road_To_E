@@ -483,23 +483,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/video/health/model": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Model Health */
-        get: operations["model_health_api_video_health_model_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/video/profile": {
         parameters: {
             query?: never;
@@ -633,65 +616,6 @@ export interface paths {
         get: operations["get_player_report_api_video_report_get"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/video/reports": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Reports */
-        get: operations["list_reports_api_video_reports_get"];
-        put?: never;
-        /**
-         * Create Report
-         * @description Save a pasted analysis (tagged with its date) and kick off parsing.
-         */
-        post: operations["create_report_api_video_reports_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/video/reports/{report_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Report */
-        get: operations["get_report_api_video_reports__report_id__get"];
-        put?: never;
-        post?: never;
-        /** Delete Report */
-        delete: operations["delete_report_api_video_reports__report_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/video/reports/{report_id}/review": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Review Report
-         * @description User confirms which findings are correct → only accepted ones count.
-         */
-        post: operations["review_report_api_video_reports__report_id__review_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1219,76 +1143,6 @@ export interface components {
              */
             is_package_start: boolean;
         };
-        /** AnalysisReportDetailOut */
-        AnalysisReportDetailOut: {
-            /** Id */
-            id: number;
-            /**
-             * Analysis Date
-             * Format: date
-             */
-            analysis_date: string;
-            /** Setting */
-            setting: string;
-            /** Title */
-            title: string;
-            /** Context */
-            context: string;
-            /** Source Text */
-            source_text: string;
-            /** Model */
-            model: string;
-            /** Status */
-            status: string;
-            /** Error Msg */
-            error_msg?: string | null;
-            /** Reviewed At */
-            reviewed_at?: string | null;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
-             * Traits
-             * @default []
-             */
-            traits: components["schemas"]["TraitOut"][];
-        };
-        /**
-         * AnalysisReportOut
-         * @description A pasted-analysis entry (the list/detail item).
-         */
-        AnalysisReportOut: {
-            /** Id */
-            id: number;
-            /**
-             * Analysis Date
-             * Format: date
-             */
-            analysis_date: string;
-            /** Setting */
-            setting: string;
-            /** Title */
-            title: string;
-            /** Context */
-            context: string;
-            /** Source Text */
-            source_text: string;
-            /** Model */
-            model: string;
-            /** Status */
-            status: string;
-            /** Error Msg */
-            error_msg?: string | null;
-            /** Reviewed At */
-            reviewed_at?: string | null;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-        };
         /**
          * AspectSettingStat
          * @description How an aspect looks in practice vs in real matches — the gap the player
@@ -1778,26 +1632,6 @@ export interface components {
             /** Name */
             name: string;
         };
-        /**
-         * FindingDecisionIn
-         * @description One reviewed finding: keep it (accept) or drop it (reject), optionally
-         *     with user edits to the text/aspect/polarity.
-         */
-        FindingDecisionIn: {
-            /** Id */
-            id: number;
-            /**
-             * Accept
-             * @default true
-             */
-            accept: boolean;
-            /** Text */
-            text?: string | null;
-            /** Aspect */
-            aspect?: string | null;
-            /** Polarity */
-            polarity?: string | null;
-        };
         /** FindingPoint */
         FindingPoint: {
             /**
@@ -2185,19 +2019,6 @@ export interface components {
             losses: number;
             /** Win Rate */
             win_rate: number | null;
-        };
-        /** ModelHealthOut */
-        ModelHealthOut: {
-            /** Ollama Up */
-            ollama_up: boolean;
-            /** Models */
-            models: string[];
-            /** Default Model */
-            default_model: string;
-            /** Default Available */
-            default_available: boolean;
-            /** Message */
-            message: string;
         };
         /** MuscleVolume */
         MuscleVolume: {
@@ -2684,39 +2505,6 @@ export interface components {
             done_count: number;
             /** Total */
             total: number;
-        };
-        /**
-         * ReportCreateIn
-         * @description Paste an analysis produced elsewhere, tagged with the date + setting.
-         */
-        ReportCreateIn: {
-            /** Source Text */
-            source_text: string;
-            /** Analysis Date */
-            analysis_date?: string | null;
-            /**
-             * Setting
-             * @default practice
-             */
-            setting: string;
-            /**
-             * Title
-             * @default
-             */
-            title: string;
-            /**
-             * Context
-             * @default
-             */
-            context: string;
-        };
-        /** ReviewIn */
-        ReviewIn: {
-            /**
-             * Decisions
-             * @default []
-             */
-            decisions: components["schemas"]["FindingDecisionIn"][];
         };
         /** SessionOut */
         SessionOut: {
@@ -4095,26 +3883,6 @@ export interface operations {
             };
         };
     };
-    model_health_api_video_health_model_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ModelHealthOut"];
-                };
-            };
-        };
-    };
     get_profile_api_video_profile_get: {
         parameters: {
             query?: never;
@@ -4410,154 +4178,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["app__features__video_analysis__schemas__ReportOut"];
-                };
-            };
-        };
-    };
-    list_reports_api_video_reports_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AnalysisReportOut"][];
-                };
-            };
-        };
-    };
-    create_report_api_video_reports_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ReportCreateIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AnalysisReportOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_report_api_video_reports__report_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                report_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AnalysisReportDetailOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_report_api_video_reports__report_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                report_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    review_report_api_video_reports__report_id__review_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                report_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ReviewIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AnalysisReportDetailOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
