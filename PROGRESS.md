@@ -1,6 +1,104 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-07-27, end of session) — Phase 2 + scale 0.5 + labels retired, committed `108d50d`
+## Current status (2026-07-27, latest) — 1v2/2v1 + ELO analytics relocation, committed `0c424ac`
+
+> **Committed `0c424ac`** (code for BOTH same-day batches below: 1v2/2v1
+> disciplines + PlayerPicker fix + my-rating relocation + breakdown), this
+> PROGRESS right after. Tree clean; 63/63 pytest; build clean. Server was
+> restarted mid-session and verified on the new stack; restart start.bat
+> once more if it predates the breakdown endpoint.
+
+> **MY-RATING MOVED OUT OF DATABASE + ELO-OVER-TIME ANALYTICS (user request
+> + plan approved 2026-07-27, built same session, UNCOMMITTED).** User: the
+> Database tab is for OTHER people's static points; my dynamic rating
+> belongs with progress analysis (Profile / Match Stats / Daily Tracker).
+>   - **New endpoint** GET /tracker/my-rating/breakdown?from=&to=&unit=
+>     (day|week|month) → per-bucket {delta, counted, rating_end
+>     (carry-forward; None pre-anchor)} + total_delta + rating_start/end +
+>     top 3 ±Δ movers (opponent, discipline, score). service.
+>     build_rating_breakdown over rating.replay steps + _bucket_ranges.
+>     GLOBAL by design (v1 decision): no discipline/category filter — a
+>     filtered rating_end would lie; filtered deltas = future idea.
+>   - **Profile tab**: new MyRatingCard (components/MyRatingCard.tsx) right
+>     under the header — big current + "còn X tới E" + anchor-edit ("Sửa",
+>     same no-op-resave guard) + since-anchor daily curve. my-rating API
+>     calls moved databaseApi → profileApi.
+>   - **Database tab**: card + curve + my-rating api/types REMOVED; sub
+>     text points to Profile.
+>   - **Daily Tracker / AnalysisPanel**: new EloBlock — header chip "Δ ròng ·
+>     N trận · (start →) cuối kỳ" + LineChart of rating_end per bucket over
+>     the SHARED timeline (chartUnit; unit=day fallback so single-day mode
+>     still answers "hôm nay ±bao nhiêu"). Hidden when range predates anchor.
+>   - **Match Stats**: new EloSection (components/EloSection.tsx) below the
+>     3 analytics cards — KPI chip + signed Δ bars per bucket (center-zero,
+>     buckets with counted>0 only) + "Trận ảnh hưởng nhất" (top gains +
+>     losses). Deliberately rendered OUTSIDE the hasMatches branch and
+>     labeled "không theo 2 bộ lọc phía trên".
+>   - **Verified:** 63/63 pytest (breakdown buckets/carry/pre-anchor/movers
+>     test), build + gen:api clean; smoke on real-DB copy with today's 8
+>     real matches: 950 → 948, net −1.7, top gain +11.6 (thắng Nguyễn Văn
+>     Trung, đơn), top loss −3.6 (thua 2v1 với Lợi Phạm).
+>   - **GOTCHA (smoke):** the live DB runs WAL — copying tabletennis.db
+>     alone yields a STALE schema (the startup ALTER TABLEs sat in -wal);
+>     smoke scripts must copy the -wal/-shm sidecars too.
+>   - **⚠ RESTART start.bat required** — the FE now calls the new breakdown
+>     endpoint from the Analysis panel; on the old backend it 404s and the
+>     panel shows an error banner.
+
+## Earlier same day (2026-07-27) — NEW DISCIPLINES 1v2 / 2v1 (uncommitted)
+
+> **1v2 / 2v1 formats added (user request 2026-07-27, built same day,
+> UNCOMMITTED).** `one_v_two` = user plays ALONE vs two opponents;
+> `two_v_one` = user + partner vs one. A format the user plays often.
+>   - **No DB migration:** the existing slots cover both — 1v2 uses
+>     opponent+opponent2 (partner NULL), 2v1 uses partner+opponent
+>     (opponent2 NULL); snapshots already existed for all three slots.
+>   - **ELO rule (user, refined mid-build):** the solo side's ELO "×2" is
+>     for the COMPARISON ONLY ("coi như 2 người tôi đánh với 2 người bên
+>     kia") — on the team-average scale the solo player stands in as both
+>     members, so 1v2: mine = my rating vs (opp1+opp2)/2; 2v1: (me+partner)/2
+>     vs opp. **The win/loss Δ keeps the normal magnitude — never doubled**
+>     (user corrected an initial sum-scale reading mid-work). Chấp folds "như
+>     công thức bình thường": FULL ladder bonus (no doubles-style halving).
+>     Skips mirror doubles: 1v2 needs both opponents named+rated, 2v1 needs
+>     the partner. Assumes solo-at-R vs pair-avg-R is an even kèo — noted in
+>     rating.py to revisit with data if the format proves lopsided.
+>   - **Grid/export prefixes** `1v2: W(3-1)` / `2v1: L(1-3)` (D: unchanged);
+>     _GROUP_ORDER + _DISCIPLINE_PREFIX in service.py.
+>   - **MatchEditor:** seg Singles/Doubles/1v2/2v1; pickers per format
+>     (hasPartner/hasOpp2); list tags S/D/1v2/2v1; last-handicap pre-fill
+>     stays singles-only.
+>   - **Match Stats:** discipline filter gained one_v_two/two_v_one (router
+>     regex + FE chips); team-style matchups reuse doubles_h2h with a new
+>     `discipline` field, key format now `discipline|partner|opp1-opp2`
+>     (so 2v1 vs A never merges with doubles vs A+unnamed); h2h heading
+>     shows "Đôi/1v2/2v1 · tôi …".
+>   - **StatsResponse** gained one_v_two/two_v_one buckets (they no longer
+>     leak into the singles bucket); AnalysisPanel shows 2 new MatchCards.
+>   - **Coach:** match_sum + context lines for both formats; SYSTEM_PROMPT +
+>     CHAT_SYSTEM_PROMPT rule: 1v2/2v1 are their own formats, never pooled
+>     with singles/doubles.
+>   - **Verified:** 62/62 pytest (4 new: replay math + skips, 1v2 chấp full
+>     value, cell prefixes, match-stats grouping/filter), build + gen:api
+>     clean, smoke on a real-DB copy (deltas hand-checked: +2.3 / −9.43).
+>   - **NOTE from the smoke:** the LIVE DB still lacks the snapshot columns —
+>     start.bat has NOT been restarted since before ELO Phase 1; the smoke
+>     script had to run seed.migrate() on its copy. **Restart start.bat** is
+>     now doubly required (migration + this feature).
+>     → RESTARTED + verified same day: new endpoints live, snap columns
+>     migrated, tournament_match seeded, fresh bundle served.
+>   - **PlayerPicker bugfix (same day, user report):** the add-new-player
+>     points input ("chưa rõ") was unfocusable — the .player-add block's
+>     blanket onMouseDown preventDefault (meant to keep the dropdown open)
+>     also blocked focusing the input. Now preventDefault only for
+>     non-INPUT targets. Bug predates today (since the points-first add
+>     flow, 2026-07-25). Rebuilt; reload picks it up.
+>   - **Racket time questioned by user (2 h training + 8 matches → 4 h 25):**
+>     verified NOT a bug — 29 sets × RACKET_MINUTES_PER_SET (5) = 145 min
+>     by design. Offered to recalibrate the constant from real session
+>     length; user decided to keep 5 min/set ("thôi vậy cũng dc").
+
+## Earlier (2026-07-27, end of previous session) — Phase 2 + scale 0.5 + labels retired, committed `108d50d`
 
 > **Resume tomorrow.** Everything committed (`108d50d` code, this file
 > right after); tree clean; 58/58 pytest; build clean. USER MUST RESTART
