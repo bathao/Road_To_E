@@ -1,6 +1,58 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-07-27, latest) — 1v2/2v1 + ELO analytics relocation, committed `0c424ac`
+## Current status (2026-07-27, latest) — coach ELO trend + audit-debt cleanup, committed `335babd`
+
+> **Resume next session.** Committed `335babd` (code) + this PROGRESS right
+> after; tree clean; 63/63 pytest; build clean. −935/+253 lines net.
+> **Restart start.bat once** (new backend + the one-time tracker_match FK
+> rebuild; the daily backup runs first in lifespan). Next candidates:
+> mis-anchored-opponent report + "Road To E" ETA projection (both need a
+> few weeks of match data); entry speedups (Copy yesterday / Quick add);
+> re-run scale_backtest.py ~Oct; the prescription_for decision below.
+>
+> **COACH LEARNS THE WEEKLY ELO TREND + OLD AUDIT DEBT CLEARED (user picked
+> #1 and #6 from the next-steps analysis, built same session).**
+>   - **#1 Coach ELO trend:** gather_bundle adds my_elo.weekly (last ~6 week
+>     buckets via build_rating_breakdown: delta/counted/rating_end; weeks
+>     before the anchor dropped); _elo_line renders "Diễn biến ELO theo TUẦN
+>     (cũ → mới): dd/mm–dd/mm: ±Δ (N trận, cuối tuần R) · …". SYSTEM_PROMPT
+>     rule: read the DIRECTION of the series, ±20/tuần is luck noise at ~20
+>     matches/week, conclude only on 3-4 same-sign weeks, and a losing week
+>     full of kèo-trên can still be a good week; CHAT prompt got the short
+>     version.
+>   - **#6a retired pipeline deleted:** video router /health/model +
+>     /reports* endpoints, service list/get/create/parse/delete/review
+>     report + report_detail_out + _clamp_date + _clamp01, text_synth
+>     extract_findings + check_models, schemas ReportCreateIn/AnalysisReport*
+>     /ReviewIn/FindingDecisionIn/ModelHealthOut. va_report table + rows KEPT
+>     (build_report still counts reviewed ones for the coach). /api/video
+>     prefix kept as historical name.
+>   - **#6b FE folder rename:** tabs/video-analysis → tabs/profile/engine
+>     (git mv file-by-file — folder-level mv hit Windows permission denied);
+>     imports fixed (profile/index, SkillRadar, engine/api shared path).
+>     styles/video-analysis.css name kept (classes are va-*).
+>   - **#6c FK pragma ON** (core/db.py) + **tracker_match rebuild**: the 3
+>     ALTER-added player columns had NO FK in the live table (SQLite can't
+>     add FKs via ALTER) — new idempotent seed._rebuild_match_player_fks()
+>     rebuilds from the canonical model DDL (create → copy by name → verify
+>     count → drop → rename → recreate indexes), aborts untouched on any
+>     dangling id or count mismatch. Real-DB copy: 253/253 rows kept,
+>     foreign_key_check clean, dangling opponent_id now REJECTED.
+>   - **#6d grid dedup:** the ~70-line build_week/_build_grid near-copies
+>     (source of the old export-parity bug) merged into ONE renderer
+>     service._grid_cells(db, rng, days, for_export=) — export differences
+>     (full note text, "Training Center" prefix vs 💪) are explicit flags.
+>     Smoke asserts grid ≡ export cell-by-cell for the current week.
+>   - **Verified:** 63/63 pytest, build + gen:api clean, smoke on real-DB
+>     copy (WAL sidecars copied — see gotcha below). Restart start.bat to
+>     load the new backend + run the FK rebuild (backup runs first in
+>     lifespan, before seeds).
+>   - **Still open (product decision, from the old audit):** training
+>     prescription_for still injects exercises from RETIRED va_skill ratings
+>     into every new session — contradicts the "no model guesswork" principle;
+>     ask the user whether to drop that input.
+
+## Earlier same day (2026-07-27) — 1v2/2v1 + ELO analytics relocation, committed `0c424ac`
 
 > **Committed `0c424ac`** (code for BOTH same-day batches below: 1v2/2v1
 > disciplines + PlayerPicker fix + my-rating relocation + breakdown), this
