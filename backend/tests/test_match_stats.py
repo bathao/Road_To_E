@@ -62,6 +62,47 @@ def test_build_match_stats_grouping_and_unnamed_exclusion(db):
     assert {o.name for o in res.opponents} == {"Anna", "Binh"}
 
 
+def test_build_match_stats_one_v_two_and_two_v_one(db):
+    """1v2/2v1 are team-style matchups: they land in doubles_h2h (with their
+    own discipline tag, never merged with real doubles) and have their own
+    discipline filter values."""
+    cat = category_id(db, "practice_match")
+    anna = Player(name="Anna", points=1250)
+    binh = Player(name="Binh", points=950)
+    dave = Player(name="Dave", points=1000)
+    db.add_all([anna, binh, dave])
+    db.commit()
+
+    d = dt.date(2026, 6, 5)
+    ovt = _match(cat, d, 3, 1, opponent_id=anna.id)  # 1v2 W vs Anna & Binh
+    ovt.discipline = "one_v_two"
+    ovt.opponent2_id = binh.id
+    tvo = _match(cat, d, 1, 3, opponent_id=anna.id)  # 2v1 L (+ Dave) vs Anna
+    tvo.discipline = "two_v_one"
+    tvo.partner_id = dave.id
+    dbl = _match(cat, d, 3, 2, opponent_id=anna.id)  # doubles vs Anna + unnamed
+    dbl.discipline = "doubles"
+    db.add_all([ovt, tvo, dbl])
+    db.commit()
+
+    res = service.build_match_stats(db, dt.date(2026, 6, 1), dt.date(2026, 6, 30))
+    assert res.overall.total == 3 and res.singles_h2h == []
+    recs = {r.discipline: r for r in res.doubles_h2h}
+    # Three separate matchups — the 2v1 vs Anna never merges with the
+    # doubles vs Anna + unnamed opponent.
+    assert len(res.doubles_h2h) == 3
+    assert recs["one_v_two"].partner_id is None
+    assert recs["one_v_two"].opp2_name == "Binh"
+    assert recs["two_v_one"].partner_name == "Dave"
+    assert recs["two_v_one"].opp2_id is None
+
+    # The discipline filter isolates each format.
+    only = service.build_match_stats(
+        db, dt.date(2026, 6, 1), dt.date(2026, 6, 30), discipline="one_v_two"
+    )
+    assert only.overall.total == 1 and only.overall.wins == 1
+
+
 def test_build_handicap_split_directions(db):
     """Level × handicap-direction win rates: +N = I give, -N = I receive,
     0 = even; empty cells are omitted; unnamed matches excluded."""

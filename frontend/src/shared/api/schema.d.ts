@@ -392,6 +392,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tracker/my-rating/breakdown": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My Rating Breakdown
+         * @description Net ELO change per bucket + top ±Δ movers. Global — no filters.
+         */
+        get: operations["my_rating_breakdown_api_tracker_my_rating_breakdown_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tracker/stats": {
         parameters: {
             query?: never;
@@ -1655,10 +1675,19 @@ export interface components {
              */
             items: components["schemas"]["DirectiveProgress"][];
         };
-        /** DoublesRecord */
+        /**
+         * DoublesRecord
+         * @description A team-style matchup: doubles, 1v2 (me alone vs a pair) or 2v1
+         *     (me + partner vs one player). Slots not used by the format stay None.
+         */
         DoublesRecord: {
             /** Key */
             key: string;
+            /**
+             * Discipline
+             * @default doubles
+             */
+            discipline: string;
             /** Partner Id */
             partner_id: number | null;
             /** Partner Name */
@@ -1924,7 +1953,7 @@ export interface components {
              * @default singles
              * @enum {string}
              */
-            discipline: "singles" | "doubles";
+            discipline: "singles" | "doubles" | "one_v_two" | "two_v_one";
             /**
              * Best Of
              * @default 5
@@ -2178,6 +2207,45 @@ export interface components {
             times: number;
         };
         /**
+         * MyRatingBreakdownOut
+         * @description ELO over time for the analytics tabs: per-bucket net change + the
+         *     range's biggest single-match movers. GLOBAL — the rating has no
+         *     discipline/category filter (a filtered rating_end would lie).
+         */
+        MyRatingBreakdownOut: {
+            /**
+             * Date From
+             * Format: date
+             */
+            date_from: string;
+            /**
+             * Date To
+             * Format: date
+             */
+            date_to: string;
+            /** Unit */
+            unit: string;
+            /**
+             * Anchor Date
+             * Format: date
+             */
+            anchor_date: string;
+            /** Total Delta */
+            total_delta: number;
+            /** Counted */
+            counted: number;
+            /** Rating Start */
+            rating_start: number | null;
+            /** Rating End */
+            rating_end: number | null;
+            /** Buckets */
+            buckets: components["schemas"]["RatingBucketOut"][];
+            /** Top Gains */
+            top_gains: components["schemas"]["RatingMoverOut"][];
+            /** Top Losses */
+            top_losses: components["schemas"]["RatingMoverOut"][];
+        };
+        /**
          * MyRatingHistoryOut
          * @description Daily ELO curve since the anchor, reconstructed by replay (nothing is
          *     stored): the anchor day plus the last rating of each day with counted
@@ -2207,9 +2275,11 @@ export interface components {
          *
          *     `points` is the editable ANCHOR; `current` is the replayed ELO rating —
          *     anchor + every eligible match since `anchor_date`: every involved player
-         *     named + rated (doubles compare team averages at FULL weight; a chấp adds
-         *     the receiver's full ladder bonus — a big chấp can make the receiver the
-         *     favourite). PUT /my-rating = a new anchor from today.
+         *     named + rated (doubles compare team averages at FULL weight; in 1v2/2v1
+         *     the solo player stands in as both members of their side — comparison
+         *     only, the delta stays normal; a chấp adds the receiver's full ladder
+         *     bonus — a big chấp can make the receiver the favourite). PUT /my-rating
+         *     = a new anchor from today.
          */
         MyRatingOut: {
             /** Points */
@@ -2537,6 +2607,55 @@ export interface components {
             progress_pct: number;
             /** Tiles */
             tiles: components["schemas"]["TileOut"][];
+        };
+        /**
+         * RatingBucketOut
+         * @description Net ELO change inside one day/week/month bucket.
+         */
+        RatingBucketOut: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /**
+             * Date From
+             * Format: date
+             */
+            date_from: string;
+            /**
+             * Date To
+             * Format: date
+             */
+            date_to: string;
+            /** Delta */
+            delta: number;
+            /** Counted */
+            counted: number;
+            /** Rating End */
+            rating_end: number | null;
+        };
+        /**
+         * RatingMoverOut
+         * @description One counted match for the top ±Δ movers list.
+         */
+        RatingMoverOut: {
+            /** Match Id */
+            match_id: number;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Delta */
+            delta: number;
+            /** Discipline */
+            discipline: string;
+            /** Opponent Name */
+            opponent_name: string | null;
+            /** My Sets */
+            my_sets: number;
+            /** Opp Sets */
+            opp_sets: number;
         };
         /** RatingPoint */
         RatingPoint: {
@@ -2875,6 +2994,8 @@ export interface components {
             overall: components["schemas"]["MatchStats"];
             singles: components["schemas"]["MatchStats"];
             doubles: components["schemas"]["MatchStats"];
+            one_v_two: components["schemas"]["MatchStats"];
+            two_v_one: components["schemas"]["MatchStats"];
             vs_pips: components["schemas"]["MatchStats"];
         };
         /** SubstituteIn */
@@ -3804,6 +3925,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MyRatingHistoryOut"];
+                };
+            };
+        };
+    };
+    my_rating_breakdown_api_tracker_my_rating_breakdown_get: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                unit?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyRatingBreakdownOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

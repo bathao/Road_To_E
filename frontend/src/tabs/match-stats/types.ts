@@ -11,7 +11,7 @@ export interface LevelRecord {
 
 export interface MatchLine {
   date: string;
-  discipline: "singles" | "doubles";
+  discipline: "singles" | "doubles" | "one_v_two" | "two_v_one";
   my_sets: number;
   opp_sets: number;
   result: "W" | "L" | "T";
@@ -43,8 +43,11 @@ export interface OpponentBrief {
   played: number;
 }
 
+// A team-style matchup: doubles, 1v2 (me alone vs a pair) or 2v1
+// (me + partner vs one player). Slots the format doesn't use stay null.
 export interface DoublesRecord {
   key: string;
+  discipline: "doubles" | "one_v_two" | "two_v_one";
   partner_id: number | null;
   partner_name: string | null;
   partner_level: PlayerLevel | null;
@@ -77,7 +80,19 @@ export interface MatchTrendBucket {
   win_rate: number | null;
 }
 
-export type DisciplineFilter = "all" | "singles" | "doubles";
+// My ELO over time (shared shapes with the Daily Tracker's Analysis panel).
+export type {
+  RatingBreakdown,
+  RatingBucket,
+  RatingMover,
+} from "../daily-tracker/types";
+
+export type DisciplineFilter =
+  | "all"
+  | "singles"
+  | "doubles"
+  | "one_v_two"
+  | "two_v_one";
 export type CategoryFilter = "all" | "practice" | "official" | "tournament";
 
 export interface MatchStatsResponse {

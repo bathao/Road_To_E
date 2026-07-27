@@ -138,13 +138,13 @@ def _result_letter(my_sets: int, opp_sets: int) -> str:
 
 # Fixed ordering of result groups within a cell.
 _GROUP_ORDER = [
-    ("singles", "W"),
-    ("singles", "L"),
-    ("singles", "T"),
-    ("doubles", "W"),
-    ("doubles", "L"),
-    ("doubles", "T"),
+    (d, r)
+    for d in ("singles", "doubles", "one_v_two", "two_v_one")
+    for r in ("W", "L", "T")
 ]
+
+# Cell/export prefix per discipline (singles stays bare, Excel-style).
+_DISCIPLINE_PREFIX = {"doubles": "D: ", "one_v_two": "1v2: ", "two_v_one": "2v1: "}
 
 
 def format_match_cell(matches: list[Match]) -> str:
@@ -188,7 +188,7 @@ def format_match_cell(matches: list[Match]) -> str:
         if not scores:
             continue
         discipline, result = key
-        prefix = "D: " if discipline == "doubles" else ""
+        prefix = _DISCIPLINE_PREFIX.get(discipline, "")
         lines.append(f"{prefix}{result}({','.join(scores)})")
 
     return "\n".join(lines)
@@ -910,15 +910,22 @@ def build_stats(db: Session, date_from: dt.date, date_to: dt.date) -> schemas.St
     overall = _blank_match_stats()
     singles = _blank_match_stats()
     doubles = _blank_match_stats()
+    one_v_two = _blank_match_stats()  # me alone vs two opponents
+    two_v_one = _blank_match_stats()  # me + partner vs one opponent
     vs_pips = _blank_match_stats()  # matches against a pimpled-rubber opponent
 
+    by_discipline = {
+        "doubles": doubles,
+        "one_v_two": one_v_two,
+        "two_v_one": two_v_one,
+    }
     for m in matches:
         if m.is_nonplaying:
             continue
         iso = m.date.isoformat()
         matches_per_day[iso] = matches_per_day.get(iso, 0) + 1
 
-        bucket = doubles if m.discipline == "doubles" else singles
+        bucket = by_discipline.get(m.discipline, singles)
         _tally(overall, m)
         _tally(bucket, m)
         # "vs gai": either listed opponent plays pimpled rubber (covers doubles).
@@ -964,6 +971,8 @@ def build_stats(db: Session, date_from: dt.date, date_to: dt.date) -> schemas.St
         overall=_finalize_match_stats(overall),
         singles=_finalize_match_stats(singles),
         doubles=_finalize_match_stats(doubles),
+        one_v_two=_finalize_match_stats(one_v_two),
+        two_v_one=_finalize_match_stats(two_v_one),
         vs_pips=_finalize_match_stats(vs_pips),
     )
 
@@ -1122,7 +1131,7 @@ def build_match_stats(
             Match.opponent_id.isnot(None),
         )
     )
-    if discipline in ("singles", "doubles"):
+    if discipline in ("singles", "doubles", "one_v_two", "two_v_one"):
         q = q.filter(Match.discipline == discipline)
     if category in _CATEGORY_KEY:
         cat = db.query(Category).filter(Category.key == _CATEGORY_KEY[category]).first()
@@ -1138,7 +1147,9 @@ def build_match_stats(
     overall = _blank_match_stats()
     by_level: dict[str, dict] = {lv: _blank_match_stats() for lv in _LEVEL_ORDER}
     singles_h2h: dict[int, dict] = {}  # keyed by opponent_id
-    doubles_h2h: dict[str, dict] = {}  # keyed by partner + opponent-pair
+    # Team-style matchups (doubles / 1v2 / 2v1), keyed by
+    # discipline + partner + opponent-pair. Slots a format doesn't use stay None.
+    doubles_h2h: dict[str, dict] = {}
     opp_brief: dict[int, dict] = {}  # every opponent seen -> {name, level, played}
 
     for m in matches:
@@ -1160,8 +1171,11 @@ def build_match_stats(
                     }
                 b["played"] += 1
 
-        if m.discipline == "doubles":
-            # A doubles matchup = (my partner) vs (their unordered opponent pair).
+        if m.discipline != "singles":
+            # A team-style matchup = (my partner, if any) vs (their unordered
+            # opponent pair) — covers doubles, 1v2 (no partner) and 2v1 (one
+            # opponent). Discipline is part of the key so a 2v1 vs A never
+            # merges with a doubles vs A + unnamed.
             opps = sorted(
                 [
                     (m.opponent_id, m.opponent.name if m.opponent else "?",
@@ -1171,12 +1185,13 @@ def build_match_stats(
                 ],
                 key=lambda t: (t[1] is None, (t[1] or "").lower()),
             )
-            key = f"{m.partner_id}|{opps[0][0]}-{opps[1][0]}"
+            key = f"{m.discipline}|{m.partner_id}|{opps[0][0]}-{opps[1][0]}"
             rec = doubles_h2h.get(key)
             if rec is None:
                 rec = doubles_h2h[key] = {
                     **_blank_match_stats(),
                     "key": key,
+                    "discipline": m.discipline,
                     "partner_id": m.partner_id,
                     "partner_name": m.partner.name if m.partner else None,
                     "partner_level": _level_of(
@@ -1241,6 +1256,7 @@ def build_match_stats(
     def _dbl_record(rec: dict) -> schemas.DoublesRecord:
         return schemas.DoublesRecord(
             key=rec["key"],
+            discipline=rec["discipline"],
             partner_id=rec["partner_id"],
             partner_name=rec["partner_name"],
             partner_level=rec["partner_level"],
@@ -1370,6 +1386,88 @@ def build_handicap_split(
         }
         for lv, dirs in acc.items()
     }
+
+
+# ------------------------------------------------------------ ELO breakdown
+
+
+def build_rating_breakdown(
+    db: Session, date_from: dt.date, date_to: dt.date, unit: str = "day"
+) -> schemas.MyRatingBreakdownOut:
+    """Net ELO change per day/week/month bucket + the range's top ±Δ movers.
+
+    Replayed on demand via rating.replay — nothing stored. The rating is
+    GLOBAL: no discipline/category filtering here (deltas could be filtered,
+    but a filtered "rating at end of bucket" would be a lie — decided v1
+    2026-07-27)."""
+    _final, steps = rating.replay(db)
+    anchor_date = rating.get_my_anchor_date(db)
+    anchor_points = rating.get_my_points(db)
+
+    def value_at(day: dt.date) -> int | None:
+        """Replayed rating at the END of `day` (carry-forward over quiet
+        days); None before the anchor, when no rating existed yet."""
+        if day < anchor_date:
+            return None
+        val = float(anchor_points)
+        for s in steps:
+            if s.date > day:
+                break
+            val = s.rating_after
+        return round(val)
+
+    buckets: list[schemas.RatingBucketOut] = []
+    for key, label, b_from, b_to in _bucket_ranges(date_from, date_to, unit):
+        in_bucket = [s for s in steps if b_from <= s.date <= b_to]
+        buckets.append(
+            schemas.RatingBucketOut(
+                key=key,
+                label=label,
+                date_from=b_from,
+                date_to=b_to,
+                delta=round(sum(s.delta for s in in_bucket), 1),
+                counted=len(in_bucket),
+                rating_end=value_at(b_to),
+            )
+        )
+
+    in_range = [s for s in steps if date_from <= s.date <= date_to]
+
+    def _mover(s: "rating.ReplayStep") -> schemas.RatingMoverOut:
+        m = db.get(Match, s.match_id)
+        return schemas.RatingMoverOut(
+            match_id=s.match_id,
+            date=s.date,
+            delta=round(s.delta, 1),
+            discipline=m.discipline if m else "singles",
+            opponent_name=m.opponent.name if m and m.opponent else None,
+            my_sets=m.my_sets if m else 0,
+            opp_sets=m.opp_sets if m else 0,
+        )
+
+    by_delta = sorted(in_range, key=lambda s: s.delta)
+    top_losses = [_mover(s) for s in by_delta[:3] if s.delta < 0]
+    top_gains = [_mover(s) for s in reversed(by_delta[-3:]) if s.delta > 0]
+
+    # Rating carried INTO the range; the anchor itself counts as the start
+    # when the range begins on/before the anchor day.
+    rating_start = value_at(date_from - dt.timedelta(days=1))
+    if rating_start is None and date_to >= anchor_date:
+        rating_start = anchor_points
+
+    return schemas.MyRatingBreakdownOut(
+        date_from=date_from,
+        date_to=date_to,
+        unit=unit,
+        anchor_date=anchor_date,
+        total_delta=round(sum(s.delta for s in in_range), 1),
+        counted=len(in_range),
+        rating_start=rating_start,
+        rating_end=value_at(date_to),
+        buckets=buckets,
+        top_gains=top_gains,
+        top_losses=top_losses,
+    )
 
 
 # ---------------------------------------------------------------- export

@@ -56,6 +56,16 @@ def test_format_match_cell_grouping_and_prefixes():
     ]
 
 
+def test_format_match_cell_one_v_two_prefixes():
+    """The 1v2 / 2v1 formats get their own cell prefixes, after doubles."""
+    cell = service.format_match_cell([
+        _match(0, discipline="two_v_one", my=0, opp=3),
+        _match(1, discipline="one_v_two", my=3, opp=1),
+        _match(2, discipline="doubles", my=3, opp=2),
+    ])
+    assert cell.split("\n") == ["D: W(3-2)", "1v2: W(3-1)", "2v1: L(0-3)"]
+
+
 def test_format_match_cell_empty_and_loss_group():
     assert service.format_match_cell([]) == ""
     cell = service.format_match_cell(

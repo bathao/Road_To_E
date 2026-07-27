@@ -30,6 +30,14 @@ from app.features.tracker.models import Category, Match, Player, Setting
 # moves the rating exactly like a singles one, both ways — a partner's bad
 # day costs full points too. (0.5 = half attribution was the alternative.)
 #
+# 1v2 / 2v1 (one player vs a pair) — USER RULE 2026-07-27: the solo side's
+# ELO counts ×2 "để so sánh với bên kia THÔI" — i.e. the solo player stands
+# in as BOTH members of their team ("coi như 2 người tôi đánh với 2 người
+# bên kia"). On the team-average scale that is simply: solo side average =
+# their own rating. The win/loss delta stays the NORMAL magnitude — the ×2
+# never multiplies the gain/loss. Assumes solo-at-R vs pair-averaging-R is
+# an even kèo; if the format itself proves lopsided, revisit with data.
+#
 # K sized for ~20 matches/week and a 3-4 MONTH skill timescale — luck noise
 # stays ~±20/week.
 ELO_K_BASE = 12.0
@@ -201,9 +209,12 @@ def skip_reason(m: Match, anchor_date: dt.date) -> str | None:
         return SKIP_NO_RESULT
     if _snap_or_current(m.opp_points_snap, m.opponent) is None:
         return SKIP_UNRATED
-    if m.discipline == "doubles":
+    # A missing team member reads as unrated too (same treatment as doubles):
+    # doubles needs partner + both opponents, 1v2 both opponents, 2v1 the partner.
+    if m.discipline in ("doubles", "two_v_one"):
         if _snap_or_current(m.partner_points_snap, m.partner) is None:
             return SKIP_UNRATED
+    if m.discipline in ("doubles", "one_v_two"):
         if _snap_or_current(m.opp2_points_snap, m.opponent2) is None:
             return SKIP_UNRATED
     return None
@@ -242,7 +253,7 @@ def replay(db: Session) -> tuple[float, list[ReplayStep]]:
         .filter(
             Match.date >= anchor_date,
             Match.is_nonplaying == False,  # noqa: E712
-            Match.discipline.in_(("singles", "doubles")),
+            Match.discipline.in_(("singles", "doubles", "one_v_two", "two_v_one")),
             Match.opponent_id.isnot(None),
             Match.category_id.in_(list(kind_mult_by_cat)),
         )
@@ -260,6 +271,22 @@ def replay(db: Session) -> tuple[float, list[ReplayStep]]:
             mine = (rating + partner_points) / 2.0
             theirs = (opp_points + opp2_points) / 2.0
             attribution = ELO_DOUBLES_MULT
+        elif m.discipline == "one_v_two":
+            # I play ALONE vs a pair (user rule 2026-07-27): I stand in as
+            # both members of my side, so on the team-average scale my side
+            # = my own rating vs the pair's average. The ×2 is comparison
+            # only — the delta magnitude stays normal.
+            opp2_points = _snap_or_current(m.opp2_points_snap, m.opponent2)
+            mine = rating
+            theirs = (opp_points + opp2_points) / 2.0
+            attribution = 1.0
+        elif m.discipline == "two_v_one":
+            # Me + partner vs one player who stands in for both opponents
+            # (mirror of 1v2). A partner is involved → doubles attribution.
+            partner_points = _snap_or_current(m.partner_points_snap, m.partner)
+            mine = (rating + partner_points) / 2.0
+            theirs = float(opp_points)
+            attribution = ELO_DOUBLES_MULT
         else:
             mine, theirs = rating, float(opp_points)
             attribution = 1.0
@@ -274,6 +301,9 @@ def replay(db: Session) -> tuple[float, list[ReplayStep]]:
             # member, not both — on the team-AVERAGE scale that is half the
             # ladder value (avoids inflating the receiving pair abnormally).
             bonus /= 2.0
+        # 1v2 / 2v1 keep the FULL ladder value ("có điểm chấp thì cũng như
+        # công thức bình thường", user 2026-07-27) — the same absolute /400
+        # shift as a singles chấp.
         if m.handicap > 0:
             theirs += bonus
         elif m.handicap < 0:

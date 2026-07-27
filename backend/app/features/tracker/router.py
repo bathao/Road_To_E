@@ -332,6 +332,17 @@ def my_rating_history(db: Session = Depends(get_db)):
     return rating.build_history(db)
 
 
+@router.get("/my-rating/breakdown", response_model=schemas.MyRatingBreakdownOut)
+def my_rating_breakdown(
+    date_from: dt.date = Query(..., alias="from"),
+    date_to: dt.date = Query(..., alias="to"),
+    unit: str = Query("day", pattern="^(day|week|month)$"),
+    db: Session = Depends(get_db),
+):
+    """Net ELO change per bucket + top ±Δ movers. Global — no filters."""
+    return service.build_rating_breakdown(db, date_from, date_to, unit)
+
+
 # ---------------------------------------------------------------- stats
 @router.get("/stats", response_model=schemas.StatsResponse)
 def stats(
@@ -356,7 +367,7 @@ def breakdown(
 def match_stats(
     date_from: dt.date = Query(..., alias="from"),
     date_to: dt.date = Query(..., alias="to"),
-    discipline: str = Query("all", pattern="^(all|singles|doubles)$"),
+    discipline: str = Query("all", pattern="^(all|singles|doubles|one_v_two|two_v_one)$"),
     category: str = Query("all", pattern="^(all|practice|official|tournament)$"),
     unit: str = Query("month", pattern="^(month|week|day)$"),
     db: Session = Depends(get_db),

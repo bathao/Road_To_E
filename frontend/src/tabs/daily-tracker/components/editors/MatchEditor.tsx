@@ -8,15 +8,31 @@ import { levelShort } from "../../../../shared/levels";
 const FORMATS = [3, 5, 7];
 type HandicapDir = "none" | "give" | "receive";
 
+// Seg label + short tag per discipline. 1v2 = I play ALONE vs two opponents;
+// 2v1 = me + partner vs one opponent.
+const DISCIPLINES: [Discipline, string][] = [
+  ["singles", "Singles"],
+  ["doubles", "Doubles"],
+  ["one_v_two", "1v2"],
+  ["two_v_one", "2v1"],
+];
+const DISCIPLINE_SHORT: Record<Discipline, string> = {
+  singles: "S",
+  doubles: "D",
+  one_v_two: "1v2",
+  two_v_one: "2v1",
+};
+
 function resultLetter(m: Match): string {
   return m.my_sets > m.opp_sets ? "W" : m.my_sets < m.opp_sets ? "L" : "T";
 }
 
-// "vs Nam (Ngang)" for singles, "+ Partner vs A, B" for doubles, plus handicap.
+// "vs Nam (Ngang)" for singles; "+ Partner vs A & B" for the team formats
+// (doubles / 1v2 / 2v1 — unused slots just don't render), plus handicap.
 function playersLabel(m: Match): string {
   if (m.is_nonplaying) return "";
   const parts: string[] = [];
-  if (m.discipline === "doubles") {
+  if (m.discipline !== "singles") {
     if (m.partner_name) parts.push(`+${m.partner_name}`);
     const opps = [
       m.opponent_name && `${m.opponent_name}${m.opponent_plays_pips ? " 🏓" : ""}`,
@@ -161,6 +177,10 @@ export default function MatchEditor({
 
   const { wins, losses } = validScores(bestOf);
 
+  // Which player slots the chosen format uses.
+  const hasPartner = discipline === "doubles" || discipline === "two_v_one";
+  const hasOpp2 = discipline === "doubles" || discipline === "one_v_two";
+
   // Per-set digits of the chosen ratio. Uniform ("2-2-2") is stored as the
   // plain signed int like before; only mixed ratios carry a pattern, with
   // `handicap` = signed rounded per-set average (min 1 so the sign survives)
@@ -196,8 +216,8 @@ export default function MatchEditor({
       opp_sets: opp,
       event_name: eventName.trim() || null,
       opponent_id: opponent?.id ?? null,
-      opponent2_id: discipline === "doubles" ? opponent2?.id ?? null : null,
-      partner_id: discipline === "doubles" ? partner?.id ?? null : null,
+      opponent2_id: hasOpp2 ? opponent2?.id ?? null : null,
+      partner_id: hasPartner ? partner?.id ?? null : null,
       handicap,
       handicap_pattern: handicapPattern,
     });
@@ -223,7 +243,7 @@ export default function MatchEditor({
               <span>
                 {m.is_nonplaying
                   ? m.nonplaying_label ?? "—"
-                  : `${m.discipline === "doubles" ? "D" : "S"} ${resultLetter(m)} ${m.my_sets}-${m.opp_sets}`}
+                  : `${DISCIPLINE_SHORT[m.discipline]} ${resultLetter(m)} ${m.my_sets}-${m.opp_sets}`}
                 {playersLabel(m) ? ` · ${playersLabel(m)}` : ""}
                 {m.event_name ? ` · ${m.event_name}` : ""}
                 <EloChip m={m} />
@@ -244,29 +264,29 @@ export default function MatchEditor({
       <div className="seg-row">
         <span className="seg-label">Discipline</span>
         <div className="seg">
-          {(["singles", "doubles"] as Discipline[]).map((d) => (
+          {DISCIPLINES.map(([d, lbl]) => (
             <button
               key={d}
               className={`seg-btn${discipline === d ? " active" : ""}`}
               onClick={() => setDiscipline(d)}
             >
-              {d === "singles" ? "Singles" : "Doubles"}
+              {lbl}
             </button>
           ))}
         </div>
       </div>
 
       {/* Players */}
-      {discipline === "doubles" && (
+      {hasPartner && (
         <PlayerPicker label="Partner" value={partner} onChange={setPartner} />
       )}
       <PlayerPicker
-        label={discipline === "doubles" ? "Đối thủ 1" : "Đối thủ"}
+        label={hasOpp2 ? "Đối thủ 1" : "Đối thủ"}
         value={opponent}
         onChange={setOpponent}
         pipsEditable
       />
-      {discipline === "doubles" && (
+      {hasOpp2 && (
         <PlayerPicker
           label="Đối thủ 2"
           value={opponent2}

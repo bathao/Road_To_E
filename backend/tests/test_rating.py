@@ -113,6 +113,67 @@ def test_rating_counts_doubles_at_full_weight(db):
     assert service.compute_my_rating(db).counted_matches == 1
 
 
+def test_rating_one_v_two_and_two_v_one(db):
+    """User rule 2026-07-27: the solo side's ELO ×2 is for the COMPARISON
+    only ("coi như 2 người tôi đánh với 2 người bên kia") — on the
+    team-average scale the solo side = that player's own rating. The
+    win/loss delta keeps the NORMAL magnitude, never doubled."""
+    off = category_id(db, "official_match")
+    opp1 = Player(name="DoiThu1", points=1000)
+    opp2 = Player(name="DoiThu2", points=900)
+    solo = Player(name="MotMinh", points=1000)
+    partner = Player(name="DongDoi", points=1050)
+    unrated = Player(name="ChuaRo")
+    db.add_all([opp1, opp2, solo, partner, unrated])
+    db.commit()
+
+    # 1v2: me (950) alone vs a pair averaging (1000+900)/2 = 950 — an even
+    # kèo. Official 3-0 sweep: the normal +7.5 → 957.5.
+    db.add(_match(off, opp1.id, discipline="one_v_two", opponent2_id=opp2.id))
+    db.commit()
+    r = service.compute_my_rating(db)
+    assert r.current == 958 and r.counted_matches == 1
+
+    # 2v1: my team (957.5 + 1050)/2 ≈ 1003.75 vs the solo opponent's 1000
+    # (he stands in for both members): E ≈ 0.505, official 3-0 sweep
+    # 12 × 1.25 × 0.495 ≈ +7.4 → 964.9.
+    db.add(_match(off, solo.id, discipline="two_v_one",
+                  partner_id=partner.id, order_index=1))
+    db.commit()
+    r = service.compute_my_rating(db)
+    assert r.current == 965 and r.counted_matches == 2
+
+    # Missing/unrated second opponent (1v2) or partner (2v1) skips the match.
+    db.add_all([
+        _match(off, opp1.id, discipline="one_v_two", order_index=2),
+        _match(off, opp1.id, discipline="two_v_one", order_index=3),
+        _match(off, opp1.id, discipline="one_v_two",
+               opponent2_id=unrated.id, order_index=4),
+    ])
+    db.commit()
+    assert service.compute_my_rating(db).counted_matches == 2
+
+
+def test_one_v_two_handicap_folds_at_full_value(db, monkeypatch):
+    """Chấp in 1v2/2v1 uses the plain formula ("cũng như công thức bình
+    thường"): the full ladder bonus on the receiving side's average — the
+    same absolute /400 shift as a singles chấp, no doubles-style halving."""
+    monkeypatch.setattr(rating, "HANDICAP_SCALE", 1.0)
+    off = category_id(db, "official_match")
+    opp1 = Player(name="DoiThu1", points=1100)
+    opp2 = Player(name="DoiThu2", points=1100)
+    db.add_all([opp1, opp2])
+    db.commit()
+
+    # Pair averages 1100; me 950 receiving 2-2-2 (+150) → exactly equalized
+    # (E = 0.5). Official 3-0 sweep: 12 × 1.25 × 0.5 = +7.5.
+    db.add(_match(off, opp1.id, discipline="one_v_two",
+                  opponent2_id=opp2.id, handicap=-2))
+    db.commit()
+    r = service.compute_my_rating(db)
+    assert r.current == 958 and r.counted_matches == 1
+
+
 def test_handicap_scale_is_half(db):
     """User decision 2026-07-27 after the backtest: the ladder applies at
     HANDICAP_SCALE = 0.5 (2-2-2 → +75, 4-4-4 → +225, 5-5-5 → +300)."""
@@ -292,6 +353,42 @@ def test_history_curve_and_week_annotation(db):
     assert by_id[loss.id].elo_delta == -7.7
     assert by_id[skip.id].elo_delta is None
     assert by_id[skip.id].elo_status == "unrated"
+
+
+def test_rating_breakdown_buckets_and_movers(db):
+    """ELO-over-time aggregation: per-bucket net Δ + carry-forward rating on
+    quiet days, None before the anchor, and the range's top ±Δ movers."""
+    off = category_id(db, "official_match")
+    equal = Player(name="Ngang", points=950)
+    strong = Player(name="Manh", points=1200)
+    db.add_all([equal, strong])
+    db.commit()
+    d1, d2 = dt.date(2026, 7, 28), dt.date(2026, 7, 30)
+    db.add_all([
+        _match(off, equal.id, date=d1),  # sweep vs equal: +7.5 → 957.5
+        # 2026-07-30: sweep loss vs equal (−7.7 → 949.8), then a 3-1 win
+        # vs +250 (E ≈ 0.19, +9.7 → 959.5). Net for the day: +2.0.
+        _match(off, equal.id, my=0, opp_sets=3, date=d2),
+        _match(off, strong.id, my=3, opp_sets=1, date=d2, order_index=1),
+    ])
+    db.commit()
+
+    b = service.build_rating_breakdown(
+        db, dt.date(2026, 7, 26), dt.date(2026, 7, 31), unit="day"
+    )
+    by_day = {x.date_from.isoformat(): x for x in b.buckets}
+    assert by_day["2026-07-26"].rating_end is None  # before the anchor
+    assert by_day["2026-07-27"].rating_end == 950  # anchor day, no matches
+    assert (by_day["2026-07-28"].delta, by_day["2026-07-28"].counted) == (7.5, 1)
+    assert by_day["2026-07-29"].delta == 0  # quiet day carries the rating…
+    assert by_day["2026-07-29"].rating_end == 958
+    assert (by_day["2026-07-30"].delta, by_day["2026-07-30"].rating_end) == (2.0, 960)
+
+    assert (b.rating_start, b.rating_end) == (950, 960)
+    assert (b.total_delta, b.counted) == (9.5, 3)
+    assert [m.delta for m in b.top_gains] == [9.7, 7.5]
+    assert b.top_gains[0].opponent_name == "Manh"
+    assert [m.delta for m in b.top_losses] == [-7.7]
 
 
 def test_manual_edit_becomes_new_anchor(db):

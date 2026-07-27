@@ -112,6 +112,8 @@ def gather_bundle(db: Session) -> schemas.SourceSummary:
         "overall": _ms(stats.overall),
         "singles": _ms(stats.singles),
         "doubles": _ms(stats.doubles),
+        "one_v_two": _ms(stats.one_v_two),
+        "two_v_one": _ms(stats.two_v_one),
         "vs_pips": _ms(stats.vs_pips),
     }
 
@@ -301,6 +303,8 @@ def _bundle_to_text(b: schemas.SourceSummary) -> str:
         f"=== KẾT QUẢ THI ĐẤU ({m.get('window_days')} ngày gần nhất) ===\n"
         f"Đơn: {_wr(m.get('singles', {}))}\n"
         f"Đôi: {_wr(m.get('doubles', {}))}\n"
+        f"1v2 (học trò đánh 1 MÌNH vs 2 người): {_wr(m.get('one_v_two', {}))}\n"
+        f"2v1 (học trò + đồng đội vs 1 người): {_wr(m.get('two_v_one', {}))}\n"
         f"Gặp đối thủ đánh gai: {_wr(m.get('vs_pips', {}))}\n"
         f"Tổng các trận: {_wr(m.get('overall', {}))}\n"
         f"{_elo_line(m)}\n"

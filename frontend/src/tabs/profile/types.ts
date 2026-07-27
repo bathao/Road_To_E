@@ -37,3 +37,27 @@ export interface MatchStatsLite {
 }
 
 export type RangeKey = "30" | "90" | "365" | "all";
+
+// ---- my dynamic ELO (moved here from the Database tab, 2026-07-27) ----
+
+// `points` is the editable ANCHOR; `current` is the replayed dynamic ELO.
+// PUT = new anchor from today.
+export interface MyRating {
+  points: number;
+  current: number;
+  anchor_date: string;
+  counted_matches: number;
+}
+
+export interface RatingPoint {
+  date: string; // ISO
+  rating: number;
+}
+
+// Daily ELO curve since the anchor (replayed server-side, nothing stored).
+export interface MyRatingHistory {
+  anchor_date: string;
+  anchor_points: number;
+  current: number;
+  points: RatingPoint[];
+}

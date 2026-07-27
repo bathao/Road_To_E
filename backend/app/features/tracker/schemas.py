@@ -107,9 +107,11 @@ class MyRatingOut(BaseModel):
 
     `points` is the editable ANCHOR; `current` is the replayed ELO rating —
     anchor + every eligible match since `anchor_date`: every involved player
-    named + rated (doubles compare team averages at FULL weight; a chấp adds
-    the receiver's full ladder bonus — a big chấp can make the receiver the
-    favourite). PUT /my-rating = a new anchor from today.
+    named + rated (doubles compare team averages at FULL weight; in 1v2/2v1
+    the solo player stands in as both members of their side — comparison
+    only, the delta stays normal; a chấp adds the receiver's full ladder
+    bonus — a big chấp can make the receiver the favourite). PUT /my-rating
+    = a new anchor from today.
     """
 
     points: int
@@ -138,11 +140,56 @@ class MyRatingHistoryOut(BaseModel):
     points: list[RatingPoint]
 
 
+class RatingBucketOut(BaseModel):
+    """Net ELO change inside one day/week/month bucket."""
+
+    key: str
+    label: str
+    date_from: dt.date
+    date_to: dt.date
+    delta: float  # net ±Δ of the bucket's counted matches (0 when none)
+    counted: int
+    # Replayed rating at the bucket's end (carry-forward on quiet days);
+    # None = the bucket ends before the anchor, when no rating existed yet.
+    rating_end: int | None
+
+
+class RatingMoverOut(BaseModel):
+    """One counted match for the top ±Δ movers list."""
+
+    match_id: int
+    date: dt.date
+    delta: float
+    discipline: str
+    opponent_name: str | None
+    my_sets: int
+    opp_sets: int
+
+
+class MyRatingBreakdownOut(BaseModel):
+    """ELO over time for the analytics tabs: per-bucket net change + the
+    range's biggest single-match movers. GLOBAL — the rating has no
+    discipline/category filter (a filtered rating_end would lie)."""
+
+    date_from: dt.date
+    date_to: dt.date
+    unit: str  # day | week | month
+    anchor_date: dt.date
+    total_delta: float  # net ±Δ over the whole range
+    counted: int
+    rating_start: int | None  # rating carried INTO the range; None = pre-anchor
+    rating_end: int | None
+    buckets: list[RatingBucketOut]
+    top_gains: list[RatingMoverOut]  # up to 3, biggest gains first
+    top_losses: list[RatingMoverOut]  # up to 3, biggest losses first
+
+
 # ---------- Match ----------
 class MatchIn(BaseModel):
     date: dt.date
     category_id: int
-    discipline: Literal["singles", "doubles"] = "singles"
+    # one_v_two = I play ALONE vs two opponents; two_v_one = me + partner vs one.
+    discipline: Literal["singles", "doubles", "one_v_two", "two_v_one"] = "singles"
     best_of: Literal[3, 5, 7] = 5
     my_sets: int = Field(default=0, ge=0, le=4)  # ≤4 set wins even in a BO7
     opp_sets: int = Field(default=0, ge=0, le=4)
@@ -301,6 +348,8 @@ class StatsResponse(BaseModel):
     overall: MatchStats
     singles: MatchStats
     doubles: MatchStats
+    one_v_two: MatchStats  # I play alone vs two opponents
+    two_v_one: MatchStats  # me + partner vs one opponent
     vs_pips: MatchStats  # matches vs an opponent who plays pimpled rubber ("gai")
 
 
@@ -313,7 +362,7 @@ class LevelRecord(BaseModel):
 class MatchLine(BaseModel):
     """One played match against an opponent (for the head-to-head detail)."""
     date: dt.date
-    discipline: str  # singles | doubles
+    discipline: str  # singles | doubles | one_v_two | two_v_one
     my_sets: int
     opp_sets: int
     result: str  # W | L | T
@@ -347,7 +396,11 @@ class OpponentBrief(BaseModel):
 
 
 class DoublesRecord(BaseModel):
-    key: str  # stable id for the matchup (partner + opponent pair)
+    """A team-style matchup: doubles, 1v2 (me alone vs a pair) or 2v1
+    (me + partner vs one player). Slots not used by the format stay None."""
+
+    key: str  # stable id for the matchup (discipline + partner + opponent pair)
+    discipline: str = "doubles"  # doubles | one_v_two | two_v_one
     partner_id: int | None
     partner_name: str | None
     partner_level: str | None
@@ -383,7 +436,7 @@ class MatchTrendBucket(BaseModel):
 class MatchStatsResponse(BaseModel):
     date_from: dt.date
     date_to: dt.date
-    discipline: str  # all | singles | doubles
+    discipline: str  # all | singles | doubles | one_v_two | two_v_one
     category: str  # all | practice | official | tournament
     unit: str  # month | week | day
     overall: MatchStats

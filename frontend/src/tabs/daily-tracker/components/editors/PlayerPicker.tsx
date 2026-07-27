@@ -209,7 +209,20 @@ export default function PlayerPicker({
             )}
 
             {query.trim() && !exactExists && (
-              <div className="player-add" onMouseDown={(e) => e.preventDefault()}>
+              <div
+                className="player-add"
+                onMouseDown={(e) => {
+                  // Keep the search input focused when clicking buttons (so
+                  // the dropdown stays open), but let real form controls take
+                  // focus — a blanket preventDefault made the points input
+                  // unfocusable (couldn't type a new player's points). Focus
+                  // moving INSIDE the combo keeps it open anyway (the
+                  // container's onFocus clears the close timer).
+                  if ((e.target as HTMLElement).tagName !== "INPUT") {
+                    e.preventDefault();
+                  }
+                }}
+              >
                 {!adding ? (
                   <button className="player-add-btn" onClick={() => setAdding(true)}>
                     + Thêm “{query.trim()}”

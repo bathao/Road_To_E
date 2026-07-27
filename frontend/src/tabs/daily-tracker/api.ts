@@ -10,6 +10,7 @@ import type {
   PhysicalItem,
   Player,
   PlayerIn,
+  RatingBreakdown,
   StatsResponse,
   TournamentIn,
   TournamentsResponse,
@@ -83,6 +84,12 @@ export const trackerApi = {
   getBreakdown: (fromIso: string, toIso: string, unit: "month" | "week" | "day") =>
     api.get<BreakdownResponse>(
       `/tracker/breakdown?from=${fromIso}&to=${toIso}&unit=${unit}`
+    ),
+
+  // ELO over time (global — the rating has no discipline/category filter).
+  ratingBreakdown: (fromIso: string, toIso: string, unit: "month" | "week" | "day") =>
+    api.get<RatingBreakdown>(
+      `/tracker/my-rating/breakdown?from=${fromIso}&to=${toIso}&unit=${unit}`
     ),
 
   exportUrl: (fromIso: string, toIso: string, format: "xlsx" | "csv") =>

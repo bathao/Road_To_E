@@ -258,3 +258,127 @@
   border-radius: 999px;
   background: var(--chip-bg, rgba(0, 0, 0, 0.05));
 }
+
+/* ===== "ELO theo thời gian" section (global — ignores the tab filters) ===== */
+
+.elo-section {
+  margin-top: 16px;
+}
+
+.elo-cols {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 900px) {
+  .elo-cols {
+    grid-template-columns: 1fr;
+  }
+}
+
+.elo-cols h4 {
+  margin: 6px 0 10px;
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+/* Signed Δ bars around a center zero line. */
+.elo-delta-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.elo-delta-row {
+  display: grid;
+  grid-template-columns: 64px 1fr minmax(120px, auto);
+  gap: 10px;
+  align-items: center;
+  font-size: 12px;
+}
+
+.elo-delta-label {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.elo-delta-track {
+  position: relative;
+  height: 12px;
+  background: #eef0f3;
+  border-radius: 6px;
+}
+
+.elo-delta-track::before {
+  /* the zero line */
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.elo-delta-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 6px;
+}
+
+.elo-delta-fill.pos {
+  background: #5fa83c;
+}
+
+.elo-delta-fill.neg {
+  background: #d64545;
+}
+
+.elo-delta-val {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.elo-delta-val.pos {
+  color: #5fa83c;
+}
+
+.elo-delta-val.neg {
+  color: #d64545;
+}
+
+.elo-delta-n {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+/* Top ±Δ movers list */
+.elo-movers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.elo-mover {
+  display: grid;
+  grid-template-columns: 52px 1fr auto;
+  gap: 10px;
+  align-items: baseline;
+  font-size: 13px;
+}
+
+.elo-mover-desc {
+  min-width: 0;
+}
+
+.elo-mover-date {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}

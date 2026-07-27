@@ -11,11 +11,13 @@ import { levelShort } from "../../shared/levels";
 import { pct } from "../../shared/format";
 import { matchStatsApi } from "./api";
 import MatchLines from "./components/MatchLines";
+import EloSection from "./components/EloSection";
 import type {
   CategoryFilter,
   DisciplineFilter,
   MatchStatsResponse,
   PlayerLevel,
+  RatingBreakdown,
 } from "./types";
 
 export default function MatchStats() {
@@ -42,6 +44,12 @@ export default function MatchStats() {
     setSelOpp(""); // reset the head-to-head pick when the dataset changes
     return matchStatsApi.get(range.fromIso, range.toIso, discipline, category, unit);
   }, [range.fromIso, range.toIso, discipline, category, unit]);
+
+  // ELO over time — global, so it deliberately ignores the two filters.
+  const { data: elo } = useLoad<RatingBreakdown>(
+    () => matchStatsApi.ratingBreakdown(range.fromIso, range.toIso, unit),
+    [range.fromIso, range.toIso, unit]
+  );
 
   const o = data?.overall;
   const hasMatches = !!o && o.total > 0;
@@ -78,6 +86,8 @@ export default function MatchStats() {
               ["all", "Tất cả"],
               ["singles", "Singles"],
               ["doubles", "Doubles"],
+              ["one_v_two", "1v2"],
+              ["two_v_one", "2v1"],
             ] as [DisciplineFilter, string][]
           ).map(([k, lbl]) => (
             <button
@@ -229,6 +239,12 @@ export default function MatchStats() {
                       </div>
                     )}
                     {doublesRecs.map((d) => {
+                      const fmtLabel =
+                        d.discipline === "one_v_two"
+                          ? "1v2"
+                          : d.discipline === "two_v_one"
+                          ? "2v1"
+                          : "Đôi";
                       const pairLabel = (lvl: PlayerLevel | null, name: string | null) =>
                         name ? (
                           <span className="dbl-side" key={name}>
@@ -245,7 +261,7 @@ export default function MatchStats() {
                           <div className="h2h-head">
                             <h4 className="h2h-pair">
                               <span className="dbl-side">
-                                tôi
+                                {fmtLabel} · tôi
                                 {d.partner_name ? ` + ${d.partner_name}` : ""}
                               </span>
                               <span className="dbl-vs">vs</span>
@@ -270,6 +286,10 @@ export default function MatchStats() {
           </div>
         </>
       )}
+
+      {/* ELO over time — shown even when the filtered match list is empty
+          (the rating is global and does not follow the filters). */}
+      {elo && <EloSection elo={elo} unit={unit} />}
     </div>
   );
 }

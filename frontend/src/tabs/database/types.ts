@@ -15,27 +15,5 @@ export interface PlayersDbResponse {
   players: PlayerDbRow[];
 }
 
-// The user's rating: `points` is the editable ANCHOR; `current` is the
-// replayed dynamic ELO (anchor + eligible matches since anchor_date — every
-// involved player named + rated; doubles count at FULL weight on team
-// averages; a chấp adds the receiver's full ladder bonus — a big chấp can
-// make the receiver the favourite). PUT = new anchor from today.
-export interface MyRating {
-  points: number;
-  current: number;
-  anchor_date: string;
-  counted_matches: number;
-}
-
-export interface RatingPoint {
-  date: string; // ISO
-  rating: number;
-}
-
-// Daily ELO curve since the anchor (replayed server-side, nothing stored).
-export interface MyRatingHistory {
-  anchor_date: string;
-  anchor_points: number;
-  current: number;
-  points: RatingPoint[];
-}
+// MyRating / MyRatingHistory moved to tabs/profile/types.ts (2026-07-27) —
+// the user's dynamic rating card lives on the Profile tab now.

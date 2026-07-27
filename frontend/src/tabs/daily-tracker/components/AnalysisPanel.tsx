@@ -3,6 +3,7 @@ import type {
   BreakdownBucket,
   CoachPackage,
   MatchStats,
+  RatingBreakdown,
   StatsResponse,
 } from "../types";
 import { trackerApi } from "../api";
@@ -11,6 +12,7 @@ import type { Mode, Unit } from "../../../shared/period";
 import { chartUnitFor } from "../../../shared/period";
 import ActivityChart from "../../../shared/ui/ActivityChart";
 import type { ActivityPoint } from "../../../shared/ui/ActivityChart";
+import LineChart from "../../../shared/ui/LineChart";
 import { fmtMinutes, pct } from "../../../shared/format";
 
 const UNIT_TITLE: Record<Unit, string> = {
@@ -59,6 +61,50 @@ function MatchCard({ title, s }: { title: string; s: MatchStats }) {
           {s.sets_won}–{s.sets_lost}
         </span>
       </div>
+    </div>
+  );
+}
+
+// My ELO across the panel's timeline: header answers "how much did I gain or
+// lose in this range", the line shows the rating at each bucket's end (quiet
+// buckets carry the value forward). Hidden while the range predates the
+// anchor. The rating is GLOBAL — no discipline/category filters apply.
+function EloBlock({ elo }: { elo: RatingBreakdown }) {
+  if (elo.rating_end === null) return null;
+  const pts = elo.buckets.filter((b) => b.rating_end !== null);
+  const base = Math.min(...pts.map((b) => b.rating_end as number)) - 20;
+  const sign = elo.total_delta > 0 ? "+" : "";
+  return (
+    <div className="stat-block elo-block">
+      <div className="elo-head">
+        <h3>📈 Điểm ELO</h3>
+        <span
+          className={`elo-chip ${elo.total_delta >= 0 ? "elo-up" : "elo-down"}`}
+          title="Δ ròng trong khoảng đang xem (số trận đã tính ELO)"
+        >
+          {sign}
+          {elo.total_delta.toFixed(1)} · {elo.counted} trận
+        </span>
+        <span className="elo-endnote">
+          {elo.rating_start !== null && elo.rating_start !== elo.rating_end
+            ? `${elo.rating_start} → `
+            : ""}
+          cuối kỳ <b>{elo.rating_end}</b>
+        </span>
+      </div>
+      {pts.length > 1 && (
+        <LineChart
+          points={pts.map((b) => ({
+            label: b.label,
+            value: (b.rating_end as number) - base,
+            display: `${b.rating_end} · Δ ${b.delta > 0 ? "+" : ""}${b.delta.toFixed(1)}${
+              b.counted ? ` (${b.counted} trận)` : ""
+            }`,
+            tip: b.date_from === b.date_to ? prettyDate(b.date_from) : b.label,
+          }))}
+          formatY={(v) => String(Math.round(v + base))}
+        />
+      )}
     </div>
   );
 }
@@ -126,6 +172,7 @@ export default function AnalysisPanel({
 }) {
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [buckets, setBuckets] = useState<BreakdownBucket[]>([]);
+  const [elo, setElo] = useState<RatingBreakdown | null>(null);
   const [packages, setPackages] = useState<CoachPackage[]>([]);
   const [pkgBusy, setPkgBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -156,19 +203,24 @@ export default function AnalysisPanel({
       setError("'From' date is after 'To' date.");
       setStats(null);
       setBuckets([]);
+      setElo(null);
       return;
     }
     try {
       setError(null);
-      const [s, b] = await Promise.all([
+      const [s, b, r] = await Promise.all([
         trackerApi.getStats(fromIso, rangeToIso),
         chartUnit
           ? trackerApi.getBreakdown(fromIso, rangeToIso, chartUnit)
           : Promise.resolve(null),
+        // Day granularity even without a chart (single-day mode still shows
+        // the "how much did today move me" header).
+        trackerApi.ratingBreakdown(fromIso, rangeToIso, chartUnit ?? "day"),
       ]);
       if (mySeq !== seq.current) return; // stale response
       setStats(s);
       setBuckets(b ? b.buckets : []);
+      setElo(r);
     } catch (e) {
       if (mySeq !== seq.current) return;
       setError(e instanceof Error ? e.message : String(e));
@@ -235,6 +287,8 @@ export default function AnalysisPanel({
             </div>
           )}
 
+          {elo && <EloBlock elo={elo} />}
+
           <div className="stat-grid">
             <div className="stat-card">
               <div className="stat-card-title">Days trained</div>
@@ -278,6 +332,8 @@ export default function AnalysisPanel({
 
             <MatchCard title="Singles" s={stats.singles} />
             <MatchCard title="Doubles" s={stats.doubles} />
+            <MatchCard title="1v2" s={stats.one_v_two} />
+            <MatchCard title="2v1" s={stats.two_v_one} />
             <MatchCard title="All matches" s={stats.overall} />
             <MatchCard title="🏓 vs Pips" s={stats.vs_pips} />
 

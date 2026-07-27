@@ -27,6 +27,7 @@ import type { Report as TrainingReport } from "../training-center/types";
 import { profileApi } from "./api";
 import type { MatchStatsLite, RangeKey, TrackerStats } from "./types";
 import SkillRadar from "./components/SkillRadar";
+import MyRatingCard from "./components/MyRatingCard";
 
 const RANGES: { key: RangeKey; label: string }[] = [
   { key: "30", label: "30 ngày" },
@@ -218,7 +219,10 @@ export default function PlayerProfile() {
         </div>
       </section>
 
-      {/* 2) Identity + AI summary (editable) */}
+      {/* 2) My dynamic ELO (big number + anchor edit + since-anchor curve) */}
+      <MyRatingCard />
+
+      {/* 3) Identity + AI summary (editable) */}
       <ProfilePanel
         profile={profile}
         onSave={handleSaveProfile}

@@ -93,7 +93,8 @@ class Match(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     date: Mapped[dt.date] = mapped_column(Date, index=True)
     category_id: Mapped[int] = mapped_column(ForeignKey("tracker_category.id"), index=True)
-    discipline: Mapped[str] = mapped_column(String, default="singles")  # singles | doubles
+    # singles | doubles | one_v_two (me alone vs 2) | two_v_one (me + partner vs 1)
+    discipline: Mapped[str] = mapped_column(String, default="singles")
     # 3 | 5 | 7. Basic bounds are enforced in schemas.MatchIn (Literal/ge/le);
     # full score-vs-best_of consistency stays client-side (frontend scores.ts).
     best_of: Mapped[int] = mapped_column(Integer, default=5)

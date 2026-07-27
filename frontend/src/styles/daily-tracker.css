@@ -950,6 +950,27 @@
   font-weight: 500;
 }
 
+/* "Điểm ELO" block in the Analysis panel (line over the shared timeline) */
+.elo-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.elo-head h3 {
+  margin: 0;
+}
+.elo-head .elo-chip {
+  margin-left: 0;
+  font-size: 12px;
+  line-height: 18px;
+  padding: 0 8px;
+}
+.elo-endnote {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 /* Points-rank chip (replaces the retired relative-level chips) */
 .level-chip.level-points {
   background: rgba(74, 144, 217, 0.14);

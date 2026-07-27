@@ -8,7 +8,8 @@ export type CategoryType =
   | "note"
   | "computed"; // auto-calculated read-only row (Racket Time)
 export type ColorGroup = "green" | "yellow" | "none";
-export type Discipline = "singles" | "doubles";
+// one_v_two = I play ALONE vs two opponents; two_v_one = me + partner vs one.
+export type Discipline = "singles" | "doubles" | "one_v_two" | "two_v_one";
 
 export interface Category {
   id: number;
@@ -155,7 +156,47 @@ export interface StatsResponse {
   overall: MatchStats;
   singles: MatchStats;
   doubles: MatchStats;
+  one_v_two: MatchStats; // I play alone vs two opponents
+  two_v_one: MatchStats; // me + partner vs one opponent
   vs_pips: MatchStats; // matches vs a pimpled-rubber opponent ("gai")
+}
+
+// ---- my ELO over time (GET /tracker/my-rating/breakdown) ----
+export interface RatingBucket {
+  key: string;
+  label: string;
+  date_from: string;
+  date_to: string;
+  delta: number; // net ±Δ of the bucket's counted matches (0 when none)
+  counted: number;
+  // Rating at the bucket's end (carry-forward on quiet days); null = the
+  // bucket ends before the anchor, when no rating existed yet.
+  rating_end: number | null;
+}
+
+export interface RatingMover {
+  match_id: number;
+  date: string;
+  delta: number;
+  discipline: Discipline;
+  opponent_name: string | null;
+  my_sets: number;
+  opp_sets: number;
+}
+
+// Global — the rating has no discipline/category filter.
+export interface RatingBreakdown {
+  date_from: string;
+  date_to: string;
+  unit: "day" | "week" | "month";
+  anchor_date: string;
+  total_delta: number;
+  counted: number;
+  rating_start: number | null;
+  rating_end: number | null;
+  buckets: RatingBucket[];
+  top_gains: RatingMover[];
+  top_losses: RatingMover[];
 }
 
 // ---- request payloads ----
