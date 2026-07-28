@@ -1,6 +1,62 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-07-27, latest) — coach ELO trend + audit-debt cleanup, committed `335babd`
+## Current status (2026-07-29, latest) — English UI + ELO chart sync + stat drill-down, committed `72a26f2`
+
+> **Resume next session.** Committed `72a26f2` (code + daily DB data) + this
+> PROGRESS right after; tree clean; 64/64 pytest; build + gen:api clean.
+> **Restart start.bat once** — new backend pieces: /stats/matches endpoint,
+> anchor_points on /my-rating/breakdown, /my-rating/history REMOVED, English
+> training curriculum + unit labels. Next candidates unchanged:
+> mis-anchored-opponent report + "Road To E" ETA projection (need weeks of
+> data); entry speedups (Copy yesterday / Quick add); re-run scale_backtest.py
+> ~Oct; the prescription_for product decision (still open).
+>
+> **THIS BATCH (2026-07-28..29, user-driven UI iterations):**
+>   - **ELO chart sync (Daily Tracker Analysis):** LineChart now supports
+>     null-gap segments + an "aligned" slot/gutter mode mirroring
+>     ActivityChart, so the ELO line shares the SAME day axis/columns as the
+>     comparison chart (and the grid above). Future buckets draw NOTHING on
+>     both charts (ActivityPoint.blank / null values); pre-anchor days draw
+>     FLAT at the anchor value — new `anchor_points` field on
+>     /my-rating/breakdown. Tooltip edge-clamp (.edge-left/.edge-right) fixed
+>     the clipped first/last-point tooltip. Also: stat-grid spacing under the
+>     ELO card, 1v2/2v1 cards removed (entry + Match Stats filter kept), sets
+>     row removed from match cards.
+>   - **ENGLISH UI SWEEP (user decision 2026-07-28 — supersedes "VI OK in
+>     GUI" from 2026-06-08):** ALL GUI text → English. Vietnamese remains
+>     ONLY in (a) the coach conversation — head_coach prompts + AI content,
+>     incl. the tournament labels fed into the bundle — and (b) user data.
+>     Swept every FE tab (5 parallel agents + manual CSS/comment pass) AND
+>     backend user-visible strings: the whole training/program.py curriculum
+>     (exercise names, muscle groups, tt_benefit, form-cue safety text,
+>     HOW_TO steps), weekly-summary templates, _METRIC_UNIT_VI →
+>     sessions/hours/matches, tracker error strings. `*_vi` field NAMES kept
+>     (API shape unchanged). memory/language-convention.md updated.
+>   - **Profile ELO curve rebuilt on the breakdown engine:** MyRatingCard now
+>     calls /my-rating/breakdown (real time axis, carry-forward on quiet
+>     days — the old matches-only axis compressed rest gaps) with its OWN
+>     PeriodControl timeline: modes Week/Month/Year/Custom (new `modes` prop
+>     on the shared PeriodControl; Day omitted — nothing to draw), default
+>     Month, ◀ Today ▶ nav, pre-anchor flat + future blank like the tracker.
+>     `/my-rating/history` + rating.build_history + MyRatingHistoryOut/
+>     RatingPoint DELETED — ONE curve engine (build_rating_breakdown) app-wide.
+>     Bugfix mid-build: switching to Week right after a fresh anchor hid the
+>     chart AND the selector (single bucket) — header/selector now always
+>     render, only the line falls back to a hint.
+>   - **Stat-card drill-down (user idea, refined):** click a match card
+>     (Singles / Doubles / All matches / vs Pips) → modal listing the exact
+>     matches behind the number in the visible range — date, S/D/1v2/2v1 tag,
+>     opponents/partner, W/L score (colored), give/receive handicap, kind
+>     (casual/light stakes/tournament), event, ±Δ ELO chip; newest first.
+>     Clicking the W or L count opens it pre-filtered (All/nW/nL chips
+>     inside). New GET /tracker/stats/matches?from&to&bucket= shares its
+>     predicate (`_in_stats_bucket`) with build_stats so card numbers and the
+>     list can never disagree; ELO-annotated like build_week.
+>     test_stats_matches.py asserts list≡card per bucket (incl. vs_pips via
+>     opponent2 in doubles), ordering, annotations.
+>   - **Verified:** 64/64 pytest, npm build + gen:api clean after every step.
+
+## Earlier (2026-07-27) — coach ELO trend + audit-debt cleanup, committed `335babd`
 
 > **Resume next session.** Committed `335babd` (code) + this PROGRESS right
 > after; tree clean; 63/63 pytest; build clean. −935/+253 lines net.
