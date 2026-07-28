@@ -4,14 +4,14 @@ import { addDays, toIso, todayIso } from "../../../shared/dates";
 import type { Pain, Rpe } from "../types";
 
 const PAIN: { key: Pain; label: string }[] = [
-  { key: "none", label: "😀 Không đau" },
-  { key: "mild", label: "😐 Đau nhẹ" },
-  { key: "strong", label: "😣 Đau nhiều" },
+  { key: "none", label: "😀 No pain" },
+  { key: "mild", label: "😐 Mild pain" },
+  { key: "strong", label: "😣 Strong pain" },
 ];
 const RPE: { key: Rpe; label: string }[] = [
-  { key: "easy", label: "Dễ" },
-  { key: "medium", label: "Vừa" },
-  { key: "hard", label: "Khó" },
+  { key: "easy", label: "Easy" },
+  { key: "medium", label: "Medium" },
+  { key: "hard", label: "Hard" },
 ];
 
 // Asked after a session: which day it was trained (default today, can backdate
@@ -24,32 +24,32 @@ export default function FeedbackModal({
   onClose: () => void;
 }) {
   // Computed per render (shared local-day helpers) so a tab left open across
-  // midnight doesn't keep offering yesterday as "Hôm nay".
+  // midnight doesn't keep offering yesterday as "Today".
   const TODAY = todayIso();
   const YESTERDAY = toIso(addDays(new Date(), -1));
   const dateLabel = (iso: string) =>
-    iso === TODAY ? "Hôm nay" : iso === YESTERDAY ? "Hôm qua" : iso;
+    iso === TODAY ? "Today" : iso === YESTERDAY ? "Yesterday" : iso;
 
   const [pain, setPain] = useState<Pain>("none");
   const [rpe, setRpe] = useState<Rpe>("medium");
   const [doneOn, setDoneOn] = useState<string>(TODAY);
   return (
-    <Modal title="Buổi tập thế nào?" onClose={onClose}>
+    <Modal title="How was the session?" onClose={onClose}>
       <div className="tc-fb">
         <div className="tc-fb-group">
-          <div className="tc-fb-q">Tập ngày nào?</div>
+          <div className="tc-fb-q">Which day did you train?</div>
           <div className="tc-fb-opts">
             <button
               className={`tc-fb-opt${doneOn === TODAY ? " active" : ""}`}
               onClick={() => setDoneOn(TODAY)}
             >
-              Hôm nay
+              Today
             </button>
             <button
               className={`tc-fb-opt${doneOn === YESTERDAY ? " active" : ""}`}
               onClick={() => setDoneOn(YESTERDAY)}
             >
-              Hôm qua
+              Yesterday
             </button>
             <input
               type="date"
@@ -61,12 +61,12 @@ export default function FeedbackModal({
           </div>
           {doneOn !== TODAY && (
             <div className="tc-fb-hint">
-              Ghi cho <b>{dateLabel(doneOn)}</b> (tập trễ, track lại sau).
+              Logging for <b>{dateLabel(doneOn)}</b> (trained earlier, logged late).
             </div>
           )}
         </div>
         <div className="tc-fb-group">
-          <div className="tc-fb-q">Khớp gối có đau không?</div>
+          <div className="tc-fb-q">Any knee pain?</div>
           <div className="tc-fb-opts">
             {PAIN.map((p) => (
               <button
@@ -80,7 +80,7 @@ export default function FeedbackModal({
           </div>
         </div>
         <div className="tc-fb-group">
-          <div className="tc-fb-q">Mức gắng sức?</div>
+          <div className="tc-fb-q">Effort level?</div>
           <div className="tc-fb-opts">
             {RPE.map((r) => (
               <button
@@ -95,15 +95,15 @@ export default function FeedbackModal({
         </div>
         {pain === "strong" && (
           <div className="tc-fb-warn">
-            ⚠️ Đau nhiều thì nên nghỉ và cân nhắc gặp bác sĩ/PT. Buổi sau sẽ tự
-            giảm tải.
+            ⚠️ With strong pain you should rest and consider seeing a
+            doctor/PT. The next session will auto-reduce the load.
           </div>
         )}
         <button
           className="btn primary tc-fb-save"
           onClick={() => onSubmit(pain, rpe, doneOn)}
         >
-          Lưu & hoàn thành buổi
+          Save & complete session
         </button>
       </div>
     </Modal>

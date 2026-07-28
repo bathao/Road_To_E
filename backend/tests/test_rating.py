@@ -326,7 +326,9 @@ def test_match_api_writes_snapshots(client, db):
     assert db.get(Match, m.id).opp_points_snap == 1200
 
 
-def test_history_curve_and_week_annotation(db):
+def test_week_elo_annotation(db):
+    # (The /my-rating/history daily-curve endpoint was retired 2026-07-28 in
+    # favour of build_rating_breakdown — covered by its own test below.)
     off = category_id(db, "official_match")
     equal = Player(name="Ngang", points=950)
     unrated = Player(name="ChuaRo")
@@ -338,13 +340,6 @@ def test_history_curve_and_week_annotation(db):
     skip = _match(off, unrated.id, date=d2, order_index=1)  # unrated → tagged
     db.add_all([win, loss, skip])
     db.commit()
-
-    h = rating.build_history(db)
-    # Anchor day first, then the LAST rating of each day with counted matches.
-    assert h.anchor_points == 950
-    assert [p.date for p in h.points] == [dt.date(2026, 7, 27), d1, d2]
-    assert h.points[1].rating == 958
-    assert h.current == h.points[-1].rating == 950
 
     week = service.build_week(db, dt.date(2026, 7, 27))
     by_id = {m.id: m for m in week.matches}

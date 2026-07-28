@@ -59,7 +59,7 @@ def test_directive_progress_computes_week_actuals(db):
     assert by_metric["singles_matches_per_week"].actual == 1
     assert by_metric["singles_matches_per_week"].pct == 25
     assert by_metric["racket_hours_per_week"].actual == 1.9  # (90 + 25) / 60
-    assert by_metric["racket_hours_per_week"].unit_vi == "giờ"
+    assert by_metric["racket_hours_per_week"].unit_vi == "hours"
 
 
 def test_directive_progress_empty_without_assessment(db):

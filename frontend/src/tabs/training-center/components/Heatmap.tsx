@@ -18,15 +18,15 @@ export default function Heatmap({
   return (
     <div className="tc-heat">
       <div className="tc-heat-head">
-        <span className="tc-heat-streak">🔥 {streak} ngày liên tiếp</span>
-        <span className="tc-muted tc-heat-sub">35 ngày gần đây</span>
+        <span className="tc-heat-streak">🔥 {streak} day streak</span>
+        <span className="tc-muted tc-heat-sub">Last 35 days</span>
       </div>
       <div className="tc-heat-grid">
         {days.map((d) => (
           <span
             key={d.iso}
             className={`tc-heat-cell${d.on ? " on" : ""}${d.isToday ? " today" : ""}`}
-            title={`${d.iso}${d.on ? " · đã tập" : ""}`}
+            title={`${d.iso}${d.on ? " · trained" : ""}`}
           />
         ))}
       </div>

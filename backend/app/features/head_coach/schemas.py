@@ -115,7 +115,7 @@ class DirectiveProgress(BaseModel):
     value: float  # weekly target
     actual: float  # this week's actual (Mon → today)
     pct: int  # 0-100, clamped
-    unit_vi: str  # "buổi" | "giờ" | "trận"
+    unit_vi: str  # display unit: "sessions" | "hours" | "matches"
 
 
 class DirectiveProgressOut(BaseModel):

@@ -12,6 +12,7 @@ export default function PeriodControl({
   onToday,
   onCustomFrom,
   onCustomTo,
+  modes = MODES,
 }: {
   mode: Mode;
   label: string;
@@ -22,11 +23,14 @@ export default function PeriodControl({
   onToday: () => void;
   onCustomFrom: (iso: string) => void;
   onCustomTo: (iso: string) => void;
+  // Subset of modes to offer (default: all). E.g. the Profile ELO curve
+  // skips "day" — a single day has no line to draw.
+  modes?: Mode[];
 }) {
   return (
     <div className="period-control">
       <div className="seg">
-        {MODES.map((m) => (
+        {modes.map((m) => (
           <button
             key={m}
             className={`seg-btn${mode === m ? " active" : ""}`}

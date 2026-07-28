@@ -119,12 +119,12 @@ export default function SkillBoard({
           {isEditing ? (
             <span className="va-row-gap">
               <button className="btn primary" disabled={saving}
-                onClick={() => saveEdit(aspect, setting)}>{saving ? "…" : "Lưu"}</button>
+                onClick={() => saveEdit(aspect, setting)}>{saving ? "…" : "Save"}</button>
               <button className="btn" disabled={saving}
-                onClick={() => setEditing(null)}>Hủy</button>
+                onClick={() => setEditing(null)}>Cancel</button>
             </span>
           ) : (
-            <button className="va-x" title="Sửa tay" onClick={() => startEdit(s)}>✎</button>
+            <button className="va-x" title="Edit manually" onClick={() => startEdit(s)}>✎</button>
           )}
         </div>
         <div className="va-skill-bar">
@@ -137,7 +137,7 @@ export default function SkillBoard({
           <textarea
             className="pb-input va-skill-assess-edit"
             value={draftAssessment}
-            placeholder="Đánh giá ngắn cho mảng này…"
+            placeholder="Short assessment for this area…"
             onChange={(e) => setDraftAssessment(e.target.value)}
           />
         ) : (
@@ -155,20 +155,20 @@ export default function SkillBoard({
   return (
     <section className="va-card">
       <div className="va-card-head">
-        <h3>📊 Hồ sơ kỹ năng (Tập vs Đấu)</h3>
+        <h3>📊 Skill profile (Practice vs Match)</h3>
         <button
           className="btn"
           disabled={regenerating || !canRegenerate}
-          title={canRegenerate ? "" : "Cần có nhận xét đã duyệt trước khi dựng hồ sơ"}
+          title={canRegenerate ? "" : "Approved findings are required before building the profile"}
           onClick={onRegenerate}
         >
-          {regenerating ? "Đang dựng…" : "↻ Cập nhật hồ sơ kỹ năng"}
+          {regenerating ? "Building…" : "↻ Update skill profile"}
         </button>
       </div>
       {!canRegenerate && (
         <p className="va-muted">
-          Chưa có nhận xét nào đã duyệt. Dán bản phân tích (Tập / Đấu), rồi bấm
-          "Cập nhật hồ sơ kỹ năng".
+          No approved findings yet. Paste an analysis (Practice / Match), then click
+          "Update skill profile".
         </p>
       )}
 
@@ -188,7 +188,7 @@ export default function SkillBoard({
 
       {report && report.improvement_priorities.length > 0 && (
         <div className="va-priorities">
-          <h4>🎯 Ưu tiên cải thiện</h4>
+          <h4>🎯 Improvement priorities</h4>
           <ol className="va-priority-list">
             {report.improvement_priorities.map((p, i) => <li key={i}>{p}</li>)}
           </ol>
@@ -207,7 +207,7 @@ export default function SkillBoard({
         if (moves.length === 0) return null;
         return (
           <div className="va-priorities">
-            <h4>📈 Tiến bộ kỹ năng theo thời gian</h4>
+            <h4>📈 Skill progress over time</h4>
             <ul className="va-trend-list">
               {moves.map((m) => {
                 const delta = (m.last.rating ?? 0) - (m.first.rating ?? 0);
@@ -233,7 +233,7 @@ export default function SkillBoard({
 
       {report && report.practice_vs_match.length > 0 && (
         <div className="va-priorities">
-          <h4>🆚 Tập luyện vs Thi đấu (số nhận xét)</h4>
+          <h4>🆚 Practice vs Match (finding counts)</h4>
           <ul className="va-pvm-list">
             {report.practice_vs_match.map((s) => {
               const gap = s.practice_strengths > 0 && s.match_weaknesses > 0;
@@ -248,7 +248,7 @@ export default function SkillBoard({
                     🔥 <b className="va-strength">{s.match_strengths}↑</b>{" "}
                     <b className="va-weakness">{s.match_weaknesses}↓</b>
                   </span>
-                  {gap && <span className="va-pvm-flag" title="Tốt khi tập, yếu khi đấu">⚠️ chênh</span>}
+                  {gap && <span className="va-pvm-flag" title="Good in practice, weak in matches">⚠️ gap</span>}
                 </li>
               );
             })}

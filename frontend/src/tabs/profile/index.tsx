@@ -30,10 +30,10 @@ import SkillRadar from "./components/SkillRadar";
 import MyRatingCard from "./components/MyRatingCard";
 
 const RANGES: { key: RangeKey; label: string }[] = [
-  { key: "30", label: "30 ngày" },
-  { key: "90", label: "90 ngày" },
-  { key: "365", label: "1 năm" },
-  { key: "all", label: "Tất cả" },
+  { key: "30", label: "30 days" },
+  { key: "90", label: "90 days" },
+  { key: "365", label: "1 year" },
+  { key: "all", label: "All" },
 ];
 
 function isoRange(range: RangeKey): { from: string; to: string } {
@@ -49,8 +49,8 @@ function isoRange(range: RangeKey): { from: string; to: string } {
 function hoursLabel(minutes: number): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  if (h === 0) return `${m} phút`;
-  return m === 0 ? `${h} giờ` : `${h} giờ ${m} phút`;
+  if (h === 0) return `${m} min`;
+  return m === 0 ? `${h} h` : `${h} h ${m} min`;
 }
 
 export default function PlayerProfile() {
@@ -195,7 +195,7 @@ export default function PlayerProfile() {
     return (
       <div className="va-tab">
         {error && <div className="pb-error">{error}</div>}
-        <p className="va-muted">Đang tải hồ sơ…</p>
+        <p className="va-muted">Loading profile…</p>
       </div>
     );
   }
@@ -214,8 +214,8 @@ export default function PlayerProfile() {
         <div className="prof-avatar prof-avatar-blank">🏓</div>
         <div className="prof-header-main">
           <h2 className="prof-name">{profile.name}</h2>
-          <p className="va-muted">Hồ sơ vận động viên — kỹ năng, điểm mạnh/yếu, tiến độ.</p>
-          {lastDate && <p className="va-muted prof-asof">Dữ liệu tính đến {lastDate}</p>}
+          <p className="va-muted">Athlete profile — skills, strengths/weaknesses, progress.</p>
+          {lastDate && <p className="va-muted prof-asof">Data as of {lastDate}</p>}
         </div>
       </section>
 
@@ -234,7 +234,7 @@ export default function PlayerProfile() {
       {/* 3) Skills radar (visual overview, per setting) */}
       <section className="va-card">
         <div className="va-card-head">
-          <h3>📊 Tổng quan kỹ năng</h3>
+          <h3>📊 Skill overview</h3>
           <div className="seg prof-skill-seg">
             {(["practice", "match"] as Setting[]).map((st) => (
               <button
@@ -242,7 +242,7 @@ export default function PlayerProfile() {
                 className={`seg-btn${skillSetting === st ? " active" : ""}`}
                 onClick={() => setSkillSetting(st)}
               >
-                {st === "practice" ? "🏓 Tập luyện" : "🔥 Thi đấu"}
+                {st === "practice" ? "🏓 Practice" : "🔥 Match"}
               </button>
             ))}
           </div>
@@ -268,8 +268,8 @@ export default function PlayerProfile() {
           </div>
         ) : (
           <p className="va-muted">
-            Chưa có điểm kỹ năng {skillSetting === "match" ? "thi đấu" : "tập luyện"}. Dán bản
-            phân tích ở tab Phân tích kỹ thuật → điểm sẽ tự cập nhật.
+            No {skillSetting === "match" ? "match" : "practice"} skill ratings yet. Paste an
+            analysis in the Technique Analysis tab → ratings update automatically.
           </p>
         )}
       </section>
@@ -289,7 +289,7 @@ export default function PlayerProfile() {
 
       {/* range selector for the competitive + training snapshots */}
       <div className="prof-range">
-        <span className="va-muted">Khoảng thời gian:</span>
+        <span className="va-muted">Time range:</span>
         {RANGES.map((r) => (
           <button key={r.key}
             className={`btn${range === r.key ? " primary" : ""}`}
@@ -301,27 +301,27 @@ export default function PlayerProfile() {
 
       {/* 6) Competitive snapshot */}
       <section className="va-card">
-        <h3>🏆 Thành tích thi đấu</h3>
+        <h3>🏆 Competitive record</h3>
         {match && match.overall.total > 0 ? (
           <div className="stat-grid">
             <div className="stat-card">
-              <div className="stat-card-title">Tỉ lệ thắng (tổng)</div>
+              <div className="stat-card-title">Win rate (overall)</div>
               <div className="stat-big">{pct(match.overall.win_rate)}</div>
               <div className="stat-line muted">
-                <span>{match.overall.total} trận</span>
-                <span><span className="win">{match.overall.wins}T</span> · <span className="loss">{match.overall.losses}B</span></span>
+                <span>{match.overall.total} matches</span>
+                <span><span className="win">{match.overall.wins}W</span> · <span className="loss">{match.overall.losses}L</span></span>
               </div>
             </div>
             {LEVELS.map((lv) => {
               const st = byLevel.get(lv.key);
               return (
                 <div key={lv.key} className="stat-card">
-                  <div className="stat-card-title">Đối thủ {lv.label}</div>
+                  <div className="stat-card-title">Opponents {lv.label}</div>
                   <div className="stat-big">{pct(st?.win_rate ?? null)}</div>
                   <div className="stat-line muted">
-                    <span>{st?.total ?? 0} trận</span>
+                    <span>{st?.total ?? 0} matches</span>
                     <span>
-                      <span className="win">{st?.wins ?? 0}T</span> · <span className="loss">{st?.losses ?? 0}B</span>
+                      <span className="win">{st?.wins ?? 0}W</span> · <span className="loss">{st?.losses ?? 0}L</span>
                     </span>
                   </div>
                 </div>
@@ -329,30 +329,30 @@ export default function PlayerProfile() {
             })}
           </div>
         ) : (
-          <p className="va-muted">Chưa có trận có tên đối thủ trong khoảng này.</p>
+          <p className="va-muted">No matches with a named opponent in this range.</p>
         )}
       </section>
 
       {/* 7) Training discipline */}
       <section className="va-card">
-        <h3>🏋️ Kỷ luật tập luyện</h3>
+        <h3>🏋️ Training discipline</h3>
         {training ? (
           <>
             <div className="stat-grid">
               <div className="stat-card">
-                <div className="stat-card-title">Ngày có tập</div>
+                <div className="stat-card-title">Days trained</div>
                 <div className="stat-big">{training.days_trained}</div>
-                <div className="stat-line muted"><span>trên {training.num_days} ngày</span></div>
+                <div className="stat-line muted"><span>of {training.num_days} days</span></div>
               </div>
               <div className="stat-card">
-                <div className="stat-card-title">Tổng thời lượng</div>
+                <div className="stat-card-title">Total time</div>
                 <div className="stat-big">{(training.minutes_total / 60).toFixed(1)}h</div>
                 <div className="stat-line muted"><span>{hoursLabel(training.minutes_total)}</span></div>
               </div>
               <div className="stat-card">
-                <div className="stat-card-title">Buổi thể lực</div>
+                <div className="stat-card-title">Fitness sessions</div>
                 <div className="stat-big">{training.days_physical}</div>
-                <div className="stat-line muted"><span>ngày có tập thể lực</span></div>
+                <div className="stat-line muted"><span>days with fitness work</span></div>
               </div>
             </div>
             {training.minutes_by_category.length > 0 && (
@@ -367,7 +367,7 @@ export default function PlayerProfile() {
             )}
           </>
         ) : (
-          <p className="va-muted">Đang tải…</p>
+          <p className="va-muted">Loading…</p>
         )}
       </section>
 
@@ -379,40 +379,40 @@ export default function PlayerProfile() {
             <p className="va-muted">{trainingReport.summary_vi}</p>
             <div className="stat-grid">
               <div className="stat-card">
-                <div className="stat-card-title">Cấp độ</div>
+                <div className="stat-card-title">Level</div>
                 <div className="stat-big" style={{ fontSize: "1.3rem" }}>
                   {trainingReport.current_level_vi}
                 </div>
               </div>
               <div className="stat-card">
-                <div className="stat-card-title">Buổi đã hoàn thành</div>
+                <div className="stat-card-title">Sessions completed</div>
                 <div className="stat-big">{trainingReport.total_sessions_done}</div>
                 <div className="stat-line muted">
-                  <span>{trainingReport.sessions_last_7d} buổi / 7 ngày</span>
+                  <span>{trainingReport.sessions_last_7d} sessions / 7 days</span>
                 </div>
               </div>
               <div className="stat-card">
-                <div className="stat-card-title">Buổi gần nhất</div>
+                <div className="stat-card-title">Last session</div>
                 <div className="stat-big">
                   {trainingReport.days_since_last ?? "—"}
                 </div>
-                <div className="stat-line muted"><span>ngày trước</span></div>
+                <div className="stat-line muted"><span>days ago</span></div>
               </div>
             </div>
             <div className="prof-cat-list">
               {(["legs", "core", "balance"] as const).map((k) => (
                 <div key={k} className="stat-line">
                   <span>
-                    {k === "legs" ? "🦵 Chân" : k === "core" ? "🌀 Lõi" : "⚖️ Cân bằng"}
+                    {k === "legs" ? "🦵 Legs" : k === "core" ? "🌀 Core" : "⚖️ Balance"}
                   </span>
-                  <span>{trainingReport.day_type_counts[k] ?? 0} buổi</span>
+                  <span>{trainingReport.day_type_counts[k] ?? 0} sessions</span>
                 </div>
               ))}
             </div>
           </>
         ) : (
           <p className="va-muted">
-            Chưa có buổi tập nào. Vào tab Training Center 💪 để bắt đầu.
+            No sessions yet. Open the Training Center tab 💪 to get started.
           </p>
         )}
       </section>

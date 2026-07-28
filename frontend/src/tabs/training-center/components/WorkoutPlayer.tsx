@@ -35,7 +35,7 @@ function buildSteps(session: TrainingSession): Step[] {
     steps.push({
       type: "timed",
       title: w.name_vi,
-      sub: "🔥 Khởi động",
+      sub: "🔥 Warm-up",
       gif: w.gif,
       cue: w.form_cue,
       sec: w.target.sec ?? 40,
@@ -49,13 +49,13 @@ function buildSteps(session: TrainingSession): Step[] {
       const isLastMainStep = ii === items.length - 1 && lastSet;
       if (it.kind === "timed") {
         const sec = it.target.sec ?? 30;
-        const sides = it.per_side ? ["Bên trái", "Bên phải"] : [""];
+        const sides = it.per_side ? ["Left side", "Right side"] : [""];
         sides.forEach((side, si) => {
           const isLastSub = si === sides.length - 1;
           steps.push({
             type: "timed",
             title: it.name_vi,
-            sub: `Hiệp ${s}/${sets}${side ? " · " + side : ""}`,
+            sub: `Set ${s}/${sets}${side ? " · " + side : ""}`,
             gif: it.gif,
             cue: it.form_cue,
             sec,
@@ -66,7 +66,7 @@ function buildSteps(session: TrainingSession): Step[] {
         steps.push({
           type: "reps",
           title: it.name_vi,
-          sub: `Hiệp ${s}/${sets}`,
+          sub: `Set ${s}/${sets}`,
           gif: it.gif,
           cue: it.form_cue,
           reps: it.target.reps ?? 0,
@@ -76,7 +76,7 @@ function buildSteps(session: TrainingSession): Step[] {
       }
       if (!isLastMainStep) {
         const next = lastSet
-          ? items[ii + 1]?.name_vi ?? "bài tiếp"
+          ? items[ii + 1]?.name_vi ?? "next exercise"
           : it.name_vi;
         steps.push({ type: "rest", sec: REST_SEC, nextTitle: next });
       }
@@ -86,7 +86,7 @@ function buildSteps(session: TrainingSession): Step[] {
     steps.push({
       type: "timed",
       title: c.name_vi,
-      sub: "🧊 Giãn cơ",
+      sub: "🧊 Cool-down",
       gif: c.gif,
       cue: c.form_cue,
       sec: c.target.sec ?? 40,
@@ -164,7 +164,7 @@ export default function WorkoutPlayer({
           <div className="tc-wp-bar">
             <div className="tc-wp-bar-fill" style={{ width: `${progress}%` }} />
           </div>
-          <button className="tc-wp-close" onClick={onClose} aria-label="Thoát">
+          <button className="tc-wp-close" onClick={onClose} aria-label="Exit">
             ✕
           </button>
         </div>
@@ -172,23 +172,23 @@ export default function WorkoutPlayer({
         {step.type === "done" ? (
           <div className="tc-wp-body tc-wp-done">
             <div className="tc-wp-done-emoji">🎉</div>
-            <h2>Xong buổi tập!</h2>
-            <p className="tc-muted">Bấm để ghi nhận & nhận phản hồi.</p>
+            <h2>Session complete!</h2>
+            <p className="tc-muted">Tap to log the session & give feedback.</p>
             <button className="btn primary tc-wp-finish" onClick={onFinish}>
-              Hoàn thành buổi
+              Complete session
             </button>
           </div>
         ) : step.type === "rest" ? (
           <div className="tc-wp-body tc-wp-rest">
-            <div className="tc-wp-sub">Nghỉ</div>
+            <div className="tc-wp-sub">Rest</div>
             <div className="tc-wp-timer">{Math.max(secLeft, 0)}s</div>
-            <div className="tc-wp-next">Tiếp theo: {step.nextTitle}</div>
+            <div className="tc-wp-next">Next: {step.nextTitle}</div>
             <div className="tc-wp-controls">
               <button className="btn" onClick={() => setPaused((p) => !p)}>
-                {paused ? "▶ Tiếp tục" : "⏸ Tạm dừng"}
+                {paused ? "▶ Resume" : "⏸ Pause"}
               </button>
               <button className="btn primary" onClick={() => advance()}>
-                Bỏ nghỉ ▸
+                Skip rest ▸
               </button>
             </div>
           </div>
@@ -209,21 +209,21 @@ export default function WorkoutPlayer({
                 <div className="tc-wp-timer">{Math.max(secLeft, 0)}s</div>
                 <div className="tc-wp-controls">
                   <button className="btn" onClick={() => setPaused((p) => !p)}>
-                    {paused ? "▶ Tiếp tục" : "⏸ Tạm dừng"}
+                    {paused ? "▶ Resume" : "⏸ Pause"}
                   </button>
                   <button className="btn primary" onClick={() => advance()}>
-                    Xong ▸
+                    Done ▸
                   </button>
                 </div>
               </>
             ) : (
               <>
                 <div className="tc-wp-reps">
-                  {step.reps} lần{step.perSide ? " / mỗi bên" : ""}
+                  {step.reps} reps{step.perSide ? " / each side" : ""}
                 </div>
                 <div className="tc-wp-controls">
                   <button className="btn primary tc-wp-big" onClick={() => advance()}>
-                    ✓ Xong hiệp
+                    ✓ Set done
                   </button>
                 </div>
               </>

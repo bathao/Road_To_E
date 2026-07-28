@@ -6,16 +6,16 @@ interface Props {
 
 // Short labels for the cramped radar; the bar list shows the full names.
 const SHORT_LABEL: Record<Aspect, string> = {
-  serve: "Giao bóng",
-  receive: "Đỡ giao",
-  forehand: "Thuận tay",
-  backhand: "Trái tay",
-  footwork: "Bộ chân",
-  stance_posture: "Tư thế",
-  tactics: "Chiến thuật",
-  mental: "Tâm lý",
-  physical: "Thể lực",
-  other: "Khác",
+  serve: "Serve",
+  receive: "Return",
+  forehand: "Forehand",
+  backhand: "Backhand",
+  footwork: "Footwork",
+  stance_posture: "Stance",
+  tactics: "Tactics",
+  mental: "Mentality",
+  physical: "Fitness",
+  other: "Other",
 };
 
 // A hand-rolled radar/spider chart (the project has no charting library).
@@ -56,7 +56,7 @@ export default function SkillRadar({ skills }: Props) {
       className="radar"
       viewBox={`${-PAD_X} ${-PAD_Y} ${SIZE + PAD_X * 2} ${SIZE + PAD_Y * 2}`}
       role="img"
-      aria-label="Biểu đồ kỹ năng"
+      aria-label="Skill radar chart"
     >
       {/* grid rings */}
       {RINGS.map((f) => (

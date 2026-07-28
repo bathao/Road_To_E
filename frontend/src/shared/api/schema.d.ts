@@ -372,26 +372,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/tracker/my-rating/history": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * My Rating History
-         * @description Daily ELO curve since the anchor (replayed on demand, nothing stored).
-         */
-        get: operations["my_rating_history_api_tracker_my_rating_history_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/tracker/my-rating/breakdown": {
         parameters: {
             query?: never;
@@ -404,6 +384,26 @@ export interface paths {
          * @description Net ELO change per bucket + top ±Δ movers. Global — no filters.
          */
         get: operations["my_rating_breakdown_api_tracker_my_rating_breakdown_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tracker/stats/matches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stats Matches
+         * @description Drill-down behind one stat card — same filter as /stats, newest first.
+         */
+        get: operations["stats_matches_api_tracker_stats_matches_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2051,6 +2051,8 @@ export interface components {
              * Format: date
              */
             anchor_date: string;
+            /** Anchor Points */
+            anchor_points: number;
             /** Total Delta */
             total_delta: number;
             /** Counted */
@@ -2065,25 +2067,6 @@ export interface components {
             top_gains: components["schemas"]["RatingMoverOut"][];
             /** Top Losses */
             top_losses: components["schemas"]["RatingMoverOut"][];
-        };
-        /**
-         * MyRatingHistoryOut
-         * @description Daily ELO curve since the anchor, reconstructed by replay (nothing is
-         *     stored): the anchor day plus the last rating of each day with counted
-         *     matches.
-         */
-        MyRatingHistoryOut: {
-            /**
-             * Anchor Date
-             * Format: date
-             */
-            anchor_date: string;
-            /** Anchor Points */
-            anchor_points: number;
-            /** Current */
-            current: number;
-            /** Points */
-            points: components["schemas"]["RatingPoint"][];
         };
         /** MyRatingIn */
         MyRatingIn: {
@@ -2477,16 +2460,6 @@ export interface components {
             my_sets: number;
             /** Opp Sets */
             opp_sets: number;
-        };
-        /** RatingPoint */
-        RatingPoint: {
-            /**
-             * Date
-             * Format: date
-             */
-            date: string;
-            /** Rating */
-            rating: number;
         };
         /** RecentSession */
         RecentSession: {
@@ -3697,26 +3670,6 @@ export interface operations {
             };
         };
     };
-    my_rating_history_api_tracker_my_rating_history_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MyRatingHistoryOut"];
-                };
-            };
-        };
-    };
     my_rating_breakdown_api_tracker_my_rating_breakdown_get: {
         parameters: {
             query: {
@@ -3737,6 +3690,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MyRatingBreakdownOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stats_matches_api_tracker_stats_matches_get: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                bucket: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatchOut"][];
                 };
             };
             /** @description Validation Error */

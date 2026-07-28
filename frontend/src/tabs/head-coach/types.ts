@@ -26,7 +26,7 @@ export interface DirectiveProgress {
   value: number; // weekly target
   actual: number; // this week's actual (Mon → today)
   pct: number; // 0-100
-  unit_vi: string; // buổi | giờ | trận
+  unit_vi: string; // display unit: sessions | hours | matches
 }
 
 export interface DirectiveProgressOut {
@@ -86,9 +86,9 @@ export interface SourceH2H {
 export interface SourceMatchDetail {
   window?: string;
   by_level?: Record<string, SourceMatchSide>;
-  practice?: SourceMatchSide; // đánh chơi
-  official?: SourceMatchSide; // đánh độ nhẹ
-  tournament?: SourceMatchSide; // đánh giải
+  practice?: SourceMatchSide; // casual
+  official?: SourceMatchSide; // light stakes
+  tournament?: SourceMatchSide; // tournament
   trend_by_month?: { label?: string; played?: number; win_rate?: number | null }[];
   top_h2h?: SourceH2H[];
   [k: string]: unknown;

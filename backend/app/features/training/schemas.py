@@ -81,7 +81,7 @@ class ProgramOut(BaseModel):
     level_vi: str
     goal_vi: str
     safety_note: str  # knee-safety reminder shown in the header
-    cycle: int  # 1-based maintenance cycle ("Vòng N"); 1 for finite levels
+    cycle: int  # 1-based maintenance cycle ("Cycle N"); 1 for finite levels
     total_sessions: int
     completed: int  # sessions done in the current cycle
     progress_pct: int

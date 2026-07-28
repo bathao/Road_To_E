@@ -326,12 +326,6 @@ def set_my_rating(payload: schemas.MyRatingIn, db: Session = Depends(get_db)):
     return service.compute_my_rating(db)
 
 
-@router.get("/my-rating/history", response_model=schemas.MyRatingHistoryOut)
-def my_rating_history(db: Session = Depends(get_db)):
-    """Daily ELO curve since the anchor (replayed on demand, nothing stored)."""
-    return rating.build_history(db)
-
-
 @router.get("/my-rating/breakdown", response_model=schemas.MyRatingBreakdownOut)
 def my_rating_breakdown(
     date_from: dt.date = Query(..., alias="from"),
@@ -344,6 +338,19 @@ def my_rating_breakdown(
 
 
 # ---------------------------------------------------------------- stats
+@router.get("/stats/matches", response_model=list[schemas.MatchOut])
+def stats_matches(
+    date_from: dt.date = Query(..., alias="from"),
+    date_to: dt.date = Query(..., alias="to"),
+    bucket: str = Query(
+        ..., pattern="^(overall|singles|doubles|one_v_two|two_v_one|vs_pips)$"
+    ),
+    db: Session = Depends(get_db),
+):
+    """Drill-down behind one stat card — same filter as /stats, newest first."""
+    return service.list_stats_matches(db, date_from, date_to, bucket)
+
+
 @router.get("/stats", response_model=schemas.StatsResponse)
 def stats(
     date_from: dt.date = Query(..., alias="from"),

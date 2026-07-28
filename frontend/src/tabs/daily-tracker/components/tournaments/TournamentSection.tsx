@@ -103,9 +103,9 @@ function toPayload(d: Draft): TournamentIn {
 }
 
 const DISCIPLINES: { key: TournamentDiscipline; label: string }[] = [
-  { key: "singles", label: "Đơn" },
-  { key: "doubles", label: "Đôi" },
-  { key: "team", label: "Đồng đội" },
+  { key: "singles", label: "Singles" },
+  { key: "doubles", label: "Doubles" },
+  { key: "team", label: "Team" },
 ];
 
 function EntryRow({
@@ -136,7 +136,7 @@ function EntryRow({
             👥 {entry.partner.name}
             <button
               className="icon-btn"
-              title="Đổi người đánh cặp"
+              title="Change doubles partner"
               onClick={() => onChange({ ...entry, partner: null })}
             >
               ✕
@@ -144,7 +144,7 @@ function EntryRow({
           </div>
         ) : (
           <PlayerPicker
-            label="Đánh cặp với"
+            label="Partner with"
             value={null}
             onChange={(p: Player | null) =>
               onChange({ ...entry, partner: p ? { id: p.id, name: p.name } : null })
@@ -158,7 +158,7 @@ function EntryRow({
               👥 {p.name}
               <button
                 className="icon-btn"
-                title="Bỏ khỏi đội"
+                title="Remove from team"
                 onClick={() =>
                   onChange({
                     ...entry,
@@ -171,7 +171,7 @@ function EntryRow({
             </span>
           ))}
           <PlayerPicker
-            label="Đồng đội"
+            label="Teammate"
             value={null}
             onChange={(p: Player | null) => {
               if (p && !entry.teammates.some((x) => x.id === p.id)) {
@@ -185,13 +185,13 @@ function EntryRow({
           <input
             type="text"
             className="pb-input"
-            placeholder="Tên đội (tùy chọn, vd: CLB X)"
+            placeholder="Team name (optional, e.g. CLB X)"
             value={entry.team_members}
             onChange={(e) => onChange({ ...entry, team_members: e.target.value })}
           />
         </div>
       )}
-      <button className="icon-btn" title="Bỏ nội dung này" onClick={onRemove}>
+      <button className="icon-btn" title="Remove this event" onClick={onRemove}>
         🗑
       </button>
     </div>
@@ -220,21 +220,21 @@ function TournamentForm({
         <input
           type="text"
           className="pb-input tour-name"
-          placeholder="Tên giải *"
+          placeholder="Tournament name *"
           value={d.name}
           onChange={(e) => setD({ ...d, name: e.target.value })}
         />
         <input
           type="text"
           className="pb-input"
-          placeholder="Địa điểm"
+          placeholder="Location"
           value={d.location}
           onChange={(e) => setD({ ...d, location: e.target.value })}
         />
       </div>
       <div className="tour-form-row">
         <label>
-          Ngày đấu *
+          Start date *
           <input
             type="date"
             className="pb-input"
@@ -243,7 +243,7 @@ function TournamentForm({
           />
         </label>
         <label>
-          Đến ngày (nếu nhiều ngày)
+          End date (if multi-day)
           <input
             type="date"
             className="pb-input"
@@ -256,12 +256,12 @@ function TournamentForm({
 
       <div>
         <div className="tour-entries-head">
-          Giới hạn trình của giải (bấm các hạng được đánh):
+          Tournament level limit (click the ranks allowed to play):
         </div>
         <div className="seg tour-levels">
           <button
             className={`seg-btn${d.open ? " active" : ""}`}
-            title="Giải Open — không giới hạn trình"
+            title="Open tournament — no level limit"
             onClick={() => setD({ ...d, open: !d.open, levels: [] })}
           >
             {OPEN}
@@ -287,7 +287,7 @@ function TournamentForm({
       </div>
 
       <div className="tour-entries">
-        <div className="tour-entries-head">Nội dung đăng ký:</div>
+        <div className="tour-entries-head">Registered events:</div>
         {d.entries.map((e, i) => (
           <EntryRow
             key={i}
@@ -310,24 +310,24 @@ function TournamentForm({
             })
           }
         >
-          ＋ Thêm nội dung
+          ＋ Add event
         </button>
       </div>
 
       <input
         type="text"
         className="pb-input"
-        placeholder="Ghi chú (lệ phí, lịch, link…)"
+        placeholder="Notes (fees, schedule, links…)"
         value={d.note}
         onChange={(e) => setD({ ...d, note: e.target.value })}
       />
 
       <div className="tour-form-actions">
         <button className="btn primary" disabled={!valid || busy} onClick={() => onSave(d)}>
-          Lưu giải
+          Save tournament
         </button>
         <button className="btn" onClick={onCancel}>
-          Hủy
+          Cancel
         </button>
       </div>
     </div>
@@ -358,7 +358,7 @@ function TournamentCard({
       </div>
       <div className="tour-card-chips">
         {t.level_limit && (
-          <span className="tour-chip tour-chip-limit">Trình: {t.level_limit}</span>
+          <span className="tour-chip tour-chip-limit">Level: {t.level_limit}</span>
         )}
         {t.entries.map((e) => (
           <span key={e.id} className="tour-chip">
@@ -369,15 +369,15 @@ function TournamentCard({
       {t.note && <div className="tour-card-note">📝 {t.note}</div>}
       <div className="tour-card-actions">
         <button className="btn" onClick={onEdit}>
-          Sửa
+          Edit
         </button>
         <button
           className="btn"
           onClick={() => {
-            if (window.confirm(`Xóa giải "${t.name}"?`)) onDelete();
+            if (window.confirm(`Delete tournament "${t.name}"?`)) onDelete();
           }}
         >
-          Xóa
+          Delete
         </button>
       </div>
     </div>
@@ -422,16 +422,16 @@ export default function TournamentSection({
   return (
     <section className="tour-section">
       <div className="tour-head">
-        <h2>🏆 Giải đấu</h2>
+        <h2>🏆 Tournaments</h2>
         {editing === null && (
           <button className="btn primary" onClick={() => setEditing("new")}>
-            ＋ Thêm giải
+            ＋ Add tournament
           </button>
         )}
       </div>
       <p className="tour-hint">
-        Chốt lịch thi đấu để HLV lên kế hoạch tập. Kết quả trận vẫn ghi ở grid
-        như bình thường.
+        Pin your tournament schedule so the coach can plan training. Match
+        results still go into the grid as usual.
       </p>
 
       {error && (
@@ -451,7 +451,8 @@ export default function TournamentSection({
 
       {upcoming.length === 0 && editing === null && (
         <div className="tour-empty">
-          Chưa có giải nào sắp tới — bấm <b>＋ Thêm giải</b> khi đã chốt lịch.
+          No upcoming tournaments — click <b>＋ Add tournament</b> once your
+          schedule is set.
         </div>
       )}
       <div className="tour-cards">
@@ -467,7 +468,7 @@ export default function TournamentSection({
 
       {past.length > 0 && (
         <>
-          <div className="tour-past-head">Đã đấu</div>
+          <div className="tour-past-head">Played</div>
           <div className="tour-cards">
             {pastShown.map((t) => (
               <TournamentCard
@@ -480,7 +481,7 @@ export default function TournamentSection({
           </div>
           {past.length > PAST_PREVIEW && (
             <button className="btn" onClick={() => setShowAllPast((v) => !v)}>
-              {showAllPast ? "Thu gọn" : `Xem tất cả (${past.length})`}
+              {showAllPast ? "Show less" : `Show all (${past.length})`}
             </button>
           )}
         </>

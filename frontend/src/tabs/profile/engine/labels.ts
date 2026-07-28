@@ -1,21 +1,21 @@
 import type { Aspect, Polarity, Setting, SkillStatus } from "./types";
 
 export const SETTING_LABEL: Record<Setting, string> = {
-  practice: "Tập luyện",
-  match: "Thi đấu",
+  practice: "Practice",
+  match: "Match",
 };
 
 export const ASPECT_LABEL: Record<Aspect, string> = {
-  serve: "Giao bóng",
-  receive: "Đỡ giao bóng",
-  forehand: "Thuận tay (FH)",
-  backhand: "Trái tay (BH)",
-  footwork: "Bộ chân",
-  stance_posture: "Tư thế / thân người",
-  tactics: "Chiến thuật",
-  mental: "Tâm lý",
-  physical: "Thể lực",
-  other: "Khác",
+  serve: "Serve",
+  receive: "Serve return",
+  forehand: "Forehand (FH)",
+  backhand: "Backhand (BH)",
+  footwork: "Footwork",
+  stance_posture: "Stance / posture",
+  tactics: "Tactics",
+  mental: "Mentality",
+  physical: "Fitness",
+  other: "Other",
 };
 
 export const ASPECT_ORDER: Aspect[] = [
@@ -32,9 +32,9 @@ export const ASPECT_ORDER: Aspect[] = [
 ];
 
 export const POLARITY_LABEL: Record<Polarity, string> = {
-  strength: "Điểm mạnh",
-  weakness: "Điểm yếu",
-  neutral: "Chưa quan sát",
+  strength: "Strength",
+  weakness: "Weakness",
+  neutral: "Not observed",
 };
 
 // CSS class per skill status (shared by SkillBoard + the Profile tab).
@@ -47,10 +47,10 @@ export const SKILL_STATUS_CLASS: Record<SkillStatus, string> = {
 };
 
 export const SKILL_STATUS_LABEL: Record<SkillStatus, string> = {
-  strength: "Điểm mạnh",
-  weakness: "Điểm yếu",
-  improving: "Đang tiến bộ",
-  needs_work: "Cần cải thiện",
-  neutral: "Chưa rõ",
+  strength: "Strength",
+  weakness: "Weakness",
+  improving: "Improving",
+  needs_work: "Needs work",
+  neutral: "Unclear",
 };
 

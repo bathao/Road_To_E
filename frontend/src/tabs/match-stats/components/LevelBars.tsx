@@ -30,7 +30,7 @@ export default function LevelBars({ levels }: { levels: LevelRecord[] }) {
                   </span>
                 </>
               ) : (
-                <span className="lvl-rec">chưa có trận</span>
+                <span className="lvl-rec">no matches</span>
               )}
             </span>
           </div>

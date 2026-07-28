@@ -78,7 +78,7 @@ class PlayerIn(BaseModel):
     def _name_not_blank(cls, v: str) -> str:
         v = v.strip()
         if not v:
-            raise ValueError("Tên người chơi không được để trống.")
+            raise ValueError("Player name cannot be empty.")
         return v
 
 
@@ -124,22 +124,6 @@ class MyRatingIn(BaseModel):
     points: int = Field(ge=0, le=3000)
 
 
-class RatingPoint(BaseModel):
-    date: dt.date
-    rating: int
-
-
-class MyRatingHistoryOut(BaseModel):
-    """Daily ELO curve since the anchor, reconstructed by replay (nothing is
-    stored): the anchor day plus the last rating of each day with counted
-    matches."""
-
-    anchor_date: dt.date
-    anchor_points: int
-    current: int
-    points: list[RatingPoint]
-
-
 class RatingBucketOut(BaseModel):
     """Net ELO change inside one day/week/month bucket."""
 
@@ -175,6 +159,7 @@ class MyRatingBreakdownOut(BaseModel):
     date_to: dt.date
     unit: str  # day | week | month
     anchor_date: dt.date
+    anchor_points: int  # anchor value — pre-anchor days draw flat at this
     total_delta: float  # net ±Δ over the whole range
     counted: int
     rating_start: int | None  # rating carried INTO the range; None = pre-anchor

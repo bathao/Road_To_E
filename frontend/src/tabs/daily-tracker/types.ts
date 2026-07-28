@@ -190,6 +190,7 @@ export interface RatingBreakdown {
   date_to: string;
   unit: "day" | "week" | "month";
   anchor_date: string;
+  anchor_points: number; // anchor value — pre-anchor days draw flat at this
   total_delta: number;
   counted: number;
   rating_start: number | null;

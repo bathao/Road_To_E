@@ -85,7 +85,7 @@ export interface Program {
   level_vi: string;
   goal_vi: string;
   safety_note: string;
-  cycle: number; // 1-based maintenance cycle ("Vòng N"); 1 for finite levels
+  cycle: number; // 1-based maintenance cycle ("Cycle N"); 1 for finite levels
   total_sessions: number;
   completed: number;
   progress_pct: number;

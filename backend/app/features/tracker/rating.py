@@ -338,28 +338,3 @@ def compute_my_rating(db: Session) -> schemas.MyRatingOut:
 def deltas_by_match(db: Session) -> dict[int, float]:
     """match_id → its ±Δ contribution (counted matches only)."""
     return {s.match_id: s.delta for s in replay(db)[1]}
-
-
-def build_history(db: Session) -> schemas.MyRatingHistoryOut:
-    """Daily rating curve since the anchor: the anchor day plus the LAST
-    rating of every day that had counted matches. Reconstructed by replay —
-    nothing stored, and thanks to the at-match-time snapshots the past does
-    not shift when static points are edited later."""
-    final, steps = replay(db)
-    day_last: dict[dt.date, float] = {}
-    for s in steps:
-        day_last[s.date] = s.rating_after
-    anchor_date = get_my_anchor_date(db)
-    anchor_points = get_my_points(db)
-    points: list[schemas.RatingPoint] = []
-    if anchor_date not in day_last:  # else the anchor day's own last value wins
-        points.append(schemas.RatingPoint(date=anchor_date, rating=anchor_points))
-    points += [
-        schemas.RatingPoint(date=d, rating=round(r)) for d, r in sorted(day_last.items())
-    ]
-    return schemas.MyRatingHistoryOut(
-        anchor_date=anchor_date,
-        anchor_points=anchor_points,
-        current=round(final),
-        points=points,
-    )

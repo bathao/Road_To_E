@@ -1,5 +1,5 @@
 import { api } from "../../shared/api/client";
-import type { MatchStatsLite, MyRating, MyRatingHistory, TrackerStats } from "./types";
+import type { MatchStatsLite, MyRating, RatingBreakdown, TrackerStats } from "./types";
 
 // The Profile dashboard assembles data from existing endpoints. Skill/report/
 // profile calls reuse `videoApi`; here we add the tracker aggregates, the
@@ -17,5 +17,8 @@ export const profileApi = {
   getMyRating: () => api.get<MyRating>("/tracker/my-rating"),
   setMyRating: (points: number) =>
     api.put<MyRating>("/tracker/my-rating", { points }),
-  ratingHistory: () => api.get<MyRatingHistory>("/tracker/my-rating/history"),
+  ratingBreakdown: (fromIso: string, toIso: string, unit: "day" | "week" | "month") =>
+    api.get<RatingBreakdown>(
+      `/tracker/my-rating/breakdown?from=${fromIso}&to=${toIso}&unit=${unit}`
+    ),
 };

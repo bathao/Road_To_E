@@ -11,7 +11,7 @@ import type { PlayerDbRow, PlayersDbResponse } from "./types";
 
 function RankChip({ points }: { points: number | null }) {
   const rank = rankOf(points);
-  if (!rank) return <span className="db-rank db-rank-none">chưa xếp</span>;
+  if (!rank) return <span className="db-rank db-rank-none">unranked</span>;
   return <span className={`db-rank db-rank-${rank}`}>{rank}</span>;
 }
 
@@ -66,17 +66,17 @@ function PlayerRow({
           }}
         />
         {dirty && valid && parsed !== null && (
-          <span className="db-dirty" title="Chưa lưu — rời ô hoặc Enter để lưu">
+          <span className="db-dirty" title="Not saved — leave the field or press Enter to save">
             ●
           </span>
         )}
         {flash === "saved" && !dirty && (
-          <span className="db-saved" title="Đã lưu">
+          <span className="db-saved" title="Saved">
             ✓
           </span>
         )}
         {flash === "failed" && (
-          <span className="db-failed" title="Lưu thất bại — thử lại">
+          <span className="db-failed" title="Save failed — retry">
             ✕
           </span>
         )}
@@ -92,7 +92,7 @@ function PlayerRow({
             disabled={busy}
             onChange={(e) => void doSave(p.points, e.target.checked)}
           />
-          🏓 gai
+          🏓 pips
         </label>
       </td>
       <td className="db-count">{p.matches_played}</td>
@@ -143,11 +143,11 @@ export default function DatabaseTab() {
     <div className="db-tab">
       <div className="db-head">
         <div>
-          <h2>🗄️ Database VĐV</h2>
+          <h2>🗄️ Player Database</h2>
           <p className="db-sub">
-            Điểm của từng người — mốc tĩnh, anh tự cập nhật khi họ lên/xuống
-            trình. Trình (G/F/E…) suy ra từ điểm. Điểm ELO động của anh nằm ở
-            tab Profile.
+            Each player's points — static anchors, updated by hand when they
+            move up or down a level. Level (G/F/E…) derives from points. Your
+            dynamic ELO lives on the Profile tab.
           </p>
         </div>
       </div>
@@ -162,12 +162,12 @@ export default function DatabaseTab() {
         <input
           type="text"
           className="db-search"
-          placeholder="Tìm tên…"
+          placeholder="Search by name…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
         <span className="db-progress">
-          Đã xếp điểm {rated}/{players.length} người
+          Rated {rated}/{players.length} players
         </span>
       </div>
 
@@ -175,12 +175,12 @@ export default function DatabaseTab() {
         <table className="db-table">
           <thead>
             <tr>
-              <th>Tên</th>
-              <th>Điểm</th>
-              <th>Trình</th>
-              <th>Đánh gai</th>
-              <th title="Số lần xuất hiện trong các trận (đối thủ/đồng đội)">
-                Trận
+              <th>Name</th>
+              <th>Points</th>
+              <th>Level</th>
+              <th>Pips</th>
+              <th title="Appearances in matches (as opponent/teammate)">
+                Matches
               </th>
             </tr>
           </thead>
@@ -191,7 +191,7 @@ export default function DatabaseTab() {
           </tbody>
         </table>
         {filtered.length === 0 && (
-          <div className="db-empty">Không có ai khớp “{query}”.</div>
+          <div className="db-empty">No one matches “{query}”.</div>
         )}
       </div>
     </div>

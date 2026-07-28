@@ -16,17 +16,17 @@ from dataclasses import dataclass, field
 
 # Shown under the header so the player is reminded of the knee constraint.
 SAFETY_NOTE_VI = (
-    "Ưu tiên CƠ ĐÙI để giảm tải lên khớp gối (theo chỉ định bác sĩ). "
-    "Không squat sâu / lunge / bật nhảy mạnh. Bài quad nhẹ (quad set, nâng chân, "
-    "short-arc) tập được hằng ngày. Dừng ngay nếu đau gối."
+    "Prioritize the THIGH MUSCLES to take load off the knee joint (doctor's advice). "
+    "No deep squats / lunges / hard jumping. The light quad work (quad sets, leg raises, "
+    "short-arc) can be done daily. Stop immediately if the knee hurts."
 )
 
-# Day-types a session focuses on + the Vietnamese focus label in the header.
+# Day-types a session focuses on + the focus label shown in the header.
 DAY_TYPES = ("legs", "core", "balance")
 DAY_FOCUS_VI = {
-    "legs": "Cơ đùi (ưu tiên) — khoẻ đùi để giảm tải gối",
-    "core": "Cơ lõi: xoay & kháng xoay",
-    "balance": "Thăng bằng · vai · cổ tay (bổ trợ TT, nhẹ gối)",
+    "legs": "Quads (priority) — strong thighs take load off the knee",
+    "core": "Core: rotation & anti-rotation",
+    "balance": "Balance · shoulders · wrists (TT support work, knee-gentle)",
 }
 # A 6-session micro-cycle that PRIORITISES quads: legs 3/6, core 2/6, balance 1/6.
 # Quad-strengthening is the evidence-based priority for knee OA, so leg days come
@@ -36,14 +36,14 @@ DAY_CYCLE = ("legs", "core", "legs", "balance", "legs", "core")
 # Levels, in unlock order.
 LEVELS = ("foundation", "explosive", "tt_specific")
 LEVEL_VI = {
-    "foundation": "Căn bản",
-    "explosive": "Sức bền & ổn định",
-    "tt_specific": "Chuyên biệt (nhẹ khớp gối)",
+    "foundation": "Foundation",
+    "explosive": "Endurance & Stability",
+    "tt_specific": "TT-Specific (knee-friendly)",
 }
 LEVEL_GOAL_VI = {
-    "foundation": "Kích hoạt đùi/mông/hông KHÔNG tải sâu gối; làm quen giữ trụ.",
-    "explosive": "Tăng sức bền cơ quanh gối + ổn định lõi, vẫn nhẹ khớp.",
-    "tt_specific": "Mô phỏng di chuyển bóng bàn cường độ vừa, low-impact, bảo vệ gối.",
+    "foundation": "Activate quads/glutes/hips WITHOUT deep knee loading; get used to holding a stable base.",
+    "explosive": "Build endurance in the muscles around the knee + core stability, still easy on the joint.",
+    "tt_specific": "Simulate table-tennis movement at moderate intensity, low-impact, knee-protective.",
 }
 # Number of sessions ("Day" tiles) per level.
 SESSIONS_PER_LEVEL = 21
@@ -53,7 +53,7 @@ SESSIONS_PER_LEVEL = 21
 class Exercise:
     key: str
     name_vi: str
-    muscle: str  # nhóm cơ
+    muscle: str  # muscle group
     tt_benefit: str  # why it helps table tennis (motivation, shown on the card)
     kind: str  # "reps" | "timed"
     target: dict  # {"sets":3,"reps":20} or {"sets":3,"sec":45}
@@ -71,312 +71,312 @@ def _gif(key: str) -> str:
 _EX = [
     # --- legs: QUAD-FIRST, then glutes/hips/calves; no deep knee load ---
     # The two evidence-based knee-OA staples — safe to do daily.
-    Exercise("quad_set", "Gồng cơ đùi (quad set)", "Đùi trước (đẳng trường)",
-             "Bài nền số 1 cho gối: đùi trước khoẻ → giảm lực lên khớp gối.",
+    Exercise("quad_set", "Quad set (isometric squeeze)", "Quadriceps (isometric)",
+             "The #1 foundation move for the knee: strong quads → less force on the knee joint.",
              "reps", {"sets": 3, "reps": 12}, "legs",
              gif=_gif("quad_set"),
-             form_cue="Chân duỗi, SIẾT cơ đùi ép khoeo xuống, GIỮ ~5 giây rồi thả. Không đau khớp."),
-    Exercise("short_arc_quad", "Duỗi gối biên độ ngắn (kê khăn)", "Đùi trước (VMO)",
-             "Mạnh đùi trước trong tầm KHÔNG đau — trực tiếp bảo vệ gối.",
+             form_cue="Leg straight, SQUEEZE the thigh pressing the back of the knee down, HOLD ~5 seconds then release. No joint pain."),
+    Exercise("short_arc_quad", "Short-arc quad (towel under knee)", "Quadriceps (VMO)",
+             "Strengthens the quads in a PAIN-FREE range — directly protects the knee.",
              "reps", {"sets": 3, "reps": 15}, "legs", per_side=True,
              gif=_gif("short_arc_quad"),
-             form_cue="Kê cuộn khăn dưới khoeo, duỗi thẳng cẳng chân rồi hạ chậm; biên độ NHỎ."),
-    Exercise("straight_leg_raise", "Nâng chân thẳng (đùi trước)", "Đùi trước (quad)",
-             "Khoẻ đùi trước để giữ trụ gối vững khi đánh.",
+             form_cue="Place a rolled towel under the back of the knee, straighten the lower leg then lower slowly; SMALL range."),
+    Exercise("straight_leg_raise", "Straight leg raise (quads)", "Quadriceps",
+             "Strong quads keep the knee stable when you strike.",
              "reps", {"sets": 3, "reps": 15}, "legs", per_side=True,
              gif=_gif("straight_leg_raise"),
-             form_cue="Nằm ngửa, gối THẲNG, nâng chân ~30–40°, hạ chậm. Dừng nếu đau gối."),
-    Exercise("side_leg_raise", "Nâng chân ngang (đùi/hông ngoài)", "Đùi ngoài, hông",
-             "Khoẻ hông để bước ngang vững, không ngã.",
+             form_cue="Lie on your back, knee STRAIGHT, raise the leg ~30–40°, lower slowly. Stop if the knee hurts."),
+    Exercise("side_leg_raise", "Side-lying leg raise (outer thigh/hip)", "Outer thigh, hips",
+             "Strong hips for steady sideways steps without falling.",
              "reps", {"sets": 3, "reps": 15}, "legs", per_side=True,
              gif=_gif("side_leg_raise"),
-             form_cue="Nằm nghiêng, nâng chân thẳng sang ngang; không lăn người ra sau."),
-    Exercise("prone_leg_raise", "Nằm sấp nâng chân (đùi sau)", "Đùi sau, mông",
-             "Cân bằng nhóm cơ quanh gối, giảm tải khớp.",
+             form_cue="Lie on your side, raise the straight leg sideways; don't roll backward."),
+    Exercise("prone_leg_raise", "Prone leg raise (hamstrings)", "Hamstrings, glutes",
+             "Balances the muscles around the knee, reducing joint load.",
              "reps", {"sets": 3, "reps": 15}, "legs", per_side=True,
              gif=_gif("prone_leg_raise"),
-             form_cue="Nằm sấp, siết mông nâng chân thẳng lên biên độ nhỏ; không ưỡn lưng."),
-    Exercise("wall_sit_shallow", "Wall Sit (gối nông)", "Đùi trước (tĩnh)",
-             "Sức bền đùi để giữ tư thế thủ thấp.",
+             form_cue="Lie face down, squeeze the glutes and raise the straight leg in a small range; don't arch the lower back."),
+    Exercise("wall_sit_shallow", "Wall sit (shallow knee bend)", "Quadriceps (isometric)",
+             "Thigh endurance to hold a low ready stance.",
              "timed", {"sets": 3, "sec": 30}, "legs",
              gif=_gif("wall_sit_shallow"),
-             form_cue="Tựa lưng tường, gối cong NÔNG (không xuống 90°). Đau là dừng."),
-    Exercise("glute_bridge", "Cầu mông (glute bridge)", "Mông, đùi sau",
-             "Mông khoẻ ổn định thân, đỡ tải lên gối.",
+             form_cue="Back against the wall, knees bent SHALLOW (not down to 90°). Pain means stop."),
+    Exercise("glute_bridge", "Glute bridge", "Glutes, hamstrings",
+             "Strong glutes stabilize the torso and take load off the knees.",
              "reps", {"sets": 3, "reps": 15}, "legs",
              gif=_gif("glute_bridge"),
-             form_cue="Nằm ngửa, gối co, nâng hông siết mông; không ưỡn lưng quá."),
-    Exercise("calf_raise", "Nhón gót (mũi chân)", "Bắp chân, cổ chân",
-             "Lực cổ chân/bắp chân cho bước bật nhẹ.",
+             form_cue="Lie on your back, knees bent, lift the hips squeezing the glutes; don't over-arch the back."),
+    Exercise("calf_raise", "Calf raise (on the toes)", "Calves, ankles",
+             "Ankle/calf power for light push-off steps.",
              "reps", {"sets": 3, "reps": 20}, "legs",
              gif=_gif("calf_raise"),
-             form_cue="Đứng nhón gót lên–xuống chậm; vịn tường nếu cần."),
-    Exercise("mini_squat", "Squat nông (nhẹ khớp)", "Đùi, mông",
-             "Khoẻ chân dạng squat mà không tải sâu gối.",
+             form_cue="Stand and rise up-down on the toes slowly; hold the wall if needed."),
+    Exercise("mini_squat", "Mini squat (joint-friendly)", "Thighs, glutes",
+             "Squat-pattern leg strength without deep knee loading.",
              "reps", {"sets": 3, "reps": 15}, "legs",
              gif=_gif("mini_squat"),
-             form_cue="Cong gối NÔNG ~30°, gối không vượt mũi chân; vịn ghế nếu cần."),
-    Exercise("lateral_toe_steps", "Di chuyển ngang nhón chân", "Bắp chân, hông (footwork)",
-             "Mô phỏng bước ngang bóng bàn — nhón chân nên nhẹ khớp gối.",
+             form_cue="Bend the knees SHALLOW ~30°, knees not past the toes; hold a chair if needed."),
+    Exercise("lateral_toe_steps", "Lateral steps on the toes", "Calves, hips (footwork)",
+             "Mimics table-tennis side steps — done on the toes, so it's easy on the knees.",
              "timed", {"sets": 3, "sec": 30}, "legs",
              gif=_gif("lateral_toe_steps"),
-             form_cue="Nhón gót, bước ngang qua–lại nhẹ nhàng; KHÔNG khuỵu gối sâu, không nhảy."),
-    Exercise("toe_stand_hold", "Đứng nhón chân (giữ)", "Bắp chân, cổ chân, thăng bằng",
-             "Vững cổ chân + trụ nhẹ nhàng, không tải gối.",
+             form_cue="Up on the toes, step gently side to side; do NOT bend the knees deep, no jumping."),
+    Exercise("toe_stand_hold", "Toe stand (hold)", "Calves, ankles, balance",
+             "Stable ankles + a gentle standing base, no knee load.",
              "timed", {"sets": 3, "sec": 30}, "balance",
              gif=_gif("toe_stand_hold"),
-             form_cue="Nhón cả hai gót lên và GIỮ; vịn tường nếu mất thăng bằng."),
-    Exercise("single_leg_glute_bridge", "Cầu mông một chân", "Mông (một bên)",
-             "Sức mạnh đơn chân, cân bằng trái/phải.",
+             form_cue="Lift both heels up and HOLD; hold the wall if you lose balance."),
+    Exercise("single_leg_glute_bridge", "Single-leg glute bridge", "Glutes (one side)",
+             "Single-leg strength, left/right balance.",
              "reps", {"sets": 3, "reps": 12}, "legs", per_side=True,
              gif=_gif("single_leg_glute_bridge"),
-             form_cue="Cầu mông nhưng duỗi một chân; giữ hông ngang, không lệch."),
-    Exercise("lateral_lunge", "Chùng chân ngang (lateral lunge)", "Mông, đùi trong, đùi",
-             "Khoẻ mông + bước ngang rộng cứu bóng. Mông khoẻ giúp giảm tải gối.",
+             form_cue="Glute bridge but with one leg extended; keep the hips level, no tilting."),
+    Exercise("lateral_lunge", "Lateral lunge (shallow)", "Glutes, inner thigh, thighs",
+             "Strong glutes + a wide sideways step to save balls. Strong glutes help unload the knee.",
              "reps", {"sets": 2, "reps": 8}, "legs", per_side=True,
              gif=_gif("lateral_lunge"),
-             form_cue="Bước rộng sang ngang, dồn trọng tâm chân trụ, gối theo hướng mũi chân; "
-                      "KHÔNG xuống sâu (giữ nông), vịn ghế nếu cần. Đau gối là dừng."),
-    Exercise("inner_thigh_raise", "Nâng chân trong (đùi trong)", "Đùi trong",
-             "Đùi trong giữ trụ khi bước rộng cứu bóng.",
+             form_cue="Step wide to the side, shift your weight onto the standing leg, knee tracking over the toes; "
+                      "do NOT go deep (stay shallow), hold a chair if needed. Stop if the knee hurts."),
+    Exercise("inner_thigh_raise", "Inner-thigh leg raise", "Inner thigh",
+             "The inner thighs keep your base stable on wide ball-saving steps.",
              "reps", {"sets": 3, "reps": 15}, "legs", per_side=True,
              gif=_gif("inner_thigh_raise"),
-             form_cue="Nằm nghiêng, chân trên gác ra trước, nâng chân dưới lên."),
-    Exercise("hip_hinge", "Gập hông đứng (hip hinge)", "Đùi sau, mông, lưng dưới",
-             "Tạo lực từ chân–hông lên thân (chuỗi sau) cho cú giật mạnh; gối thẳng nên nhẹ khớp.",
+             form_cue="Lie on your side, top leg resting in front, raise the bottom leg up."),
+    Exercise("hip_hinge", "Standing hip hinge", "Hamstrings, glutes, lower back",
+             "Builds force from legs–hips up through the torso (posterior chain) for a powerful loop; knees stay straight so it's easy on the joint.",
              "reps", {"sets": 3, "reps": 12}, "legs",
              gif=_gif("hip_hinge"),
-             form_cue="Chân rộng bằng vai, GỐI HƠI MỀM (không gập sâu), đẩy MÔNG ra sau, lưng thẳng; "
-                      "cúi tới khi căng đùi sau rồi siết mông đứng dậy. Lực ở hông/đùi sau, KHÔNG ở gối."),
+             form_cue="Feet shoulder-width, KNEES SLIGHTLY SOFT (no deep bend), push the HIPS back, back straight; "
+                      "hinge forward until the hamstrings feel tight, then squeeze the glutes to stand up. Force in the hips/hamstrings, NOT the knees."),
     # --- core: rotational + anti-rotation + stability, no knee load ---
-    Exercise("plank", "Plank", "Toàn bộ lõi",
-             "Nền tảng ổn định thân khi đánh.",
+    Exercise("plank", "Plank", "Entire core",
+             "The foundation of torso stability when striking.",
              "timed", {"sets": 3, "sec": 30}, "core",
              gif=_gif("plank"),
-             form_cue="Chống khuỷu, siết bụng+mông, lưng không võng."),
-    Exercise("crunch", "Gập bụng ngắn", "Bụng trên",
-             "Tăng sức giữ trọng tâm.",
+             form_cue="On the elbows, brace abs+glutes, don't let the back sag."),
+    Exercise("crunch", "Crunch (short range)", "Upper abs",
+             "Builds your ability to hold your center of gravity.",
              "reps", {"sets": 3, "reps": 20}, "core",
              gif=_gif("crunch"),
-             form_cue="Cuộn vai lên, không kéo cổ."),
-    Exercise("dead_bug", "Dead Bug", "Lõi sâu (an toàn lưng/gối)",
-             "Lõi ổn định mà không tải khớp gối.",
+             form_cue="Curl the shoulders up, don't pull on the neck."),
+    Exercise("dead_bug", "Dead bug", "Deep core (back/knee-safe)",
+             "Core stability without loading the knee joint.",
              "reps", {"sets": 3, "reps": 16}, "core",
              gif=_gif("dead_bug"),
-             form_cue="Nằm ngửa, hạ tay & chân đối diện; ép lưng sát sàn."),
-    Exercise("double_leg_lift_hold", "Nằm ngửa nâng hai chân & giữ", "Bụng dưới + đùi trước (tĩnh)",
-             "Vừa siết bụng dưới vừa gồng đùi trước giữ trụ — gối thẳng nên không tải khớp.",
+             form_cue="Lie on your back, lower the opposite arm & leg; press the lower back into the floor."),
+    Exercise("double_leg_lift_hold", "Supine double-leg lift & hold", "Lower abs + quads (isometric)",
+             "Braces the lower abs while the quads hold isometrically — knees straight, so no joint load.",
              "timed", {"sets": 3, "sec": 20}, "core",
              gif=_gif("double_leg_lift_hold"),
-             form_cue="Nâng hai chân thẳng khỏi sàn vài chục cm rồi GIỮ; ÉP lưng sát sàn. "
-                      "Nếu lưng cong/đau thì nâng chân cao hơn hoặc hơi co gối."),
-    Exercise("side_plank", "Plank nghiêng", "Cơ lườn",
-             "Đánh xa bàn không bị lệch người.",
+             form_cue="Raise both straight legs a few dozen centimeters off the floor and HOLD; PRESS the lower back into the floor. "
+                      "If the back arches/hurts, raise the legs higher or bend the knees slightly."),
+    Exercise("side_plank", "Side plank", "Obliques",
+             "Keeps the body from tipping sideways when playing away from the table.",
              "timed", {"sets": 3, "sec": 25}, "core", per_side=True,
              gif=_gif("side_plank"),
-             form_cue="Thân thẳng một đường, hông không võng."),
-    Exercise("plank_knee_rotation", "Plank xoay hông qua lại", "Cơ liên sườn, lõi xoay, vai",
-             "Xoay lõi + vai vững cho lực xoáy cú giật. Tập trên cẳng tay nên gối KHÔNG chịu lực.",
+             form_cue="Body in one straight line, don't let the hips sag."),
+    Exercise("plank_knee_rotation", "Plank with hip rotation", "Obliques, rotational core, shoulders",
+             "Core + shoulder rotation stability for loop spin. Done on the forearms, so the knees bear NO load.",
              "reps", {"sets": 2, "reps": 8}, "core", per_side=True,
              gif=_gif("plank_knee_rotation"),
-             form_cue="Giữ plank cẳng tay vững, GỐI THẲNG; xoay hông cho hông/gối lật sang hai bên, "
-                      "từ tốn có kiểm soát. Trọng tâm ở cẳng tay + mũi chân, KHÔNG quỳ/dồn lên gối. "
-                      "Vai gánh lực đáng kể — dừng nếu vai hoặc gối khó chịu."),
-    Exercise("plank_shoulder_tap", "Plank chạm vai (kháng xoay)", "Lõi kháng xoay, vai",
-             "Giữ thân KHÔNG lắc khi tay hoạt động — đúng yêu cầu ổn định lúc vung vợt.",
+             form_cue="Hold a solid forearm plank, KNEES STRAIGHT; rotate the hips so the hips/knees tip to each side, "
+                      "slow and controlled. Weight on the forearms + toes, do NOT kneel or load the knees. "
+                      "The shoulders carry significant load — stop if the shoulders or knees feel uncomfortable."),
+    Exercise("plank_shoulder_tap", "Plank shoulder taps (anti-rotation)", "Anti-rotation core, shoulders",
+             "Keeps the torso from rocking while the arms work — exactly the stability you need when swinging the racket.",
              "reps", {"sets": 3, "reps": 10}, "core", per_side=True,
              gif=_gif("plank_shoulder_tap"),
-             form_cue="Plank cao (chống tay), GỐI THẲNG, chân mở rộng cho vững; lần lượt chạm tay lên "
-                      "vai đối diện mà HÔNG KHÔNG lắc. Lực ở tay + mũi chân, không dồn gối."),
-    Exercise("bird_dog", "Bird-dog (tay–chân chéo)", "Lõi sâu, mông, lưng (chuỗi sau)",
-             "Ổn định thân khi vươn người cứu bóng; phối hợp chéo tay–chân.",
+             form_cue="High plank (on the hands), KNEES STRAIGHT, feet wide for stability; tap each hand to the "
+                      "opposite shoulder while the HIPS STAY STILL. Weight on the hands + toes, no knee loading."),
+    Exercise("bird_dog", "Bird dog (opposite arm–leg)", "Deep core, glutes, back (posterior chain)",
+             "Torso stability when reaching to save a ball; opposite arm–leg coordination.",
              "reps", {"sets": 3, "reps": 10}, "core", per_side=True,
              gif=_gif("bird_dog"),
-             form_cue="Quỳ chống tay (KÊ ĐỆM/khăn gấp dưới gối), duỗi thẳng tay và chân ĐỐI DIỆN, "
-                      "giữ 2 giây rồi đổi bên; lưng phẳng, không võng. Cộm/đau gối thì đổi sang Dead Bug."),
-    Exercise("bicycle_crunch", "Gập bụng xe đạp", "Bụng + lườn xoay",
-             "Phối hợp xoay lõi liên tục như khi đôi công.",
+             form_cue="On hands and knees (PAD the knees with a cushion/folded towel), extend the OPPOSITE arm and leg straight, "
+                      "hold 2 seconds then switch sides; back flat, no sagging. If the knee is sore/uncomfortable, switch to Dead Bug."),
+    Exercise("bicycle_crunch", "Bicycle crunch", "Abs + rotating obliques",
+             "Continuous core-rotation coordination like in fast rallies.",
              "reps", {"sets": 3, "reps": 20}, "core",
              gif=_gif("bicycle_crunch"),
-             form_cue="Chạm khuỷu–gối đối diện chậm; gối không cần co sâu."),
-    Exercise("russian_twist", "Russian Twist", "Cơ lườn xoay",
-             "Chính là vòng xoay của cú giật thuận/trái tay.",
+             form_cue="Touch elbow to opposite knee slowly; the knees don't need to bend deep."),
+    Exercise("russian_twist", "Russian twist", "Rotational obliques",
+             "This IS the rotation of the forehand/backhand loop.",
              "reps", {"sets": 3, "reps": 24}, "core",
              gif=_gif("russian_twist"),
-             form_cue="Xoay từ lườn, không giật cổ; lưng dưới giữ ổn định."),
-    Exercise("standing_trunk_twist", "Đứng xoay lườn", "Lườn xoay (đứng)",
-             "Tập đúng vòng xoay thân của cú giật, đứng nên không tải gối.",
+             form_cue="Rotate from the obliques, don't jerk the neck; keep the lower back stable."),
+    Exercise("standing_trunk_twist", "Standing trunk twist", "Obliques (standing)",
+             "Trains the exact torso rotation of the loop; standing, so no knee load.",
              "reps", {"sets": 3, "reps": 24}, "core",
              gif=_gif("standing_trunk_twist"),
-             form_cue="Chân đứng vững (gối thẳng tự nhiên), xoay thân trái–phải từ hông/lườn."),
-    Exercise("wood_chop", "Xoay chéo lườn (đốn củi)", "Lườn xoay chéo",
-             "Truyền lực xoáy chéo như khi giật/bạt.",
+             form_cue="Stand firm (knees naturally straight), rotate the torso left–right from the hips/obliques."),
+    Exercise("wood_chop", "Wood chop (diagonal twist)", "Diagonal obliques",
+             "Transfers diagonal spin power like when looping/smashing.",
              "reps", {"sets": 3, "reps": 20}, "core", per_side=True,
              gif=_gif("wood_chop"),
-             form_cue="Vung tay chéo từ cao xuống thấp, xoay lườn; gối chỉ hơi mềm, KHÔNG khuỵu sâu."),
+             form_cue="Swing the arms diagonally from high to low, rotating the obliques; knees only slightly soft, do NOT bend deep."),
     # --- balance & recovery ---
-    Exercise("single_leg_balance", "Đứng một chân", "Hông, cổ chân",
-             "Trụ vững khi phải rướn người cứu bóng.",
+    Exercise("single_leg_balance", "Single-leg stand", "Hips, ankles",
+             "A stable base when you have to reach out to save a ball.",
              "timed", {"sets": 3, "sec": 30}, "balance", per_side=True,
              gif=_gif("single_leg_balance"),
-             form_cue="Đứng một chân, siết hông; bám điểm tựa nếu loạng choạng."),
-    Exercise("hamstring_stretch", "Giãn cơ đùi sau", "Đùi sau",
-             "Giữ biên độ bước, tránh căng cơ.",
+             form_cue="Stand on one leg, brace the hips; grab a support if wobbly."),
+    Exercise("hamstring_stretch", "Hamstring stretch", "Hamstrings",
+             "Maintains stride range, prevents muscle strains.",
              "timed", {"sets": 2, "sec": 40}, "balance", per_side=True,
              gif=_gif("hamstring_stretch"),
-             form_cue="Lưng thẳng, gập từ hông; không nảy."),
-    Exercise("groin_stretch", "Giãn cơ háng", "Háng",
-             "Tránh chấn thương khi chạy ngang.",
+             form_cue="Back straight, hinge from the hips; no bouncing."),
+    Exercise("groin_stretch", "Groin stretch", "Groin",
+             "Prevents injury during sideways movement.",
              "timed", {"sets": 2, "sec": 40}, "balance", per_side=True,
              gif=_gif("groin_stretch"),
-             form_cue="Giãn tới căng nhẹ, không nảy."),
-    Exercise("gentle_bounce", "Nhún nhẹ trên mũi chân", "Bắp chân, nhịp (low-impact)",
-             "Tập nhịp split-step nhẹ nhàng, không hại gối.",
+             form_cue="Stretch to a gentle pull, no bouncing."),
+    Exercise("gentle_bounce", "Gentle bounce on the toes", "Calves, rhythm (low-impact)",
+             "Trains a gentle split-step rhythm without harming the knees.",
              "timed", {"sets": 3, "sec": 30}, "balance",
              gif=_gif("gentle_bounce"),
-             form_cue="Nhún nhẹ trên mũi chân, tiếp đất mềm; KHÔNG nhảy cao."),
-    Exercise("quad_stretch", "Giãn đùi trước", "Đùi trước",
-             "Giãn cơ đùi quanh gối, giảm cứng khớp.",
+             form_cue="Bounce lightly on the toes, land soft; do NOT jump high."),
+    Exercise("quad_stretch", "Quad stretch", "Quadriceps",
+             "Stretches the thigh muscles around the knee, reducing joint stiffness.",
              "timed", {"sets": 2, "sec": 30}, "balance", per_side=True,
              gif=_gif("quad_stretch"),
-             form_cue="Đứng vịn tường, kéo gót về mông NHẸ NHÀNG, không ép."),
-    Exercise("single_leg_eyes_closed", "Đứng một chân nhắm mắt", "Hông, cổ chân (nâng cao)",
-             "Phản xạ thăng bằng tốt hơn khi di chuyển nhanh.",
+             form_cue="Stand holding the wall, pull the heel toward the glutes GENTLY, don't force it."),
+    Exercise("single_leg_eyes_closed", "Single-leg stand, eyes closed", "Hips, ankles (advanced)",
+             "Better balance reflexes for fast movement.",
              "timed", {"sets": 3, "sec": 40}, "balance", per_side=True,
              gif=_gif("single_leg_eyes_closed"),
-             form_cue="Như đứng một chân nhưng nhắm mắt; đứng cạnh tường để bám."),
-    # --- upper body / wrist / mobility: TT-specific, all knee-safe (đứng/nằm) ---
-    Exercise("wall_pushup", "Chống đẩy vào tường", "Ngực, vai, tay sau",
-             "Sức & sức bền tay–vai cho cú đánh ổn định; đứng nên KHÔNG tải gối.",
+             form_cue="Like the single-leg stand but with eyes closed; stand next to a wall for support."),
+    # --- upper body / wrist / mobility: TT-specific, all knee-safe (standing/lying) ---
+    Exercise("wall_pushup", "Wall push-up", "Chest, shoulders, triceps",
+             "Arm–shoulder strength & endurance for a steady stroke; standing, so NO knee load.",
              "reps", {"sets": 3, "reps": 12}, "balance",
              gif=_gif("wall_pushup"),
-             form_cue="Đứng cách tường một tầm tay, chống tay ngang vai, hạ người vào tường rồi đẩy ra; "
-                      "thân thẳng, gối thẳng. Muốn nặng hơn thì đứng xa tường hơn."),
-    Exercise("wrist_curl", "Cuộn & xoay cổ tay (cẳng tay)", "Cẳng tay, cổ tay",
-             "Cổ tay khoẻ & linh hoạt = ma sát/độ XOÁY tốt hơn ở cú giật, gò.",
+             form_cue="Stand an arm's length from the wall, hands at shoulder height, lower yourself to the wall then push back out; "
+                      "body straight, knees straight. To make it harder, stand farther from the wall."),
+    Exercise("wrist_curl", "Wrist curls & rotations (forearm)", "Forearms, wrists",
+             "A strong & flexible wrist = better friction/SPIN on loops and pushes.",
              "reps", {"sets": 3, "reps": 15}, "balance", per_side=True,
              gif=_gif("wrist_curl"),
-             form_cue="Ngồi, cẳng tay tựa đùi, cầm vật nhẹ (chai nước): cuộn cổ tay lên–xuống rồi "
-                      "xoay trong–ngoài chậm rãi. Nhẹ nhàng, không đau cổ tay."),
-    Exercise("scapular_yt", "Nằm sấp nâng tay (chữ Y–T)", "Vai sau, cơ bả vai, lưng trên",
-             "Vai khoẻ & đúng tư thế → bền vai, ít chấn thương khi đánh nhiều.",
+             form_cue="Sit, forearm resting on the thigh, holding a light object (water bottle): curl the wrist up–down then "
+                      "rotate in–out slowly. Gentle, no wrist pain."),
+    Exercise("scapular_yt", "Prone Y–T raises", "Rear delts, scapular muscles, upper back",
+             "Strong shoulders & good posture → shoulder endurance, fewer injuries from heavy play.",
              "reps", {"sets": 3, "reps": 12}, "balance",
              gif=_gif("scapular_yt"),
-             form_cue="Nằm sấp, trán tựa nhẹ, nâng hai tay khỏi sàn theo hình chữ Y rồi chữ T, "
-                      "siết bả vai; KHÔNG nhún vai lên tai. Không tải gối."),
-    Exercise("thoracic_rotation", "Xoay ngực (mở sách)", "Linh hoạt ngực – lườn",
-             "Tăng biên độ xoay thân → cú giật/bạt vươn xa & mượt hơn.",
+             form_cue="Lie face down, forehead resting lightly, raise both arms off the floor in a Y then a T shape, "
+                      "squeezing the shoulder blades; do NOT shrug the shoulders up to the ears. No knee load."),
+    Exercise("thoracic_rotation", "Thoracic rotation (open book)", "Chest–oblique mobility",
+             "More torso-rotation range → loops/smashes reach farther & flow smoother.",
              "reps", {"sets": 2, "reps": 10}, "balance", per_side=True,
              gif=_gif("thoracic_rotation"),
-             form_cue="Nằm nghiêng, hai gối co chồng nhau (KHÔNG tải lực), hai tay duỗi trước; mở tay "
-                      "trên xoay ngực ra sau như mở trang sách, mắt theo tay. Nhẹ nhàng; ngồi xoay cũng được."),
+             form_cue="Lie on your side, knees bent and stacked (NO load on them), arms extended in front; open the top "
+                      "arm rotating the chest back like opening a book page, eyes following the hand. Gentle; seated rotation works too."),
     # --- daily staples: done EVERY session, with their own progressive ramp ---
     # (see DAILY_KEYS / daily_target). Knee-safe; one targets the wrist/forearm
     # for spin, the other hip/core control for footwork.
-    Exercise("gyro_ball", "Powerball (gyro ball) cổ tay", "Cẳng tay, cổ tay",
-             "Cổ tay & cẳng tay khoẻ + bền → cú giật/gò NHIỀU XOÁY hơn, cổ tay không "
-             "rã khi đối công liên tục. Tập mỗi ngày, tăng dần thời gian.",
+    Exercise("gyro_ball", "Powerball (gyro ball) wrist work", "Forearms, wrists",
+             "A strong, enduring wrist & forearm → MORE SPIN on loops/pushes, and the wrist "
+             "doesn't fade in long counter-hitting rallies. Do it daily, gradually adding time.",
              "timed", {"sets": 2, "sec": 20}, "balance", per_side=True,
              gif=_gif("gyro_ball"),
-             form_cue="Khởi động cho rotor quay, rồi GIỮ và xoay cổ tay đều để bóng tăng tốc; "
-                      "cẳng tay siết, VAI THẢ LỎNG. Mỗi tay một lượt. Đau cổ tay/khuỷu thì giảm tốc/giảm thời gian."),
-    Exercise("thigh_lift_bottle", "Nằm ngửa nâng đùi vòng qua chai nước",
-             "Hông, đùi (gập/khép–dạng), lõi dưới",
-             "Hông khoẻ + linh hoạt và lõi kiểm soát tốt → bước chân ngang nhanh, giữ trọng "
-             "tâm vững. Nằm nên KHÔNG tải khớp gối. Tập mỗi ngày, tăng dần số lần.",
+             form_cue="Start the rotor spinning, then GRIP and circle the wrist steadily so the ball speeds up; "
+                      "forearm braced, SHOULDER RELAXED. One round per hand. If the wrist/elbow hurts, slow down or cut the time."),
+    Exercise("thigh_lift_bottle", "Supine thigh lift over a water bottle",
+             "Hips, thighs (flexion/adduction–abduction), lower core",
+             "Strong, mobile hips and a well-controlled core → fast sideways steps and a steady "
+             "center of gravity. Lying down, so NO knee-joint load. Do it daily, gradually adding reps.",
              "reps", {"sets": 2, "reps": 8}, "core", per_side=True,
              gif=_gif("thigh_lift_bottle"),
-             form_cue="Đặt chai nước trên sàn ở khoảng giữa hai chân. Nằm ngửa, ÉP NHẸ lưng xuống sàn; "
-                      "nâng một đùi lên đưa bàn chân & đùi VÒNG QUA chai sang bên kia rồi vòng về, đổi bên. "
-                      "Chậm, kiểm soát bằng lõi; gối không cần gập sâu. Đau lưng/gối thì giảm biên độ."),
+             form_cue="Place a water bottle on the floor about midway between your feet. Lie on your back, PRESS the lower back "
+                      "GENTLY into the floor; lift one thigh and carry the foot & thigh OVER the bottle to the other side and back, then switch. "
+                      "Slow, controlled with the core; the knee doesn't need a deep bend. If the back/knee hurts, reduce the range."),
     # --- dumbbell pool (1kg pair): rotated 2-per-day as daily work, see
     #     DUMBBELL_KEYS / daily_dumbbells. Light load → high reps for endurance;
     #     all knee-safe (seated/standing, hip-hinge not knee load). ---
-    Exercise("db_trunk_twist", "Ngồi cầm tạ xoay lườn", "Cơ lườn xoay (có tải)",
-             "Thêm tải vào đúng vòng xoay của cú giật/bạt → lực xoáy mạnh & bền hơn.",
+    Exercise("db_trunk_twist", "Seated dumbbell trunk twist", "Rotational obliques (loaded)",
+             "Adds load to the exact rotation of the loop/smash → stronger, more enduring spin power.",
              "reps", {"sets": 2, "reps": 20}, "core",
              gif=_gif("db_trunk_twist"),
-             form_cue="Ngồi (hoặc đứng) lưng thẳng, hai tay ôm tạ trước ngực; xoay thân trái–phải "
-                      "từ LƯỜN, hông giữ ổn định, không giật cổ. Tạ nhẹ — kiểm soát chậm."),
-    Exercise("db_shoulder_press", "Ngồi đẩy tạ qua đầu", "Vai, tay sau",
-             "Vai khoẻ & bền giữ cánh tay ổn định suốt trận, ít mỏi khi đánh nhiều.",
+             form_cue="Sit (or stand) with a straight back, both hands hugging the dumbbell at the chest; rotate the torso "
+                      "left–right from the OBLIQUES, hips stable, no neck jerking. Light weight — slow control."),
+    Exercise("db_shoulder_press", "Seated overhead dumbbell press", "Shoulders, triceps",
+             "Strong, enduring shoulders keep the arm steady the whole match, less fatigue in long sessions.",
              "reps", {"sets": 2, "reps": 15}, "balance",
              gif=_gif("db_shoulder_press"),
-             form_cue="Ngồi thẳng lưng, hai tạ ngang vai; đẩy thẳng lên qua đầu rồi hạ chậm. "
-                      "Siết bụng giữ trụ, KHÔNG ưỡn lưng."),
-    Exercise("db_wood_chop", "Bổ củi chéo có tạ", "Lườn xoay chéo (có tải)",
-             "Truyền lực xoáy chéo từ hông lên tay như cú giật/bạt mạnh.",
+             form_cue="Sit up straight, dumbbells at shoulder height; press straight up overhead then lower slowly. "
+                      "Brace the abs to stay stable, do NOT arch the back."),
+    Exercise("db_wood_chop", "Dumbbell wood chop", "Diagonal obliques (loaded)",
+             "Transfers diagonal spin power from the hips up to the arms like a hard loop/smash.",
              "reps", {"sets": 2, "reps": 12}, "core", per_side=True,
              gif=_gif("db_wood_chop"),
-             form_cue="Hai tay cầm một tạ, vung chéo từ trên cao một bên xuống hông đối diện, "
-                      "xoay lườn theo; gối chỉ hơi mềm, KHÔNG khuỵu sâu. Đổi bên."),
-    Exercise("db_lateral_raise", "Nâng tạ ngang vai (lateral raise)", "Vai (delta giữa)",
-             "Ổn định khớp vai → đường vợt chắc, giảm chấn thương vai khi vung nhiều.",
+             form_cue="Hold one dumbbell with both hands, swing diagonally from high on one side down to the opposite hip, "
+                      "rotating the obliques; knees only slightly soft, do NOT bend deep. Switch sides."),
+    Exercise("db_lateral_raise", "Dumbbell lateral raise", "Shoulders (middle delts)",
+             "Shoulder-joint stability → a solid racket path, fewer shoulder injuries from heavy swinging.",
              "reps", {"sets": 2, "reps": 15}, "balance",
              gif=_gif("db_lateral_raise"),
-             form_cue="Đứng/ngồi, hai tạ cạnh hông; nâng thẳng tay sang ngang tới ngang vai "
-                      "(khuỷu hơi cong) rồi hạ chậm. KHÔNG nhún vai, không lấy đà."),
-    Exercise("db_shadow_swing", "Vung mô phỏng cú đánh có tạ", "Vai, cánh tay, lườn (chuyên biệt TT)",
-             "Mô phỏng quỹ đạo cú thuận/trái tay có kháng nhẹ → cơ quen đường vợt, ra cú nhanh & mạnh hơn.",
+             form_cue="Standing/seated, dumbbells at the hips; raise the arms straight out to the sides up to shoulder height "
+                      "(elbows slightly bent) then lower slowly. Do NOT shrug, no momentum."),
+    Exercise("db_shadow_swing", "Weighted shadow stroke swings", "Shoulders, arms, obliques (TT-specific)",
+             "Shadows the forehand/backhand stroke path against light resistance → the muscles learn the racket path, faster & stronger shots.",
              "reps", {"sets": 2, "reps": 12}, "balance", per_side=True,
              gif=_gif("db_shadow_swing"),
-             form_cue="Cầm 1 tạ, mô phỏng cú giật/bạt CHẬM & đúng kỹ thuật (xoay hông→thân→tay), "
-                      "không vung ẩu. Làm cả thuận tay & trái tay. Đau vai/khuỷu thì dừng."),
-    Exercise("db_bent_row", "Khom người kéo tạ (bent-over row)", "Lưng trên, xô, tay sau",
-             "Khoẻ lưng trên → tư thế thẳng, kéo vợt về nhanh sau cú đánh; cân bằng cơ kéo–đẩy.",
+             form_cue="Hold one dumbbell and shadow the loop/smash SLOWLY & with proper technique (hip→torso→arm rotation), "
+                      "no sloppy swinging. Do both forehand & backhand. Stop if the shoulder/elbow hurts."),
+    Exercise("db_bent_row", "Bent-over dumbbell row", "Upper back, lats, back of arms",
+             "A strong upper back → upright posture, quick racket recovery after each stroke; balances the pull–push muscles.",
              "reps", {"sets": 2, "reps": 15}, "balance",
              gif=_gif("db_bent_row"),
-             form_cue="Gập HÔNG (hip hinge), gối hơi mềm, lưng thẳng; kéo hai tạ về phía hông siết "
-                      "bả vai, hạ chậm. Lực ở lưng/hông, KHÔNG dồn gối; đau lưng dưới thì giảm độ gập."),
-    # Seated "weighted abs" trio (ngồi ngả người, tạ 1kg): compound bụng + đùi
-    # (gập hông) + tay/vai, all knee-safe (seated, no knee load / flexion / impact).
-    Exercise("db_seated_leg_press", "Ngồi nâng đùi, đẩy tạ ra trước (luân phiên)",
-             "Bụng/lõi, đùi trước (gập hông), vai/tay",
-             "Vừa siết lõi vừa gập hông nâng đùi và đẩy tay — lõi khoẻ + hông linh hoạt giữ "
-             "trọng tâm vững khi di chuyển, tay/vai bền hơn.",
+             form_cue="Hinge at the HIPS, knees slightly soft, back straight; row both dumbbells toward the hips squeezing "
+                      "the shoulder blades, lower slowly. Force in the back/hips, do NOT load the knees; if the lower back hurts, reduce the hinge."),
+    # Seated "weighted abs" trio (lean-back seated, 1kg dumbbells): compound abs +
+    # thigh (hip flexion) + arm/shoulder, all knee-safe (seated, no knee load / flexion / impact).
+    Exercise("db_seated_leg_press", "Seated thigh lift + dumbbell press-out (alternating)",
+             "Abs/core, quads (hip flexion), shoulders/arms",
+             "Braces the core while flexing the hip to lift the thigh and pressing the arms out — a strong "
+             "core + mobile hips keep the center of gravity steady on the move, arms/shoulders build endurance.",
              "reps", {"sets": 2, "reps": 16}, "core",
              gif=_gif("db_seated_leg_press"),
-             form_cue="Ngồi, gối co bàn chân chạm sàn, hơi ngả người giữ lưng thẳng, hai tay cầm 1 tạ "
-                      "trước ngực. Nâng một đùi lên ĐỒNG THỜI đẩy tạ thẳng ra trước; hạ về, đổi chân, "
-                      "luân phiên. Siết bụng giữ thăng bằng; ngả vừa phải, không đau lưng dưới/gối."),
-    Exercise("db_seated_overhead_tuck", "Ngồi đẩy tạ qua đầu + co gối theo nhịp",
-             "Bụng/lõi, đùi trước (gập hông), vai (đẩy qua đầu)",
-             "Lõi giữ thân ổn định trong khi vai đẩy tạ và hông co gối — phối hợp tay–thân–chân "
-             "như lúc ra cú, vai bền khi đánh nhiều.",
+             form_cue="Sit with knees bent, feet on the floor, lean back slightly keeping the back straight, both hands "
+                      "holding one dumbbell at the chest. Lift one thigh WHILE pressing the dumbbell straight out in front; "
+                      "return, switch legs, alternate. Brace the abs for balance; lean moderately, no lower-back/knee pain."),
+    Exercise("db_seated_overhead_tuck", "Seated overhead press + rhythmic knee tuck",
+             "Abs/core, quads (hip flexion), shoulders (overhead press)",
+             "The core holds the torso steady while the shoulders press the weights and the hips tuck the knee — "
+             "arm–torso–leg coordination like executing a stroke, shoulder endurance for heavy play.",
              "reps", {"sets": 2, "reps": 16}, "core",
              gif=_gif("db_seated_overhead_tuck"),
-             form_cue="Ngồi ngả nhẹ ra sau (lưng thẳng), hai tay cầm hai tạ ngang vai. Đẩy hai tạ "
-                      "thẳng lên qua đầu ĐỒNG THỜI co một gối/đùi lên theo nhịp; hạ tạ và chân rồi "
-                      "đổi bên. Siết bụng, KHÔNG ưỡn lưng; gối co thoải mái, không đau."),
-    Exercise("db_seated_leg_spread", "Ngồi giữ tạ qua đầu, giang chân ra–vào",
-             "Bụng/lõi, đùi trong/ngoài (giang–khép), vai (giữ qua đầu)",
-             "Đùi trong/ngoài khoẻ để bước ngang rộng cứu bóng, lõi giữ thăng bằng khi giang chân, "
-             "vai bền khi giữ tạ qua đầu.",
+             form_cue="Sit leaning slightly back (back straight), both hands holding two dumbbells at shoulder height. Press "
+                      "both dumbbells straight up overhead WHILE tucking one knee/thigh up in rhythm; lower the weights and the "
+                      "leg, then switch sides. Brace the abs, do NOT arch the back; tuck the knee comfortably, no pain."),
+    Exercise("db_seated_leg_spread", "Seated overhead dumbbell hold + leg spreads",
+             "Abs/core, inner/outer thighs (abduction–adduction), shoulders (overhead hold)",
+             "Strong inner/outer thighs for wide sideways ball-saving steps, the core keeps balance while the legs "
+             "spread, the shoulders build endurance holding the weight overhead.",
              "reps", {"sets": 2, "reps": 20}, "core",
              gif=_gif("db_seated_leg_spread"),
-             form_cue="Ngồi ngả ra sau, hai tay cầm tạ DUỖI THẲNG qua đầu và giữ chắc. Giang hai chân "
-                      "mở rộng sang hai bên rồi khép vào theo nhịp; chân TRƯỢT nhẹ trên sàn, gối duỗi "
-                      "thoải mái. Siết bụng giữ thân; vai giữ tạ ổn định, không hạ tạ ra sau gáy."),
-    Exercise("db_seated_pass_under", "Ngồi nâng đùi, luồn tạ dưới đùi (luân phiên)",
-             "Bụng/lõi, đùi trước (gập hông), tay/vai",
-             "Nâng đùi siết lõi dưới + gập hông, hai tay luồn tạ qua dưới đùi rèn phối hợp tay–thân–chân; "
-             "lõi & hông khoẻ giữ trọng tâm khi xoay người cứu bóng.",
+             form_cue="Sit leaning back, both hands holding the dumbbell EXTENDED STRAIGHT overhead, held firm. Spread both "
+                      "legs wide apart then bring them together in rhythm; the legs SLIDE lightly on the floor, knees comfortably "
+                      "extended. Brace the abs to hold the torso; shoulders keep the weight steady, don't drop it behind the head."),
+    Exercise("db_seated_pass_under", "Seated thigh lift, pass the dumbbell under (alternating)",
+             "Abs/core, quads (hip flexion), arms/shoulders",
+             "Lifting the thigh braces the lower core + flexes the hip while the hands pass the weight under the thigh, "
+             "training arm–torso–leg coordination; a strong core & hips keep the center of gravity steady when twisting to save balls.",
              "reps", {"sets": 2, "reps": 16}, "core",
              gif=_gif("db_seated_pass_under"),
-             form_cue="Ngồi ngả nhẹ ra sau (lưng thẳng), hai tay cùng cầm 1 tạ. Nâng một đùi/gối lên, "
-                      "đưa hai tay luồn tạ XUỐNG DƯỚI đùi đang nâng rồi rút về; hạ chân, đổi bên, luân phiên. "
-                      "Siết bụng giữ thăng bằng; gối co thoải mái, không tì mạnh, không đau."),
+             form_cue="Sit leaning slightly back (back straight), both hands holding one dumbbell. Lift one thigh/knee up, "
+                      "pass the dumbbell UNDERNEATH the lifted thigh and pull it back; lower the leg, switch sides, alternate. "
+                      "Brace the abs for balance; tuck the knee comfortably, no hard pressure, no pain."),
     # --- warm-up (gentle knee mobility before the session; not counted) ---
-    Exercise("knee_mobility", "Làm nóng gối (gập–duỗi nhẹ)", "Khớp gối (làm nóng)",
-             "Làm trơn khớp gối trước khi tập, giảm cứng.",
+    Exercise("knee_mobility", "Knee warm-up (gentle flexion–extension)", "Knee joint (warm-up)",
+             "Lubricates the knee joint before training, reduces stiffness.",
              "timed", {"sets": 1, "sec": 60}, "warmup",
              gif=_gif("knee_mobility"),
-             form_cue="Ngồi/đứng, gập–duỗi gối biên độ thoải mái + xoay cổ chân. Nhẹ nhàng."),
-    Exercise("march_in_place", "Giậm chân tại chỗ nhẹ", "Toàn thân (làm nóng)",
-             "Tăng tuần hoàn, làm nóng cơ trước khi tập.",
+             form_cue="Seated/standing, flex–extend the knees in a comfortable range + circle the ankles. Gentle."),
+    Exercise("march_in_place", "Light march in place", "Full body (warm-up)",
+             "Boosts circulation and warms the muscles before training.",
              "timed", {"sets": 1, "sec": 40}, "warmup",
              gif=_gif("march_in_place"),
-             form_cue="Giậm chân nhẹ tại chỗ, không nhấc cao, không bật nhảy."),
+             form_cue="March lightly in place, don't lift the knees high, no jumping."),
 ]
 EXERCISES: dict[str, Exercise] = {e.key: e for e in _EX}
 
@@ -447,276 +447,276 @@ def daily_for(global_day: int) -> list[Exercise]:
     return daily_exercises() + daily_dumbbells(global_day)
 
 
-# Step-by-step "how to do it" for each exercise (Vietnamese), shown in the
-# expandable "Hướng dẫn chi tiết" on the card. Kept here (not on the Exercise
+# Step-by-step "how to do it" for each exercise, shown in the expandable
+# "Detailed instructions" on the card. Kept here (not on the Exercise
 # rows) so the dataclass calls stay readable and all instructions live together.
 HOW_TO: dict[str, tuple[str, ...]] = {
     # --- legs ---
     "quad_set": (
-        "Ngồi hoặc nằm, chân tập duỗi thẳng trên sàn.",
-        "Siết cơ đùi trước, ép mặt sau gối xuống sàn.",
-        "Giữ ~5 giây rồi thả lỏng. Lặp lại.",
+        "Sit or lie down, working leg extended straight on the floor.",
+        "Squeeze the quads, pressing the back of the knee down into the floor.",
+        "Hold ~5 seconds then relax. Repeat.",
     ),
     "short_arc_quad": (
-        "Nằm/ngồi, kê cuộn khăn (hoặc gối ôm) dưới khoeo chân.",
-        "Giữ đùi trên khăn, duỗi thẳng cẳng chân lên.",
-        "Giữ 2 giây rồi hạ chậm. Biên độ NHỎ, không đau.",
+        "Lie/sit with a rolled towel (or small pillow) under the back of the knee.",
+        "Keep the thigh on the towel and straighten the lower leg up.",
+        "Hold 2 seconds then lower slowly. SMALL range, no pain.",
     ),
     "straight_leg_raise": (
-        "Nằm ngửa, một chân co (bàn chân đặt sàn), chân tập duỗi thẳng.",
-        "Siết đùi, nâng chân thẳng lên ~30–40 cm.",
-        "Giữ 1–2 giây, hạ chậm. Gối LUÔN thẳng.",
+        "Lie on your back, one knee bent (foot on the floor), working leg straight.",
+        "Squeeze the thigh and raise the straight leg ~30–40 cm.",
+        "Hold 1–2 seconds, lower slowly. Knee ALWAYS straight.",
     ),
     "side_leg_raise": (
-        "Nằm nghiêng, hai chân duỗi thẳng chồng lên nhau.",
-        "Nâng chân trên thẳng lên (sang ngang), không gập gối.",
-        "Hạ chậm. Không lăn người ra sau. Đổi bên.",
+        "Lie on your side, both legs straight and stacked.",
+        "Raise the top leg straight up (sideways), without bending the knee.",
+        "Lower slowly. Don't roll backward. Switch sides.",
     ),
     "prone_leg_raise": (
-        "Nằm sấp, hai chân duỗi.",
-        "Siết mông, nâng một chân thẳng khỏi sàn biên độ nhỏ.",
-        "Giữ 1–2 giây, hạ. Không ưỡn lưng. Đổi bên.",
+        "Lie face down, both legs extended.",
+        "Squeeze the glutes and raise one straight leg off the floor in a small range.",
+        "Hold 1–2 seconds, lower. Don't arch the lower back. Switch sides.",
     ),
     "wall_sit_shallow": (
-        "Tựa lưng vào tường, hai chân bước ra trước.",
-        "Trượt xuống cho gối cong NÔNG (không tới 90°).",
-        "Giữ, thở đều. Đau gối thì đứng cao hơn.",
+        "Lean your back against the wall, feet stepped out in front.",
+        "Slide down until the knees bend SHALLOW (not to 90°).",
+        "Hold, breathe steadily. If the knee hurts, stand up higher.",
     ),
     "glute_bridge": (
-        "Nằm ngửa, hai gối co, bàn chân đặt sàn rộng bằng hông.",
-        "Siết mông nâng hông thành đường thẳng vai–hông–gối.",
-        "Giữ 1–2 giây, hạ chậm. Không ưỡn lưng.",
+        "Lie on your back, knees bent, feet on the floor hip-width apart.",
+        "Squeeze the glutes and lift the hips into a straight shoulder–hip–knee line.",
+        "Hold 1–2 seconds, lower slowly. Don't arch the back.",
     ),
     "calf_raise": (
-        "Đứng thẳng, vịn ghế/tường nếu cần.",
-        "Nhón cả hai gót lên cao hết mức.",
-        "Hạ gót chậm. Lặp lại.",
+        "Stand tall, hold a chair/wall if needed.",
+        "Rise up on both toes as high as you can.",
+        "Lower the heels slowly. Repeat.",
     ),
     "mini_squat": (
-        "Đứng chân rộng bằng vai, vịn ghế nếu cần.",
-        "Đẩy mông ra sau, cong gối NÔNG ~30°.",
-        "Đứng dậy siết mông. Gối không vượt mũi chân.",
+        "Stand feet shoulder-width apart, hold a chair if needed.",
+        "Push the hips back, bending the knees SHALLOW ~30°.",
+        "Stand up squeezing the glutes. Knees don't pass the toes.",
     ),
     "lateral_toe_steps": (
-        "Nhón nhẹ trên mũi chân, gối hơi mềm.",
-        "Bước ngang sang phải vài bước rồi sang trái.",
-        "Nhẹ nhàng, KHÔNG khuỵu gối sâu, không nhảy.",
+        "Rise lightly onto the toes, knees slightly soft.",
+        "Step sideways to the right a few steps, then to the left.",
+        "Gently — do NOT bend the knees deep, no jumping.",
     ),
     "single_leg_glute_bridge": (
-        "Nằm ngửa như cầu mông, duỗi thẳng một chân lên.",
-        "Siết mông nâng hông bằng chân trụ còn lại.",
-        "Giữ hông NGANG (không lệch), hạ chậm. Đổi bên.",
+        "Lie on your back as for a glute bridge, extend one leg straight up.",
+        "Squeeze the glutes and lift the hips with the remaining support leg.",
+        "Keep the hips LEVEL (no tilting), lower slowly. Switch sides.",
     ),
     "lateral_lunge": (
-        "Đứng chân rộng, vịn ghế nếu cần.",
-        "Dồn trọng tâm sang một chân, đẩy mông ra sau, gối theo hướng mũi chân.",
-        "Giữ NÔNG rồi đẩy về giữa. Không xuống sâu. Đổi bên.",
+        "Stand with a wide stance, hold a chair if needed.",
+        "Shift your weight onto one leg, push the hips back, knee tracking over the toes.",
+        "Stay SHALLOW then push back to center. Don't go deep. Switch sides.",
     ),
     "inner_thigh_raise": (
-        "Nằm nghiêng, chân trên co gác ra trước mặt.",
-        "Chân dưới duỗi thẳng, nâng lên khỏi sàn.",
-        "Hạ chậm. Đổi bên.",
+        "Lie on your side, top leg bent and resting in front of you.",
+        "Keep the bottom leg straight and raise it off the floor.",
+        "Lower slowly. Switch sides.",
     ),
     "hip_hinge": (
-        "Đứng chân rộng bằng vai, gối HƠI MỀM (không gập sâu).",
-        "Đẩy MÔNG ra sau, gập người tới, lưng thẳng, tới khi căng đùi sau.",
-        "Siết mông đứng dậy. Lực ở hông/đùi sau, KHÔNG ở gối.",
+        "Stand feet shoulder-width apart, knees SLIGHTLY SOFT (no deep bend).",
+        "Push the HIPS back and hinge forward, back straight, until the hamstrings feel tight.",
+        "Squeeze the glutes to stand up. Force in the hips/hamstrings, NOT the knees.",
     ),
     # --- core ---
     "plank": (
-        "Chống hai khuỷu tay xuống sàn (dưới vai), mũi chân chống.",
-        "Siết bụng + mông, thân thẳng MỘT đường.",
-        "Giữ, thở đều. Lưng không võng, mông không chổng.",
+        "Place both elbows on the floor (under the shoulders), up on the toes.",
+        "Brace abs + glutes, body in ONE straight line.",
+        "Hold, breathe steadily. Back doesn't sag, hips don't pike up.",
     ),
     "crunch": (
-        "Nằm ngửa, gối co, tay đỡ nhẹ sau đầu (không đan chặt).",
-        "Cuộn vai lên khỏi sàn bằng cơ bụng — KHÔNG kéo cổ.",
-        "Hạ chậm. Lặp lại.",
+        "Lie on your back, knees bent, hands lightly supporting the head (not clasped tight).",
+        "Curl the shoulders off the floor using the abs — do NOT pull on the neck.",
+        "Lower slowly. Repeat.",
     ),
     "dead_bug": (
-        "Nằm ngửa, hai tay vươn lên trần, hai gối co 90° (tư thế cái bàn).",
-        "Ép lưng SÁT sàn; hạ tay và chân ĐỐI DIỆN xuống gần sàn.",
-        "Đưa về, đổi bên. Lưng luôn sát sàn.",
+        "Lie on your back, arms reaching to the ceiling, knees bent 90° (tabletop position).",
+        "Press the back FLAT into the floor; lower the OPPOSITE arm and leg toward the floor.",
+        "Return, switch sides. Back always flat on the floor.",
     ),
     "double_leg_lift_hold": (
-        "Nằm ngửa, ép lưng sát sàn, hai tay xuôi cạnh người.",
-        "Nâng hai chân thẳng khỏi sàn vài chục cm.",
-        "GIỮ. Lưng cong/đau thì nâng chân cao hơn hoặc hơi co gối.",
+        "Lie on your back, press the lower back into the floor, arms by your sides.",
+        "Raise both straight legs a few dozen centimeters off the floor.",
+        "HOLD. If the back arches/hurts, raise the legs higher or bend the knees slightly.",
     ),
     "side_plank": (
-        "Nằm nghiêng, chống một khuỷu tay ngay dưới vai.",
-        "Nâng hông lên, thân thẳng một đường.",
-        "Giữ, hông không võng. Đổi bên.",
+        "Lie on your side, prop up on one elbow directly under the shoulder.",
+        "Lift the hips, body in one straight line.",
+        "Hold, hips don't sag. Switch sides.",
     ),
     "plank_knee_rotation": (
-        "Vào plank cẳng tay, GỐI THẲNG, chân hơi rộng.",
-        "Xoay hông cho hông/gối lật chạm về sàn một bên.",
-        "Đổi bên, có kiểm soát. KHÔNG quỳ/dồn lên gối.",
+        "Get into a forearm plank, KNEES STRAIGHT, feet slightly wide.",
+        "Rotate the hips so the hips/knees tip toward the floor on one side.",
+        "Switch sides, with control. Do NOT kneel or load the knees.",
     ),
     "plank_shoulder_tap": (
-        "Vào plank CAO (chống hai tay), gối thẳng, chân mở rộng cho vững.",
-        "Nhấc một tay chạm lên vai đối diện.",
-        "Đặt xuống, đổi tay. Giữ HÔNG không lắc.",
+        "Get into a HIGH plank (on the hands), knees straight, feet wide for stability.",
+        "Lift one hand and tap the opposite shoulder.",
+        "Place it down, switch hands. Keep the HIPS from rocking.",
     ),
     "bird_dog": (
-        "Quỳ chống hai tay (KÊ ĐỆM dưới gối), lưng phẳng như mặt bàn.",
-        "Duỗi thẳng tay và chân ĐỐI DIỆN ra ngang thân.",
-        "Giữ 2 giây, thu về, đổi bên. Không võng lưng. (Cộm gối → đổi Dead Bug.)",
+        "On hands and knees (PAD under the knees), back flat like a tabletop.",
+        "Extend the OPPOSITE arm and leg straight out in line with the torso.",
+        "Hold 2 seconds, return, switch sides. No sagging back. (Knee discomfort → switch to Dead Bug.)",
     ),
     "bicycle_crunch": (
-        "Nằm ngửa, tay đỡ sau đầu, hai chân nâng khỏi sàn.",
-        "Đưa khuỷu tay chạm gối ĐỐI DIỆN, chân kia duỗi ra.",
-        "Đổi bên liên tục như đạp xe, chậm và có kiểm soát.",
+        "Lie on your back, hands behind the head, both legs lifted off the floor.",
+        "Bring one elbow to the OPPOSITE knee while extending the other leg.",
+        "Keep alternating like pedaling a bicycle, slow and controlled.",
     ),
     "russian_twist": (
-        "Ngồi, gối co, hơi ngả người ra sau (lưng thẳng).",
-        "Xoay thân sang một bên (tay/vật chạm cạnh hông).",
-        "Xoay sang bên kia. Xoay từ LƯỜN, không giật cổ.",
+        "Sit, knees bent, leaning slightly back (back straight).",
+        "Rotate the torso to one side (hands/object touching beside the hip).",
+        "Rotate to the other side. Rotate from the OBLIQUES, don't jerk the neck.",
     ),
     "standing_trunk_twist": (
-        "Đứng vững, chân rộng bằng vai, gối thẳng tự nhiên.",
-        "Hai tay đưa ngang, xoay thân sang trái.",
-        "Xoay sang phải. Xoay từ hông/lườn, hông giữ ổn định.",
+        "Stand firm, feet shoulder-width apart, knees naturally straight.",
+        "Arms out level, rotate the torso to the left.",
+        "Rotate to the right. Rotate from the hips/obliques, hips staying stable.",
     ),
     "wood_chop": (
-        "Đứng, hai tay nắm nhau (hoặc cầm vật nhẹ) đưa lên chéo một bên.",
-        "Vung chéo xuống phía hông ĐỐI DIỆN, xoay lườn theo.",
-        "Đưa lên lại, lặp; đổi bên. Gối chỉ hơi mềm, không khuỵu sâu.",
+        "Stand, hands clasped together (or holding a light object) raised diagonally to one side.",
+        "Swing diagonally down toward the OPPOSITE hip, rotating the obliques.",
+        "Bring it back up, repeat; switch sides. Knees only slightly soft, no deep bend.",
     ),
     # --- balance · upper body · wrist · mobility ---
     "single_leg_balance": (
-        "Đứng thẳng cạnh điểm tựa (ghế/tường).",
-        "Nhấc một chân khỏi sàn, siết hông giữ thăng bằng.",
-        "Giữ. Bám tựa nếu loạng choạng. Đổi chân.",
+        "Stand tall next to a support (chair/wall).",
+        "Lift one foot off the floor, brace the hips to balance.",
+        "Hold. Grab the support if wobbly. Switch legs.",
     ),
     "single_leg_eyes_closed": (
-        "Đứng một chân cạnh tường để sẵn sàng bám.",
-        "Nhắm mắt, giữ thăng bằng bằng cảm nhận thân.",
-        "Giữ. Mở mắt/bám khi mất thăng bằng. Đổi chân.",
+        "Stand on one leg next to a wall, ready to grab it.",
+        "Close your eyes and balance using body awareness.",
+        "Hold. Open your eyes / grab support if you lose balance. Switch legs.",
     ),
     "toe_stand_hold": (
-        "Đứng thẳng, vịn nếu cần.",
-        "Nhón cả hai gót lên cao.",
-        "GIỮ ở trên. Hạ chậm.",
+        "Stand tall, hold on if needed.",
+        "Rise up high on both toes.",
+        "HOLD at the top. Lower slowly.",
     ),
     "gentle_bounce": (
-        "Đứng trên mũi chân, gối hơi mềm.",
-        "Nhún nhẹ tại chỗ, tiếp đất MỀM.",
-        "Giữ nhịp đều. KHÔNG nhảy cao.",
+        "Stand on the toes, knees slightly soft.",
+        "Bounce lightly in place, landing SOFT.",
+        "Keep an even rhythm. Do NOT jump high.",
     ),
     "wall_pushup": (
-        "Đứng cách tường một tầm tay, chống hai tay lên tường ngang vai.",
-        "Cong khuỷu hạ người vào tường, thân giữ thẳng.",
-        "Đẩy người ra. Muốn nặng hơn thì đứng xa tường hơn.",
+        "Stand an arm's length from the wall, hands on the wall at shoulder height.",
+        "Bend the elbows lowering yourself to the wall, body kept straight.",
+        "Push back out. To make it harder, stand farther from the wall.",
     ),
     "wrist_curl": (
-        "Ngồi, cẳng tay tựa lên đùi, bàn tay thò khỏi gối, cầm vật nhẹ (chai nước).",
-        "Cuộn cổ tay lên–xuống chậm vài lần.",
-        "Rồi xoay cổ tay trong–ngoài. Nhẹ nhàng. Đổi tay.",
+        "Sit, forearm resting on the thigh, hand hanging past the knee, holding a light object (water bottle).",
+        "Curl the wrist up–down slowly a few times.",
+        "Then rotate the wrist in–out. Gently. Switch hands.",
     ),
     "scapular_yt": (
-        "Nằm sấp, trán tựa nhẹ, hai tay duỗi trước thành chữ Y.",
-        "Nâng hai tay khỏi sàn (giữ chữ Y), siết bả vai, rồi hạ.",
-        "Dang tay thành chữ T, nâng lên rồi hạ. KHÔNG nhún vai lên tai.",
+        "Lie face down, forehead resting lightly, arms extended forward in a Y shape.",
+        "Raise both arms off the floor (keeping the Y), squeeze the shoulder blades, then lower.",
+        "Spread the arms into a T, raise and lower. Do NOT shrug the shoulders up to the ears.",
     ),
     "thoracic_rotation": (
-        "Nằm nghiêng, hai gối co chồng nhau, hai tay duỗi thẳng trước mặt (chồng nhau).",
-        "Mở tay trên lên và ra sau, xoay NGỰC như mở trang sách, mắt theo tay.",
-        "Đưa tay về. Lặp rồi đổi bên. Nhẹ nhàng. (Ngồi xoay cũng được.)",
+        "Lie on your side, knees bent and stacked, arms extended straight in front (stacked).",
+        "Open the top arm up and back, rotating the CHEST like opening a book page, eyes following the hand.",
+        "Bring the arm back. Repeat, then switch sides. Gentle. (Seated rotation works too.)",
     ),
     "hamstring_stretch": (
-        "Ngồi/đứng, một chân duỗi thẳng.",
-        "Gập TỪ HÔNG tới khi căng nhẹ đùi sau, lưng thẳng.",
-        "Giữ, thở đều, KHÔNG nảy. Đổi bên.",
+        "Sit/stand with one leg extended straight.",
+        "Hinge FROM THE HIPS until you feel a gentle stretch in the hamstrings, back straight.",
+        "Hold, breathe steadily, do NOT bounce. Switch sides.",
     ),
     "quad_stretch": (
-        "Đứng vịn tường một tay.",
-        "Gập một gối, tay kia kéo gót về phía mông NHẸ NHÀNG.",
-        "Giữ tới căng nhẹ đùi trước. Đổi bên.",
+        "Stand holding the wall with one hand.",
+        "Bend one knee and GENTLY pull the heel toward the glutes with the other hand.",
+        "Hold at a gentle stretch in the quads. Switch sides.",
     ),
     "groin_stretch": (
-        "Ngồi, hai lòng bàn chân chạm nhau, kéo gần người.",
-        "Ấn nhẹ hai gối xuống tới khi căng nhẹ háng.",
-        "Giữ, thở đều, không nảy.",
+        "Sit, soles of the feet together, pulled close to the body.",
+        "Gently press the knees down until you feel a light stretch in the groin.",
+        "Hold, breathe steadily, no bouncing.",
     ),
     # --- daily staples ---
     "gyro_ball": (
-        "Cho ngón tay giật dây (hoặc xoay mồi) để rotor trong bóng bắt đầu quay.",
-        "Khi bóng đã quay, GIỮ chắc và xoay cổ tay đều theo vòng để bóng tăng tốc & duy trì.",
-        "Giữ liên tục hết thời gian rồi đổi tay. Vai thả lỏng, chỉ cẳng tay làm việc.",
+        "Pull the starter cord (or wind the rotor) so the rotor inside the ball starts spinning.",
+        "Once it spins, GRIP firmly and circle the wrist evenly so the ball speeds up & keeps going.",
+        "Keep it going for the full time, then switch hands. Shoulder relaxed, only the forearm works.",
     ),
     "thigh_lift_bottle": (
-        "Đặt một chai nước trên sàn, ngay khoảng giữa hai chân.",
-        "Nằm ngửa, hai tay xuôi cạnh người, ÉP NHẸ thắt lưng xuống sàn.",
-        "Nâng một chân/đùi lên, đưa bàn chân & đùi VÒNG QUA chai sang bên kia rồi vòng về chỗ cũ.",
-        "Đổi chân. Dùng lõi kiểm soát, chậm rãi; không lấy đà bằng lưng.",
+        "Place a water bottle on the floor, about midway between your feet.",
+        "Lie on your back, arms by your sides, GENTLY PRESS the lower back into the floor.",
+        "Lift one leg/thigh, carry the foot & thigh OVER the bottle to the other side, then back to the start.",
+        "Switch legs. Control with the core, slowly; don't use momentum from the back.",
     ),
     # --- dumbbell pool (1kg) ---
     "db_trunk_twist": (
-        "Ngồi thẳng lưng trên ghế/sàn (hoặc đứng chân rộng bằng vai), hai tay ôm tạ trước ngực.",
-        "Xoay thân sang một bên từ LƯỜN, giữ hông ổn định.",
-        "Xoay sang bên kia. Chậm, có kiểm soát; không giật cổ/lưng.",
+        "Sit with a straight back on a chair/the floor (or stand feet shoulder-width), hands hugging the dumbbell at the chest.",
+        "Rotate the torso to one side from the OBLIQUES, keeping the hips stable.",
+        "Rotate to the other side. Slow, controlled; don't jerk the neck/back.",
     ),
     "db_shoulder_press": (
-        "Ngồi thẳng lưng, hai tạ đưa lên ngang vai, lòng bàn tay hướng trước.",
-        "Đẩy hai tạ thẳng lên qua đầu, siết bụng giữ trụ.",
-        "Hạ chậm về ngang vai. Không ưỡn lưng.",
+        "Sit with a straight back, dumbbells raised to shoulder height, palms facing forward.",
+        "Press both dumbbells straight up overhead, bracing the abs.",
+        "Lower slowly back to shoulder height. Don't arch the back.",
     ),
     "db_wood_chop": (
-        "Đứng chân rộng, hai tay cầm một tạ đưa lên cao chéo qua một vai.",
-        "Vung chéo tạ xuống phía hông ĐỐI DIỆN, xoay lườn theo.",
-        "Đưa lên lại, lặp; đổi bên. Gối chỉ hơi mềm, không khuỵu sâu.",
+        "Stand with a wide stance, both hands holding one dumbbell raised diagonally over one shoulder.",
+        "Swing the dumbbell diagonally down toward the OPPOSITE hip, rotating the obliques.",
+        "Bring it back up, repeat; switch sides. Knees only slightly soft, no deep bend.",
     ),
     "db_lateral_raise": (
-        "Đứng/ngồi thẳng, hai tạ để cạnh hông, khuỷu hơi cong.",
-        "Nâng thẳng hai tay sang ngang tới ngang vai.",
-        "Hạ chậm. Không nhún vai, không lấy đà bằng thân.",
+        "Stand/sit tall, dumbbells at the hips, elbows slightly bent.",
+        "Raise the arms straight out to the sides up to shoulder height.",
+        "Lower slowly. No shrugging, no momentum from the torso.",
     ),
     "db_shadow_swing": (
-        "Cầm 1 tạ ở tay thuận, vào tư thế chuẩn bị như đánh bóng.",
-        "Mô phỏng cú giật/bạt CHẬM, đúng kỹ thuật: xoay hông → thân → tay.",
-        "Lặp, rồi đổi sang mô phỏng cú trái tay. Giữ form, không vung ẩu.",
+        "Hold one dumbbell in your playing hand, get into the ready position as if playing.",
+        "Shadow the loop/smash SLOWLY, with proper technique: rotate hips → torso → arm.",
+        "Repeat, then switch to shadowing the backhand. Keep form, no sloppy swinging.",
     ),
     "db_bent_row": (
-        "Gập HÔNG (đẩy mông ra sau), gối hơi mềm, lưng thẳng, hai tạ buông thẳng xuống.",
-        "Kéo hai tạ về phía hông, siết hai bả vai lại.",
-        "Hạ chậm. Lực ở lưng/hông, không dồn lên gối.",
+        "Hinge at the HIPS (push the hips back), knees slightly soft, back straight, dumbbells hanging straight down.",
+        "Row both dumbbells toward the hips, squeezing the shoulder blades together.",
+        "Lower slowly. Force in the back/hips, don't load the knees.",
     ),
-    # --- seated weighted-abs trio + pass-under (ngồi ngả người, tạ 1kg) ---
+    # --- seated weighted-abs trio + pass-under (lean-back seated, 1kg dumbbells) ---
     "db_seated_leg_press": (
-        "Ngồi trên sàn, gối co bàn chân chạm đất, hơi ngả người ra sau (lưng thẳng), hai tay cùng cầm 1 tạ trước ngực.",
-        "Siết bụng giữ thăng bằng; nâng một đùi/chân lên ĐỒNG THỜI đẩy tạ thẳng ra trước.",
-        "Thu tạ về ngực và hạ chân xuống, đổi sang chân kia.",
-        "Luân phiên hai chân, chậm và có kiểm soát; gối duỗi thoải mái, không đau.",
+        "Sit on the floor, knees bent with feet on the ground, leaning slightly back (back straight), both hands holding one dumbbell at the chest.",
+        "Brace the abs for balance; lift one thigh/leg WHILE pressing the dumbbell straight out in front.",
+        "Bring the dumbbell back to the chest and lower the leg, switch to the other leg.",
+        "Alternate legs, slow and controlled; knee extended comfortably, no pain.",
     ),
     "db_seated_overhead_tuck": (
-        "Ngồi ngả nhẹ ra sau (lưng thẳng), hai tay cầm hai tạ đưa lên ngang vai.",
-        "Đẩy hai tạ thẳng lên qua đầu ĐỒNG THỜI co một gối/đùi lên theo nhịp.",
-        "Hạ tạ về ngang vai và hạ chân, rồi đổi bên chân.",
-        "Siết bụng giữ trụ, KHÔNG ưỡn lưng; gối co thoải mái.",
+        "Sit leaning slightly back (back straight), both hands holding two dumbbells raised to shoulder height.",
+        "Press both dumbbells straight up overhead WHILE tucking one knee/thigh up in rhythm.",
+        "Lower the dumbbells to shoulder height and lower the leg, then switch legs.",
+        "Brace the abs to stay stable, do NOT arch the back; tuck the knee comfortably.",
     ),
     "db_seated_leg_spread": (
-        "Ngồi ngả ra sau (lưng thẳng), hai tay cầm 1 tạ DUỖI THẲNG lên qua đầu, giữ chắc.",
-        "Giang hai chân mở rộng sang hai bên (chân trượt nhẹ trên sàn).",
-        "Khép hai chân về giữa theo nhịp. Lặp lại.",
-        "Siết bụng giữ thân; vai giữ tạ ổn định, gối duỗi thoải mái.",
+        "Sit leaning back (back straight), both hands holding one dumbbell EXTENDED STRAIGHT overhead, held firm.",
+        "Spread both legs wide apart (legs sliding lightly on the floor).",
+        "Bring the legs back together in rhythm. Repeat.",
+        "Brace the abs to hold the torso; shoulders keep the weight steady, knees extended comfortably.",
     ),
     "db_seated_pass_under": (
-        "Ngồi ngả nhẹ ra sau (lưng thẳng), hai tay cùng cầm 1 tạ.",
-        "Nâng một đùi/gối lên, đưa hai tay luồn tạ XUỐNG DƯỚI đùi đang nâng rồi rút tạ về.",
-        "Hạ chân xuống, đổi sang chân kia.",
-        "Luân phiên, siết bụng giữ thăng bằng; gối co thoải mái, không tì mạnh.",
+        "Sit leaning slightly back (back straight), both hands holding one dumbbell.",
+        "Lift one thigh/knee up, pass the dumbbell UNDERNEATH the lifted thigh, then pull it back.",
+        "Lower the leg, switch to the other leg.",
+        "Alternate, bracing the abs for balance; tuck the knee comfortably, no hard pressure.",
     ),
     # --- warm-up ---
     "knee_mobility": (
-        "Ngồi hoặc đứng vịn.",
-        "Gập–duỗi gối nhẹ nhàng trong biên độ thoải mái.",
-        "Xoay cổ chân vài vòng mỗi bên.",
+        "Sit, or stand holding a support.",
+        "Gently flex–extend the knees in a comfortable range.",
+        "Circle the ankles a few times each way.",
     ),
     "march_in_place": (
-        "Đứng thẳng.",
-        "Giậm chân tại chỗ nhịp nhàng, nhấc đùi vừa phải.",
-        "Đánh tay nhẹ theo nhịp. KHÔNG bật nhảy.",
+        "Stand tall.",
+        "March in place rhythmically, lifting the thighs moderately.",
+        "Swing the arms lightly with the rhythm. Do NOT jump.",
     ),
 }
 
@@ -812,7 +812,7 @@ def next_level(level: str) -> str | None:
 
 # --------------------------------------------------- maintenance / progression
 # After the last level is finished the program does NOT dead-end: it repeats the
-# top (sport-specific) level in "cycles" (Vòng) with gentle progressive overload.
+# top (sport-specific) level in "cycles" with gentle progressive overload.
 # Overload plateaus after a few cycles — for a knee-OA client we add time-under-
 # tension / reps, never load or impact, and we cap it so it stays sensible. The
 # Head Coach (Tier-2) is meant to take over the "what next" eventually.
@@ -891,7 +891,7 @@ def daily_target(ex: Exercise, global_day: int, bias: int = 0) -> dict:
 
 def alternatives_for(key: str, exclude: set[str]) -> list[Exercise]:
     """Knee-safe substitutes for an exercise: same day-type, not already in the
-    session. Used by the "đổi bài nếu đau" swap."""
+    session. Used by the "swap if it hurts" substitution."""
     ex = EXERCISES.get(key)
     if ex is None:
         return []

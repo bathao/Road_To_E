@@ -8,17 +8,17 @@ import { fmtTime } from "./fmt";
 import type { Assessment, Directive, DirectiveProgress, NotesOut } from "./types";
 
 const AREA: Record<string, { icon: string; label: string }> = {
-  training: { icon: "💪", label: "Thể lực" },
-  playing_hours: { icon: "⏱️", label: "Giờ đánh" },
-  matches: { icon: "🏓", label: "Thi đấu" },
-  skill: { icon: "🎯", label: "Kỹ năng" },
-  tactics: { icon: "♟️", label: "Chiến thuật" },
-  recovery: { icon: "🛌", label: "Hồi phục" },
+  training: { icon: "💪", label: "Fitness" },
+  playing_hours: { icon: "⏱️", label: "Playing hours" },
+  matches: { icon: "🏓", label: "Matches" },
+  skill: { icon: "🎯", label: "Skill" },
+  tactics: { icon: "♟️", label: "Tactics" },
+  recovery: { icon: "🛌", label: "Recovery" },
   // Aliases the model sometimes emits instead of the canonical areas —
   // mapped so the card never shows a raw English key.
-  playing: { icon: "⏱️", label: "Giờ đánh" },
-  training_hours: { icon: "⏱️", label: "Giờ tập" },
-  physical_training: { icon: "💪", label: "Thể lực" },
+  playing: { icon: "⏱️", label: "Playing hours" },
+  training_hours: { icon: "⏱️", label: "Training hours" },
+  physical_training: { icon: "💪", label: "Fitness" },
 };
 
 function areaOf(d: Directive) {
@@ -28,13 +28,13 @@ function areaOf(d: Directive) {
 // What each trackable metric actually measures (mirrors backend _week_actual)
 // — shown next to the progress bar so the order text can't be misread.
 const METRIC_SCOPE: Record<string, string> = {
-  physical_sessions_per_week: "buổi thể lực Training Center",
-  racket_hours_per_week: "tổng cầm vợt: tập + thi đấu",
-  coach_hours_per_week: "chỉ tính giờ với HLV",
-  matches_per_week: "mọi trận, cả đơn lẫn đôi",
-  singles_matches_per_week: "chỉ trận đơn",
-  doubles_matches_per_week: "chỉ trận đôi",
-  matches_vs_pips_per_week: "trận gặp đối thủ gai",
+  physical_sessions_per_week: "Training Center fitness sessions",
+  racket_hours_per_week: "total racket time: practice + matches",
+  coach_hours_per_week: "coach hours only",
+  matches_per_week: "all matches, singles and doubles",
+  singles_matches_per_week: "singles matches only",
+  doubles_matches_per_week: "doubles matches only",
+  matches_vs_pips_per_week: "matches vs pips opponents",
 };
 
 export default function HeadCoach() {
@@ -113,7 +113,7 @@ export default function HeadCoach() {
       if (s.status === "generating") return;
       setGenerating(false);
       if (s.status === "error") {
-        const msg = s.error_msg || "Phân tích thất bại.";
+        const msg = s.error_msg || "Analysis failed.";
         void run(() => Promise.reject(new Error(msg))); // surface via shared error state
         return;
       }
@@ -138,42 +138,44 @@ export default function HeadCoach() {
       <div className="hc-main">
       <div className="hc-top">
         <div>
-          <h2 className="hc-title">🧠 HLV trưởng</h2>
+          <h2 className="hc-title">🧠 Head Coach</h2>
           <p className="hc-sub">
-            Huấn luyện viên cá nhân — tổng hợp toàn bộ số liệu của bạn và đưa ra
-            đánh giá nghiêm khắc + kế hoạch.
+            Your personal coach — reviews all of your data and delivers a
+            strict assessment + a plan.
           </p>
         </div>
         <button className="btn primary" onClick={generate} disabled={generating}>
-          {generating ? "⏳ Đang phân tích…" : data?.empty ? "Phân tích lần đầu" : "Phân tích lại"}
+          {generating ? "⏳ Analyzing…" : data?.empty ? "First analysis" : "Re-analyze"}
         </button>
       </div>
 
       {generating && (
         <div className="hc-note">
-          HLV đang xem lại số liệu của bạn (chạy model cục bộ ở chế độ nền —
-          có thể chuyển tab khác rồi quay lại, kết quả sẽ tự hiện)…
+          The coach is reviewing your data (local model running in the
+          background — you can switch tabs and come back, the result will
+          appear automatically)…
         </div>
       )}
       {error && <div className="hc-error">⚠️ {error}</div>}
 
       {!loading && data?.empty && !generating && (
         <div className="hc-empty">
-          Chưa có buổi đánh giá nào. Bấm <b>“Phân tích lần đầu”</b> để HLV trưởng
-          đọc hồ sơ kỹ thuật, thể lực, kết quả thi đấu và chiến thuật của bạn.
+          No assessment yet. Click <b>“First analysis”</b> to have the head
+          coach read your technique profile, fitness, match results and
+          tactics.
         </div>
       )}
 
       {data && !data.empty && (
         <>
           <section className="hc-overall">
-            <h3>Đánh giá tổng quan</h3>
+            <h3>Overall assessment</h3>
             <p>{data.overall_assessment}</p>
           </section>
 
           {data.directives.length > 0 && (
             <section className="hc-section">
-              <h3>📋 Mệnh lệnh tăng cường</h3>
+              <h3>📋 Directives</h3>
               <div className="hc-directives">
                 {data.directives.map((d, i) => {
                   const a = areaOf(d);
@@ -189,7 +191,7 @@ export default function HeadCoach() {
                       {p && (
                         <div
                           className="hc-progress"
-                          title="Tiến độ tuần này, tính tự động từ dữ liệu đã ghi (Thứ 2 → hôm nay)"
+                          title="This week's progress, computed automatically from logged data (Monday → today)"
                         >
                           <div className="hc-progress-track">
                             <div
@@ -198,7 +200,7 @@ export default function HeadCoach() {
                             />
                           </div>
                           <span className="hc-progress-label">
-                            Tuần này: <b>{p.actual}</b>/{p.value} {p.unit_vi}
+                            This week: <b>{p.actual}</b>/{p.value} {p.unit_vi}
                             {p.pct >= 100 ? " ✓" : ""}
                             {METRIC_SCOPE[p.metric] && (
                               <span className="hc-progress-scope">
@@ -217,7 +219,7 @@ export default function HeadCoach() {
 
           {data.top_priorities.length > 0 && (
             <section className="hc-section">
-              <h3>🎯 Ưu tiên</h3>
+              <h3>🎯 Priorities</h3>
               <ol className="hc-priorities">
                 {data.top_priorities.map((p, i) => (
                   <li key={i}>
@@ -232,7 +234,7 @@ export default function HeadCoach() {
 
           {data.week_plan.length > 0 && (
             <section className="hc-section">
-              <h3>🗓️ Kế hoạch tuần</h3>
+              <h3>🗓️ Week plan</h3>
               <div className="hc-week">
                 {data.week_plan.map((d, i) => (
                   <div key={i} className="hc-day">
@@ -247,7 +249,7 @@ export default function HeadCoach() {
 
           {data.watch_items.length > 0 && (
             <section className="hc-section hc-watch">
-              <h3>⚠️ Cần lưu ý</h3>
+              <h3>⚠️ Watch items</h3>
               <ul>
                 {data.watch_items.map((w, i) => (
                   <li key={i}>{w}</li>
@@ -257,31 +259,31 @@ export default function HeadCoach() {
           )}
 
           <details className="hc-sources">
-            <summary>📊 Nguồn dữ liệu HLV đã đọc</summary>
+            <summary>📊 Data sources the coach read</summary>
             <div className="hc-source-grid">
-              <div>Khoảng thời gian: {data.sources.generated_for_range}</div>
+              <div>Time range: {data.sources.generated_for_range}</div>
               <div>
-                Thi đấu (90 ngày): đơn {m.singles?.played ?? "—"} trận · đôi{" "}
-                {m.doubles?.played ?? "—"} · gai {m.vs_pips?.played ?? "—"} · tổng{" "}
+                Matches (90 days): singles {m.singles?.played ?? "—"} · doubles{" "}
+                {m.doubles?.played ?? "—"} · pips {m.vs_pips?.played ?? "—"} · total{" "}
                 {m.overall?.played ?? "—"}
               </div>
               <div>
-                Phân tích sâu ({detail.window ?? "—"}): đánh chơi{" "}
-                {detail.practice?.played ?? "—"} · đánh độ{" "}
-                {detail.official?.played ?? "—"} · đánh giải{" "}
+                Deep dive ({detail.window ?? "—"}): casual{" "}
+                {detail.practice?.played ?? "—"} · light stakes{" "}
+                {detail.official?.played ?? "—"} · tournament{" "}
                 {detail.tournament?.played ?? "—"} · head-to-head{" "}
-                {detail.top_h2h?.length ?? 0} đối thủ
+                {detail.top_h2h?.length ?? 0} opponents
               </div>
               <div>
-                Thể lực: cấp {training.level ?? "—"} ·{" "}
-                {training.sessions_last_7d ?? 0} buổi/7 ngày · Ghi chú:{" "}
-                {notes.length} ngày gần nhất
+                Fitness: level {training.level ?? "—"} ·{" "}
+                {training.sessions_last_7d ?? 0} sessions/7 days · Notes: last{" "}
+                {notes.length} days
               </div>
             </div>
           </details>
 
           <div className="hc-meta">
-            Tạo lúc {fmtTime(data.created_at)} · model {data.model}
+            Generated at {fmtTime(data.created_at)} · model {data.model}
           </div>
         </>
       )}
@@ -290,17 +292,18 @@ export default function HeadCoach() {
 
       <aside className="hc-side">
         <section className="hc-side-block">
-          <h3>💬 Trao đổi với HLV</h3>
+          <h3>💬 Chat with the coach</h3>
           <p className="hc-hint">
-            Đặt mục tiêu ngắn hạn, báo lịch bận, hỏi về số liệu — HLV trả lời
-            dựa trên dữ liệu thật và nhớ mọi trao đổi (lưu trong database).
+            Set short-term goals, report busy schedules, ask about your stats —
+            the coach answers from real data and remembers every exchange
+            (stored in the database).
           </p>
           <CoachChat onCoachReply={reloadNotes} />
         </section>
         <section className="hc-side-block">
-          <h3>📒 Sổ tay HLV</h3>
+          <h3>📒 Coach's notebook</h3>
           <p className="hc-hint">
-            Điều đã chốt — được đưa vào mọi câu trả lời và cả bản phân tích.
+            Settled facts — injected into every reply and into the assessment.
           </p>
           <CoachNotes
             notes={notesData?.notes ?? []}

@@ -789,8 +789,8 @@ def start_next_coach_package(db: Session) -> schemas.CoachPackagesResponse:
     block = sessions[start_idx:]
     if len(block) <= COACH_PACKAGE_SIZE:
         raise ValueError(
-            f"Gói hiện tại mới có {len(block)}/{COACH_PACKAGE_SIZE} buổi — "
-            "chưa có buổi nào vượt gói để mở gói mới."
+            f"The current package only has {len(block)}/{COACH_PACKAGE_SIZE} "
+            "sessions — no session has run over the package yet."
         )
     block[COACH_PACKAGE_SIZE].is_package_start = True
     db.commit()
@@ -903,6 +903,55 @@ def _finalize_match_stats(s: dict) -> schemas.MatchStats:
     return schemas.MatchStats(**s, win_rate=win_rate(s["wins"], s["losses"]))
 
 
+# The summary buckets a stat card can drill into. "singles" is the fallback
+# discipline bucket (anything that isn't doubles/1v2/2v1), mirroring
+# build_stats' `by_discipline.get(..., singles)`.
+STATS_BUCKETS = ("overall", "singles", "doubles", "one_v_two", "two_v_one", "vs_pips")
+
+
+def _in_stats_bucket(m: Match, bucket: str) -> bool:
+    """Whether a match belongs to one of build_stats' summary buckets.
+
+    The SAME predicate backs the stat cards (build_stats) and the drill-down
+    list (list_stats_matches), so a card's numbers and its match list can
+    never disagree."""
+    if m.is_nonplaying:
+        return False
+    if bucket == "overall":
+        return True
+    if bucket == "vs_pips":
+        # Either listed opponent plays pimpled rubber (covers doubles).
+        return bool(
+            (m.opponent and m.opponent.plays_pips)
+            or (m.opponent2 and m.opponent2.plays_pips)
+        )
+    if bucket == "singles":
+        return m.discipline not in ("doubles", "one_v_two", "two_v_one")
+    return m.discipline == bucket
+
+
+def list_stats_matches(
+    db: Session, date_from: dt.date, date_to: dt.date, bucket: str
+) -> list[schemas.MatchOut]:
+    """Drill-down behind one stat card: the matches making up that bucket's
+    numbers in the range, newest first, ELO-annotated like the week view."""
+    rng = _load_range(db, date_from, date_to, with_match_relations=True)
+    matches = [m for m in rng.matches if _in_stats_bucket(m, bucket)]
+    matches.sort(key=lambda m: (m.date, m.order_index, m.id), reverse=True)
+
+    my_final, elo_steps = rating.replay(db)
+    elo_deltas = {s.match_id: s.delta for s in elo_steps}
+    anchor_date = rating.get_my_anchor_date(db)
+    outs = [match_to_out(m, round(my_final)) for m in matches]
+    for out, m in zip(outs, matches):
+        if m.id in elo_deltas:
+            out.elo_delta = round(elo_deltas[m.id], 1)
+            out.elo_status = rating.STATUS_COUNTED
+        else:
+            out.elo_status = rating.skip_reason(m, anchor_date)
+    return outs
+
+
 def build_stats(db: Session, date_from: dt.date, date_to: dt.date) -> schemas.StatsResponse:
     dates = _date_range(date_from, date_to)
     iso_dates = [d.isoformat() for d in dates]
@@ -957,10 +1006,7 @@ def build_stats(db: Session, date_from: dt.date, date_to: dt.date) -> schemas.St
         bucket = by_discipline.get(m.discipline, singles)
         _tally(overall, m)
         _tally(bucket, m)
-        # "vs gai": either listed opponent plays pimpled rubber (covers doubles).
-        if (m.opponent and m.opponent.plays_pips) or (
-            m.opponent2 and m.opponent2.plays_pips
-        ):
+        if _in_stats_bucket(m, "vs_pips"):
             _tally(vs_pips, m)
 
     # Day-level counts.
@@ -1489,6 +1535,7 @@ def build_rating_breakdown(
         date_to=date_to,
         unit=unit,
         anchor_date=anchor_date,
+        anchor_points=anchor_points,
         total_delta=round(sum(s.delta for s in in_range), 1),
         counted=len(in_range),
         rating_start=rating_start,

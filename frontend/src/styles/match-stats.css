@@ -259,7 +259,7 @@
   background: var(--chip-bg, rgba(0, 0, 0, 0.05));
 }
 
-/* ===== "ELO theo thời gian" section (global — ignores the tab filters) ===== */
+/* ===== "ELO over time" section (global — ignores the tab filters) ===== */
 
 .elo-section {
   margin-top: 16px;

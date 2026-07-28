@@ -33,7 +33,7 @@ export default function LevelSwitcher({
             title={
               lv.unlocked
                 ? lv.goal_vi
-                : "Hoàn thành cấp trước để mở khoá"
+                : "Complete the previous level to unlock"
             }
           >
             <span className="tc-level-name">

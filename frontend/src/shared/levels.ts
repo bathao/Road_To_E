@@ -5,10 +5,10 @@
 export type PlayerLevel = "below" | "equal" | "above" | "unrated";
 
 export const LEVELS: { key: PlayerLevel; label: string; short: string }[] = [
-  { key: "below", label: "Dưới tôi", short: "Dưới" },
-  { key: "equal", label: "Ngang tôi", short: "Ngang" },
-  { key: "above", label: "Hơn tôi", short: "Hơn" },
-  { key: "unrated", label: "Chưa có điểm", short: "chưa xếp" },
+  { key: "below", label: "Below me", short: "Below" },
+  { key: "equal", label: "Equal", short: "Equal" },
+  { key: "above", label: "Above me", short: "Above" },
+  { key: "unrated", label: "Unrated", short: "unranked" },
 ];
 
 export function levelShort(level: PlayerLevel | null | undefined): string {

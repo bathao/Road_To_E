@@ -30,7 +30,7 @@ export default function TournamentStrip({
     <div
       className={`tour-strip${daysUntil(shown[0]) <= 7 ? " urgent" : ""}`}
       onClick={onManage}
-      title="Bấm để xem / sửa danh sách giải (cuối trang)"
+      title="Click to view / edit the tournament list (bottom of page)"
     >
       <div className="tour-strip-rows">
         {shown.map((t, i) => (
@@ -43,7 +43,7 @@ export default function TournamentStrip({
             </span>
             {t.level_limit && (
               <span className="tour-chip tour-chip-limit">
-                Trình: {t.level_limit}
+                Level: {t.level_limit}
               </span>
             )}
             {t.entries.map((e) => (
@@ -67,7 +67,7 @@ export default function TournamentStrip({
           </div>
         ))}
       </div>
-      <span className="tour-strip-manage">Quản lý ↓</span>
+      <span className="tour-strip-manage">Manage ↓</span>
     </div>
   );
 }

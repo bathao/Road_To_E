@@ -49,15 +49,25 @@ export interface MyRating {
   counted_matches: number;
 }
 
-export interface RatingPoint {
-  date: string; // ISO
-  rating: number;
+export interface RatingBucket {
+  key: string;
+  label: string;
+  date_from: string;
+  date_to: string;
+  delta: number; // net ±Δ of the bucket's counted matches (0 when none)
+  counted: number;
+  rating_end: number | null; // carry-forward; null = bucket predates the anchor
 }
 
-// Daily ELO curve since the anchor (replayed server-side, nothing stored).
-export interface MyRatingHistory {
+// Subset of GET /tracker/my-rating/breakdown used for the since-anchor curve
+// (same engine as the Daily Tracker's ELO chart — /my-rating/history retired
+// 2026-07-28 in its favour).
+export interface RatingBreakdown {
   anchor_date: string;
   anchor_points: number;
-  current: number;
-  points: RatingPoint[];
+  total_delta: number;
+  counted: number;
+  rating_start: number | null;
+  rating_end: number | null;
+  buckets: RatingBucket[];
 }

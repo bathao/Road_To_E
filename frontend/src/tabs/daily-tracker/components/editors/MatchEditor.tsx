@@ -41,13 +41,13 @@ function playersLabel(m: Match): string {
     ].filter(Boolean);
     if (opps.length) parts.push(`vs ${opps.join(" & ")}`);
   } else if (m.opponent_name) {
-    const gai = m.opponent_plays_pips ? " 🏓gai" : "";
+    const gai = m.opponent_plays_pips ? " 🏓pips" : "";
     parts.push(`vs ${m.opponent_name} (${levelShort(m.opponent_level)})${gai}`);
   }
   // Non-uniform ratios show the per-set sequence ("2-0-2"), uniform the number.
   const hdc = m.handicap_pattern ?? String(Math.abs(m.handicap));
-  if (m.handicap > 0) parts.push(`chấp ${hdc}`);
-  else if (m.handicap < 0) parts.push(`được chấp ${hdc}`);
+  if (m.handicap > 0) parts.push(`give ${hdc}`);
+  else if (m.handicap < 0) parts.push(`receive ${hdc}`);
   return parts.join(" ");
 }
 
@@ -55,16 +55,16 @@ function playersLabel(m: Match): string {
 // (fix = name the opponent / enter points in the Database tab / log the
 // score). Pre-anchor and Travel/Rest rows stay untagged: nothing to fix.
 const ELO_SKIP_LABEL: Record<string, string> = {
-  no_opponent: "chưa ghi tên đối thủ",
-  unrated: "người chơi chưa có điểm (tab Database)",
-  no_result: "chưa có tỉ số",
+  no_opponent: "opponent not recorded",
+  unrated: "player has no points yet (Database tab)",
+  no_result: "no score yet",
 };
 
 function EloChip({ m }: { m: Match }) {
   if (m.elo_delta != null) {
     const up = m.elo_delta >= 0;
     return (
-      <span className={`elo-chip ${up ? "elo-up" : "elo-down"}`} title="Điểm ELO thay đổi sau trận này">
+      <span className={`elo-chip ${up ? "elo-up" : "elo-down"}`} title="ELO change after this match">
         {up ? "+" : ""}
         {m.elo_delta.toFixed(1)}
       </span>
@@ -73,14 +73,14 @@ function EloChip({ m }: { m: Match }) {
   const label = m.elo_status ? ELO_SKIP_LABEL[m.elo_status] : undefined;
   if (!label) return null;
   return (
-    <span className="elo-chip elo-skip" title={`Trận không tính ELO: ${label}`}>
-      không tính
+    <span className="elo-chip elo-skip" title={`Match not counted for ELO: ${label}`}>
+      not counted
     </span>
   );
 }
 
 // Common per-set handicap ratios ("2-0-2" = set 1: 2, set 2: 0, set 3: 2).
-// Anything else goes through "Khác…" (digits typed by hand).
+// Anything else goes through "Custom…" (digits typed by hand).
 const HANDICAP_PATTERNS = [
   "0-2-0",
   "2-0-2",
@@ -281,14 +281,14 @@ export default function MatchEditor({
         <PlayerPicker label="Partner" value={partner} onChange={setPartner} />
       )}
       <PlayerPicker
-        label={hasOpp2 ? "Đối thủ 1" : "Đối thủ"}
+        label={hasOpp2 ? "Opponent 1" : "Opponent"}
         value={opponent}
         onChange={setOpponent}
         pipsEditable
       />
       {hasOpp2 && (
         <PlayerPicker
-          label="Đối thủ 2"
+          label="Opponent 2"
           value={opponent2}
           onChange={setOpponent2}
           pipsEditable
@@ -297,13 +297,13 @@ export default function MatchEditor({
 
       {/* Handicap (optional) */}
       <div className="seg-row handicap-row">
-        <span className="seg-label">Chấp</span>
+        <span className="seg-label">Handicap</span>
         <div className="seg">
           {(
             [
-              ["none", "Không"],
-              ["give", "Tôi chấp"],
-              ["receive", "Được chấp"],
+              ["none", "None"],
+              ["give", "I give"],
+              ["receive", "I receive"],
             ] as [HandicapDir, string][]
           ).map(([dir, lbl]) => (
             <button
@@ -327,14 +327,14 @@ export default function MatchEditor({
                   {p}
                 </option>
               ))}
-              <option value="custom">Khác…</option>
+              <option value="custom">Custom…</option>
             </select>
             {handicapChoice === "custom" && (
               <input
                 type="text"
                 inputMode="numeric"
                 className="pb-input handicap-custom"
-                placeholder="vd: 42024"
+                placeholder="e.g. 42024"
                 value={customPattern}
                 onChange={(e) =>
                   setCustomPattern(e.target.value.replace(/\D/g, ""))

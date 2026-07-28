@@ -474,7 +474,7 @@
   font-size: 12px;
 }
 
-/* Per-exercise actions (đổi bài / bỏ đau) + skipped state */
+/* Per-exercise actions (swap exercise / skip due to pain) + skipped state */
 
 .tc-ex-actions {
   display: flex;

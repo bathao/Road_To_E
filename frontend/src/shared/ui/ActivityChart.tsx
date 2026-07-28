@@ -8,6 +8,7 @@ export interface ActivityPoint {
   minutes: number; // training time
   matches: number; // matches played
   daysPhysical: number; // physical-training days (0/1 at day granularity)
+  blank?: boolean; // future bucket: keep the axis slot but draw nothing
 }
 
 // A composite activity chart. The three metrics have incompatible units, so
@@ -17,6 +18,8 @@ export interface ActivityPoint {
 //   • Physical days → a strip of squares below the plot (filled = trained that
 //                     day; shaded by count for week/month buckets)
 // A single hover band per bucket surfaces all three values together.
+// Blank (future) buckets keep their axis slot but stay empty — the lines
+// simply stop at the last real bucket.
 //
 // Day positions match the Daily-Tracker grid above: a `gutterPx` left column
 // (mirroring the grid's "Category" column) and each day centred in an equal
@@ -39,10 +42,11 @@ export default function ActivityChart({
 }) {
   const [hover, setHover] = useState<number | null>(null);
   const n = points.length;
+  const real = points.filter((p) => !p.blank);
 
-  const maxMin = Math.max(1, ...points.map((p) => p.minutes));
-  const maxCount = Math.max(1, ...points.map((p) => p.matches));
-  const maxPhys = Math.max(1, ...points.map((p) => p.daysPhysical));
+  const maxMin = Math.max(1, ...real.map((p) => p.minutes));
+  const maxCount = Math.max(1, ...real.map((p) => p.matches));
+  const maxPhys = Math.max(1, ...real.map((p) => p.daysPhysical));
 
   // Each day owns an equal-width slot and sits at its centre — same model as
   // the grid's fixed-layout day columns, so positions line up vertically.
@@ -50,15 +54,17 @@ export default function ActivityChart({
   const yMin = (v: number) => 100 - (v / maxMin) * 100;
   const yCount = (v: number) => 100 - (v / maxCount) * 100;
 
-  const timeCoords = points.map((p, i) => ({ x: xAt(i), y: yMin(p.minutes) }));
-  const matchCoords = points.map((p, i) => ({ x: xAt(i), y: yCount(p.matches) }));
-
-  const timeLine = timeCoords.map((c) => `${c.x},${c.y}`).join(" ");
-  const timeArea =
-    `M ${timeCoords[0].x},100 ` +
-    timeCoords.map((c) => `L ${c.x},${c.y}`).join(" ") +
-    ` L ${timeCoords[n - 1].x},100 Z`;
-  const matchLine = matchCoords.map((c) => `${c.x},${c.y}`).join(" ");
+  // Runs of consecutive non-blank indices → independent line/area segments
+  // (in practice one run ending today, but the code doesn't care).
+  const runs: number[][] = [[]];
+  points.forEach((p, i) => {
+    if (p.blank) {
+      if (runs[runs.length - 1].length) runs.push([]);
+    } else {
+      runs[runs.length - 1].push(i);
+    }
+  });
+  const segs = runs.filter((r) => r.length > 1);
 
   // Label every day when the count is grid-sized; thin out only for long spans.
   const labelStep = n <= 31 ? 1 : Math.ceil(n / 16);
@@ -92,36 +98,56 @@ export default function ActivityChart({
                 vectorEffect="non-scaling-stroke"
               />
             ))}
-            <path d={timeArea} className="ac-area" />
-            <polyline
-              points={timeLine}
-              className="ac-line ac-time"
-              fill="none"
-              vectorEffect="non-scaling-stroke"
-            />
-            <polyline
-              points={matchLine}
-              className="ac-line ac-match"
-              fill="none"
-              vectorEffect="non-scaling-stroke"
-            />
+            {segs.map((seg, si) => {
+              const time = seg.map(
+                (i) => `${xAt(i)},${yMin(points[i].minutes)}`
+              );
+              return (
+                <g key={si}>
+                  <path
+                    d={
+                      `M ${xAt(seg[0])},100 ` +
+                      time.map((c) => `L ${c}`).join(" ") +
+                      ` L ${xAt(seg[seg.length - 1])},100 Z`
+                    }
+                    className="ac-area"
+                  />
+                  <polyline
+                    points={time.join(" ")}
+                    className="ac-line ac-time"
+                    fill="none"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                  <polyline
+                    points={seg
+                      .map((i) => `${xAt(i)},${yCount(points[i].matches)}`)
+                      .join(" ")}
+                    className="ac-line ac-match"
+                    fill="none"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                </g>
+              );
+            })}
           </svg>
 
           {/* Time dots */}
-          {timeCoords.map((c, i) => (
-            <div
-              key={`t${i}`}
-              className={`ac-dot ac-dot-time${hover === i ? " active" : ""}`}
-              style={{ left: `${c.x}%`, top: `${c.y}%` }}
-            />
-          ))}
+          {points.map((p, i) =>
+            p.blank ? null : (
+              <div
+                key={`t${i}`}
+                className={`ac-dot ac-dot-time${hover === i ? " active" : ""}`}
+                style={{ left: `${xAt(i)}%`, top: `${yMin(p.minutes)}%` }}
+              />
+            )
+          )}
           {/* Match dots (only where there were matches, to avoid baseline noise) */}
-          {matchCoords.map((c, i) =>
-            points[i].matches > 0 ? (
+          {points.map((p, i) =>
+            !p.blank && p.matches > 0 ? (
               <div
                 key={`m${i}`}
                 className={`ac-dot ac-dot-match${hover === i ? " active" : ""}`}
-                style={{ left: `${c.x}%`, top: `${c.y}%` }}
+                style={{ left: `${xAt(i)}%`, top: `${yCount(p.matches)}%` }}
               />
             ) : null
           )}
@@ -134,22 +160,25 @@ export default function ActivityChart({
             <span>0</span>
           </div>
 
-          {/* Invisible vertical hit-bands make hovering easy. */}
-          {points.map((_, i) => (
-            <div
-              key={`h${i}`}
-              className="ac-hit"
-              style={{ left: `${xAt(i)}%`, width: `${100 / n}%` }}
-              onMouseEnter={() => setHover(i)}
-            />
-          ))}
+          {/* Invisible vertical hit-bands make hovering easy (blank buckets
+              have nothing to show, so no band). */}
+          {points.map((p, i) =>
+            p.blank ? null : (
+              <div
+                key={`h${i}`}
+                className="ac-hit"
+                style={{ left: `${xAt(i)}%`, width: `${100 / n}%` }}
+                onMouseEnter={() => setHover(i)}
+              />
+            )
+          )}
 
           {active !== null && (
             <div
-              className={`ac-tooltip${timeCoords[active].y < 35 ? " below" : ""}`}
+              className={`ac-tooltip${yMin(points[active].minutes) < 35 ? " below" : ""}`}
               style={{
-                left: `${timeCoords[active].x}%`,
-                top: `${timeCoords[active].y}%`,
+                left: `${xAt(active)}%`,
+                top: `${yMin(points[active].minutes)}%`,
               }}
             >
               <div className="ac-tt-date">
@@ -181,9 +210,11 @@ export default function ActivityChart({
         </div>
       </div>
 
-      {/* Physical-days strip: one cell per bucket, aligned under the plot. */}
+      {/* Physical-days strip: one cell per bucket, aligned under the plot
+          (blank buckets keep an inert cell so columns stay aligned). */}
       <div className="actchart-strip" style={{ marginLeft: gutter }}>
         {points.map((p, i) => {
+          if (p.blank) return <div key={`s${i}`} className="ac-cell" />;
           const on = p.daysPhysical > 0;
           const intensity = on ? 0.35 + 0.65 * (p.daysPhysical / maxPhys) : 0;
           return (

@@ -300,10 +300,34 @@ body {
   padding: 12px 12px 8px;
 }
 
+/* Aligned mode (gutter prop set): mirrors .actchart's edge-to-edge layout so
+   the plot's left/right edges — and therefore the day slots — line up with an
+   ActivityChart above it. */
+.linechart.aligned {
+  padding: 12px 0 8px;
+}
+
 .linechart-row {
   display: flex;
   align-items: stretch;
   gap: 6px;
+}
+
+.linechart.aligned .linechart-row {
+  gap: 0;
+}
+
+/* Left y-axis filling the gutter, numbers right-aligned against the plot
+   (same shape as .actchart-yaxis-left). */
+.linechart-yaxis-left {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  font-size: 11px;
+  color: var(--muted);
+  padding: 0 8px 2px 0;
 }
 
 .linechart-plot {
@@ -383,6 +407,24 @@ body {
   transform: translate(-50%, 16px);
 }
 
+/* Near the plot edges, pin the tooltip's edge to the dot instead of
+   centering — otherwise half of it gets clipped off-screen. */
+.lc-tooltip.edge-left {
+  transform: translate(-8px, calc(-100% - 16px));
+}
+
+.lc-tooltip.edge-left.below {
+  transform: translate(-8px, 16px);
+}
+
+.lc-tooltip.edge-right {
+  transform: translate(calc(-100% + 8px), calc(-100% - 16px));
+}
+
+.lc-tooltip.edge-right.below {
+  transform: translate(calc(-100% + 8px), 16px);
+}
+
 .lc-tt-date {
   font-size: 13px;
   color: #444;
@@ -428,6 +470,13 @@ body {
 
 .lc-xlabel:last-child {
   text-align: right;
+}
+
+/* Slot mode centres every label under its day slot, like .ac-xlabel. */
+.linechart.aligned .lc-xlabel,
+.linechart.aligned .lc-xlabel:first-child,
+.linechart.aligned .lc-xlabel:last-child {
+  text-align: center;
 }
 
 .actchart {

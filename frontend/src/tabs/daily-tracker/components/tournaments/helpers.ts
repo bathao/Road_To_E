@@ -17,21 +17,21 @@ export function isPast(t: Tournament): boolean {
 }
 
 export function countdownText(t: Tournament): string {
-  if (isPast(t)) return "đã đấu";
+  if (isPast(t)) return "played";
   const d = daysUntil(t);
-  if (d <= 0) return d === 0 ? "HÔM NAY" : "ĐANG DIỄN RA";
-  return `còn ${d} ngày`;
+  if (d <= 0) return d === 0 ? "TODAY" : "ONGOING";
+  return `${d} days left`;
 }
 
 const DISCIPLINE_VI: Record<string, string> = {
-  singles: "Đơn",
-  doubles: "Đôi",
-  team: "Đồng đội",
+  singles: "Singles",
+  doubles: "Doubles",
+  team: "Team",
 };
 
 export function entryLabel(e: TournamentEntry): string {
   let label = DISCIPLINE_VI[e.discipline] ?? e.discipline;
-  if (e.discipline === "doubles" && e.partner_name) label += ` — với ${e.partner_name}`;
+  if (e.discipline === "doubles" && e.partner_name) label += ` — with ${e.partner_name}`;
   if (e.discipline === "team") {
     // Team name/note and the picked roster, whichever exist.
     const roster = (e.teammate_names ?? []).join(", ");

@@ -15,7 +15,7 @@ function Bubble({ m }: { m: ChatMessage }) {
     return (
       <div className="hc-msg coach">
         <div className="hc-bubble pending">
-          HLV đang xem số liệu và trả lời
+          The coach is reviewing the data and replying
           <span className="hc-dots">
             <span>.</span>
             <span>.</span>
@@ -29,8 +29,8 @@ function Bubble({ m }: { m: ChatMessage }) {
     return (
       <div className="hc-msg coach">
         <div className="hc-bubble error">
-          ⚠️ HLV không trả lời được: {m.error_msg || "lỗi không rõ"}. Gửi lại
-          câu hỏi để thử lần nữa.
+          ⚠️ The coach couldn't reply: {m.error_msg || "unknown error"}. Send
+          your question again to retry.
         </div>
       </div>
     );
@@ -93,14 +93,15 @@ export default function CoachChat({ onCoachReply }: { onCoachReply: () => void }
       <div className="hc-chat-list" ref={listRef}>
         {loadError && messages.length === 0 && (
           <div className="hc-error">
-            ⚠️ Không tải được lịch sử trao đổi: {loadError}
+            ⚠️ Couldn't load chat history: {loadError}
           </div>
         )}
         {messages.length === 0 && !loadError && (
           <div className="hc-chat-empty">
-            Chưa có trao đổi nào. Hỏi HLV bất cứ điều gì — đặt mục tiêu ngắn hạn
-            (ví dụ: <i>“Tôi muốn đánh đơn tốt cho giải 2/8”</i>), báo lịch bận,
-            hay hỏi về số liệu. Mọi trao đổi được lưu lại và HLV nhớ hết.
+            No messages yet. Ask the coach anything — set a short-term goal
+            (e.g. <i>“Tôi muốn đánh đơn tốt cho giải 2/8”</i>), report a busy
+            schedule, or ask about your stats. Everything is saved and the
+            coach remembers it all.
           </div>
         )}
         {messages.map((m) => (
@@ -113,7 +114,7 @@ export default function CoachChat({ onCoachReply }: { onCoachReply: () => void }
           rows={2}
           value={text}
           placeholder={
-            pending ? "HLV đang trả lời…" : "Nhắn cho HLV… (Enter để gửi)"
+            pending ? "The coach is replying…" : "Message the coach… (Enter to send)"
           }
           disabled={pending}
           onChange={(e) => setText(e.target.value)}
@@ -129,7 +130,7 @@ export default function CoachChat({ onCoachReply }: { onCoachReply: () => void }
           onClick={send}
           disabled={pending || busy || !text.trim()}
         >
-          Gửi
+          Send
         </button>
       </div>
     </div>

@@ -42,14 +42,14 @@ export default function TraitBoard({ traits, onAdd, onDelete }: Props) {
   return (
     <section className="va-card">
       <div className="va-card-head">
-        <h3>🧬 Kho nhận xét đã duyệt</h3>
-        <span className="va-muted">{traits.length} nhận xét</span>
+        <h3>🧬 Approved findings library</h3>
+        <span className="va-muted">{traits.length} findings</span>
       </div>
 
       {orderedAspects.length === 0 ? (
         <p className="va-muted">
-          Chưa có nhận xét nào được duyệt. Phân tích một clip rồi <b>Duyệt</b> các nhận xét
-          đúng, hoặc thêm tay ở dưới.
+          No approved findings yet. Analyze a clip then <b>Approve</b> the correct
+          findings, or add one manually below.
         </p>
       ) : (
         <div className="va-trait-groups">
@@ -63,7 +63,7 @@ export default function TraitBoard({ traits, onAdd, onDelete }: Props) {
                     {g.strengths.map((t) => (
                       <li key={t.id}>
                         <span>{t.text}</span>
-                        <button className="va-x" title="Xóa" onClick={() => onDelete(t.id)}>×</button>
+                        <button className="va-x" title="Delete" onClick={() => onDelete(t.id)}>×</button>
                       </li>
                     ))}
                   </ul>
@@ -71,7 +71,7 @@ export default function TraitBoard({ traits, onAdd, onDelete }: Props) {
                     {g.weaknesses.map((t) => (
                       <li key={t.id}>
                         <span>{t.text}</span>
-                        <button className="va-x" title="Xóa" onClick={() => onDelete(t.id)}>×</button>
+                        <button className="va-x" title="Delete" onClick={() => onDelete(t.id)}>×</button>
                       </li>
                     ))}
                   </ul>
@@ -92,10 +92,10 @@ export default function TraitBoard({ traits, onAdd, onDelete }: Props) {
           <option value="strength">{POLARITY_LABEL.strength}</option>
           <option value="weakness">{POLARITY_LABEL.weakness}</option>
         </select>
-        <input className="pb-input" placeholder="Thêm nhận xét tay…" value={text}
+        <input className="pb-input" placeholder="Add a finding manually…" value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") void add(); }} />
-        <button className="btn primary" disabled={adding || !text.trim()} onClick={add}>Thêm</button>
+        <button className="btn primary" disabled={adding || !text.trim()} onClick={add}>Add</button>
       </div>
     </section>
   );

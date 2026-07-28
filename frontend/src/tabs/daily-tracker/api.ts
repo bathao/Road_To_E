@@ -3,6 +3,7 @@ import type {
   ActivityIn,
   Activity,
   BreakdownResponse,
+  Category,
   CoachPackagesResponse,
   EventOut,
   Match,
@@ -78,8 +79,16 @@ export const trackerApi = {
       text,
     }),
 
+  getCategories: () => api.get<Category[]>("/tracker/categories"),
+
   getStats: (fromIso: string, toIso: string) =>
     api.get<StatsResponse>(`/tracker/stats?from=${fromIso}&to=${toIso}`),
+
+  // Drill-down behind one stat card — same filter as /stats, newest first.
+  statsMatches: (fromIso: string, toIso: string, bucket: string) =>
+    api.get<Match[]>(
+      `/tracker/stats/matches?from=${fromIso}&to=${toIso}&bucket=${bucket}`
+    ),
 
   getBreakdown: (fromIso: string, toIso: string, unit: "month" | "week" | "day") =>
     api.get<BreakdownResponse>(

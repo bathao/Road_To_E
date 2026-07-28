@@ -71,7 +71,7 @@ export const DAY_ICON: Record<DayType, string> = {
 export function formatTarget(t: ExerciseTarget, perSide: boolean): string {
   const sets = t.sets ?? 1;
   const body = t.sec != null ? `${sets}×${t.sec}s` : `${sets}×${t.reps ?? 0}`;
-  return perSide ? `${body} / bên` : body;
+  return perSide ? `${body} / side` : body;
 }
 
 // A short WebAudio "ting" so checking an exercise feels tactile — no asset file.

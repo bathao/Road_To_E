@@ -34,8 +34,9 @@ export default function CoachNotes({
       {error && <div className="hc-error">⚠️ {error}</div>}
       {notes.length === 0 && (
         <div className="hc-notes-empty">
-          Sổ tay trống. HLV sẽ tự ghi lại mục tiêu, mốc thời gian và ràng buộc
-          quan trọng sau mỗi lần trao đổi — bạn cũng có thể tự thêm.
+          The notebook is empty. The coach will record important goals,
+          deadlines and constraints after each exchange — you can also add
+          your own.
         </div>
       )}
       <ul className="hc-notes-list">
@@ -44,12 +45,12 @@ export default function CoachNotes({
             <div className="hc-note-text">{n.text}</div>
             <div className="hc-note-meta">
               <span>{fmtChatTime(n.created_at)}</span>
-              <span className="hc-chip">{n.source === "user" ? "bạn ghi" : "HLV ghi"}</span>
+              <span className="hc-chip">{n.source === "user" ? "added by you" : "added by coach"}</span>
               <button
                 className="hc-note-del"
-                title="Xóa ghi chú"
+                title="Delete note"
                 onClick={() => {
-                  if (window.confirm("Xóa ghi chú này khỏi sổ tay HLV?")) {
+                  if (window.confirm("Delete this note from the coach's notebook?")) {
                     void onDelete(n.id);
                   }
                 }}
@@ -65,14 +66,14 @@ export default function CoachNotes({
           type="text"
           value={text}
           maxLength={500}
-          placeholder="Tự thêm ghi chú vào sổ tay…"
+          placeholder="Add your own note to the notebook…"
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") void add();
           }}
         />
         <button className="btn" onClick={add} disabled={busy || !text.trim()}>
-          Thêm
+          Add
         </button>
       </div>
     </div>

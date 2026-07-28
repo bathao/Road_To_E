@@ -7,12 +7,14 @@ import type {
   StatsResponse,
 } from "../types";
 import { trackerApi } from "../api";
-import { fromIso as parseIso, prettyDate } from "../../../shared/dates";
+import { fromIso as parseIso, prettyDate, todayIso } from "../../../shared/dates";
 import type { Mode, Unit } from "../../../shared/period";
 import { chartUnitFor } from "../../../shared/period";
 import ActivityChart from "../../../shared/ui/ActivityChart";
 import type { ActivityPoint } from "../../../shared/ui/ActivityChart";
 import LineChart from "../../../shared/ui/LineChart";
+import StatMatchesModal from "./StatMatchesModal";
+import type { ResultFilter, StatBucket } from "./StatMatchesModal";
 import { fmtMinutes, pct } from "../../../shared/format";
 
 const UNIT_TITLE: Record<Unit, string> = {
@@ -38,27 +40,48 @@ function bucketPoint(b: BreakdownBucket): ActivityPoint {
     minutes: b.minutes,
     matches: b.matches,
     daysPhysical: b.days_physical,
+    // Future buckets keep their axis slot but draw nothing (the grid blocks
+    // future entry anyway, so they can only ever be zeros).
+    blank: b.date_from > todayIso(),
   };
 }
 
-// A summary card for one discipline (or overall).
-function MatchCard({ title, s }: { title: string; s: MatchStats }) {
+// A summary card for one discipline (or overall). The whole card opens the
+// drill-down list; clicking the W / L count opens it pre-filtered to just
+// those matches.
+function MatchCard({
+  title,
+  s,
+  onOpen,
+}: {
+  title: string;
+  s: MatchStats;
+  onOpen: (result: ResultFilter) => void;
+}) {
+  const openOnly = (result: ResultFilter) => (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onOpen(result);
+  };
   return (
-    <div className="stat-card">
+    <div
+      className="stat-card clickable"
+      title="Click to see the matches behind these numbers"
+      onClick={() => onOpen("all")}
+    >
       <div className="stat-card-title">{title}</div>
       <div className="stat-big">{pct(s.win_rate)}</div>
       <div className="stat-sub">win rate</div>
       <div className="stat-line">
         <span>{s.total} matches</span>
         <span>
-          <b className="win">{s.wins}W</b> · <b className="loss">{s.losses}L</b>
+          <b className="win smm-open" onClick={openOnly("W")}>
+            {s.wins}W
+          </b>{" "}
+          ·{" "}
+          <b className="loss smm-open" onClick={openOnly("L")}>
+            {s.losses}L
+          </b>
           {s.ties ? ` · ${s.ties}T` : ""}
-        </span>
-      </div>
-      <div className="stat-line muted">
-        <span>sets</span>
-        <span>
-          {s.sets_won}–{s.sets_lost}
         </span>
       </div>
     </div>
@@ -69,40 +92,66 @@ function MatchCard({ title, s }: { title: string; s: MatchStats }) {
 // lose in this range", the line shows the rating at each bucket's end (quiet
 // buckets carry the value forward). Hidden while the range predates the
 // anchor. The rating is GLOBAL — no discipline/category filters apply.
-function EloBlock({ elo }: { elo: RatingBreakdown }) {
+function EloBlock({
+  elo,
+  unitIsDay,
+  gutterPx = 210,
+}: {
+  elo: RatingBreakdown;
+  unitIsDay: boolean;
+  gutterPx?: number;
+}) {
   if (elo.rating_end === null) return null;
-  const pts = elo.buckets.filter((b) => b.rating_end !== null);
-  const base = Math.min(...pts.map((b) => b.rating_end as number)) - 20;
+  // Pre-anchor buckets draw FLAT at the anchor value (no rating existed yet);
+  // future ones only carry today's value forward, so they stay BLANK. The
+  // full bucket list still renders so the day axis lines up with the
+  // comparison chart above (same buckets, same gutter, same slot positions).
+  const today = todayIso();
+  // ?? null keeps an old backend (field missing) on the previous blank look.
+  const anchorVal: number | null = elo.anchor_points ?? null;
+  const valueOf = (b: (typeof elo.buckets)[number]): number | null =>
+    b.date_from > today ? null : b.rating_end ?? anchorVal;
+  const drawn = elo.buckets
+    .map(valueOf)
+    .filter((v): v is number => v !== null);
+  const base = Math.min(...drawn) - 20;
   const sign = elo.total_delta > 0 ? "+" : "";
   return (
     <div className="stat-block elo-block">
       <div className="elo-head">
-        <h3>📈 Điểm ELO</h3>
+        <h3>📈 ELO</h3>
         <span
           className={`elo-chip ${elo.total_delta >= 0 ? "elo-up" : "elo-down"}`}
-          title="Δ ròng trong khoảng đang xem (số trận đã tính ELO)"
+          title="Net Δ in the visible range (ELO-counted matches)"
         >
           {sign}
-          {elo.total_delta.toFixed(1)} · {elo.counted} trận
+          {elo.total_delta.toFixed(1)} · {elo.counted} matches
         </span>
         <span className="elo-endnote">
           {elo.rating_start !== null && elo.rating_start !== elo.rating_end
             ? `${elo.rating_start} → `
             : ""}
-          cuối kỳ <b>{elo.rating_end}</b>
+          period end <b>{elo.rating_end}</b>
         </span>
       </div>
-      {pts.length > 1 && (
+      {drawn.length > 1 && (
         <LineChart
-          points={pts.map((b) => ({
-            label: b.label,
-            value: (b.rating_end as number) - base,
-            display: `${b.rating_end} · Δ ${b.delta > 0 ? "+" : ""}${b.delta.toFixed(1)}${
-              b.counted ? ` (${b.counted} trận)` : ""
-            }`,
-            tip: b.date_from === b.date_to ? prettyDate(b.date_from) : b.label,
-          }))}
+          points={elo.buckets.map((b) => {
+            const v = valueOf(b);
+            return {
+              label: b.label,
+              value: v === null ? null : v - base,
+              display:
+                b.rating_end === null
+                  ? `${anchorVal} · before anchor`
+                  : `${b.rating_end} · Δ ${b.delta > 0 ? "+" : ""}${b.delta.toFixed(1)}${
+                      b.counted ? ` (${b.counted} matches)` : ""
+                    }`,
+              tip: b.date_from === b.date_to ? prettyDate(b.date_from) : b.label,
+            };
+          })}
           formatY={(v) => String(Math.round(v + base))}
+          gutter={`${unitIsDay ? gutterPx : 46}px`}
         />
       )}
     </div>
@@ -145,7 +194,7 @@ function CoachPackageCard({
       <div className="pkg-status">{pkgStatusText(current)}</div>
       {current.status === "over" && (
         <button className="btn primary" onClick={onStartNext} disabled={busy}>
-          ★ Bắt đầu gói mới từ buổi {current.size + 1}
+          ★ Start new package from session {current.size + 1}
         </button>
       )}
     </div>
@@ -176,6 +225,12 @@ export default function AnalysisPanel({
   const [packages, setPackages] = useState<CoachPackage[]>([]);
   const [pkgBusy, setPkgBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Open drill-down: which card's matches to list, optionally W/L-filtered.
+  const [drill, setDrill] = useState<{
+    bucket: StatBucket;
+    title: string;
+    result: ResultFilter;
+  } | null>(null);
 
   // Renew flow: the card's button flags session size+1 as the new package's
   // start; the response already carries the recomputed package list.
@@ -287,7 +342,13 @@ export default function AnalysisPanel({
             </div>
           )}
 
-          {elo && <EloBlock elo={elo} />}
+          {elo && (
+            <EloBlock
+              elo={elo}
+              unitIsDay={(chartUnit ?? "day") === "day"}
+              gutterPx={gutterPx}
+            />
+          )}
 
           <div className="stat-grid">
             <div className="stat-card">
@@ -330,12 +391,24 @@ export default function AnalysisPanel({
               </div>
             </div>
 
-            <MatchCard title="Singles" s={stats.singles} />
-            <MatchCard title="Doubles" s={stats.doubles} />
-            <MatchCard title="1v2" s={stats.one_v_two} />
-            <MatchCard title="2v1" s={stats.two_v_one} />
-            <MatchCard title="All matches" s={stats.overall} />
-            <MatchCard title="🏓 vs Pips" s={stats.vs_pips} />
+            {/* 1v2/2v1 are logged (rare formats, entered for the data) but
+                not worth a daily card — their matches still count in "All
+                matches" and can be filtered in Match Stats. */}
+            {(
+              [
+                ["Singles", "singles", stats.singles],
+                ["Doubles", "doubles", stats.doubles],
+                ["All matches", "overall", stats.overall],
+                ["🏓 vs Pips", "vs_pips", stats.vs_pips],
+              ] as [string, StatBucket, MatchStats][]
+            ).map(([title, bucket, s]) => (
+              <MatchCard
+                key={bucket}
+                title={title}
+                s={s}
+                onOpen={(result) => setDrill({ bucket, title, result })}
+              />
+            ))}
 
             {packages.length > 0 && (
               <CoachPackageCard
@@ -348,6 +421,18 @@ export default function AnalysisPanel({
               />
             )}
           </div>
+
+          {drill && (
+            <StatMatchesModal
+              bucket={drill.bucket}
+              title={drill.title}
+              rangeLabel={label}
+              fromIso={fromIso}
+              toIso={rangeToIso}
+              initialResult={drill.result}
+              onClose={() => setDrill(null)}
+            />
+          )}
         </>
       )}
     </section>

@@ -1,5 +1,5 @@
 export type Polarity = "strength" | "weakness" | "neutral";
-// Footage setting: tập luyện/khởi động vs thi đấu trận thật.
+// Footage setting: practice/warm-up vs real competitive match.
 export type Setting = "practice" | "match";
 export type Aspect =
   | "serve"

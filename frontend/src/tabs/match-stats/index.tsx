@@ -62,7 +62,7 @@ export default function MatchStats() {
       label: b.label,
       value: b.win_rate === null ? 0 : Math.round(b.win_rate * 100),
       display: pct(b.win_rate),
-      tip: `${b.label}: ${b.wins}-${b.losses} · ${b.matches} trận`,
+      tip: `${b.label}: ${b.wins}-${b.losses} · ${b.matches} matches`,
     }));
 
   return (
@@ -83,7 +83,7 @@ export default function MatchStats() {
         <div className="seg">
           {(
             [
-              ["all", "Tất cả"],
+              ["all", "All"],
               ["singles", "Singles"],
               ["doubles", "Doubles"],
               ["one_v_two", "1v2"],
@@ -102,7 +102,7 @@ export default function MatchStats() {
         <div className="seg">
           {(
             [
-              ["all", "Mọi loại"],
+              ["all", "All types"],
               ["practice", "Practice"],
               ["official", "Official"],
               ["tournament", "Tournament"],
@@ -125,9 +125,9 @@ export default function MatchStats() {
         <div className="loading">Loading…</div>
       ) : !hasMatches ? (
         <p className="stats-empty">
-          Chưa có trận nào (có tên đối thủ) trong khoảng này. Tab thống kê chỉ tính
-          các trận đã chọn đối thủ — hãy ghi vài trận ở Daily Tracker, hoặc đổi
-          khoảng thời gian.
+          No matches (with a named opponent) in this range. The stats tab only
+          counts matches with an opponent selected — log a few matches in the
+          Daily Tracker, or change the time range.
         </p>
       ) : (
         <>
@@ -135,7 +135,7 @@ export default function MatchStats() {
           <div className="stats-kpis">
             <div className="kpi">
               <span className="kpi-value">{o!.total}</span>
-              <span className="kpi-label">Trận</span>
+              <span className="kpi-label">Matches</span>
             </div>
             <div className="kpi">
               <span className="kpi-value">
@@ -154,42 +154,42 @@ export default function MatchStats() {
           <div className="stats-cols">
           {/* Win rate by opponent level */}
           <section className="stats-card">
-            <h3>Win rate theo trình đối thủ</h3>
+            <h3>Win rate by opponent level</h3>
             <LevelBars levels={data!.by_level} />
           </section>
 
           {/* Trend over time */}
           <section className="stats-card">
             <h3>
-              Xu hướng win rate (
+              Win rate trend (
               {data!.unit === "month"
-                ? "theo tháng"
+                ? "by month"
                 : data!.unit === "week"
-                ? "theo tuần"
-                : "theo ngày"}
+                ? "by week"
+                : "by day"}
               )
             </h3>
             {trendPoints.length > 1 ? (
               <LineChart points={trendPoints} formatY={(v) => `${Math.round(v)}%`} />
             ) : (
               <p className="stats-muted">
-                Chưa đủ dữ liệu để vẽ xu hướng (cần ≥2 kỳ có trận).
+                Not enough data to draw a trend (need ≥2 periods with matches).
               </p>
             )}
           </section>
 
           {/* Head-to-head — pick one opponent from the dropdown */}
           <section className="stats-card">
-            <h3>Đối đầu (chọn đối thủ)</h3>
+            <h3>Head-to-head (pick an opponent)</h3>
             <select
               className="pb-select stats-opp-select"
               value={selOpp}
               onChange={(e) => setSelOpp(e.target.value ? Number(e.target.value) : "")}
             >
-              <option value="">— Chọn đối thủ ({data!.opponents.length}) —</option>
+              <option value="">— Pick an opponent ({data!.opponents.length}) —</option>
               {data!.opponents.map((op) => (
                 <option key={op.id} value={op.id}>
-                  {op.name} · {levelShort(op.level)} · {op.played} trận
+                  {op.name} · {levelShort(op.level)} · {op.played} matches
                 </option>
               ))}
             </select>
@@ -205,7 +205,7 @@ export default function MatchStats() {
                 if (!singlesRec && doublesRecs.length === 0) {
                   return (
                     <p className="stats-empty">
-                      Chưa có trận nào với đối thủ này trong khoảng đang chọn.
+                      No matches with this opponent in the selected range.
                     </p>
                   );
                 }
@@ -217,7 +217,7 @@ export default function MatchStats() {
                   wr: number | null
                 ) => (
                   <span className="h2h-summary">
-                    {played} trận · {w}-{l}
+                    {played} matches · {w}-{l}
                     {t ? `-${t}` : ""} · <b>{pct(wr)}</b>
                   </span>
                 );
@@ -244,7 +244,7 @@ export default function MatchStats() {
                           ? "1v2"
                           : d.discipline === "two_v_one"
                           ? "2v1"
-                          : "Đôi";
+                          : "Doubles";
                       const pairLabel = (lvl: PlayerLevel | null, name: string | null) =>
                         name ? (
                           <span className="dbl-side" key={name}>
@@ -261,7 +261,7 @@ export default function MatchStats() {
                           <div className="h2h-head">
                             <h4 className="h2h-pair">
                               <span className="dbl-side">
-                                {fmtLabel} · tôi
+                                {fmtLabel} · me
                                 {d.partner_name ? ` + ${d.partner_name}` : ""}
                               </span>
                               <span className="dbl-vs">vs</span>

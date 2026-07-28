@@ -211,9 +211,9 @@ def to_session_out(session: TrainingSession) -> schemas.SessionOut:
 # Physically-trainable weak aspects from the Video Analysis skill ledger ->
 # a corrective exercise. Only aspects off-table training can actually address.
 _PRESCRIPTION_MAP = {
-    "stance_posture": ("side_plank", "tư thế / giữ trụ"),
-    "footwork": ("lateral_toe_steps", "di chuyển chân"),
-    "physical": ("plank", "thể lực / lõi"),
+    "stance_posture": ("side_plank", "posture / stance"),
+    "footwork": ("lateral_toe_steps", "footwork"),
+    "physical": ("plank", "fitness / core"),
 }
 
 
@@ -247,7 +247,7 @@ def prescription_for(db: Session) -> tuple[str, str] | None:
     weak.sort(key=lambda s: (s.priority or 99, s.rating if s.rating is not None else 99))
     top = weak[0]
     ex_key, aspect_label = _PRESCRIPTION_MAP[top.aspect]
-    reason = f"Video cho thấy {aspect_label} còn yếu"
+    reason = f"Video shows {aspect_label} is still weak"
     if top.assessment:
         snippet = top.assessment.strip().split("\n")[0][:90]
         reason = f"{reason}: {snippet}"
@@ -431,7 +431,7 @@ def complete_session(
     date is clamped to today.
     """
     if level not in program.LEVELS or day_index < 1:
-        raise ValueError(f"Không có buổi tập ({level}, {day_index}).")
+        raise ValueError(f"No such session ({level}, {day_index}).")
     today = dt.date.today()
     when = done_on if (done_on is not None and done_on <= today) else today
     session = _materialise(db, level, day_index)
@@ -464,7 +464,7 @@ def program_grid(db: Session, level: str | None = None) -> schemas.ProgramOut:
     done = _done_count(db, level)
     n = program.SESSIONS_PER_LEVEL
 
-    # The top level is endless: it repeats in cycles (Vòng) with progressive
+    # The top level is endless: it repeats in cycles with progressive
     # overload. Finite levels always show cycle 0. The grid shows the CURRENT
     # cycle's 21 tiles; tile.day_index stays the ABSOLUTE session index so the
     # tick/complete API keeps addressing the right row.
@@ -500,7 +500,7 @@ def program_grid(db: Session, level: str | None = None) -> schemas.ProgramOut:
         level_vi=program.LEVEL_VI.get(level, level),
         goal_vi=program.LEVEL_GOAL_VI.get(level, ""),
         safety_note=program.SAFETY_NOTE_VI,
-        cycle=cycle + 1,  # 1-based "Vòng N"
+        cycle=cycle + 1,  # 1-based "Cycle N"
         total_sessions=n,
         completed=within_done,
         progress_pct=round(100 * within_done / n) if n else 0,
@@ -573,19 +573,19 @@ def _weekly_summary(
     user). No flattery: it reports the numbers and a concrete nudge."""
     if last30 == 0:
         return (
-            "Chưa có buổi nào gần đây. Bắt đầu lại từ buổi hôm nay — "
-            "đều đặn quan trọng hơn cường độ."
+            "No sessions recently. Start again with today's session — "
+            "consistency matters more than intensity."
         )
     if days_since is not None and days_since >= 4:
         return (
-            f"Đã {days_since} ngày chưa tập. Quay lại buổi hôm nay đi, "
-            "giữ nhịp mới có tác dụng."
+            f"It's been {days_since} days without training. Get back to it today — "
+            "the training only works if you keep the rhythm."
         )
     if last7 >= 5:
-        return f"Tuần này {last7} buổi — nhịp tốt ở cấp {level_vi}. Giữ vậy."
+        return f"{last7} sessions this week — good rhythm at {level_vi} level. Keep it up."
     if last7 >= 3:
-        return f"Tuần này {last7} buổi. Ổn, ráng thêm để chạm mốc 5 buổi/tuần."
-    return f"Tuần này mới {last7} buổi. Cần đều hơn — mục tiêu 5 buổi/tuần."
+        return f"{last7} sessions this week. Decent — push a bit more to hit 5 sessions/week."
+    return f"Only {last7} sessions this week. Be more consistent — target 5 sessions/week."
 
 
 def report(db: Session) -> schemas.ReportOut:

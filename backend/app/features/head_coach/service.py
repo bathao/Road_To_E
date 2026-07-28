@@ -642,13 +642,13 @@ def _sanitize_directives(directives: list[dict]) -> list[dict]:
 
 
 _METRIC_UNIT_VI = {
-    "physical_sessions_per_week": "buổi",
-    "racket_hours_per_week": "giờ",
-    "coach_hours_per_week": "giờ",
-    "matches_per_week": "trận",
-    "singles_matches_per_week": "trận",
-    "doubles_matches_per_week": "trận",
-    "matches_vs_pips_per_week": "trận",
+    "physical_sessions_per_week": "sessions",
+    "racket_hours_per_week": "hours",
+    "coach_hours_per_week": "hours",
+    "matches_per_week": "matches",
+    "singles_matches_per_week": "matches",
+    "doubles_matches_per_week": "matches",
+    "matches_vs_pips_per_week": "matches",
 }
 
 

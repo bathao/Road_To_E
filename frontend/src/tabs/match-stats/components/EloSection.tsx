@@ -1,12 +1,12 @@
 import type { RatingBreakdown, RatingBucket, RatingMover } from "../types";
 
-// "ELO theo thời gian": net ±Δ per bucket + the range's most influential
+// "ELO over time": net ±Δ per bucket + the range's most influential
 // matches. GLOBAL — the rating ignores the tab's discipline/category filters
 // (a filtered "rating at end of bucket" would lie), and the section says so.
 
 const DISCIPLINE_VI: Record<string, string> = {
-  singles: "đơn",
-  doubles: "đôi",
+  singles: "singles",
+  doubles: "doubles",
   one_v_two: "1v2",
   two_v_one: "2v1",
 };
@@ -25,7 +25,7 @@ function fmtDelta(d: number): string {
 function DeltaBars({ buckets }: { buckets: RatingBucket[] }) {
   const shown = buckets.filter((b) => b.counted > 0);
   if (!shown.length) {
-    return <p className="stats-muted">Chưa có trận tính ELO trong khoảng này.</p>;
+    return <p className="stats-muted">No ELO-counted matches in this range.</p>;
   }
   const maxAbs = Math.max(1, ...shown.map((b) => Math.abs(b.delta)));
   return (
@@ -50,7 +50,7 @@ function DeltaBars({ buckets }: { buckets: RatingBucket[] }) {
             {fmtDelta(b.delta)}
             <span className="elo-delta-n">
               {" "}
-              · {b.counted} trận · cuối {b.rating_end}
+              · {b.counted} matches · period end {b.rating_end}
             </span>
           </span>
         </div>
@@ -60,7 +60,7 @@ function DeltaBars({ buckets }: { buckets: RatingBucket[] }) {
 }
 
 function MoverLine({ m }: { m: RatingMover }) {
-  const res = m.my_sets > m.opp_sets ? "thắng" : "thua";
+  const res = m.my_sets > m.opp_sets ? "win" : "loss";
   return (
     <li className="elo-mover">
       <span className={`elo-delta-val ${m.delta >= 0 ? "pos" : "neg"}`}>
@@ -84,34 +84,34 @@ export default function EloSection({
 }) {
   // The whole range predates the anchor — no rating existed yet.
   if (elo.rating_end === null) return null;
-  const unitVi = unit === "month" ? "tháng" : unit === "week" ? "tuần" : "ngày";
+  const unitVi = unit === "month" ? "month" : unit === "week" ? "week" : "day";
   return (
     <section className="stats-card elo-section">
       <div className="elo-head">
-        <h3>📈 ELO theo thời gian</h3>
+        <h3>📈 ELO over time</h3>
         <span
           className={`elo-chip ${elo.total_delta >= 0 ? "elo-up" : "elo-down"}`}
-          title="Δ ròng trong khoảng đang xem"
+          title="net Δ in the range being viewed"
         >
-          {fmtDelta(elo.total_delta)} · {elo.counted} trận
+          {fmtDelta(elo.total_delta)} · {elo.counted} matches
         </span>
         <span className="elo-endnote">
           {elo.rating_start !== null && elo.rating_start !== elo.rating_end
             ? `${elo.rating_start} → `
             : ""}
-          <b>{elo.rating_end}</b> · tính trên MỌI trận đã tính ELO — không theo 2
-          bộ lọc phía trên
+          <b>{elo.rating_end}</b> · computed over ALL ELO-counted matches — not
+          affected by the two filters above
         </span>
       </div>
       <div className="elo-cols">
         <div>
-          <h4>Δ theo {unitVi}</h4>
+          <h4>Δ by {unitVi}</h4>
           <DeltaBars buckets={elo.buckets} />
         </div>
         <div>
-          <h4>Trận ảnh hưởng nhất</h4>
+          <h4>Biggest movers</h4>
           {elo.top_gains.length + elo.top_losses.length === 0 ? (
-            <p className="stats-muted">Chưa có trận tính ELO trong khoảng này.</p>
+            <p className="stats-muted">No ELO-counted matches in this range.</p>
           ) : (
             <ul className="elo-movers">
               {elo.top_gains.map((m) => (

@@ -7,7 +7,7 @@ import { rankOf } from "../../../../shared/rank";
 // chips (Trên/Ngang/Dưới) on 2026-07-27.
 function PointsChip({ p }: { p: Player }) {
   if (p.points == null) {
-    return <span className="level-chip level-unrated">chưa xếp</span>;
+    return <span className="level-chip level-unrated">unranked</span>;
   }
   return (
     <span className="level-chip level-points">
@@ -125,8 +125,8 @@ export default function PlayerPicker({
           <span className="player-name">{value.name}</span>
           <PointsChip p={value} />
           {value.plays_pips && (
-            <span className="pips-chip" title="Đối thủ đánh gai">
-              🏓 Gai
+            <span className="pips-chip" title="Opponent plays pips">
+              🏓 Pips
             </span>
           )}
           {pipsEditable && (
@@ -134,18 +134,18 @@ export default function PlayerPicker({
               className={`pips-toggle${value.plays_pips ? " active" : ""}`}
               title={
                 value.plays_pips
-                  ? "Bỏ đánh dấu đánh gai"
-                  : "Đánh dấu: đối thủ đánh gai"
+                  ? "Unmark pips"
+                  : "Mark: opponent plays pips"
               }
               onClick={togglePips}
               disabled={busy}
             >
-              {value.plays_pips ? "✓ Gai" : "Gai?"}
+              {value.plays_pips ? "✓ Pips" : "Pips?"}
             </button>
           )}
           <button
             className="icon-btn"
-            title="Đổi người"
+            title="Change player"
             onClick={() => onChange(null)}
           >
             ✕
@@ -184,7 +184,7 @@ export default function PlayerPicker({
             // the tournament team picker, which keeps the combo mounted).
             setOpen(true);
           }}
-          placeholder="Tìm hoặc thêm người…"
+          placeholder="Search or add a player…"
         />
         {open && (
           <div className="player-dropdown">
@@ -198,14 +198,14 @@ export default function PlayerPicker({
                 <span className="player-name">{p.name}</span>
                 <PointsChip p={p} />
                 {p.plays_pips && (
-                  <span className="pips-chip" title="Đối thủ đánh gai">
-                    🏓 Gai
+                  <span className="pips-chip" title="Opponent plays pips">
+                    🏓 Pips
                   </span>
                 )}
               </button>
             ))}
             {results.length === 0 && !query.trim() && (
-              <div className="player-hint">Gõ tên để tìm…</div>
+              <div className="player-hint">Type a name to search…</div>
             )}
 
             {query.trim() && !exactExists && (
@@ -225,19 +225,19 @@ export default function PlayerPicker({
               >
                 {!adding ? (
                   <button className="player-add-btn" onClick={() => setAdding(true)}>
-                    + Thêm “{query.trim()}”
+                    + Add “{query.trim()}”
                   </button>
                 ) : (
                   <div className="player-add-form">
                     <div className="player-add-name">
-                      Thêm <b>{query.trim()}</b> — điểm:
+                      Add <b>{query.trim()}</b> — points:
                     </div>
                     <div className="player-add-points">
                       <input
                         type="number"
                         min={0}
                         max={3000}
-                        placeholder="chưa rõ"
+                        placeholder="unknown"
                         value={newPoints}
                         onChange={(e) => setNewPoints(e.target.value)}
                       />
@@ -255,7 +255,7 @@ export default function PlayerPicker({
                           checked={newPips}
                           onChange={(e) => setNewPips(e.target.checked)}
                         />
-                        🏓 Đối thủ đánh gai
+                        🏓 Opponent plays pips
                       </label>
                     )}
                     <button
@@ -263,7 +263,7 @@ export default function PlayerPicker({
                       onClick={addNew}
                       disabled={busy || !pointsValid}
                     >
-                      Lưu người mới
+                      Save new player
                     </button>
                     {error && <div className="pb-error">⚠ {error}</div>}
                   </div>

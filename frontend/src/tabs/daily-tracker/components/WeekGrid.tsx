@@ -134,9 +134,9 @@ export default function WeekGrid({
                     : isComputed
                       ? "Auto-computed: Coach + Partner training + 5 min per match set"
                       : viewablePhysical
-                        ? "Bấm để xem buổi Training Center 💪"
+                        ? "Click to view the Training Center session 💪"
                         : isPhysicalMirror
-                          ? "Quản lý ở tab Training Center 💪"
+                          ? "Managed in the Training Center tab 💪"
                           : fullText
                             ? `${cat.label} · ${iso}\n${fullText}`
                             : undefined;

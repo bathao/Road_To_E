@@ -12,9 +12,9 @@ export default function MatchLines({ rows }: { rows: MatchLine[] }) {
         const amount = m.handicap_pattern ?? String(Math.abs(m.handicap));
         const hc =
           m.handicap > 0
-            ? `chấp ${amount}`
+            ? `gave ${amount} handicap`
             : m.handicap < 0
-            ? `được chấp ${amount}`
+            ? `got ${amount} handicap`
             : null;
         return (
           <li className="match-line" key={i}>

@@ -44,14 +44,14 @@ export default function DevLogs() {
       className="hc-devlogs"
       onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}
     >
-      <summary>🛠️ Log kỹ thuật (dev)</summary>
+      <summary>🛠️ Dev logs</summary>
       {data && (
         <div className="hc-devlogs-body">
           <div className="hc-devlogs-gpu">
             {data.ollama_ok ? (
               data.loaded_models.length ? (
                 <>
-                  Ollama đang giữ trong VRAM:{" "}
+                  Ollama holding in VRAM:{" "}
                   {data.loaded_models.map((m) => (
                     <span key={m.name} className="hc-chip">
                       {m.name} · {(m.size_vram_mb / 1024).toFixed(1)} GB GPU
@@ -62,11 +62,11 @@ export default function DevLogs() {
                   ))}
                 </>
               ) : (
-                <span>Ollama chạy, chưa load model nào (VRAM trống).</span>
+                <span>Ollama is running, no model loaded (VRAM empty).</span>
               )
             ) : (
               <span className="hc-devlogs-err">
-                Không kết nối được Ollama: {data.ollama_error}
+                Can't connect to Ollama: {data.ollama_error}
               </span>
             )}
           </div>
@@ -81,7 +81,7 @@ export default function DevLogs() {
               }
             }}
           >
-            {data.logs.length ? data.logs.join("\n") : "(chưa có log nào từ khi server khởi động)"}
+            {data.logs.length ? data.logs.join("\n") : "(no logs since the server started)"}
           </pre>
         </div>
       )}

@@ -34,7 +34,7 @@ function ExerciseCard({
         {item.form_cue && <div className="tc-ex-cue">💡 {item.form_cue}</div>}
         {item.how_to.length > 0 && (
           <details className="tc-ex-how">
-            <summary>📋 Hướng dẫn chi tiết</summary>
+            <summary>📋 Detailed instructions</summary>
             <ol>
               {item.how_to.map((s, i) => (
                 <li key={i}>{s}</li>
@@ -44,7 +44,7 @@ function ExerciseCard({
         )}
         {item.is_prescribed && (
           <div className="tc-ex-rx">
-            🎯 HLV chỉ định{item.rx_reason ? ` — ${item.rx_reason}` : ""}
+            🎯 Coach-prescribed{item.rx_reason ? ` — ${item.rx_reason}` : ""}
           </div>
         )}
         {!readOnly && (
@@ -54,9 +54,9 @@ function ExerciseCard({
                 className="tc-ex-swap"
                 value=""
                 onChange={(e) => e.target.value && onSubstitute(e.target.value)}
-                title="Đổi sang bài khác nếu bài này khó/đau"
+                title="Switch to another exercise if this one is hard/painful"
               >
-                <option value="">↺ Đổi bài…</option>
+                <option value="">↺ Swap exercise…</option>
                 {item.alternatives.map((a) => (
                   <option key={a.key} value={a.key}>
                     {a.name_vi}
@@ -67,9 +67,9 @@ function ExerciseCard({
             <button
               className="tc-ex-skip"
               onClick={() => onSkip(!item.skipped)}
-              title="Bỏ qua nếu bài này làm đau"
+              title="Skip if this exercise hurts"
             >
-              {item.skipped ? "↩ Bỏ qua (hoàn tác)" : "✕ Bỏ (đau)"}
+              {item.skipped ? "↩ Skipped (undo)" : "✕ Skip (pain)"}
             </button>
           </div>
         )}
@@ -81,7 +81,7 @@ function ExerciseCard({
           disabled={readOnly}
           aria-pressed={item.done}
         >
-          {item.done ? "✓ Đã xong" : "Check done"}
+          {item.done ? "✓ Done" : "Check done"}
         </button>
       )}
     </div>
@@ -103,7 +103,7 @@ function MiniList({ title, items }: { title: string; items: SimpleExercise[] }) 
           </div>
           {e.how_to.length > 0 && (
             <details className="tc-ex-how tc-mini-how">
-              <summary>📋 Hướng dẫn</summary>
+              <summary>📋 Instructions</summary>
               <ol>
                 {e.how_to.map((s, i) => (
                   <li key={i}>{s}</li>
@@ -145,7 +145,7 @@ export default function SessionCard({
           Day {session.day_index} · {session.focus_vi}
         </h3>
         <span className="tc-session-meta">
-          ⏱ ~{session.est_minutes} phút · {session.done_count}/{session.total} bài
+          ⏱ ~{session.est_minutes} min · {session.done_count}/{session.total} exercises
           {session.status === "done" && session.done_on
             ? ` · ✅ ${session.done_on}`
             : ""}
@@ -154,11 +154,11 @@ export default function SessionCard({
 
       {!readOnly && onStart && (
         <button className="btn primary tc-start" onClick={onStart}>
-          ▶ Bắt đầu tập (có hướng dẫn)
+          ▶ Start workout (guided)
         </button>
       )}
 
-      <MiniList title="🔥 Khởi động" items={session.warmup} />
+      <MiniList title="🔥 Warm-up" items={session.warmup} />
 
       <div className="tc-ex-list">
         {session.items.map((it) => (
@@ -173,7 +173,7 @@ export default function SessionCard({
         ))}
       </div>
 
-      <MiniList title="🧊 Giãn cơ (cool-down)" items={session.cooldown} />
+      <MiniList title="🧊 Cool-down stretches" items={session.cooldown} />
 
       {!readOnly && (
         <div className="tc-session-foot">
@@ -183,14 +183,14 @@ export default function SessionCard({
             disabled={session.status === "done"}
           >
             {session.status === "done"
-              ? "Đã hoàn thành buổi"
+              ? "Session completed"
               : allDone
-                ? "🎉 Hoàn thành buổi"
-                : "Hoàn thành buổi"}
+                ? "🎉 Complete session"
+                : "Complete session"}
           </button>
           {!allDone && session.status !== "done" && (
             <span className="tc-session-hint">
-              Có thể chốt buổi kể cả khi chưa tick hết.
+              You can finish the session even without ticking everything.
             </span>
           )}
         </div>

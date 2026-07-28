@@ -340,6 +340,83 @@
   margin-top: 0;
 }
 
+/* Breathing room between the ELO chart card and the summary-card row below
+   (.stat-grid isn't a .stat-block, so it gets no margin of its own). */
+.analysis .stat-grid {
+  margin-top: 22px;
+}
+
+/* Clickable stat cards (match drill-down) + the drill-down modal list. */
+
+.stat-card.clickable {
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.stat-card.clickable:hover {
+  border-color: var(--accent);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+}
+
+.smm-open:hover {
+  text-decoration: underline;
+}
+
+.smm-filter {
+  margin-bottom: 10px;
+}
+
+.smm-empty {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 8px 0;
+}
+
+.smm-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.smm-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.smm-date {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.smm-tag {
+  font-size: 11px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 5px;
+  color: var(--muted);
+}
+
+.smm-names {
+  flex: 1;
+  min-width: 140px;
+}
+
+.smm-meta {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 /* Composite activity chart (training time + matches + physical days) */
 
 .chart-legend {
@@ -590,7 +667,7 @@
   font-weight: 600;
 }
 
-/* "Đánh gai" (pimpled-rubber opponent) chip + toggle. */
+/* Pips (pimpled-rubber opponent) chip + toggle. */
 
 .pips-chip {
   font-size: 11px;
@@ -910,7 +987,7 @@
   gap: 8px;
 }
 
-/* Tournament rank-limit chip ("Trình: E F G") — visually distinct from
+/* Tournament rank-limit chip ("Level: E F G") — visually distinct from
    the discipline chips. */
 .tour-chip-limit {
   background: #fef3c7;
@@ -950,7 +1027,7 @@
   font-weight: 500;
 }
 
-/* "Điểm ELO" block in the Analysis panel (line over the shared timeline) */
+/* ELO block in the Analysis panel (line over the shared timeline) */
 .elo-head {
   display: flex;
   align-items: center;

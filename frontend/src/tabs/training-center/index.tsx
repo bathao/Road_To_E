@@ -141,9 +141,9 @@ export default function TrainingCenter() {
     if (out !== undefined) reload();
   };
 
-  if (error && !program) return <div className="tc-error">Lỗi: {error}</div>;
+  if (error && !program) return <div className="tc-error">Error: {error}</div>;
   if (!program || !today || !detail || !levels || !report)
-    return <div className="tc-loading">Đang tải…</div>;
+    return <div className="tc-loading">Loading…</div>;
 
   return (
     <div className="training-center">
@@ -152,7 +152,7 @@ export default function TrainingCenter() {
           <span className="tc-plan">💪 Training Center</span>
           <span className="tc-level">
             {program.level_vi}
-            {program.cycle > 1 ? ` · Vòng ${program.cycle}` : ""}
+            {program.cycle > 1 ? ` · Cycle ${program.cycle}` : ""}
           </span>
         </div>
         <div className="tc-goal">{program.goal_vi}</div>
@@ -165,7 +165,7 @@ export default function TrainingCenter() {
             />
           </div>
           <span className="tc-progress-label">
-            {program.completed} / {program.total_sessions} buổi
+            {program.completed} / {program.total_sessions} sessions
           </span>
         </div>
       </header>
