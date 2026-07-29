@@ -1,6 +1,111 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-07-29, latest) — English UI + ELO chart sync + stat drill-down, committed `72a26f2`
+## Current status (2026-07-29, latest) — PROJECT-WIDE CLEANUP, committed `8e7b023`
+
+> **Resume next session.** The full review→cleanup batch is BUILT, VERIFIED
+> (64/64 pytest, app imports, npm build + gen:api clean) and committed
+> `8e7b023` (+ this PROGRESS right after). **Restart start.bat once** (the
+> running backend still mounts /api/video and the old code). User decisions
+> this batch: delete video_analysis ENTIRELY (not just the dead half);
+> untrack roi_seg.pt but KEEP the 190 MB identity photos on disk; do ALL the
+> big refactors; rewrite TODO.md fully.
+>
+> **VIDEO_ANALYSIS FEATURE DELETED (user decision, escalated from "delete
+> the dead half"):**
+>   - Backend app/features/video_analysis/ REMOVED (router/service/schemas/
+>     models/text_synth/seed + TEXT_ANALYSIS_PLAN.md). All va_* TABLES + ROWS
+>     KEPT in SQLite (user data is never deleted) — they are simply
+>     unreferenced now. registry.py NOTE documents this.
+>   - head_coach still needs ONLY the player's name → new _player_name(db)
+>     reads va_profile.name via raw SQL with a fallback (no models import).
+>   - training prescription_for + _apply_prescription DELETED (they injected
+>     exercises from the retired va_skill ratings — this also RESOLVES the
+>     old "prescription_for product decision"). is_prescribed/rx_reason
+>     columns + FE badge kept for historical rows; TrainingSession.adapted
+>     is now frozen (comment on the model).
+>   - FE tabs/profile/engine/ + SkillRadar DELETED; Profile tab rebuilt:
+>     header + MyRatingCard + range pills + 3 extracted cards
+>     (CompetitiveCard / TrainingDisciplineCard / TrainingCenterCard), all
+>     loads via useLoad. video-analysis.css deleted (all its classes were
+>     engine-only); the 4 surviving va-* classes (va-tab/card/card-head/
+>     muted) live in base.css relabelled "generic card layout"; profile.css
+>     trimmed of radar/skill-bar rules; dead pb-*/db-me-label rules purged.
+>   - SourceSummary.video/tactics legacy shims KEPT (old snapshots parse).
+>
+> **BEHAVIOUR FIXES:**
+>   - Coach bundle: 7 full ELO replays per call → ONE. rating.replay result
+>     (new ReplayResult alias) threads through build_match_stats /
+>     build_handicap_split / build_rating_breakdown / compute_my_rating via
+>     an optional replay= param; gather_bundle replays once. Matters because
+>     the bundle runs on EVERY chat message.
+>   - Mixed-language coach grounding: training summary_vi (English GUI
+>     prose) is no longer injected into the Vietnamese prompt — the raw
+>     numbers were already in the bundle; the "Tự nhận xét tuần" line is
+>     gone. GUI keeps the English summary.
+>   - 5 one-shot scripts (4 imports + add_coach_package_marker) crashed if
+>     re-run (ModuleNotFoundError: app) — the 3-line sys.path shim from
+>     add_match_opponents.py is now in all of them.
+>   - match-stats: setSelOpp("") ran INSIDE the useLoad fetcher → moved to a
+>     proper useEffect.
+>
+> **REFACTORS (behaviour-preserving, all tests/builds green):**
+>   - tracker/service.py: _annotate_elo() (the byte-identical ELO annotation
+>     loop from build_week + list_stats_matches); _coach_sessions() (the 3×
+>     coach-session query); build_match_stats 236 lines → _query_named_
+>     matches + _h2h_accumulate + _record_tail (shared OpponentRecord/
+>     DoublesRecord tail) + _trend_buckets + ~70-line assembler; dead
+>     STATS_BUCKETS + rating.deltas_by_match deleted; the mid-file rating
+>     import shim moved to the top imports (kept — router/tests use it).
+>   - head_coach/service.py: gather_bundle 142 lines → _training_summary +
+>     _match_summary + _match_detail; _ollama_chat() owns the payload/
+>     timeout/num_ctx for both _call_model + _call_chat_model;
+>     _call_with_empty_retry() the shared retry-once; dead sync generate()
+>     deleted; _to_out uses _tz; MIN_SAMPLE_MATCHES → private.
+>   - FE shared/: new disciplines.ts (DISCIPLINES/LABEL/SHORT — replaces 5
+>     copies; Discipline type moved here, daily-tracker re-exports),
+>     resultOf() in types.ts (replaces 3 copies incl. one that dropped the
+>     tie case), shortDate/dmyDate in dates.ts, fmtDelta in format.ts,
+>     LevelRecord/CategoryMinutes promoted to shared/types.ts, new
+>     ui/EloCurve.tsx = THE one since-anchor curve engine (AnalysisPanel
+>     EloBlock + MyRatingCard RatingChart are now thin wrappers).
+>   - AnalysisPanel: MatchCard + CoachPackageCard extracted to components/;
+>     hand-rolled seq/alive loaders → useLoad/useMutate (440 → ~300 lines).
+>   - Error-handling REVIEWED, deliberately left: ValueError→400 (tracker
+>     business rule) / 404 (training bad path resource) / 409 (chat pending)
+>     are each locally correct; the blanket except→502 died with the video
+>     router.
+>   - NOT unified on purpose: the Profile tab's 30/90/365/all pills vs
+>     MyRatingCard's PeriodControl (two range models on one screen) — a
+>     product/UX call, not a refactor; ask the user someday.
+>
+> **DOCS + HYGIENE:**
+>   - README.md rewritten (all 6 tabs, Ollama qwen3.5:9b prerequisite,
+>     requirements-dev.txt for pytest). TODO.md rewritten from scratch
+>     (open items: mis-anchored report, ETA projection, scale_backtest ~Oct,
+>     t=1.5 placeholder, entry speedups, Motivation tab). PLAN.md restamped
+>     HISTORICAL + layout-drift warning. PROGRESS.md trailing ## Run block
+>     fixed (no Video tab / qwen3-vl / ffmpeg). exercises/README.md: the
+>     drifting hand-list replaced by "keys come from program.py".
+>     identity/me/README.txt restamped retired (photos = personal data,
+>     kept). settings.py TEXT_MODEL comment updated.
+>   - .gitignore: +.pytest_cache/, retired-pipeline block collapsed
+>     (data/models/ now fully ignored); **roi_seg.pt (6.77 MB) untracked**
+>     via git rm --cached, file kept on disk. Stray .pytest_cache dirs +
+>     orphaned video_analysis .pyc deleted. index.html lang="vi" → "en".
+>     start.bat mediapipe rationale dropped (3.12 pin kept). TournamentStrip
+>     stale VN comment fixed.
+>   - KEPT deliberately: CoachChat.tsx example prompt “Tôi muốn đánh đơn tốt
+>     cho giải 2/8” — it is an example of what the user TYPES TO THE COACH,
+>     and the coach conversation is legitimately Vietnamese.
+>   - Still outstanding: **76+ commits unpushed** to origin/master (user
+>     never asked to push); suggest pushing next session.
+>
+> Net: −~4.4k lines of code/docs (engine + video_analysis + dedup) across
+> ~60 files; behaviour changes limited to the listed fixes. Next candidates
+> unchanged: mis-anchored-opponent report + ETA projection (need weeks of
+> data); entry speedups; scale_backtest ~Oct.
+
+## Earlier (2026-07-29) — English UI + ELO chart sync + stat drill-down, committed `72a26f2`
 
 > **Resume next session.** Committed `72a26f2` (code + daily DB data) + this
 > PROGRESS right after; tree clean; 64/64 pytest; build + gen:api clean.
@@ -1896,6 +2001,6 @@ and idempotent; existing data preserved. **Committed but not yet verified live.*
 `start.bat` (build + serve + open Chrome), or backend alone:
 `cd backend && .venv\Scripts\python -m uvicorn app.main:app --reload --port 8000`.
 
-The Video Analysis tab needs **Ollama running** (`ollama serve`, usually a
-background service after install) with the `qwen3-vl:8b` model pulled, plus
-`ffmpeg` on PATH (here at `C:\ffmpeg\bin`). All AI runs locally — no network.
+The Coach tab needs **Ollama running** (`ollama serve`, usually a background
+service after install) with `qwen3.5:9b` pulled (falls back to `qwen3:14b` —
+see `backend/app/core/settings.py`). All AI runs locally — no network.
