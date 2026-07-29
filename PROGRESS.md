@@ -1,6 +1,51 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-07-29, latest) — PROJECT-WIDE CLEANUP, committed `8e7b023`
+## Current status (2026-07-29, latest) — Database tab: RENAME + SORT + split match counts, committed `14e977d`
+
+> **Committed `14e977d`** (all three same-day Database-tab features below) +
+> this PROGRESS right after; tree clean; 65/65 pytest; build + gen:api
+> clean. **Restart start.bat once** (backend: rename duplicate-guard +
+> matches_vs/matches_with counts; then F5).
+>
+> **Matches column split ⚔️/🤝 (user request, built same day):** the single "Matches"
+> count mixed opponents with partners ("khó nhận biết"). PlayerDbRow now
+> carries `matches_vs` (opponent OR opponent2 slot) + `matches_with`
+> (partner slot) — `matches_played` REMOVED (Database tab is the only
+> consumer; gen:api regenerated). FE shows two sortable columns "⚔️ Vs me"
+> / "🤝 With me" (0 renders as "—"); SortKey matches → vs|with. Test
+> updated to assert the split counts. 65/65 pytest, build clean.
+
+> **Column sorting (user request, built same day):** Name / Points / Matches headers
+> are clickable — first click sorts by that column's most useful direction
+> (name A→Z with `localeCompare("vi")`, points high→low, matches many→few),
+> second click reverses; active column shows ▲/▼, inactive a faint ↕.
+> Unrated players sink to the bottom in BOTH points directions. Level column
+> deliberately not sortable (it derives from points). Initial state stays
+> the server order (rated by points desc, unrated last) until a header is
+> clicked. Components: SortableTh + SORT_DEFAULT_DIR in database/index.tsx.
+
+> **Player rename (user request, built same day).** Some players were
+> entered before the user knew their real name; now they can be fixed
+> in place.
+>   - **FE (Database tab):** hover a row → ✏️ button on the name → inline
+>     input (Enter/blur = save, Esc = cancel, autoFocus); reuses the row's
+>     ✓/✕ flash. On failure (e.g. duplicate) the editor STAYS OPEN with the
+>     draft so the user can adjust; the error banner explains why.
+>   - **History follows automatically by design** — matches store player
+>     IDs; names are resolved at read time (grid, h2h, coach bundle, ELO
+>     movers), so no data migration of any kind.
+>   - **Backend guard (user picked "chặn trùng tên"):** update_player now
+>     rejects renaming INTO another player's name (case-insensitive) with
+>     ValueError → router 400 — two identical rows would be
+>     indistinguishable in the picker; a true "same person twice" case
+>     needs a MERGE feature (explicitly deferred until it actually happens).
+>     Creates were already safe (create_or_get_player dedupes by name).
+>   - **Verified:** 65/65 pytest (new
+>     test_player_rename_updates_history_and_blocks_duplicates: rename →
+>     build_week shows the new opponent name; duplicate rename raises;
+>     self-rename no-op), npm build clean.
+
+## Earlier same day (2026-07-29) — PROJECT-WIDE CLEANUP, committed `8e7b023`
 
 > **Resume next session.** The full review→cleanup batch is BUILT, VERIFIED
 > (64/64 pytest, app imports, npm build + gen:api clean) and committed
