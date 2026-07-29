@@ -483,145 +483,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/video/profile": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Profile */
-        get: operations["get_profile_api_video_profile_get"];
-        /** Put Profile */
-        put: operations["put_profile_api_video_profile_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/video/profile/regenerate-summary": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Regenerate Summary */
-        post: operations["regenerate_summary_api_video_profile_regenerate_summary_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/video/traits": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Traits */
-        get: operations["list_traits_api_video_traits_get"];
-        put?: never;
-        /** Create Trait */
-        post: operations["create_trait_api_video_traits_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/video/traits/{trait_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Update Trait */
-        put: operations["update_trait_api_video_traits__trait_id__put"];
-        post?: never;
-        /** Delete Trait */
-        delete: operations["delete_trait_api_video_traits__trait_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/video/skills": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Skills */
-        get: operations["list_skills_api_video_skills_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/video/skills/{setting}/{aspect}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Update Skill */
-        put: operations["update_skill_api_video_skills__setting___aspect__put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/video/skills/regenerate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Regenerate Skills */
-        post: operations["regenerate_skills_api_video_skills_regenerate_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/video/report": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Player Report */
-        get: operations["get_player_report_api_video_report_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/training/today": {
         parameters: {
             query?: never;
@@ -1143,45 +1004,6 @@ export interface components {
              */
             is_package_start: boolean;
         };
-        /**
-         * AspectSettingStat
-         * @description How an aspect looks in practice vs in real matches — the gap the player
-         *     cares about (good in training, weaker under match pressure).
-         */
-        AspectSettingStat: {
-            /** Aspect */
-            aspect: string;
-            /**
-             * Practice Strengths
-             * @default 0
-             */
-            practice_strengths: number;
-            /**
-             * Practice Weaknesses
-             * @default 0
-             */
-            practice_weaknesses: number;
-            /**
-             * Match Strengths
-             * @default 0
-             */
-            match_strengths: number;
-            /**
-             * Match Weaknesses
-             * @default 0
-             */
-            match_weaknesses: number;
-            /**
-             * Practice Samples
-             * @default []
-             */
-            practice_samples: string[];
-            /**
-             * Match Samples
-             * @default []
-             */
-            match_samples: string[];
-        };
         /** AssessmentOut */
         AssessmentOut: {
             /** Id */
@@ -1631,25 +1453,6 @@ export interface components {
             id: number;
             /** Name */
             name: string;
-        };
-        /** FindingPoint */
-        FindingPoint: {
-            /**
-             * Analysis Date
-             * Format: date
-             */
-            analysis_date: string;
-            /** Aspect */
-            aspect: string;
-            /** Polarity */
-            polarity: string;
-            /** Text */
-            text: string;
-            /**
-             * Setting
-             * @default practice
-             */
-            setting: string;
         };
         /**
          * GenerateStatusOut
@@ -2327,70 +2130,6 @@ export interface components {
              */
             source: string;
         };
-        /**
-         * ProfileIn
-         * @description Editable basics + summaries. All optional → partial update.
-         */
-        ProfileIn: {
-            /** Name */
-            name?: string | null;
-            /** Handed */
-            handed?: string | null;
-            /** Grip */
-            grip?: string | null;
-            /** Style */
-            style?: string | null;
-            /** Equipment */
-            equipment?: string | null;
-            /** Physique */
-            physique?: string | null;
-            /** Serve Summary */
-            serve_summary?: string | null;
-            /** Footwork Summary */
-            footwork_summary?: string | null;
-            /** Posture Summary */
-            posture_summary?: string | null;
-            /** Strengths Summary */
-            strengths_summary?: string | null;
-            /** Weaknesses Summary */
-            weaknesses_summary?: string | null;
-            /** Overall Summary */
-            overall_summary?: string | null;
-        };
-        /** ProfileOut */
-        ProfileOut: {
-            /** Id */
-            id: number;
-            /** Name */
-            name: string;
-            /** Handed */
-            handed: string;
-            /** Grip */
-            grip: string;
-            /** Style */
-            style: string;
-            /** Equipment */
-            equipment: string;
-            /** Physique */
-            physique: string;
-            /** Serve Summary */
-            serve_summary: string;
-            /** Footwork Summary */
-            footwork_summary: string;
-            /** Posture Summary */
-            posture_summary: string;
-            /** Strengths Summary */
-            strengths_summary: string;
-            /** Weaknesses Summary */
-            weaknesses_summary: string;
-            /** Overall Summary */
-            overall_summary: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
         /** ProgramOut */
         ProgramOut: {
             /** Level */
@@ -2479,6 +2218,43 @@ export interface components {
             /** Total */
             total: number;
         };
+        /** ReportOut */
+        ReportOut: {
+            /** Current Level */
+            current_level: string;
+            /** Current Level Vi */
+            current_level_vi: string;
+            /** Cutover Date */
+            cutover_date: string | null;
+            /** Total Sessions Done */
+            total_sessions_done: number;
+            /** Sessions Last 7D */
+            sessions_last_7d: number;
+            /** Sessions Last 30D */
+            sessions_last_30d: number;
+            /** Last Session Date */
+            last_session_date: string | null;
+            /** Days Since Last */
+            days_since_last: number | null;
+            /** Day Type Counts */
+            day_type_counts: {
+                [key: string]: number;
+            };
+            /** Muscle Volume */
+            muscle_volume: components["schemas"]["MuscleVolume"][];
+            /** Levels */
+            levels: components["schemas"]["LevelInfo"][];
+            /** Recent */
+            recent: components["schemas"]["RecentSession"][];
+            /** Summary Vi */
+            summary_vi: string;
+            /** Current Streak */
+            current_streak: number;
+            /** Done Dates */
+            done_dates: string[];
+            /** Intensity Bias */
+            intensity_bias: number;
+        };
         /** SessionOut */
         SessionOut: {
             /** Id */
@@ -2555,92 +2331,6 @@ export interface components {
              * @default []
              */
             how_to: string[];
-        };
-        /** SkillHistory */
-        SkillHistory: {
-            /** Aspect */
-            aspect: string;
-            /**
-             * Setting
-             * @default practice
-             */
-            setting: string;
-            /**
-             * Points
-             * @default []
-             */
-            points: components["schemas"]["SkillPoint"][];
-        };
-        /**
-         * SkillIn
-         * @description Manual edit of a skill (all optional → partial update).
-         */
-        SkillIn: {
-            /** Rating */
-            rating?: number | null;
-            /** Status */
-            status?: string | null;
-            /** Assessment */
-            assessment?: string | null;
-            /** Priority */
-            priority?: number | null;
-        };
-        /** SkillOut */
-        SkillOut: {
-            /** Id */
-            id: number;
-            /** Aspect */
-            aspect: string;
-            /** Setting */
-            setting: string;
-            /** Rating */
-            rating: number | null;
-            /** Status */
-            status: string;
-            /** Assessment */
-            assessment: string;
-            /** Priority */
-            priority: number | null;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
-        /** SkillPoint */
-        SkillPoint: {
-            /**
-             * Analysis Date
-             * Format: date
-             */
-            analysis_date: string;
-            /** Rating */
-            rating?: number | null;
-            /**
-             * Status
-             * @default neutral
-             */
-            status: string;
-        };
-        /** SkillReportItem */
-        SkillReportItem: {
-            /** Aspect */
-            aspect: string;
-            /** Setting */
-            setting: string;
-            /** Rating */
-            rating: number | null;
-            /** Status */
-            status: string;
-            /** Assessment */
-            assessment: string;
-            /** Priority */
-            priority: number | null;
-            /**
-             * Evidence
-             * @default []
-             */
-            evidence: string[];
         };
         /** SkipIn */
         SkipIn: {
@@ -2853,50 +2543,6 @@ export interface components {
              */
             tournaments: components["schemas"]["TournamentOut"][];
         };
-        /** TraitIn */
-        TraitIn: {
-            /**
-             * Aspect
-             * @default other
-             */
-            aspect: string;
-            /**
-             * Polarity
-             * @default neutral
-             */
-            polarity: string;
-            /** Text */
-            text: string;
-            /** Confidence */
-            confidence?: number | null;
-        };
-        /** TraitOut */
-        TraitOut: {
-            /** Id */
-            id: number;
-            /** Aspect */
-            aspect: string;
-            /** Polarity */
-            polarity: string;
-            /** Text */
-            text: string;
-            /** Ai Text */
-            ai_text?: string | null;
-            /** Confidence */
-            confidence?: number | null;
-            /**
-             * Status
-             * @default proposed
-             */
-            status: string;
-            /** Source Report Id */
-            source_report_id?: number | null;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -2935,104 +2581,6 @@ export interface components {
             };
             /** Physical Cutover */
             physical_cutover?: string | null;
-        };
-        /** ReportOut */
-        app__features__training__schemas__ReportOut: {
-            /** Current Level */
-            current_level: string;
-            /** Current Level Vi */
-            current_level_vi: string;
-            /** Cutover Date */
-            cutover_date: string | null;
-            /** Total Sessions Done */
-            total_sessions_done: number;
-            /** Sessions Last 7D */
-            sessions_last_7d: number;
-            /** Sessions Last 30D */
-            sessions_last_30d: number;
-            /** Last Session Date */
-            last_session_date: string | null;
-            /** Days Since Last */
-            days_since_last: number | null;
-            /** Day Type Counts */
-            day_type_counts: {
-                [key: string]: number;
-            };
-            /** Muscle Volume */
-            muscle_volume: components["schemas"]["MuscleVolume"][];
-            /** Levels */
-            levels: components["schemas"]["LevelInfo"][];
-            /** Recent */
-            recent: components["schemas"]["RecentSession"][];
-            /** Summary Vi */
-            summary_vi: string;
-            /** Current Streak */
-            current_streak: number;
-            /** Done Dates */
-            done_dates: string[];
-            /** Intensity Bias */
-            intensity_bias: number;
-        };
-        /**
-         * ReportOut
-         * @description The systematic, machine-readable view of the player the Head Coach reads.
-         */
-        app__features__video_analysis__schemas__ReportOut: {
-            /** Name */
-            name: string;
-            /** Handed */
-            handed: string;
-            /** Grip */
-            grip: string;
-            /** Style */
-            style: string;
-            /** Overall Summary */
-            overall_summary: string;
-            /**
-             * Skills
-             * @default []
-             */
-            skills: components["schemas"]["SkillReportItem"][];
-            /**
-             * Strengths
-             * @default []
-             */
-            strengths: string[];
-            /**
-             * Weaknesses
-             * @default []
-             */
-            weaknesses: string[];
-            /**
-             * Improvement Priorities
-             * @default []
-             */
-            improvement_priorities: string[];
-            /**
-             * Skill History
-             * @default []
-             */
-            skill_history: components["schemas"]["SkillHistory"][];
-            /**
-             * Findings Timeline
-             * @default []
-             */
-            findings_timeline: components["schemas"]["FindingPoint"][];
-            /**
-             * Practice Vs Match
-             * @default []
-             */
-            practice_vs_match: components["schemas"]["AspectSettingStat"][];
-            /**
-             * Reports Reviewed
-             * @default 0
-             */
-            reports_reviewed: number;
-            /**
-             * Findings Accepted
-             * @default 0
-             */
-            findings_accepted: number;
         };
     };
     responses: never;
@@ -3869,305 +3417,6 @@ export interface operations {
             };
         };
     };
-    get_profile_api_video_profile_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProfileOut"];
-                };
-            };
-        };
-    };
-    put_profile_api_video_profile_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ProfileIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProfileOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    regenerate_summary_api_video_profile_regenerate_summary_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProfileOut"];
-                };
-            };
-        };
-    };
-    list_traits_api_video_traits_get: {
-        parameters: {
-            query?: {
-                aspect?: string | null;
-                polarity?: string | null;
-                status?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TraitOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_trait_api_video_traits_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TraitIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TraitOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_trait_api_video_traits__trait_id__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                trait_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TraitIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TraitOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_trait_api_video_traits__trait_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                trait_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_skills_api_video_skills_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SkillOut"][];
-                };
-            };
-        };
-    };
-    update_skill_api_video_skills__setting___aspect__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                setting: string;
-                aspect: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SkillIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SkillOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    regenerate_skills_api_video_skills_regenerate_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SkillOut"][];
-                };
-            };
-        };
-    };
-    get_player_report_api_video_report_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["app__features__video_analysis__schemas__ReportOut"];
-                };
-            };
-        };
-    };
     get_today_api_training_today_get: {
         parameters: {
             query?: never;
@@ -4254,7 +3503,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["app__features__training__schemas__ReportOut"];
+                    "application/json": components["schemas"]["ReportOut"];
                 };
             };
         };

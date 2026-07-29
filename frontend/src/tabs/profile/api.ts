@@ -1,10 +1,9 @@
 import { api } from "../../shared/api/client";
 import type { MatchStatsLite, MyRating, RatingBreakdown, TrackerStats } from "./types";
 
-// The Profile dashboard assembles data from existing endpoints. Skill/report/
-// profile calls reuse `videoApi`; here we add the tracker aggregates, the
-// "as of" date and the user's dynamic ELO (the anchor edit lives here too —
-// moved from the Database tab 2026-07-27).
+// The Profile dashboard assembles data from existing endpoints: the tracker
+// aggregates, the "as of" date and the user's dynamic ELO (the anchor edit
+// lives here too — moved from the Database tab 2026-07-27).
 export const profileApi = {
   trainingStats: (fromIso: string, toIso: string) =>
     api.get<TrackerStats>(`/tracker/stats?from=${fromIso}&to=${toIso}`),

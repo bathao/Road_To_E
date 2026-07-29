@@ -18,9 +18,8 @@ echo.
 echo [1/4] Checking backend virtual environment...
 if not exist "%VENV%\Scripts\python.exe" (
     echo     Creating venv ^(Python 3.12^) and installing backend dependencies...
-    REM Python 3.12 specifically: mediapipe (pose estimation for the Video
-    REM Analysis tab) has no 3.13 wheels yet. Falls back to plain python if the
-    REM py launcher / 3.12 isn't available.
+    REM 3.12 matches the venv the project has always used; falls back to plain
+    REM python if the py launcher / 3.12 isn't available.
     py -3.12 -m venv "%VENV%" || python -m venv "%VENV%"
     "%VENV%\Scripts\python.exe" -m pip install --upgrade pip
     "%VENV%\Scripts\python.exe" -m pip install -r "%BACKEND%\requirements.txt"

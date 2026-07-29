@@ -207,90 +207,20 @@ def to_session_out(session: TrainingSession) -> schemas.SessionOut:
     )
 
 
-# ------------------------------------------------- adaptive prescription
-# Physically-trainable weak aspects from the Video Analysis skill ledger ->
-# a corrective exercise. Only aspects off-table training can actually address.
-_PRESCRIPTION_MAP = {
-    "stance_posture": ("side_plank", "posture / stance"),
-    "footwork": ("lateral_toe_steps", "footwork"),
-    "physical": ("plank", "fitness / core"),
-}
-
-
-def prescription_for(db: Session) -> tuple[str, str] | None:
-    """Pick a corrective exercise from the weakest relevant video-analysis skill.
-
-    Best-effort and decoupled: reads the va_skill ledger directly (no HTTP, no
-    Head Coach). Returns (exercise_key, reason) or None. Any failure → None.
-    """
-    try:
-        from app.features.video_analysis.models import VASkill
-    except Exception:
-        return None
-    try:
-        rows = (
-            db.query(VASkill)
-            .filter(VASkill.aspect.in_(list(_PRESCRIPTION_MAP)))
-            .all()
-        )
-    except Exception:
-        return None
-
-    weak = [
-        s for s in rows
-        if (s.rating is not None and s.rating <= 5)
-        or s.status in ("weakness", "needs_work")
-    ]
-    if not weak:
-        return None
-    # Highest priority first (lower number = more urgent), then lowest rating.
-    weak.sort(key=lambda s: (s.priority or 99, s.rating if s.rating is not None else 99))
-    top = weak[0]
-    ex_key, aspect_label = _PRESCRIPTION_MAP[top.aspect]
-    reason = f"Video shows {aspect_label} is still weak"
-    if top.assessment:
-        snippet = top.assessment.strip().split("\n")[0][:90]
-        reason = f"{reason}: {snippet}"
-    return ex_key, reason
-
-
-def _apply_prescription(db: Session, session: TrainingSession) -> None:
-    """Inject one corrective exercise into the open session (once)."""
-    if session.status == "done":
-        return
-    if any(it.is_prescribed for it in session.items):
-        return  # already carries a prescribed exercise
-    rx = prescription_for(db)
-    if rx is None:
-        return
-    ex_key, reason = rx
-    ex = program.EXERCISES.get(ex_key)
-    if ex is None or any(it.exercise_key == ex_key for it in session.items):
-        return  # unknown, or the base session already includes it
-    max_order = max((it.sort_order for it in session.items), default=-1)
-    session.items.append(
-        TrainingSessionItem(
-            exercise_key=ex_key,
-            target_json=json.dumps(ex.target),
-            is_prescribed=True,
-            rx_reason=reason,
-            sort_order=max_order + 1,
-        )
-    )
-    session.adapted = True
-    db.commit()
-    db.refresh(session)
+# NOTE: the adaptive-prescription injector (a corrective exercise picked from
+# the retired video-analysis skill ledger) was deleted 2026-07-29 with the
+# video_analysis feature — it fed model guesses, not observations, into every
+# session. The is_prescribed / rx_reason columns stay: old session rows carry
+# real history and the FE still renders their badge.
 
 
 def _ensure_daily(db: Session, session: TrainingSession) -> None:
     """Append the daily exercises to the open session (once each).
 
     Daily = the fixed staples (powerball, thigh-over-bottle) + today's rotating
-    1kg-dumbbell picks. Mirrors `_apply_prescription`: idempotent, runs on the
-    open session so even a session materialised before these existed picks them
-    up. Each carries its own progressive target (ramps with training age +
-    autoregulation bias). Placed before the prescription so the order is
-    [program, daily, prescribed].
+    1kg-dumbbell picks. Idempotent, runs on the open session so even a session
+    materialised before these existed picks them up. Each carries its own
+    progressive target (ramps with training age + autoregulation bias).
     """
     if session.status == "done":
         return
@@ -318,7 +248,6 @@ def _ensure_daily(db: Session, session: TrainingSession) -> None:
 def get_today(db: Session) -> schemas.SessionOut:
     session, _ = open_session(db)
     _ensure_daily(db, session)
-    _apply_prescription(db, session)
     return to_session_out(session)
 
 

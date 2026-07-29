@@ -1,6 +1,6 @@
 // Status strip under the toolbar (above the grid): up to MAX_SHOWN upcoming
 // tournaments within STRIP_HORIZON days, one line each, nearest first; a
-// "+N giải nữa" button expands to every upcoming tournament (any horizon).
+// "+N more" button expands to every upcoming tournament (any horizon).
 // Hidden entirely when nothing is coming up — it must cost zero space on
 // ordinary days. Clicking anywhere else scrolls to the management section.
 import { useState } from "react";

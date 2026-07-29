@@ -14,9 +14,8 @@ DATABASE_URL = f"sqlite:///{DATABASE_PATH.as_posix()}"
 # Local AI (Ollama) — a separate process serving a GPU-backed model on this port.
 OLLAMA_BASE_URL = "http://localhost:11434"
 
-# Local text model for the profile/skill synthesis from manual findings
-# (rarely used since the paste-analysis tab was retired). qwen3:14b fits a
-# 16GB GPU comfortably (~9-10GB at Q4).
+# Fallback text model (used when HEAD_COACH_MODEL isn't pulled in Ollama).
+# qwen3:14b fits a 16GB GPU comfortably (~9-10GB at Q4).
 TEXT_MODEL = "qwen3:14b"
 
 # Head Coach verdict model. A/B-tested on the real bundle (2026-07-13,

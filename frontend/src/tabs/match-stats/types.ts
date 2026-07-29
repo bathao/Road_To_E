@@ -1,13 +1,8 @@
 // Types for the Match Stats tab. Mirror the backend MatchStatsResponse.
 import type { PlayerLevel } from "../../shared/levels";
-import type { MatchStats } from "../../shared/types";
+import type { LevelRecord, MatchStats } from "../../shared/types";
 
-export type { PlayerLevel, MatchStats };
-
-export interface LevelRecord {
-  level: PlayerLevel;
-  stats: MatchStats;
-}
+export type { LevelRecord, PlayerLevel, MatchStats };
 
 export interface MatchLine {
   date: string;

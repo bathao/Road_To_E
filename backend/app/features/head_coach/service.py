@@ -14,6 +14,7 @@ import logging
 import time
 
 import httpx
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.db import SessionLocal
@@ -32,8 +33,6 @@ from app.features.tracker import service as tracker_service
 from app.features.tracker.models import DayNote
 from app.features.training import service as training_service
 from app.features.training.models import TrainingSession
-# Only for the player's (editable) profile name — not for analysis data.
-from app.features.video_analysis.service import get_or_create_profile
 
 log = logging.getLogger(__name__)
 
@@ -46,7 +45,7 @@ _MATCH_DETAIL_DAYS = 180
 _RECENT_NOTES = 12
 # Below this many matches a segment is tagged [MẪU NHỎ] in the context block
 # and the prompt forbids drawing win-rate conclusions from it.
-MIN_SAMPLE_MATCHES = 5
+_MIN_SAMPLE_MATCHES = 5
 
 # Relative levels are derived from POINTS vs the athlete's dynamic ELO
 # (hand-picked labels retired 2026-07-27); "unrated" = no points entered yet.
@@ -68,27 +67,22 @@ def _ms(m) -> dict:
     return {"played": m.total, "wins": m.wins, "losses": m.losses, "win_rate": m.win_rate}
 
 
-def gather_bundle(db: Session) -> schemas.SourceSummary:
-    """Assemble the coach's inputs — hard facts from the database ONLY.
+def _player_name(db: Session) -> str:
+    """The player's name, read straight from the retired profile table.
 
-    Sources: the Daily Tracker (per-day volume + every match with its score,
-    opponent level, pips, practice/official) and the Training Center (physical
-    load, adherence, pain). No AI-derived skill ratings: the retired technique-
-    analysis pipeline produced model guesses, not observations."""
-    today = dt.date.today()
-    date_from = today - dt.timedelta(days=_STATS_WINDOW_DAYS)
-    detail_from = today - dt.timedelta(days=_MATCH_DETAIL_DAYS)
+    The video_analysis feature was deleted (2026-07-29) but its va_profile row
+    is user data and stays in SQLite; this is the one field the coach needs.
+    """
+    try:
+        row = db.execute(text("SELECT name FROM va_profile WHERE id = 1")).first()
+        return row[0] if row and row[0] else "the player"
+    except Exception:
+        return "the player"
 
-    profile = get_or_create_profile(db)
-    training = training_service.report(db)
-    stats = tracker_service.build_stats(db, date_from, today)
-    # Detailed match analytics (named-opponent matches; clamped to its floor).
-    detail = tracker_service.build_match_stats(db, detail_from, today, "all", "all", "month")
-    practice = tracker_service.build_match_stats(db, detail_from, today, "all", "practice", "month")
-    official = tracker_service.build_match_stats(db, detail_from, today, "all", "official", "month")
-    tournament = tracker_service.build_match_stats(db, detail_from, today, "all", "tournament", "month")
 
-    training_sum = {
+def _training_summary(training) -> dict:
+    """The Training Center facts the coach reads (physical load/adherence)."""
+    return {
         "level": training.current_level_vi,
         "total_sessions_done": training.total_sessions_done,
         "sessions_last_7d": training.sessions_last_7d,
@@ -97,10 +91,20 @@ def gather_bundle(db: Session) -> schemas.SourceSummary:
         "current_streak": training.current_streak,
         "intensity_bias": training.intensity_bias,
         "muscle_volume": {mv.muscle: mv.times for mv in training.muscle_volume},
-        "summary": training.summary_vi,
+        # NOTE: summary_vi (English GUI prose) is deliberately NOT fed to the
+        # coach — its Vietnamese prompt gets the raw numbers above instead.
     }
 
-    match_sum = {
+
+def _match_summary(
+    db: Session, today: dt.date, rep: "tracker_rating.ReplayResult"
+) -> dict:
+    """Volume + per-discipline results over the stats window, plus the
+    dynamic ELO (the coach's objective progress yardstick) and its weekly
+    trend — the DIRECTION matters more than any single number."""
+    date_from = today - dt.timedelta(days=_STATS_WINDOW_DAYS)
+    stats = tracker_service.build_stats(db, date_from, today)
+    out = {
         "window_days": _STATS_WINDOW_DAYS,
         "days_trained": stats.days_trained,
         "days_physical": stats.days_physical,
@@ -116,46 +120,50 @@ def gather_bundle(db: Session) -> schemas.SourceSummary:
         "two_v_one": _ms(stats.two_v_one),
         "vs_pips": _ms(stats.vs_pips),
     }
-
-    # The user's dynamic ELO — the coach's objective progress yardstick
-    # (replayed live; opponents/kinds/handicap/margin already folded in).
-    my_elo = tracker_service.compute_my_rating(db)
-    match_sum["my_elo"] = {
+    my_elo = tracker_service.compute_my_rating(db, replay_result=rep)
+    elo_trend = tracker_service.build_rating_breakdown(
+        db, today - dt.timedelta(days=41), today, unit="week", replay=rep
+    )
+    out["my_elo"] = {
         "current": my_elo.current,
         "anchor": my_elo.points,
         "anchor_date": my_elo.anchor_date,
         "counted_matches": my_elo.counted_matches,
         "to_rank_e": max(0, tracker_rating.RANK_E_FLOOR - my_elo.current),
+        "weekly": [
+            {
+                "from": b.date_from.isoformat(),
+                "to": b.date_to.isoformat(),
+                "delta": b.delta,
+                "counted": b.counted,
+                "rating_end": b.rating_end,
+            }
+            for b in elo_trend.buckets
+            if b.rating_end is not None  # weeks fully before the anchor: no rating
+        ],
     }
-    # Weekly ELO trend (last ~6 weeks): the DIRECTION matters more than any
-    # single number — win-rate is biased by playing up/handicaps, this isn't.
-    elo_trend = tracker_service.build_rating_breakdown(
-        db, today - dt.timedelta(days=41), today, unit="week"
-    )
-    match_sum["my_elo"]["weekly"] = [
-        {
-            "from": b.date_from.isoformat(),
-            "to": b.date_to.isoformat(),
-            "delta": b.delta,
-            "counted": b.counted,
-            "rating_end": b.rating_end,
-        }
-        for b in elo_trend.buckets
-        if b.rating_end is not None  # weeks fully before the anchor: no rating
-    ]
+    return out
 
-    # Head-to-head: the most-played singles opponents (problem opponents float
-    # up via win_rate), plus level splits, practice-vs-official and the trend.
+
+def _match_detail(
+    db: Session, today: dt.date, rep: "tracker_rating.ReplayResult"
+) -> dict:
+    """Named-opponent analytics: level × handicap splits, per-kind results,
+    monthly trend and the most-played singles head-to-heads (problem
+    opponents float up via win_rate)."""
+    detail_from = today - dt.timedelta(days=_MATCH_DETAIL_DAYS)
+    detail = tracker_service.build_match_stats(db, detail_from, today, "all", "all", "month", replay=rep)
+    practice = tracker_service.build_match_stats(db, detail_from, today, "all", "practice", "month", replay=rep)
+    official = tracker_service.build_match_stats(db, detail_from, today, "all", "official", "month", replay=rep)
+    tournament = tracker_service.build_match_stats(db, detail_from, today, "all", "tournament", "month", replay=rep)
     top_h2h = sorted(detail.singles_h2h, key=lambda r: -r.played)[:8]
-    match_detail = {
+    return {
         "window": f"{detail.date_from.isoformat()} → {detail.date_to.isoformat()}",
-        "by_level": {
-            r.level: _ms(r.stats) for r in detail.by_level
-        },
+        "by_level": {r.level: _ms(r.stats) for r in detail.by_level},
         # Level × handicap direction (even / receiving / giving points): a
         # handicapped match must be read differently from an even one.
         "by_level_handicap": tracker_service.build_handicap_split(
-            db, detail_from, today
+            db, detail_from, today, replay=rep
         ),
         # Kinds: practice = đánh chơi, official = đánh độ nhẹ, tournament =
         # đánh giải (new 2026-07-26 — zero rows until the user logs one).
@@ -186,6 +194,25 @@ def gather_bundle(db: Session) -> schemas.SourceSummary:
         ],
     }
 
+
+def gather_bundle(db: Session) -> schemas.SourceSummary:
+    """Assemble the coach's inputs — hard facts from the database ONLY.
+
+    Sources: the Daily Tracker (per-day volume + every match with its score,
+    opponent level, pips, practice/official) and the Training Center (physical
+    load, adherence, pain). No AI-derived skill ratings: the retired technique-
+    analysis pipeline produced model guesses, not observations."""
+    today = dt.date.today()
+
+    # ONE ELO replay shared by every rating-dependent build below — the bundle
+    # runs on every verdict AND every chat message, and a replay walks every
+    # match since the anchor.
+    rep = tracker_rating.replay(db)
+
+    training_sum = _training_summary(training_service.report(db))
+    match_sum = _match_summary(db, today, rep)
+    match_detail = _match_detail(db, today, rep)
+
     # The player's own day notes — human observations, newest first.
     notes = [
         {"date": n.date.isoformat(), "text": n.text}
@@ -200,7 +227,7 @@ def gather_bundle(db: Session) -> schemas.SourceSummary:
     ]
 
     return schemas.SourceSummary(
-        player=profile.name,
+        player=_player_name(db),
         training=training_sum,
         match=match_sum,
         match_detail=match_detail,
@@ -208,7 +235,10 @@ def gather_bundle(db: Session) -> schemas.SourceSummary:
         coach_notes=coach_notes,
         # Registered upcoming competitions — the week plan aims at these.
         tournaments=tournament_service.upcoming_for_coach(db),
-        generated_for_range=f"{date_from.isoformat()} → {today.isoformat()}",
+        generated_for_range=(
+            f"{(today - dt.timedelta(days=_STATS_WINDOW_DAYS)).isoformat()}"
+            f" → {today.isoformat()}"
+        ),
     )
 
 
@@ -218,7 +248,7 @@ def _wr(d: dict) -> str:
     played = d.get("played", 0)
     line = f"{played} trận (T{d.get('wins', 0)}/B{d.get('losses', 0)}, thắng {wr_s})"
     # Small samples are labelled so the model is barred from concluding on them.
-    if 0 < played < MIN_SAMPLE_MATCHES:
+    if 0 < played < _MIN_SAMPLE_MATCHES:
         line += " [MẪU NHỎ]"
     return line
 
@@ -353,8 +383,7 @@ def _bundle_to_text(b: schemas.SourceSummary) -> str:
         f"chuỗi hiện tại: {t.get('current_streak')} ngày; "
         f"số ngày từ buổi gần nhất: {t.get('days_since_last')}; "
         f"điều chỉnh cường độ: {t.get('intensity_bias')}.\n"
-        f"Khối lượng theo nhóm cơ: {muscle}\n"
-        f"Tự nhận xét tuần: {t.get('summary')}\n\n"
+        f"Khối lượng theo nhóm cơ: {muscle}\n\n"
         f"=== GIẢI ĐẤU SẮP TỚI (học trò đã đăng ký) ===\n"
         f"{tour_lines}\n\n"
         f"=== GHI CHÚ HẰNG NGÀY CỦA HỌC TRÒ (mới nhất trước) ===\n"
@@ -384,6 +413,26 @@ def resolve_model() -> str:
         "(run: ollama pull %s)", HEAD_COACH_MODEL, TEXT_MODEL, HEAD_COACH_MODEL,
     )
     return TEXT_MODEL
+
+
+def _ollama_chat(
+    model: str, messages: list[dict], schema: dict, temperature: float, tag: str
+) -> dict:
+    """One non-streaming structured-output call against the local Ollama chat
+    API — the single place that owns the payload shape / timeout / num_ctx."""
+    payload = {
+        "model": model,
+        "messages": messages,
+        "stream": False,
+        "format": schema,
+        "options": {"temperature": temperature, "num_ctx": 16384},
+    }
+    t0 = time.monotonic()
+    resp = httpx.post(f"{OLLAMA_BASE_URL}/api/chat", json=payload, timeout=600.0)
+    resp.raise_for_status()
+    log.info("%s: model=%s took=%.1fs", tag, model, time.monotonic() - t0)
+    content = resp.json().get("message", {}).get("content", "{}")
+    return json.loads(content) if content else {}
 
 
 def _call_model(context_text: str, player_name: str, model: str | None = None) -> dict:
@@ -416,23 +465,27 @@ def _call_model(context_text: str, player_name: str, model: str | None = None) -
         "tiếng Việt (Thứ 2 … Chủ nhật).\n"
         "- watch_items: cảnh báo (dữ liệu mỏng/cũ, an toàn, điều cần theo dõi)."
     )
-    use_model = model or resolve_model()
-    payload = {
-        "model": use_model,
-        "messages": [
+    return _ollama_chat(
+        model or resolve_model(),
+        [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_text},
         ],
-        "stream": False,
-        "format": RESPONSE_SCHEMA,
-        "options": {"temperature": 0.3, "num_ctx": 16384},
-    }
-    t0 = time.monotonic()
-    resp = httpx.post(f"{OLLAMA_BASE_URL}/api/chat", json=payload, timeout=600.0)
-    resp.raise_for_status()
-    log.info("head coach: model=%s took=%.1fs", use_model, time.monotonic() - t0)
-    content = resp.json().get("message", {}).get("content", "{}")
-    return json.loads(content) if content else {}
+        RESPONSE_SCHEMA,
+        temperature=0.3,
+        tag="head coach",
+    )
+
+
+def _call_with_empty_retry(call, key: str, tag: str, model: str) -> dict:
+    """Run a structured-output call; retry ONCE when the payload's `key` field
+    comes back blank. The first call right after the model loads can return an
+    empty object (seen in smoke tests); once warm it answers fine."""
+    data = call()
+    if not (data.get(key) or "").strip():
+        log.warning("%s: empty %r from %s, retrying once", tag, key, model)
+        data = call()
+    return data
 
 
 def recover_stuck_jobs(db: Session) -> None:
@@ -496,12 +549,9 @@ def run_generate_job(assessment_id: int) -> None:
                 )
                 return out if isinstance(out, dict) else {}
 
-            data = call()
-            if not (data.get("overall_assessment") or "").strip():
-                # Same quirk as chat: the first structured-output call right
-                # after the model loads can come back empty — retry once.
-                log.warning("head coach: empty verdict from %s, retrying once", use_model)
-                data = call()
+            data = _call_with_empty_retry(
+                call, "overall_assessment", "head coach", use_model
+            )
             if not (data.get("overall_assessment") or "").strip():
                 raise ValueError("Model trả về bản đánh giá rỗng.")
 
@@ -533,26 +583,10 @@ def run_generate_job(assessment_id: int) -> None:
         db.close()
 
 
-def generate(db: Session) -> schemas.AssessmentOut:
-    """Synchronous gather → synthesise → persist (used by scripts/tests; the
-    HTTP API uses start_generate + run_generate_job instead)."""
-    out = start_generate(db)
-    run_generate_job(out.id)
-    row = db.get(HeadCoachAssessment, out.id)
-    db.refresh(row)
-    return _to_out(row)
-
-
 def _to_out(row: HeadCoachAssessment) -> schemas.AssessmentOut:
-    # created_at is stored as naive UTC (SQLite drops the tz) — re-attach UTC
-    # so the API emits "+00:00" and the browser converts to local (VN) time
-    # instead of misreading it as already-local.
-    created = row.created_at
-    if created is not None and created.tzinfo is None:
-        created = created.replace(tzinfo=dt.timezone.utc)
     return schemas.AssessmentOut(
         id=row.id,
-        created_at=created,
+        created_at=_tz(row.created_at),
         model=row.model,
         status=row.status or "done",
         error_msg=row.error_msg,
@@ -807,19 +841,9 @@ def _call_chat_model(
         + history
         + [{"role": "user", "content": question}]
     )
-    payload = {
-        "model": model,
-        "messages": messages,
-        "stream": False,
-        "format": CHAT_RESPONSE_SCHEMA,
-        "options": {"temperature": 0.4, "num_ctx": 16384},
-    }
-    t0 = time.monotonic()
-    resp = httpx.post(f"{OLLAMA_BASE_URL}/api/chat", json=payload, timeout=600.0)
-    resp.raise_for_status()
-    log.info("coach chat: model=%s took=%.1fs", model, time.monotonic() - t0)
-    content = resp.json().get("message", {}).get("content", "{}")
-    return json.loads(content) if content else {}
+    return _ollama_chat(
+        model, messages, CHAT_RESPONSE_SCHEMA, temperature=0.4, tag="coach chat"
+    )
 
 
 def _save_new_notes(db: Session, raw_notes) -> None:
@@ -882,13 +906,7 @@ def run_chat_job(db_or_none: Session | None = None) -> None:
                     model=use_model,
                 )
                 return out if isinstance(out, dict) else {}
-            data = call()
-            if not (data.get("reply") or "").strip():
-                # The first structured-output call right after the model loads
-                # can come back empty (seen in smoke tests); once warm it
-                # answers fine — retry a single time before reporting an error.
-                log.warning("coach chat: empty reply from %s, retrying once", use_model)
-                data = call()
+            data = _call_with_empty_retry(call, "reply", "coach chat", use_model)
         except Exception as exc:  # noqa: BLE001 — surfaced to the GUI via status
             log.exception("coach chat reply failed")
             db.rollback()

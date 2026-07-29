@@ -231,7 +231,12 @@ class ReplayStep:
     rating_after: float
 
 
-def replay(db: Session) -> tuple[float, list[ReplayStep]]:
+# (final rating, one step per counted match) — what replay() returns. Callers
+# that need several ELO-dependent builds replay once and pass this around.
+ReplayResult = tuple[float, list[ReplayStep]]
+
+
+def replay(db: Session) -> ReplayResult:
     """Replay every eligible match since the anchor, in play order.
 
     Returns (final rating, one step per counted match). Nothing is stored —
@@ -322,19 +327,16 @@ def replay(db: Session) -> tuple[float, list[ReplayStep]]:
     return rating, steps
 
 
-def compute_my_rating(db: Session) -> schemas.MyRatingOut:
+def compute_my_rating(
+    db: Session, replay_result: ReplayResult | None = None
+) -> schemas.MyRatingOut:
     """Current dynamic rating = anchor points + replay of every eligible match
     since the anchor date. Nothing is stored per match, so editing, deleting
     or backfilling old matches self-corrects on the next read."""
-    final, steps = replay(db)
+    final, steps = replay_result or replay(db)
     return schemas.MyRatingOut(
         points=get_my_points(db),
         current=round(final),
         anchor_date=get_my_anchor_date(db).isoformat(),
         counted_matches=len(steps),
     )
-
-
-def deltas_by_match(db: Session) -> dict[int, float]:
-    """match_id → its ±Δ contribution (counted matches only)."""
-    return {s.match_id: s.delta for s in replay(db)[1]}

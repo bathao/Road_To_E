@@ -4,28 +4,11 @@ import { trackerApi } from "../../api";
 import { validScores } from "../../scores";
 import PlayerPicker from "./PlayerPicker";
 import { levelShort } from "../../../../shared/levels";
+import { DISCIPLINES, DISCIPLINE_SHORT } from "../../../../shared/disciplines";
+import { resultOf } from "../../../../shared/types";
 
 const FORMATS = [3, 5, 7];
 type HandicapDir = "none" | "give" | "receive";
-
-// Seg label + short tag per discipline. 1v2 = I play ALONE vs two opponents;
-// 2v1 = me + partner vs one opponent.
-const DISCIPLINES: [Discipline, string][] = [
-  ["singles", "Singles"],
-  ["doubles", "Doubles"],
-  ["one_v_two", "1v2"],
-  ["two_v_one", "2v1"],
-];
-const DISCIPLINE_SHORT: Record<Discipline, string> = {
-  singles: "S",
-  doubles: "D",
-  one_v_two: "1v2",
-  two_v_one: "2v1",
-};
-
-function resultLetter(m: Match): string {
-  return m.my_sets > m.opp_sets ? "W" : m.my_sets < m.opp_sets ? "L" : "T";
-}
 
 // "vs Nam (Ngang)" for singles; "+ Partner vs A & B" for the team formats
 // (doubles / 1v2 / 2v1 — unused slots just don't render), plus handicap.
@@ -243,7 +226,7 @@ export default function MatchEditor({
               <span>
                 {m.is_nonplaying
                   ? m.nonplaying_label ?? "—"
-                  : `${DISCIPLINE_SHORT[m.discipline]} ${resultLetter(m)} ${m.my_sets}-${m.opp_sets}`}
+                  : `${DISCIPLINE_SHORT[m.discipline]} ${resultOf(m)} ${m.my_sets}-${m.opp_sets}`}
                 {playersLabel(m) ? ` · ${playersLabel(m)}` : ""}
                 {m.event_name ? ` · ${m.event_name}` : ""}
                 <EloChip m={m} />

@@ -1,25 +1,56 @@
-# TODO — Table Tennis Coach
+# TODO — Road To E
 
-Status: [ ] pending · [~] in progress · [x] done
+Status: [ ] pending · [~] in progress · [x] done. Live narrative log lives in
+`PROGRESS.md` (newest first); this file only tracks OPEN work so it stays
+scannable. Last full sync: 2026-07-29.
 
-## Next (check 2026-06-03)
-- [ ] **Verify imported data** against the original Excel screenshots
-  (1–8 Mar, then 23 Mar – 1 Jun). Fix any OCR/transcription mistakes in the app.
-- [ ] Then **commit + tag v0.3** — shared timeline, Analysis comparison charts,
-  auto-red Overall, the 3 `import_*.py` scripts + imported data, dead-code cleanup.
+## Open — needs data to accumulate first
 
-## Tab 1 — Daily Tracker — DONE
-- [x] Grid, week/day cells, duration chips, dropdown match editor, export
-- [x] Physical Training checklist (yellow at ≥70%)
-- [x] Auto Overall (green / yellow / red)
-- [x] Future-day blocking; open on latest week with data
-- [x] Inline Analysis (summary cards + Columns/Line comparison chart + category bars)
-- [x] Shared timeline driving grid + Analysis together
-- [ ] Speedups: Quick add Today / Copy yesterday / Repeat last week (deferred)
+- [ ] **Mis-anchored-opponent report**: surface frequent opponents whose
+  results deviate hardest from expectation (their static points are probably
+  wrong). Deviation detector already prototyped in the backtest scripts;
+  needs a few more weeks of post-anchor matches before the numbers mean
+  anything. Candidate home: a Database-tab section.
+- [ ] **"Road To E" ETA projection**: from the ELO trend, project when the
+  rating crosses 1201 (rank E floor). Same blocker — needs weeks of trend.
+- [ ] **Re-run `scale_backtest.py`** (~Oct 2026) to re-check
+  `HANDICAP_SCALE = 0.5` against real post-anchor handicapped matches
+  (chosen 2026-07-27 from a backtest of 23 pre-anchor matches; kèo-selection
+  suspected). Harness lives in the session scratchpad — recreate from
+  PROGRESS.md 2026-07-27 notes if lost.
+- [ ] **Tournament ELO multiplier** (`t = 1.5`) is still a placeholder — no
+  tournament matches logged yet; revisit once real `tournament_match` rows
+  exist.
 
-## Future tabs (not started)
-- [ ] Training Plan
-- [ ] Motivation / goals
-- [ ] Tactics, supplementary drills (each adds its own `<feature>_*` tables)
+## Open — feature ideas (no blocker, just not built)
 
-Note: Analysis is built inline in Tab 1, not a separate tab.
+- [ ] **Entry speedups** in the Daily Tracker: "Quick add Today", "Copy
+  yesterday", "Repeat last week" (deferred since Tab 1 v1).
+- [ ] **Motivation tab** (🔥) — the only registry entry still disabled.
+  Scope never designed; plan first.
+- [ ] **Filtered ELO deltas** (per discipline/category) in the breakdown —
+  explicitly cut from v1 (a filtered rating_end would lie; filtered deltas
+  are still an honest option). Only if a real question needs it.
+
+## Watch list (not actionable yet)
+
+- [ ] First tournament entered via the Daily Tracker → check the coach
+  bundle's "đánh giải" split and the t=1.5 delta look sane.
+- [ ] `RACKET_MINUTES_PER_SET = 5` — user confirmed keeping it (2026-07-27,
+  "thôi vậy cũng dc"); recalibrate only if session-length data ever says
+  otherwise.
+
+## Done (milestones — details in PROGRESS.md)
+
+- [x] Tab 1 Daily Tracker (grid, editors, analysis, export) — v0.1..v0.4
+- [x] Data import Mar–Jun 2026 (4 one-shot scripts, kept as provenance)
+- [x] Tournaments (strip + section + coach integration), 2026-07-25
+- [x] Player database + static points + my dynamic ELO (anchor + replay,
+  handicap folding, doubles/1v2/2v1), 2026-07-25..27
+- [x] Head Coach (verdict + directives + chat + notebook) + ELO trend input
+- [x] Training Center (knee-safe program, autoregulation, weekly summary)
+- [x] English UI sweep (GUI English; coach stays Vietnamese), 2026-07-28..29
+- [x] Project-wide review + cleanup: video_analysis feature DELETED (tables
+  kept), dead code/CSS purged, dedup (shared EloCurve, disciplines,
+  resultOf…), one-replay coach bundle, scripts un-broken, docs rewritten,
+  2026-07-29

@@ -1,11 +1,14 @@
-# Plan: Table Tennis Coach — Tab 1 "Daily Tracker"
+# Plan: Road To E (formerly "Table Tennis Coach") — Tab 1 "Daily Tracker"
 
-> **As built (current).** This is the original plan; the shipped design has
-> evolved. Key differences, kept in sync below: the two "Other …" rows were
-> dropped; **Overall is auto-generated** (green/yellow/red), not a manual rating;
-> **Physical Training is a checklist**, not a duration; **Analysis is inline** in
-> Tab 1 (no separate tab) and shares one timeline with the grid. See
-> `PROGRESS.md` for the live status.
+> **HISTORICAL.** This is the original Tab-1 plan; the shipped app has grown
+> far beyond it (6 tabs — see README.md; live status in `PROGRESS.md`). Key
+> Tab-1 differences kept in sync below: the two "Other …" rows were dropped;
+> **Overall is auto-generated** (green/yellow/red), not a manual rating;
+> **Physical Training is a checklist**, not a duration; **Analysis is inline**
+> in Tab 1 (no separate tab) and shares one timeline with the grid.
+> **Paths in §Directory layout are historical** — e.g. the import scripts now
+> live in `backend/scripts/imports/`, and PeriodControl/LineChart/Modal moved
+> to `frontend/src/shared/ui/`.
 
 ## Context
 

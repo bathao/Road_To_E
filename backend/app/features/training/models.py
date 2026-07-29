@@ -60,6 +60,7 @@ class TrainingSession(Base):
     done_on: Mapped[dt.date | None] = mapped_column(Date, default=None, index=True)
     completed_at: Mapped[dt.datetime | None] = mapped_column(DateTime, default=None)
     duration_min: Mapped[int | None] = mapped_column(Integer, default=None)
+    # Frozen 2026-07-29: only the retired video-prescription injector wrote it.
     adapted: Mapped[bool] = mapped_column(Boolean, default=False)
     note: Mapped[str | None] = mapped_column(String, default=None)
     # Post-session feedback (autoregulation + safety): pain none|mild|strong,

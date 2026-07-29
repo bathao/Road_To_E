@@ -2,6 +2,7 @@
 backend/.venv/
 **/__pycache__/
 *.pyc
+.pytest_cache/
 
 # ---- Database ----
 # The SQLite DB IS tracked on purpose: it holds the user's personal coaching
@@ -14,21 +15,12 @@ backend/.venv/
 # Daily on-startup snapshots (app/core/backup.py) — local safety net only.
 backend/data/backups/
 
-# ---- Uploaded videos (Video Analysis tab) ----
-# Clips can be large; keep them out of the repo. The DB still tracks their
-# metadata + AI analysis, so only the raw media files are ignored.
+# ---- Retired video-analysis pipeline data (feature deleted 2026-07-29) ----
+# Local artefacts of the removed CV stack are kept on disk as user data but
+# never tracked: ML models, portrait photos, cached face embeddings.
+backend/data/models/
 backend/data/videos/
 backend/data/profile_refs/
-
-# ---- ML models (Phase 4) ----
-# Track the small table-ROI seg model (needed for table detection); ignore other
-# (large / user-supplied) models like an optional TrackNet ONNX ball detector.
-backend/data/models/*
-!backend/data/models/roi_seg.pt
-
-# ---- Player identity (ArcFace enrollment) ----
-# Raw portrait photos + the cached embeddings are personal/regenerable; keep the
-# folder (via README) but not its contents. Re-enroll to rebuild identity.npz.
 backend/data/identity/me/*
 !backend/data/identity/me/README.txt
 backend/data/identity/identity.npz

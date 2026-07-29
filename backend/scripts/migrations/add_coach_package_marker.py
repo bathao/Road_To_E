@@ -8,10 +8,16 @@ Run from backend/:
 
     .venv\\Scripts\\python scripts\\migrations\\add_coach_package_marker.py
 """
-from sqlalchemy import text
+import sys
+from pathlib import Path
 
-from app.core.db import SessionLocal, engine, init_db
-from app.features.tracker.models import Activity, Category
+# Make `app` importable when run as a plain script (sys.path[0] is this dir).
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from sqlalchemy import text  # noqa: E402
+
+from app.core.db import SessionLocal, engine, init_db  # noqa: E402
+from app.features.tracker.models import Activity, Category  # noqa: E402
 
 
 def _has_column(conn, table: str, column: str) -> bool:

@@ -9,7 +9,8 @@ export type CategoryType =
   | "computed"; // auto-calculated read-only row (Racket Time)
 export type ColorGroup = "green" | "yellow" | "none";
 // one_v_two = I play ALONE vs two opponents; two_v_one = me + partner vs one.
-export type Discipline = "singles" | "doubles" | "one_v_two" | "two_v_one";
+export type { Discipline } from "../../shared/disciplines";
+import type { Discipline } from "../../shared/disciplines";
 
 export interface Category {
   id: number;
@@ -113,14 +114,8 @@ export interface PhysicalItem {
 }
 
 // ---- stats / analysis ----
-import type { MatchStats } from "../../shared/types";
-export type { MatchStats };
-
-export interface CategoryMinutes {
-  key: string;
-  label: string;
-  minutes: number;
-}
+import type { CategoryMinutes, MatchStats } from "../../shared/types";
+export type { CategoryMinutes, MatchStats };
 
 export interface BreakdownBucket {
   key: string;

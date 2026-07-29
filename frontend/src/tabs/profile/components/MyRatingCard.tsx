@@ -6,10 +6,11 @@
 import { useState } from "react";
 import { useLoad, useMutate } from "../../../shared/useApi";
 import { pointsLabel } from "../../../shared/rank";
-import { todayIso } from "../../../shared/dates";
+import { dmyDate, shortDate, todayIso } from "../../../shared/dates";
+import { fmtDelta } from "../../../shared/format";
 import type { Mode, Period } from "../../../shared/period";
 import { chartUnitFor, resolveRange, stepAnchor } from "../../../shared/period";
-import LineChart from "../../../shared/ui/LineChart";
+import EloCurve from "../../../shared/ui/EloCurve";
 import PeriodControl from "../../../shared/ui/PeriodControl";
 import { profileApi } from "../api";
 import type { MyRating, RatingBreakdown } from "../types";
@@ -20,67 +21,31 @@ const RANK_E_FLOOR = 1201;
 // The curve needs a span to draw a line, so "day" is left out; default Month.
 const CURVE_MODES: Mode[] = ["week", "month", "year", "custom"];
 
-// "2026-07-27" → "27/07" for chart labels.
-function shortDate(iso: string): string {
-  const [, m, d] = iso.split("-");
-  return `${d}/${m}`;
-}
-
-// "2026-07-27" → "27/07/2026" for the anchor note.
-function fmtAnchor(iso: string): string {
-  const [y, m, d] = iso.split("-");
-  return `${d}/${m}/${y}`;
-}
-
-// ELO curve over the selected range, same semantics as the Daily Tracker's
-// ELO block: full bucket axis (real time), pre-anchor buckets flat at the
-// anchor value, future buckets blank. LineChart scales 0..max, which would
-// flatten a curve hovering around ~950 — so values are re-based near the
-// observed min and formatY maps gridline values back to real ratings.
+// ELO curve over the selected range — shared/ui/EloCurve, the same engine as
+// the Daily Tracker's ELO block.
 function RatingChart({ bd }: { bd: RatingBreakdown }) {
-  const today = todayIso();
-  const anchorVal: number | null = bd.anchor_points ?? null;
-  const valueOf = (b: (typeof bd.buckets)[number]): number | null =>
-    b.date_from > today ? null : b.rating_end ?? anchorVal;
-  const drawn = bd.buckets.map(valueOf).filter((v): v is number => v !== null);
-  if (drawn.length < 2) {
-    return (
-      <p className="va-muted">
-        Not enough data in this range to draw a line — matches count from the
-        anchor ({shortDate(bd.anchor_date)}) onward.
-      </p>
-    );
-  }
-  const base = Math.min(...drawn) - 20;
-  const sign = bd.total_delta > 0 ? "+" : "";
   return (
     <>
       {bd.rating_end !== null && (
         <p className="va-muted">
-          net Δ {sign}
-          {bd.total_delta.toFixed(1)} · {bd.counted} matches · period end{" "}
+          net Δ {fmtDelta(bd.total_delta)} · {bd.counted} matches · period end{" "}
           <b>{bd.rating_end}</b>
         </p>
       )}
-      <LineChart
-        points={bd.buckets.map((b) => {
-          const v = valueOf(b);
-          return {
-            label: shortDate(b.date_from),
-            value: v === null ? null : v - base,
-            display:
-              b.rating_end === null
-                ? `${anchorVal} · before anchor`
-                : b.counted
-                  ? `${b.rating_end} · Δ ${b.delta > 0 ? "+" : ""}${b.delta.toFixed(1)} (${b.counted} matches)`
-                  : String(b.rating_end),
-            tip:
-              b.date_from === b.date_to
-                ? b.date_from
-                : `${b.date_from} → ${b.date_to}`,
-          };
-        })}
-        formatY={(v) => String(Math.round(v + base))}
+      <EloCurve
+        elo={bd}
+        labelOf={(b) => shortDate(b.date_from)}
+        tipOf={(b) =>
+          b.date_from === b.date_to
+            ? b.date_from
+            : `${b.date_from} → ${b.date_to}`
+        }
+        fallback={
+          <p className="va-muted">
+            Not enough data in this range to draw a line — matches count from
+            the anchor ({shortDate(bd.anchor_date)}) onward.
+          </p>
+        }
       />
     </>
   );
@@ -184,7 +149,7 @@ export default function MyRatingCard() {
         )}
         <span className="db-me-note">
           {myRating
-            ? `Dynamic ELO · anchored ${myRating.points} since ${fmtAnchor(
+            ? `Dynamic ELO · anchored ${myRating.points} since ${dmyDate(
                 myRating.anchor_date
               )} · ${myRating.counted_matches} matches counted (singles + doubles + 1v2/2v1, handicaps converted)`
             : "the only dynamic rating (ELO)"}

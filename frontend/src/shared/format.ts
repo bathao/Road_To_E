@@ -12,3 +12,8 @@ export function fmtMinutes(min: number): string {
   const m = min % 60;
   return [h ? `${h}h` : "", m ? `${m}m` : ""].filter(Boolean).join(" ");
 }
+
+/** Signed one-decimal ELO delta: "+3.2" / "-1.7". */
+export function fmtDelta(d: number): string {
+  return `${d > 0 ? "+" : ""}${d.toFixed(1)}`;
+}

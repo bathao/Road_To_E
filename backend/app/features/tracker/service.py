@@ -9,7 +9,19 @@ from typing import NamedTuple
 from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
 
-from app.features.tracker import schemas
+from app.features.tracker import rating, schemas
+
+# The user's dynamic ELO rating lives in rating.py (constants, anchor store,
+# snapshots, handicap ladder, replay engine). Re-exported names keep existing
+# call sites (router pieces, tests) working.
+from app.features.tracker.rating import (  # noqa: F401
+    compute_my_rating,
+    get_my_anchor_date,
+    get_my_points,
+    handicap_bonus,
+    set_my_points,
+    snapshot_match_points,
+)
 from app.features.tracker.models import (
     Activity,
     Category,
@@ -356,20 +368,6 @@ def list_players_db(db: Session) -> schemas.PlayersDbResponse:
     )
 
 
-# The user's dynamic ELO rating moved to rating.py (constants, anchor
-# store, snapshots, handicap ladder, replay engine). Re-exported names
-# below keep existing call sites (router pieces, _level_vs_me, tests).
-from app.features.tracker import rating  # noqa: E402
-from app.features.tracker.rating import (  # noqa: E402,F401
-    compute_my_rating,
-    get_my_anchor_date,
-    get_my_points,
-    handicap_bonus,
-    set_my_points,
-    snapshot_match_points,
-)
-
-
 # ---------------------------------------------------------------- events
 
 
@@ -638,6 +636,24 @@ def _grid_cells(
 # ---------------------------------------------------------------- week
 
 
+def _annotate_elo(db: Session, matches: list[Match]) -> list[schemas.MatchOut]:
+    """One replay pass → MatchOut per match, tagged with its ±Δ (counted) or
+    the reason it doesn't move the rating (the GUI shows actionable "không
+    tính"). The same pass yields my current rating for the derived *_level
+    fields."""
+    my_final, elo_steps = rating.replay(db)
+    elo_deltas = {s.match_id: s.delta for s in elo_steps}
+    anchor_date = rating.get_my_anchor_date(db)
+    outs = [match_to_out(m, round(my_final)) for m in matches]
+    for out, m in zip(outs, matches):
+        if m.id in elo_deltas:
+            out.elo_delta = round(elo_deltas[m.id], 1)
+            out.elo_status = rating.STATUS_COUNTED
+        else:
+            out.elo_status = rating.skip_reason(m, anchor_date)
+    return outs
+
+
 def build_week(
     db: Session, start: dt.date, end: dt.date | None = None
 ) -> schemas.WeekResponse:
@@ -670,19 +686,7 @@ def build_week(
         for iso, color in overall_colors.items():
             cells[f"{overall.id}|{iso}"] = schemas.CellData(display="", color=color)
 
-    # ELO annotation: one replay pass, then tag every match with its ±Δ or
-    # the reason it doesn't count (the GUI shows actionable "không tính").
-    # The same pass yields my current rating for the derived *_level fields.
-    my_final, elo_steps = rating.replay(db)
-    match_outs = [match_to_out(m, round(my_final)) for m in matches]
-    elo_deltas = {s.match_id: s.delta for s in elo_steps}
-    anchor_date = rating.get_my_anchor_date(db)
-    for out, m in zip(match_outs, matches):
-        if m.id in elo_deltas:
-            out.elo_delta = round(elo_deltas[m.id], 1)
-            out.elo_status = rating.STATUS_COUNTED
-        else:
-            out.elo_status = rating.skip_reason(m, anchor_date)
+    match_outs = _annotate_elo(db, matches)
 
     return schemas.WeekResponse(
         start=start,
@@ -700,25 +704,27 @@ def build_week(
 # ---------------------------------------------------------------- coach packages
 
 
+def _coach_sessions(db: Session) -> list[Activity]:
+    """Every Train-with-Coach session with real duration, in date order —
+    the single query behind all package computations."""
+    coach = db.query(Category).filter(Category.key == "train_with_coach").first()
+    if coach is None:
+        return []
+    return (
+        db.query(Activity)
+        .filter(Activity.category_id == coach.id, Activity.duration_minutes > 0)
+        .order_by(Activity.date)
+        .all()
+    )
+
+
 def compute_coach_packages(db: Session) -> schemas.CoachPackagesResponse:
     """Group Train-with-Coach sessions into packages of COACH_PACKAGE_SIZE.
 
     A package opens on each session flagged is_package_start; the earliest
     session implicitly opens package #1 (covers data older than any marker).
     """
-    coach = db.query(Category).filter(Category.key == "train_with_coach").first()
-    sessions: list[Activity] = []
-    if coach is not None:
-        sessions = (
-            db.query(Activity)
-            .filter(
-                Activity.category_id == coach.id,
-                Activity.duration_minutes > 0,
-            )
-            .order_by(Activity.date)
-            .all()
-        )
-
+    sessions = _coach_sessions(db)
     size = COACH_PACKAGE_SIZE
     packages: list[schemas.CoachPackage] = []
     for i, a in enumerate(sessions):
@@ -769,18 +775,7 @@ def start_next_coach_package(db: Session) -> schemas.CoachPackagesResponse:
     Equivalent to opening that day's coach cell and ticking the ★ box — this
     just finds the right day automatically (always session 11, so sessions
     12+ stay in the NEW package, never inflate the old one)."""
-    coach = db.query(Category).filter(Category.key == "train_with_coach").first()
-    sessions: list[Activity] = []
-    if coach is not None:
-        sessions = (
-            db.query(Activity)
-            .filter(
-                Activity.category_id == coach.id,
-                Activity.duration_minutes > 0,
-            )
-            .order_by(Activity.date)
-            .all()
-        )
+    sessions = _coach_sessions(db)
     # Current block = everything from the last flagged start (or session #1).
     start_idx = 0
     for i, a in enumerate(sessions):
@@ -806,15 +801,7 @@ def coach_package_start_allowed(db: Session, date: dt.date) -> bool:
     of a block are NOT allowed. Works for a date that has no session yet
     (e.g. logging the 11th session for the first time).
     """
-    coach = db.query(Category).filter(Category.key == "train_with_coach").first()
-    if coach is None:
-        return True
-    sessions = (
-        db.query(Activity)
-        .filter(Activity.category_id == coach.id, Activity.duration_minutes > 0)
-        .order_by(Activity.date)
-        .all()
-    )
+    sessions = _coach_sessions(db)
     if not sessions:
         return True  # the very first session can always open package #1
 
@@ -903,12 +890,6 @@ def _finalize_match_stats(s: dict) -> schemas.MatchStats:
     return schemas.MatchStats(**s, win_rate=win_rate(s["wins"], s["losses"]))
 
 
-# The summary buckets a stat card can drill into. "singles" is the fallback
-# discipline bucket (anything that isn't doubles/1v2/2v1), mirroring
-# build_stats' `by_discipline.get(..., singles)`.
-STATS_BUCKETS = ("overall", "singles", "doubles", "one_v_two", "two_v_one", "vs_pips")
-
-
 def _in_stats_bucket(m: Match, bucket: str) -> bool:
     """Whether a match belongs to one of build_stats' summary buckets.
 
@@ -938,18 +919,7 @@ def list_stats_matches(
     rng = _load_range(db, date_from, date_to, with_match_relations=True)
     matches = [m for m in rng.matches if _in_stats_bucket(m, bucket)]
     matches.sort(key=lambda m: (m.date, m.order_index, m.id), reverse=True)
-
-    my_final, elo_steps = rating.replay(db)
-    elo_deltas = {s.match_id: s.delta for s in elo_steps}
-    anchor_date = rating.get_my_anchor_date(db)
-    outs = [match_to_out(m, round(my_final)) for m in matches]
-    for out, m in zip(outs, matches):
-        if m.id in elo_deltas:
-            out.elo_delta = round(elo_deltas[m.id], 1)
-            out.elo_status = rating.STATUS_COUNTED
-        else:
-            out.elo_status = rating.skip_reason(m, anchor_date)
-    return outs
+    return _annotate_elo(db, matches)
 
 
 def build_stats(db: Session, date_from: dt.date, date_to: dt.date) -> schemas.StatsResponse:
@@ -1174,23 +1144,11 @@ _CATEGORY_KEY = {
 MATCH_STATS_FLOOR = dt.date(2026, 6, 1)
 
 
-def build_match_stats(
-    db: Session,
-    date_from: dt.date,
-    date_to: dt.date,
-    discipline: str = "all",
-    category: str = "all",
-    unit: str = "month",
-) -> schemas.MatchStatsResponse:
-    """Stats over *named-opponent* matches only (opponent_id set, playing).
-
-    Unlike build_stats (which counts every match), this tab is opponent-centric,
-    so matches without a recorded opponent are excluded. A match is attributed to
-    its primary opponent_id (opponent #1 in doubles); use the Singles filter for
-    clean 1-v-1 analysis.
-    """
-    # Clamp to the floor — this tab only covers matches from June 2026 on.
-    date_from = max(date_from, MATCH_STATS_FLOOR)
+def _query_named_matches(
+    db: Session, date_from: dt.date, date_to: dt.date, discipline: str, category: str
+) -> list[Match]:
+    """Playing matches with a named opponent in the range, in play order
+    (order_index breaks same-day ties so "last_result" is truly the last)."""
     q = (
         db.query(Match)
         .options(
@@ -1211,14 +1169,36 @@ def build_match_stats(
     if category in _CATEGORY_KEY:
         cat = db.query(Category).filter(Category.key == _CATEGORY_KEY[category]).first()
         q = q.filter(Match.category_id == (cat.id if cat else -1))
-    # order_index breaks same-day ties so "last_result" is truly the last match.
-    matches = q.order_by(Match.date, Match.order_index).all()
+    return q.order_by(Match.date, Match.order_index).all()
 
-    # Relative levels derive from POINTS vs my current dynamic rating (the
-    # hand-picked label was retired 2026-07-27). Per-MATCH grouping honours
-    # the at-match-time snapshot; per-PLAYER listings use current points.
-    my_now = round(rating.replay(db)[0])
 
+def _record_tail(rec: dict) -> dict:
+    """The stat fields OpponentRecord and DoublesRecord share."""
+    return {
+        "played": rec["total"],
+        "wins": rec["wins"],
+        "losses": rec["losses"],
+        "ties": rec["ties"],
+        "sets_won": rec["sets_won"],
+        "sets_lost": rec["sets_lost"],
+        "win_rate": win_rate(rec["wins"], rec["losses"]),
+        "last_date": rec["last_date"],
+        "last_result": rec["last_result"],
+        "matches": list(reversed(rec.get("matches", []))),  # most recent first
+    }
+
+
+class _H2HAcc(NamedTuple):
+    overall: dict
+    by_level: dict[str, dict]
+    singles_h2h: dict[int, dict]
+    doubles_h2h: dict[str, dict]
+    opp_brief: dict[int, dict]
+
+
+def _h2h_accumulate(matches: list[Match], my_now: int) -> _H2HAcc:
+    """One pass over the matches → overall/per-level tallies + head-to-head
+    records (singles per opponent; team-style per discipline+partner+pair)."""
     overall = _blank_match_stats()
     by_level: dict[str, dict] = {lv: _blank_match_stats() for lv in _LEVEL_ORDER}
     singles_h2h: dict[int, dict] = {}  # keyed by opponent_id
@@ -1310,63 +1290,13 @@ def build_match_stats(
                 event_name=m.event.name if m.event else None,
             )
         )
+    return _H2HAcc(overall, by_level, singles_h2h, doubles_h2h, opp_brief)
 
-    def _opp_record(rec: dict) -> schemas.OpponentRecord:
-        return schemas.OpponentRecord(
-            opponent_id=rec["opponent_id"],
-            name=rec["name"],
-            level=rec["level"],
-            played=rec["total"],
-            wins=rec["wins"],
-            losses=rec["losses"],
-            ties=rec["ties"],
-            sets_won=rec["sets_won"],
-            sets_lost=rec["sets_lost"],
-            win_rate=win_rate(rec["wins"], rec["losses"]),
-            last_date=rec["last_date"],
-            last_result=rec["last_result"],
-            matches=list(reversed(rec.get("matches", []))),  # most recent first
-        )
 
-    def _dbl_record(rec: dict) -> schemas.DoublesRecord:
-        return schemas.DoublesRecord(
-            key=rec["key"],
-            discipline=rec["discipline"],
-            partner_id=rec["partner_id"],
-            partner_name=rec["partner_name"],
-            partner_level=rec["partner_level"],
-            opp1_id=rec["opp1_id"],
-            opp1_name=rec["opp1_name"],
-            opp1_level=rec["opp1_level"],
-            opp2_id=rec["opp2_id"],
-            opp2_name=rec["opp2_name"],
-            opp2_level=rec["opp2_level"],
-            played=rec["total"],
-            wins=rec["wins"],
-            losses=rec["losses"],
-            ties=rec["ties"],
-            sets_won=rec["sets_won"],
-            sets_lost=rec["sets_lost"],
-            win_rate=win_rate(rec["wins"], rec["losses"]),
-            last_date=rec["last_date"],
-            last_result=rec["last_result"],
-            matches=list(reversed(rec.get("matches", []))),  # most recent first
-        )
-
-    singles_list = sorted(
-        (_opp_record(r) for r in singles_h2h.values()),
-        key=lambda o: (-o.played, o.name.lower()),
-    )
-    doubles_list = sorted(
-        (_dbl_record(r) for r in doubles_h2h.values()),
-        key=lambda r: (-r.played, r.opp1_name.lower()),
-    )
-    opponents = sorted(
-        (schemas.OpponentBrief(**b) for b in opp_brief.values()),
-        key=lambda o: (-o.played, o.name.lower()),
-    )
-
-    # Trend buckets (win-rate over time), named-opponent matches only.
+def _trend_buckets(
+    matches: list[Match], date_from: dt.date, date_to: dt.date, unit: str
+) -> list[schemas.MatchTrendBucket]:
+    """Win-rate over time, bucketed by day/week/month."""
     by_iso: dict[str, list[Match]] = {}
     for m in matches:
         by_iso.setdefault(m.date.isoformat(), []).append(m)
@@ -1393,6 +1323,70 @@ def build_match_stats(
                 win_rate=win_rate(b_w, b_l),
             )
         )
+    return trend
+
+
+def build_match_stats(
+    db: Session,
+    date_from: dt.date,
+    date_to: dt.date,
+    discipline: str = "all",
+    category: str = "all",
+    unit: str = "month",
+    replay: rating.ReplayResult | None = None,
+) -> schemas.MatchStatsResponse:
+    """Stats over *named-opponent* matches only (opponent_id set, playing).
+
+    Unlike build_stats (which counts every match), this tab is opponent-centric,
+    so matches without a recorded opponent are excluded. A match is attributed to
+    its primary opponent_id (opponent #1 in doubles); use the Singles filter for
+    clean 1-v-1 analysis.
+    """
+    # Clamp to the floor — this tab only covers matches from June 2026 on.
+    date_from = max(date_from, MATCH_STATS_FLOOR)
+    matches = _query_named_matches(db, date_from, date_to, discipline, category)
+
+    # Relative levels derive from POINTS vs my current dynamic rating (the
+    # hand-picked label was retired 2026-07-27). Per-MATCH grouping honours
+    # the at-match-time snapshot; per-PLAYER listings use current points.
+    # `replay` lets a caller doing several ELO-dependent builds (the coach
+    # bundle) replay once and share the result.
+    my_now = round((replay or rating.replay(db))[0])
+
+    acc = _h2h_accumulate(matches, my_now)
+    singles_list = sorted(
+        (
+            schemas.OpponentRecord(
+                opponent_id=r["opponent_id"],
+                name=r["name"],
+                level=r["level"],
+                **_record_tail(r),
+            )
+            for r in acc.singles_h2h.values()
+        ),
+        key=lambda o: (-o.played, o.name.lower()),
+    )
+    doubles_list = sorted(
+        (
+            schemas.DoublesRecord(
+                **{
+                    k: r[k]
+                    for k in (
+                        "key", "discipline", "partner_id", "partner_name",
+                        "partner_level", "opp1_id", "opp1_name", "opp1_level",
+                        "opp2_id", "opp2_name", "opp2_level",
+                    )
+                },
+                **_record_tail(r),
+            )
+            for r in acc.doubles_h2h.values()
+        ),
+        key=lambda r: (-r.played, r.opp1_name.lower()),
+    )
+    opponents = sorted(
+        (schemas.OpponentBrief(**b) for b in acc.opp_brief.values()),
+        key=lambda o: (-o.played, o.name.lower()),
+    )
 
     return schemas.MatchStatsResponse(
         date_from=date_from,
@@ -1400,20 +1394,23 @@ def build_match_stats(
         discipline=discipline,
         category=category,
         unit=unit,
-        overall=_finalize_match_stats(overall),
+        overall=_finalize_match_stats(acc.overall),
         by_level=[
-            schemas.LevelRecord(level=lv, stats=_finalize_match_stats(by_level[lv]))
+            schemas.LevelRecord(level=lv, stats=_finalize_match_stats(acc.by_level[lv]))
             for lv in _LEVEL_ORDER
         ],
         opponents=opponents,
         singles_h2h=singles_list,
         doubles_h2h=doubles_list,
-        trend=trend,
+        trend=_trend_buckets(matches, date_from, date_to, unit),
     )
 
 
 def build_handicap_split(
-    db: Session, date_from: dt.date, date_to: dt.date
+    db: Session,
+    date_from: dt.date,
+    date_to: dt.date,
+    replay: rating.ReplayResult | None = None,
 ) -> dict[str, dict[str, dict]]:
     """Win rates by opponent level × handicap direction, for the Head Coach.
 
@@ -1436,7 +1433,7 @@ def build_handicap_split(
         )
         .all()
     )
-    my_now = round(rating.replay(db)[0])
+    my_now = round((replay or rating.replay(db))[0])
     acc: dict[str, dict[str, dict]] = {
         lv: {d: _blank_match_stats() for d in ("even", "receive", "give")}
         for lv in _LEVEL_ORDER
@@ -1467,7 +1464,11 @@ def build_handicap_split(
 
 
 def build_rating_breakdown(
-    db: Session, date_from: dt.date, date_to: dt.date, unit: str = "day"
+    db: Session,
+    date_from: dt.date,
+    date_to: dt.date,
+    unit: str = "day",
+    replay: rating.ReplayResult | None = None,
 ) -> schemas.MyRatingBreakdownOut:
     """Net ELO change per day/week/month bucket + the range's top ±Δ movers.
 
@@ -1475,7 +1476,7 @@ def build_rating_breakdown(
     GLOBAL: no discipline/category filtering here (deltas could be filtered,
     but a filtered "rating at end of bucket" would be a lie — decided v1
     2026-07-27)."""
-    _final, steps = rating.replay(db)
+    _final, steps = replay or rating.replay(db)
     anchor_date = rating.get_my_anchor_date(db)
     anchor_points = rating.get_my_points(db)
 

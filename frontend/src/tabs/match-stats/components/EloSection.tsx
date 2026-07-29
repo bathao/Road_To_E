@@ -1,24 +1,12 @@
+import { shortDate } from "../../../shared/dates";
+import { DISCIPLINE_LABEL } from "../../../shared/disciplines";
+import { fmtDelta } from "../../../shared/format";
+import { resultOf } from "../../../shared/types";
 import type { RatingBreakdown, RatingBucket, RatingMover } from "../types";
 
 // "ELO over time": net ±Δ per bucket + the range's most influential
 // matches. GLOBAL — the rating ignores the tab's discipline/category filters
 // (a filtered "rating at end of bucket" would lie), and the section says so.
-
-const DISCIPLINE_VI: Record<string, string> = {
-  singles: "singles",
-  doubles: "doubles",
-  one_v_two: "1v2",
-  two_v_one: "2v1",
-};
-
-function shortDate(iso: string): string {
-  const [, m, d] = iso.split("-");
-  return `${d}/${m}`;
-}
-
-function fmtDelta(d: number): string {
-  return `${d > 0 ? "+" : ""}${d.toFixed(1)}`;
-}
 
 // Signed horizontal bars around a center zero line — one row per bucket that
 // actually had counted matches (quiet buckets are noise here).
@@ -60,7 +48,7 @@ function DeltaBars({ buckets }: { buckets: RatingBucket[] }) {
 }
 
 function MoverLine({ m }: { m: RatingMover }) {
-  const res = m.my_sets > m.opp_sets ? "win" : "loss";
+  const res = resultOf(m) === "W" ? "win" : "loss";
   return (
     <li className="elo-mover">
       <span className={`elo-delta-val ${m.delta >= 0 ? "pos" : "neg"}`}>
@@ -68,7 +56,7 @@ function MoverLine({ m }: { m: RatingMover }) {
       </span>
       <span className="elo-mover-desc">
         {res} {m.my_sets}-{m.opp_sets} vs {m.opponent_name ?? "?"} (
-        {DISCIPLINE_VI[m.discipline] ?? m.discipline})
+        {DISCIPLINE_LABEL[m.discipline] ?? m.discipline})
       </span>
       <span className="elo-mover-date">{shortDate(m.date)}</span>
     </li>
@@ -84,7 +72,6 @@ export default function EloSection({
 }) {
   // The whole range predates the anchor — no rating existed yet.
   if (elo.rating_end === null) return null;
-  const unitVi = unit === "month" ? "month" : unit === "week" ? "week" : "day";
   return (
     <section className="stats-card elo-section">
       <div className="elo-head">
@@ -105,7 +92,7 @@ export default function EloSection({
       </div>
       <div className="elo-cols">
         <div>
-          <h4>Δ by {unitVi}</h4>
+          <h4>Δ by {unit}</h4>
           <DeltaBars buckets={elo.buckets} />
         </div>
         <div>

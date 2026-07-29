@@ -36,13 +36,6 @@
   background: var(--surface);
 }
 
-.db-me-label {
-  font-size: 0.8rem;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
 .db-me-points {
   font-size: 1.3rem;
   font-weight: 700;

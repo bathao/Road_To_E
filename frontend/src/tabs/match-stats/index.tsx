@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLoad } from "../../shared/useApi";
 import PeriodControl from "../../shared/ui/PeriodControl";
 import type { Bar } from "../../shared/ui/LineChart";
 import LineChart from "../../shared/ui/LineChart";
 import LevelBars from "./components/LevelBars";
 import { startOfMonth, toIso } from "../../shared/dates";
+import { DISCIPLINES, DISCIPLINE_LABEL } from "../../shared/disciplines";
 import type { Mode } from "../../shared/period";
 import { chartUnitFor, resolveRange, stepAnchor } from "../../shared/period";
 import { levelShort } from "../../shared/levels";
@@ -40,9 +41,15 @@ export default function MatchStats() {
   );
   const unit = chartUnitFor(mode, "line", range.fromIso, range.toIso) ?? "day";
 
-  const { data, error, loading } = useLoad<MatchStatsResponse>(() => {
-    setSelOpp(""); // reset the head-to-head pick when the dataset changes
-    return matchStatsApi.get(range.fromIso, range.toIso, discipline, category, unit);
+  const { data, error, loading } = useLoad<MatchStatsResponse>(
+    () => matchStatsApi.get(range.fromIso, range.toIso, discipline, category, unit),
+    [range.fromIso, range.toIso, discipline, category, unit]
+  );
+
+  // Reset the head-to-head pick when the dataset changes (an effect, not a
+  // side effect inside the loader — setState in a fetcher body is fragile).
+  useEffect(() => {
+    setSelOpp("");
   }, [range.fromIso, range.toIso, discipline, category, unit]);
 
   // ELO over time — global, so it deliberately ignores the two filters.
@@ -81,15 +88,7 @@ export default function MatchStats() {
 
       <div className="stats-filters">
         <div className="seg">
-          {(
-            [
-              ["all", "All"],
-              ["singles", "Singles"],
-              ["doubles", "Doubles"],
-              ["one_v_two", "1v2"],
-              ["two_v_one", "2v1"],
-            ] as [DisciplineFilter, string][]
-          ).map(([k, lbl]) => (
+          {([["all", "All"], ...DISCIPLINES] as [DisciplineFilter, string][]).map(([k, lbl]) => (
             <button
               key={k}
               className={`seg-btn${discipline === k ? " active" : ""}`}
@@ -239,12 +238,7 @@ export default function MatchStats() {
                       </div>
                     )}
                     {doublesRecs.map((d) => {
-                      const fmtLabel =
-                        d.discipline === "one_v_two"
-                          ? "1v2"
-                          : d.discipline === "two_v_one"
-                          ? "2v1"
-                          : "Doubles";
+                      const fmtLabel = DISCIPLINE_LABEL[d.discipline];
                       const pairLabel = (lvl: PlayerLevel | null, name: string | null) =>
                         name ? (
                           <span className="dbl-side" key={name}>

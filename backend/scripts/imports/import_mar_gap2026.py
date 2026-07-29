@@ -15,11 +15,17 @@ Mapping decided with the user:
 - "BBTV Team Cup" (22 Mar) is kept as the event for that day's official matches.
 - Overall is auto-generated, so it is not imported.
 """
-import datetime as dt
+import sys
+from pathlib import Path
 
-from app.core.db import SessionLocal, init_db
-from app.features.tracker.models import Activity, Category, Match, PhysicalCheck
-from app.features.tracker import service
+# Make `app` importable when run as a plain script (sys.path[0] is this dir).
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+import datetime as dt  # noqa: E402
+
+from app.core.db import SessionLocal, init_db  # noqa: E402
+from app.features.tracker.models import Activity, Category, Match, PhysicalCheck  # noqa: E402
+from app.features.tracker import service  # noqa: E402
 
 
 def best_of_for(my: int, opp: int) -> int:

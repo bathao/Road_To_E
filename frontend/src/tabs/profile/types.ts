@@ -1,34 +1,12 @@
-// Types for the Profile dashboard. Most data is reused from other tabs; these
-// cover the tracker aggregates this tab reads.
-import type { MatchStats } from "../../shared/types";
+// Types for the Profile dashboard. Everything the tab reads comes from
+// existing tracker/training endpoints; most shapes are shared with other tabs.
+import type { LevelRecord, MatchStats } from "../../shared/types";
 import type { PlayerLevel } from "../../shared/levels";
 
-export type { MatchStats, PlayerLevel };
+export type { LevelRecord, MatchStats, PlayerLevel };
 
-export interface CategoryMinutes {
-  key: string;
-  label: string;
-  minutes: number;
-}
-
-/** Response of GET /api/tracker/stats — training volume over a date range. */
-export interface TrackerStats {
-  date_from: string;
-  date_to: string;
-  num_days: number;
-  days_trained: number;
-  days_physical: number;
-  minutes_total: number;
-  minutes_by_category: CategoryMinutes[];
-  overall: MatchStats;
-  singles: MatchStats;
-  doubles: MatchStats;
-}
-
-export interface LevelRecord {
-  level: PlayerLevel;
-  stats: MatchStats;
-}
+// Full response of GET /api/tracker/stats (same endpoint as the Daily Tracker).
+export type { StatsResponse as TrackerStats } from "../daily-tracker/types";
 
 /** Subset of GET /api/tracker/match-stats we use here. */
 export interface MatchStatsLite {
@@ -49,25 +27,6 @@ export interface MyRating {
   counted_matches: number;
 }
 
-export interface RatingBucket {
-  key: string;
-  label: string;
-  date_from: string;
-  date_to: string;
-  delta: number; // net ±Δ of the bucket's counted matches (0 when none)
-  counted: number;
-  rating_end: number | null; // carry-forward; null = bucket predates the anchor
-}
-
-// Subset of GET /tracker/my-rating/breakdown used for the since-anchor curve
-// (same engine as the Daily Tracker's ELO chart — /my-rating/history retired
-// 2026-07-28 in its favour).
-export interface RatingBreakdown {
-  anchor_date: string;
-  anchor_points: number;
-  total_delta: number;
-  counted: number;
-  rating_start: number | null;
-  rating_end: number | null;
-  buckets: RatingBucket[];
-}
+// Same curve engine + shapes as the Daily Tracker's ELO chart
+// (/my-rating/history retired 2026-07-28 in favour of /my-rating/breakdown).
+export type { RatingBreakdown, RatingBucket } from "../daily-tracker/types";

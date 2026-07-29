@@ -6,6 +6,8 @@ import { useMemo, useState } from "react";
 import Modal from "../../../shared/ui/Modal";
 import { useLoad } from "../../../shared/useApi";
 import { prettyDate } from "../../../shared/dates";
+import { DISCIPLINE_SHORT } from "../../../shared/disciplines";
+import { resultOf } from "../../../shared/types";
 import { trackerApi } from "../api";
 import type { Category, Match } from "../types";
 
@@ -24,17 +26,6 @@ const KIND_LABEL: Record<string, string> = {
   official_match: "light stakes",
   tournament_match: "tournament",
 };
-
-const DISC_TAG: Record<string, string> = {
-  singles: "S",
-  doubles: "D",
-  one_v_two: "1v2",
-  two_v_one: "2v1",
-};
-
-function resultOf(m: Match): "W" | "L" | "T" {
-  return m.my_sets > m.opp_sets ? "W" : m.my_sets < m.opp_sets ? "L" : "T";
-}
 
 // "with <partner> vs <opponents>" — mirrors the MatchEditor list wording.
 function namesOf(m: Match): string {
@@ -132,7 +123,7 @@ export default function StatMatchesModal({
             <li key={m.id} className="smm-row">
               <span className="smm-date">{prettyDate(m.date)}</span>
               <span className="smm-tag">
-                {DISC_TAG[m.discipline] ?? m.discipline}
+                {DISCIPLINE_SHORT[m.discipline] ?? m.discipline}
               </span>
               <span className="smm-names">{namesOf(m)}</span>
               <b className={r === "W" ? "win" : r === "L" ? "loss" : ""}>

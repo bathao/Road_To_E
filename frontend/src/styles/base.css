@@ -755,12 +755,6 @@ body {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
 }
 
-/* The playbook tactic form needs a little more breathing room. */
-
-.modal:has(.pb-editor) {
-  width: 520px;
-}
-
 .modal-head {
   display: flex;
   align-items: center;
@@ -1000,18 +994,6 @@ input:focus {
   border-color: #e8c84d;
 }
 
-.pb-phase-seg .seg-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.seg-btn.active .pb-count {
-  background: rgba(255, 255, 255, 0.25);
-  color: #fff;
-}
-
-.pb-search,
 .pb-select {
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -1030,14 +1012,6 @@ input:focus {
   font-size: 13px;
 }
 
-.pb-fav.on {
-  color: #f5b301;
-}
-
-.pb-phase-row .chip-row {
-  margin-top: 2px;
-}
-
 .pb-input {
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -1048,11 +1022,8 @@ input:focus {
   width: 100%;
 }
 
-.pb-star-btn.on {
-  color: #f5b301;
-}
-
-/* ======================= Video Analysis tab ======================= */
+/* ============ Generic card layout (va-* = historical prefix) ============
+   Born in the retired Video Analysis tab; now the Profile tab's card shell. */
 
 .va-tab {
   display: flex;
@@ -1089,44 +1060,6 @@ input:focus {
 .va-muted {
   color: var(--muted);
   font-size: 13px;
-}
-
-.va-chip {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 3px 10px;
-  font-size: 12.5px;
-}
-
-.va-trait-add .pb-input {
-  flex: 1;
-  min-width: 140px;
-}
-
-.va-sk-chip {
-  font-size: 11.5px;
-  color: #fff;
-  border: none;
-}
-
-.va-skill-bar {
-  height: 7px;
-  border-radius: 4px;
-  background: #e6e8eb;
-  overflow: hidden;
-  margin: 6px 0;
-}
-
-.va-skill-bar-fill {
-  height: 100%;
-  border-radius: 4px;
-  transition: width 0.2s;
-}
-
-.va-report-item.active {
-  border-color: var(--accent);
-  background: var(--today);
 }
 
 .tc-level-chip.active {
@@ -1191,7 +1124,6 @@ input:focus {
   margin-top: 6px;
 }
 
-.va-id-status code,
 .va-card p code {
   background: #eef0f3;
   padding: 1px 5px;

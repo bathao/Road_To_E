@@ -13,11 +13,17 @@ Notes on the mapping (decided with the user):
 - Each score is one match; "D:" => doubles, else singles. W/L derives from sets.
 - Travel / "Stiga (sub)" are non-playing entries; event names are kept.
 """
-import datetime as dt
+import sys
+from pathlib import Path
 
-from app.core.db import SessionLocal, init_db
-from app.features.tracker.models import Activity, Category, Match, PhysicalCheck
-from app.features.tracker import service
+# Make `app` importable when run as a plain script (sys.path[0] is this dir).
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+import datetime as dt  # noqa: E402
+
+from app.core.db import SessionLocal, init_db  # noqa: E402
+from app.features.tracker.models import Activity, Category, Match, PhysicalCheck  # noqa: E402
+from app.features.tracker import service  # noqa: E402
 
 
 def D(day: int) -> dt.date:
