@@ -1,6 +1,6 @@
 import type { PlayerLevel } from "../../shared/levels";
 
-// One row of the Database tab (player + appearance count).
+// One row of the Database tab (player + appearance counts by role).
 export interface PlayerDbRow {
   id: number;
   name: string;
@@ -8,7 +8,8 @@ export interface PlayerDbRow {
   note?: string | null;
   plays_pips: boolean;
   points: number | null; // BBTV points, maintained by hand; null = not rated
-  matches_played: number;
+  matches_vs: number; // as my opponent (either slot)
+  matches_with: number; // as my partner
 }
 
 export interface PlayersDbResponse {

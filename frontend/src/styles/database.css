@@ -107,6 +107,59 @@
   font-weight: 600;
 }
 
+/* Sortable header cells */
+.db-th-sort {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.db-th-sort:hover {
+  color: var(--text);
+}
+
+.db-sort-arrow {
+  margin-left: 5px;
+  font-size: 11px;
+  opacity: 0.35;
+}
+
+.db-th-sort.active .db-sort-arrow {
+  opacity: 1;
+  color: var(--accent);
+}
+
+/* Rename button: invisible until the row is hovered (or it's focused). */
+.db-name-edit {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  margin-left: 6px;
+  padding: 0 2px;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.db-table tbody tr:hover .db-name-edit,
+.db-name-edit:focus-visible {
+  opacity: 1;
+}
+
+.db-name-input {
+  width: 220px;
+  max-width: 100%;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  font-weight: 600;
+}
+
+.db-name-input.db-input-failed {
+  border-color: #dc2626;
+}
+
 .db-points input {
   width: 84px;
   padding: 5px 8px;

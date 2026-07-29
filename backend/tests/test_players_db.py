@@ -35,8 +35,11 @@ def test_players_db_ordering_counts_and_points_update(db):
     # Rated first (points desc), unrated last.
     assert [r.name for r in resp.players] == ["Anna", "Cara", "Binh"]
     by_name = {r.name: r for r in resp.players}
-    assert by_name["Anna"].matches_played == 3  # 2x opponent + 1x opponent2
-    assert by_name["Binh"].matches_played == 1  # partner
+    # Appearances split by role: facing me vs on my side.
+    assert by_name["Anna"].matches_vs == 3  # 2x opponent + 1x opponent2
+    assert by_name["Anna"].matches_with == 0
+    assert by_name["Binh"].matches_vs == 0
+    assert by_name["Binh"].matches_with == 1  # partner
     assert by_name["Binh"].points is None
     # Points must survive serialization (regression: player_to_out dropped
     # the field, so every entered rating vanished from the tab on reload).
@@ -84,6 +87,45 @@ def test_player_level_column_is_frozen_legacy(db):
     assert service.level_from_points(700, 950) == "below"  # H vs G
     assert service.level_from_points(1000, 950) == "equal"  # G vs G
     assert service.level_from_points(None, 950) == "unrated"
+
+
+def test_player_rename_updates_history_and_blocks_duplicates(db):
+    """Renaming a player (the 'entered before I knew their real name' flow):
+    matches reference the player id, so history follows automatically; a
+    rename INTO another player's name is rejected (needs a merge, not two
+    identical rows)."""
+    import pytest
+
+    cat = category_id(db, "practice_match")
+    mystery = Player(name="Bé Học Trò thầy Long", level="equal", points=1050)
+    nam = Player(name="Nam", level="equal", points=1200)
+    db.add_all([mystery, nam])
+    db.commit()
+    db.add(_match(cat, opponent_id=mystery.id))
+    db.commit()
+
+    out = service.update_player(
+        db, mystery.id,
+        schemas.PlayerIn(name="Trần Văn Long", plays_pips=False, points=1050),
+    )
+    assert out is not None and out.name == "Trần Văn Long"
+    # History follows: the match's resolved opponent name is the new one.
+    week = service.build_week(db, dt.date(2026, 6, 1))
+    assert week.matches[0].opponent_name == "Trần Văn Long"
+
+    # Renaming into an existing player's name (case-insensitive) is blocked...
+    with pytest.raises(ValueError, match="already exists"):
+        service.update_player(
+            db, mystery.id, schemas.PlayerIn(name="nam", plays_pips=False)
+        )
+    # ...and nothing changed.
+    assert db.get(Player, mystery.id).name == "Trần Văn Long"
+
+    # Saving a player under their own (unchanged) name stays a no-op success.
+    ok = service.update_player(
+        db, nam.id, schemas.PlayerIn(name="Nam", plays_pips=True)
+    )
+    assert ok is not None and ok.name == "Nam"
 
 
 def test_my_rating_default_and_roundtrip(db):

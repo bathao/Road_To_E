@@ -300,7 +300,10 @@ def create_player(payload: schemas.PlayerIn, db: Session = Depends(get_db)):
 
 @router.put("/players/{player_id}", response_model=schemas.PlayerOut)
 def update_player(player_id: int, payload: schemas.PlayerIn, db: Session = Depends(get_db)):
-    updated = service.update_player(db, player_id, payload)
+    try:
+        updated = service.update_player(db, player_id, payload)
+    except ValueError as e:  # rename collides with an existing player
+        raise HTTPException(status_code=400, detail=str(e))
     if updated is None:
         raise HTTPException(status_code=404, detail="Player not found")
     return updated

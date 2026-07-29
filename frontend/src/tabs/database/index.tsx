@@ -21,14 +21,20 @@ function PlayerRow({
   p,
   busy,
   onSave,
+  onRename,
 }: {
   p: PlayerDbRow;
   busy: boolean;
   onSave: (p: PlayerDbRow, points: number | null, playsPips: boolean) => Promise<boolean>;
+  onRename: (p: PlayerDbRow, name: string) => Promise<boolean>;
 }) {
   const [draft, setDraft] = useState(p.points === null ? "" : String(p.points));
   const [flash, setFlash] = useState<"saved" | "failed" | null>(null);
   const flashTimer = useRef<number | undefined>(undefined);
+  // null = not editing the name; Escape cancels via skipBlurSave so the
+  // input's blur (fired by the state change) doesn't save anyway.
+  const [nameDraft, setNameDraft] = useState<string | null>(null);
+  const skipBlurSave = useRef(false);
   const parsed = draft.trim() === "" ? null : Number(draft);
   const dirty = parsed !== p.points;
   const valid = parsed === null || (!Number.isNaN(parsed) && parsed >= 0 && parsed <= 3000);
@@ -45,9 +51,64 @@ function PlayerRow({
     void doSave(parsed, p.plays_pips);
   };
 
+  const saveName = async () => {
+    if (skipBlurSave.current) {
+      skipBlurSave.current = false;
+      return;
+    }
+    const name = (nameDraft ?? "").trim();
+    if (!name || name === p.name) {
+      setNameDraft(null); // nothing to do — just close the editor
+      return;
+    }
+    const ok = await onRename(p, name);
+    window.clearTimeout(flashTimer.current);
+    setFlash(ok ? "saved" : "failed");
+    if (ok) {
+      setNameDraft(null);
+      flashTimer.current = window.setTimeout(() => setFlash(null), 1500);
+    }
+    // On failure (e.g. the name already exists) the editor stays open with
+    // the draft so the user can adjust; the error banner explains why.
+  };
+
   return (
     <tr className={p.points === null ? "db-row-unrated" : ""}>
-      <td className="db-name">{p.name}</td>
+      <td className="db-name">
+        {nameDraft === null ? (
+          <>
+            {p.name}
+            <button
+              className="db-name-edit"
+              title="Rename this player — every match in the history follows automatically"
+              disabled={busy}
+              onClick={() => setNameDraft(p.name)}
+            >
+              ✏️
+            </button>
+          </>
+        ) : (
+          <input
+            type="text"
+            className={`db-name-input${flash === "failed" ? " db-input-failed" : ""}`}
+            autoFocus
+            value={nameDraft}
+            onChange={(e) => {
+              setNameDraft(e.target.value);
+              if (flash === "failed") setFlash(null);
+            }}
+            onBlur={() => void saveName()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+              if (e.key === "Escape") {
+                skipBlurSave.current = true;
+                setNameDraft(null);
+                setFlash(null);
+              }
+            }}
+          />
+        )}
+      </td>
       <td className="db-points">
         <input
           type="number"
@@ -95,8 +156,49 @@ function PlayerRow({
           🏓 pips
         </label>
       </td>
-      <td className="db-count">{p.matches_played}</td>
+      <td className="db-count">{p.matches_vs || "—"}</td>
+      <td className="db-count">{p.matches_with || "—"}</td>
     </tr>
+  );
+}
+
+// Sortable columns + each one's most useful FIRST direction (second click
+// reverses): names read A→Z, points/counts read biggest-first.
+type SortKey = "name" | "points" | "vs" | "with";
+const SORT_DEFAULT_DIR: Record<SortKey, 1 | -1> = {
+  name: 1,
+  points: -1,
+  vs: -1,
+  with: -1,
+};
+
+// Header cell: click to sort by this column, click again to reverse.
+// The active column shows ▲/▼; inactive ones a faint ↕ hint.
+function SortableTh({
+  label,
+  k,
+  sort,
+  onSort,
+  title,
+}: {
+  label: string;
+  k: SortKey;
+  sort: { key: SortKey; dir: 1 | -1 } | null;
+  onSort: (k: SortKey) => void;
+  title?: string;
+}) {
+  const active = sort?.key === k;
+  return (
+    <th
+      className={`db-th-sort${active ? " active" : ""}`}
+      title={title}
+      onClick={() => onSort(k)}
+    >
+      {label}
+      <span className="db-sort-arrow">
+        {active ? (sort!.dir === 1 ? "▲" : "▼") : "↕"}
+      </span>
+    </th>
   );
 }
 
@@ -107,13 +209,37 @@ export default function DatabaseTab() {
   );
   const { run, error, busy, clearError } = useMutate();
   const [query, setQuery] = useState("");
+  // null = the server's default order (rated by points desc, unrated last).
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 } | null>(null);
 
   const players = data?.players ?? [];
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return q ? players.filter((p) => p.name.toLowerCase().includes(q)) : players;
-  }, [players, query]);
+    const list = q
+      ? players.filter((p) => p.name.toLowerCase().includes(q))
+      : players;
+    if (!sort) return list;
+    const { key, dir } = sort;
+    return [...list].sort((a, b) => {
+      if (key === "name") return dir * a.name.localeCompare(b.name, "vi");
+      if (key === "vs") return dir * (a.matches_vs - b.matches_vs);
+      if (key === "with") return dir * (a.matches_with - b.matches_with);
+      // Points: unrated players sink to the bottom in BOTH directions.
+      if (a.points === null && b.points === null)
+        return a.name.localeCompare(b.name, "vi");
+      if (a.points === null) return 1;
+      if (b.points === null) return -1;
+      return dir * (a.points - b.points);
+    });
+  }, [players, query, sort]);
   const rated = players.filter((p) => p.points !== null).length;
+
+  const toggleSort = (key: SortKey) =>
+    setSort((s) =>
+      s?.key === key
+        ? { key, dir: -s.dir as 1 | -1 }
+        : { key, dir: SORT_DEFAULT_DIR[key] }
+    );
 
   const saveRow = async (
     p: PlayerDbRow,
@@ -135,6 +261,25 @@ export default function DatabaseTab() {
       players: data.players.map((x) =>
         x.id === p.id ? { ...x, points, plays_pips: playsPips } : x
       ),
+    });
+    return true;
+  };
+
+  // Rename: matches store player IDs, so the whole history (grid, h2h,
+  // coach) shows the new name on its next load — nothing else to update.
+  const renameRow = async (p: PlayerDbRow, name: string): Promise<boolean> => {
+    const out = await run(() =>
+      databaseApi.updatePlayer(p.id, {
+        name,
+        level: p.level,
+        note: p.note ?? null,
+        plays_pips: p.plays_pips,
+        points: p.points,
+      })
+    );
+    if (out === undefined || !data) return false;
+    setData({
+      players: data.players.map((x) => (x.id === p.id ? { ...x, name } : x)),
     });
     return true;
   };
@@ -175,18 +320,35 @@ export default function DatabaseTab() {
         <table className="db-table">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Points</th>
+              <SortableTh label="Name" k="name" sort={sort} onSort={toggleSort} />
+              <SortableTh label="Points" k="points" sort={sort} onSort={toggleSort} />
               <th>Level</th>
               <th>Pips</th>
-              <th title="Appearances in matches (as opponent/teammate)">
-                Matches
-              </th>
+              <SortableTh
+                label="⚔️ Vs me"
+                k="vs"
+                sort={sort}
+                onSort={toggleSort}
+                title="Matches where they faced me (opponent)"
+              />
+              <SortableTh
+                label="🤝 With me"
+                k="with"
+                sort={sort}
+                onSort={toggleSort}
+                title="Matches where they were my partner"
+              />
             </tr>
           </thead>
           <tbody>
             {filtered.map((p) => (
-              <PlayerRow key={p.id} p={p} busy={busy} onSave={saveRow} />
+              <PlayerRow
+                key={p.id}
+                p={p}
+                busy={busy}
+                onSave={saveRow}
+                onRename={renameRow}
+              />
             ))}
           </tbody>
         </table>

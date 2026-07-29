@@ -2049,7 +2049,8 @@ export interface components {
         };
         /**
          * PlayerDbRow
-         * @description One row of the Database tab: player + how often they appear.
+         * @description One row of the Database tab: player + how often they appear, split by
+         *     role — facing me (opponent/opponent2) vs on my side (partner).
          */
         PlayerDbRow: {
             /** Id */
@@ -2068,10 +2069,15 @@ export interface components {
             /** Points */
             points?: number | null;
             /**
-             * Matches Played
+             * Matches Vs
              * @default 0
              */
-            matches_played: number;
+            matches_vs: number;
+            /**
+             * Matches With
+             * @default 0
+             */
+            matches_with: number;
         };
         /** PlayerIn */
         PlayerIn: {

@@ -93,9 +93,11 @@ class PlayerOut(BaseModel):
 
 
 class PlayerDbRow(PlayerOut):
-    """One row of the Database tab: player + how often they appear."""
+    """One row of the Database tab: player + how often they appear, split by
+    role — facing me (opponent/opponent2) vs on my side (partner)."""
 
-    matches_played: int = 0
+    matches_vs: int = 0  # as opponent (either slot)
+    matches_with: int = 0  # as my partner
 
 
 class PlayersDbResponse(BaseModel):

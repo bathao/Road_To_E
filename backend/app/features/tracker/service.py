@@ -321,7 +321,21 @@ def update_player(
     p = db.get(Player, player_id)
     if p is None:
         return None
-    p.name = (payload.name or "").strip() or p.name
+    # Renaming is safe by design: matches reference players by id, so every
+    # historical display (grid, h2h, coach bundle) picks up the new name on
+    # the next read. Renaming INTO an existing player's name is rejected —
+    # two identical rows would be indistinguishable in the picker (a real
+    # "same person twice" situation needs a merge feature, not a rename).
+    new_name = (payload.name or "").strip()
+    if new_name and new_name.lower() != (p.name or "").lower():
+        clash = (
+            db.query(Player)
+            .filter(func.lower(Player.name) == new_name.lower(), Player.id != player_id)
+            .first()
+        )
+        if clash is not None:
+            raise ValueError(f'A player named "{clash.name}" already exists.')
+    p.name = new_name or p.name
     # payload.level is ignored — the column is frozen legacy (see above).
     p.note = payload.note
     p.plays_pips = payload.plays_pips
@@ -340,8 +354,14 @@ def list_players_db(db: Session) -> schemas.PlayersDbResponse:
     Rated players first (highest points on top — a ranking table), unrated
     last alphabetically so they're easy to work through."""
     players = db.query(Player).all()
-    counts: dict[int, int] = {}
-    for col in (Match.opponent_id, Match.opponent2_id, Match.partner_id):
+    # Two separate tallies: facing me (either opponent slot) vs on my side.
+    vs_counts: dict[int, int] = {}
+    with_counts: dict[int, int] = {}
+    for col, counts in (
+        (Match.opponent_id, vs_counts),
+        (Match.opponent2_id, vs_counts),
+        (Match.partner_id, with_counts),
+    ):
         rows = (
             db.query(col, func.count(Match.id))
             .filter(col.isnot(None))
@@ -361,7 +381,9 @@ def list_players_db(db: Session) -> schemas.PlayersDbResponse:
     return schemas.PlayersDbResponse(
         players=[
             schemas.PlayerDbRow(
-                **player_to_out(p).model_dump(), matches_played=counts.get(p.id, 0)
+                **player_to_out(p).model_dump(),
+                matches_vs=vs_counts.get(p.id, 0),
+                matches_with=with_counts.get(p.id, 0),
             )
             for p in ordered
         ]
