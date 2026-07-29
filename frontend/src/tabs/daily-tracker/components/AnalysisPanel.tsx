@@ -69,17 +69,20 @@ function EloBlock({
       <div className="elo-head">
         <h3>📈 ELO</h3>
         <span
+          className="elo-current"
+          title="Rating at the end of the visible range"
+        >
+          {elo.rating_end}
+        </span>
+        <span
           className={`elo-chip ${elo.total_delta >= 0 ? "elo-up" : "elo-down"}`}
           title="Net Δ in the visible range (ELO-counted matches)"
         >
           {fmtDelta(elo.total_delta)} · {elo.counted} matches
         </span>
-        <span className="elo-endnote">
-          {elo.rating_start !== null && elo.rating_start !== elo.rating_end
-            ? `${elo.rating_start} → `
-            : ""}
-          period end <b>{elo.rating_end}</b>
-        </span>
+        {elo.rating_start !== null && elo.rating_start !== elo.rating_end && (
+          <span className="elo-endnote">from {elo.rating_start}</span>
+        )}
       </div>
       <EloCurve
         elo={elo}

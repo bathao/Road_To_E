@@ -24,10 +24,10 @@ scannable. Last full sync: 2026-07-29.
 
 ## Open — feature ideas (no blocker, just not built)
 
-- [ ] **Entry speedups** in the Daily Tracker: "Quick add Today", "Copy
-  yesterday", "Repeat last week" (deferred since Tab 1 v1).
+- ~~Entry speedups (Quick add Today / Copy yesterday / Repeat last week)~~ —
+  DROPPED by the user 2026-07-29 ("ko làm"); don't re-suggest.
 - [ ] **Motivation tab** (🔥) — the only registry entry still disabled.
-  Scope never designed; plan first.
+  ON HOLD: the user will say when to design it — don't propose proactively.
 - [ ] **Filtered ELO deltas** (per discipline/category) in the breakdown —
   explicitly cut from v1 (a filtered rating_end would lie; filtered deltas
   are still an honest option). Only if a real question needs it.

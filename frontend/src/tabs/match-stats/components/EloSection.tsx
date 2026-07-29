@@ -77,6 +77,12 @@ export default function EloSection({
       <div className="elo-head">
         <h3>📈 ELO over time</h3>
         <span
+          className="elo-current"
+          title="Rating at the end of the visible range"
+        >
+          {elo.rating_end}
+        </span>
+        <span
           className={`elo-chip ${elo.total_delta >= 0 ? "elo-up" : "elo-down"}`}
           title="net Δ in the range being viewed"
         >
@@ -84,10 +90,10 @@ export default function EloSection({
         </span>
         <span className="elo-endnote">
           {elo.rating_start !== null && elo.rating_start !== elo.rating_end
-            ? `${elo.rating_start} → `
+            ? `from ${elo.rating_start} · `
             : ""}
-          <b>{elo.rating_end}</b> · computed over ALL ELO-counted matches — not
-          affected by the two filters above
+          computed over ALL ELO-counted matches — not affected by the two
+          filters above
         </span>
       </div>
       <div className="elo-cols">

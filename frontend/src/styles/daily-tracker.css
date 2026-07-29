@@ -1043,6 +1043,14 @@
   line-height: 18px;
   padding: 0 8px;
 }
+/* The one number the section exists for: the rating at the range's end. */
+.elo-current {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--accent-dark);
+  font-variant-numeric: tabular-nums;
+}
 .elo-endnote {
   color: var(--muted);
   font-size: 12px;

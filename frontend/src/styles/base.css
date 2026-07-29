@@ -394,13 +394,13 @@ body {
   position: absolute;
   background: #fff;
   border: 1px solid var(--border);
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
-  padding: 10px 16px;
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  padding: 8px 12px;
   pointer-events: none;
   white-space: nowrap;
   z-index: 10;
-  transform: translate(-50%, calc(-100% - 16px));
+  transform: translate(-50%, calc(-100% - 14px));
 }
 
 .lc-tooltip.below {
@@ -426,16 +426,17 @@ body {
 }
 
 .lc-tt-date {
-  font-size: 13px;
-  color: #444;
+  font-size: 11.5px;
+  color: var(--muted);
   font-weight: 500;
 }
 
 .lc-tt-value {
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--accent);
-  margin-top: 2px;
+  font-size: 13.5px;
+  font-weight: 650;
+  color: #1f2937;
+  margin-top: 3px;
+  font-variant-numeric: tabular-nums;
 }
 
 .linechart-yaxis {
