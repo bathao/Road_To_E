@@ -1,6 +1,23 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-07-29, latest) — Database tab: RENAME + SORT + split match counts, committed `14e977d`
+## Current status (2026-07-29, latest) — ELO readability, committed `d17b5ed`; ALL PUSHED
+
+> **Committed `d17b5ed`** + this PROGRESS right after, then PUSHED the whole
+> backlog to origin/master (was ~84 commits ahead). Tree clean.
+>
+> **ELO chart readability (user report: "nhìn vào không thấy điểm Elo là
+> bao nhiêu liền", fixed same day):** user picked the title approach over
+> on-chart point labels — the rating at the range's end now renders as a
+> BIG bold number right after "📈 ELO" (new .elo-current, daily-tracker.css)
+> in the Daily Tracker EloBlock AND Match Stats EloSection; the small
+> endnote shrank to "from <start>" (+ the filter-independence disclaimer on
+> Match Stats). Follow-up ("font chữ hover thô quá"): .lc-tooltip toned
+> down — value 22px accent-blue → 13.5px dark semibold tabular-nums, date
+> 11.5px muted, tighter padding/softer shadow, matching the comparison
+> chart's ac-tooltip scale (all 3 LineChart users benefit).
+> Also recorded: entry speedups DROPPED by user ("ko làm"), Motivation tab
+> waits for the user's signal, Profile range-picker unification rejected —
+> never re-suggest any of these (memory/dropped-ideas.md + TODO.md).
 
 > **Committed `14e977d`** (all three same-day Database-tab features below) +
 > this PROGRESS right after; tree clean; 65/65 pytest; build + gen:api
