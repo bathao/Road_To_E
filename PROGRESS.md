@@ -1,6 +1,47 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-07-30, latest) — Profile merged into Match Stats → tab "Profile" 🪪 (committed `bfc1e09`)
+## Current status (2026-07-30, latest) — review + cleanup committed `a46ddc0`
+
+> **2-agent review of cfd65cf+bfc1e09, all accepted findings applied
+> (UNCOMMITTED, backend touched → restart start.bat):**
+>   - **Real bugs fixed:** Database count badges included NONPLAYING rows
+>     while the drill-down modal excluded them (badge ≠ modal rows; count
+>     query now filters is_nonplaying, regression assert added).
+>     `.tc-grid` CSS class COLLIDED between TrendChart (SVG stroke) and
+>     Training Center's DayGrid (display:grid) → TrendChart namespace
+>     renamed `tc-*` → `trend-*`. TrendChart reserved phantom loss space
+>     when a range had zero losses (Math.max(1,…) floor dropped). ELO
+>     table date-sort tiebreak ignored direction. PlayerMatchesModal kept
+>     a stale W/L pick when switching roles. Database vs/with sorts had
+>     no tiebreak; empty-pool message said 'No one matches ""'.
+>   - **Coach bundle waste cut (movers/form it never read):**
+>     build_match_stats gained `form_seed=` (coach passes False — skips 4
+>     pre-range seed queries/bundle), build_rating_breakdown gained
+>     `with_movers=` (coach False — skips per-match row building).
+>     Verified NOT a context leak — the bundle serializes only summaries.
+>     Movers batch-load switched from unbounded `IN(id…)` to a date-window
+>     query (SQLite 999-var limit). `_prior_form_results` skips the 4
+>     eager-loads (only scores read).
+>   - **Dedup:** backend `_playing_matches(db, with_relations=)` +
+>     `_NEWEST_FIRST` (was 3-5 copies); FE `shared/ui/Seg.tsx` (5 seg
+>     groups now one component), `matchupOf` → `shared/matches.ts`,
+>     `ResultFilter` → shared/types, MatchRowList uses fmtDelta,
+>     TrainingCenterCard reuses DAY_ICON; `_h2h_accumulate` computes lvl
+>     for singles only.
+>   - **Dead CSS deleted:** .va-tab/.va-card* (only .va-muted lives),
+>     .db-chart, the old .db-me* (renamed → .prof-elo* in profile.css);
+>     cross-tab .smm-* + .elo-chip/head/current moved daily-tracker.css →
+>     base.css; TrendChart keys now bucket-stable; stale comments swept
+>     (top_gains, profileApi, "Match Stats tab" → Profile, BarChart…).
+>   - **Declined (deliberate):** EloHeader extraction (two headers already
+>     diverged twice — coupling loses), per-role param on
+>     players/{id}/matches (FE filters client-side, counts consistent
+>     after the nonplaying fix), row cap on the drill-down (local tool,
+>     tiny data), form carry-forward across quiet buckets (by design —
+>     FE only renders played buckets).
+>   - 67/67 pytest, gen:api + build clean.
+
+## Earlier same day (2026-07-30) — Profile merged into Match Stats → tab "Profile" 🪪 (committed `bfc1e09`)
 
 > **Committed as `bfc1e09`** ("commit code đi", second batch of
 > 2026-07-30): tab merge + read-only header + avatar + ELO per-match
