@@ -1,6 +1,82 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-07-30, latest) — review + cleanup committed `a46ddc0`
+## Current status (2026-07-31, latest) — Tournament link + placement bonus committed `0c043d9`
+
+> **Placement bonus mechanic (user table 2026-07-31, committed `0c043d9`
+> together with the 07-30 tournament-link batch below; needs start.bat
+> restart):** a final tournament result pays a FLAT ELO add-on —
+> no K, no expected score. The placement is NEVER input — first draft had
+> a Result picker on the entry row; user rejected it same-day ("dựa vào
+> data tôi nhập của giải trong sheet") → fully derived, nothing stored.
+>   - **Table (rating.TOURNAMENT_BONUS):** singles 70/50/35 + 10 for
+>     reaching-QF-only; doubles 35/25/10; team 30/20/10 (champion /
+>     runner-up / third). "third" = LOST THE SF — all bronze is shared, no
+>     3rd-place match (user 2026-07-31); "quarterfinal" tier exists ONLY
+>     for singles (0 elsewhere).
+>   - **Derivation (rating.derive_placements):** group linked matches
+>     (tournament_entry_id) per entry, take the DEEPEST entered round's
+>     last match: F won → champion · F lost → runner-up · SF lost → third
+>     · QF lost → quarterfinal · group-only/shallower → none. 0-0 rows
+>     ignored. The ENTRY's discipline prices the bonus (doubles final =
+>     +35 even though the rubber rows are stored per-match).
+>   - **Missing-data warning (rating.derive_warnings):** tournaments are
+>     entered AFTER they finish (user 2026-07-31) → a WON knockout round
+>     with no later round means forgotten matches, not an ongoing event.
+>     EntryOut.data_warning ("Won the Semi-final but no Final match
+>     entered — matches missing?") → red entry chip "⚠ …" on the
+>     tournament card; resolves itself once the missing round is entered.
+>     Group-only data never warns (group exit is on points, not one loss).
+>   - **Replay integration:** the bonus is a STEP in the replay timeline
+>     at the END of the deciding match's day (after that day's matches) —
+>     editing/deleting matches self-corrects; pre-anchor never pays.
+>     ReplayStep.match_id is now `int | None` (None = bonus, +
+>     bonus_label/bonus_discipline). counted_matches / breakdown.counted /
+>     bucket.counted count MATCHES ONLY; total_delta + curve include it.
+>   - **No schema change** (final_placement column reverted before commit;
+>     no migration needed). EntryOut echoes DERIVED final_placement +
+>     bonus_points.
+>   - **GUI:** tournament cards show "🥇 Champion +70" inside the entry
+>     chip (tooltip: derived from entered matches); Profile "ELO per
+>     match" renders bonus rows gold (🏆 label, no W/L), sorts handle
+>     match_id=null (end-of-day order, name = bonus_label).
+>   - **Known caveat (accepted):** TEAM events derive from MY last rubber
+>     of the deepest round — a tie's team result can differ from my rubber
+>     result. Revisit when the first real team tournament exists.
+>   - 76/76 pytest (test_tournament_bonus.py ×7), gen:api + build clean.
+
+## Earlier (2026-07-30) — Match ↔ Tournament link + rounds (committed `0c043d9`)
+
+> **Tournament link built (user request + plan OK'd 2026-07-30, committed
+> `0c043d9` with the placement bonus above):** tournament matches in the
+> grid now know WHICH tournament/entry they belong to and WHAT round.
+>   - **Data:** Match gains `tournament_entry_id` (FK tournament_entry;
+>     ALTER-added → no SQLite constraint, display tolerates a deleted
+>     entry) + `round` ("group"|"r64"|"r32"|"r16"|"r8"|"qf"|"sf"|"f",
+>     validated in MatchIn). Migration via add_missing_columns —
+>     smoke-tested on a real-DB copy (262 matches intact). MatchOut adds
+>     round + tournament_name; MatchLine (h2h) adds round.
+>   - **Auto-event:** a linked match with no explicit Event gets the
+>     tournament's name as its Event → every existing event-chip display
+>     (h2h, modals, coach) labels tournament matches for free.
+>   - **Grid:** Tournament-row cells on days a tournament runs get a gold
+>     highlight + 🏆 hint when empty + tooltip "enter this tournament's
+>     matches here" (FE computes from the already-loaded tournaments list
+>     — no new API). Cell text: group-stage keeps compact W(a,b) grouping,
+>     knockout rounds each get their own line "QF: W(3-1)" (also in CSV).
+>   - **MatchEditor tournament mode:** banner "🏆 giải · hạng" (+ entry
+>     dropdown when several entries/tournaments that day); DOUBLES entry
+>     locks discipline + pre-fills the registered partner (editable per
+>     match) so only opponents get picked; Round dropdown (Group default,
+>     smart-defaults to the cell's latest round); Event box pre-filled
+>     with the tournament name; round chips on the cell's match list.
+>   - Round chips also on MatchRowList (Analysis + Database modals) and
+>     MatchLines (Profile h2h). ROUND_LABEL/ROUND_SHORT live in
+>     shared/matches.ts; backend ROUND_SHORT in tracker/service.py.
+>   - Out of scope (deliberate): bracket view in the Tournament section
+>     (wait for the first real tournament's data), coach reading rounds.
+>   - 69/69 pytest (new test_tournament_link.py), gen:api + build clean.
+
+## Earlier same day (2026-07-30) — review + cleanup committed `a46ddc0`
 
 > **2-agent review of cfd65cf+bfc1e09, all accepted findings applied
 > (committed `a46ddc0`; backend touched → restart start.bat):**
