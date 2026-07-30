@@ -3,7 +3,7 @@
 ## Current status (2026-07-30, latest) — review + cleanup committed `a46ddc0`
 
 > **2-agent review of cfd65cf+bfc1e09, all accepted findings applied
-> (UNCOMMITTED, backend touched → restart start.bat):**
+> (committed `a46ddc0`; backend touched → restart start.bat):**
 >   - **Real bugs fixed:** Database count badges included NONPLAYING rows
 >     while the drill-down modal excluded them (badge ≠ modal rows; count
 >     query now filters is_nonplaying, regression assert added).
