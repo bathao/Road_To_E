@@ -2,50 +2,14 @@ import { shortDate } from "../../../shared/dates";
 import { DISCIPLINE_LABEL } from "../../../shared/disciplines";
 import { fmtDelta } from "../../../shared/format";
 import { resultOf } from "../../../shared/types";
-import type { RatingBreakdown, RatingBucket, RatingMover } from "../types";
+import EloCurve from "../../../shared/ui/EloCurve";
+import type { RatingBreakdown, RatingMover } from "../types";
 
-// "ELO over time": net ±Δ per bucket + the range's most influential
-// matches. GLOBAL — the rating ignores the tab's discipline/category filters
-// (a filtered "rating at end of bucket" would lie), and the section says so.
-
-// Signed horizontal bars around a center zero line — one row per bucket that
-// actually had counted matches (quiet buckets are noise here).
-function DeltaBars({ buckets }: { buckets: RatingBucket[] }) {
-  const shown = buckets.filter((b) => b.counted > 0);
-  if (!shown.length) {
-    return <p className="stats-muted">No ELO-counted matches in this range.</p>;
-  }
-  const maxAbs = Math.max(1, ...shown.map((b) => Math.abs(b.delta)));
-  return (
-    <div className="elo-delta-rows">
-      {shown.map((b) => (
-        <div className="elo-delta-row" key={b.key}>
-          <span className="elo-delta-label">{b.label}</span>
-          <div className="elo-delta-track">
-            {b.delta >= 0 ? (
-              <div
-                className="elo-delta-fill pos"
-                style={{ left: "50%", width: `${(b.delta / maxAbs) * 50}%` }}
-              />
-            ) : (
-              <div
-                className="elo-delta-fill neg"
-                style={{ right: "50%", width: `${(-b.delta / maxAbs) * 50}%` }}
-              />
-            )}
-          </div>
-          <span className={`elo-delta-val ${b.delta >= 0 ? "pos" : "neg"}`}>
-            {fmtDelta(b.delta)}
-            <span className="elo-delta-n">
-              {" "}
-              · {b.counted} matches · period end {b.rating_end}
-            </span>
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
+// "ELO over time": the SAME rating curve the Daily Tracker and Profile draw
+// (shared/ui/EloCurve — one mental model app-wide; the old center-zero
+// delta bars confused the user), plus the range's most influential matches.
+// GLOBAL — the rating ignores the tab's discipline/category filters (a
+// filtered "rating at end of bucket" would lie), and the section says so.
 
 function MoverLine({ m }: { m: RatingMover }) {
   const res = resultOf(m) === "W" ? "win" : "loss";
@@ -98,8 +62,21 @@ export default function EloSection({
       </div>
       <div className="elo-cols">
         <div>
-          <h4>Δ by {unit}</h4>
-          <DeltaBars buckets={elo.buckets} />
+          <h4>ELO curve (by {unit})</h4>
+          <EloCurve
+            elo={elo}
+            labelOf={(b) => b.label}
+            tipOf={(b) =>
+              b.date_from === b.date_to
+                ? b.date_from
+                : `${b.date_from} → ${b.date_to}`
+            }
+            fallback={
+              <p className="stats-muted">
+                Not enough data in this range to draw a line.
+              </p>
+            }
+          />
         </div>
         <div>
           <h4>Biggest movers</h4>
@@ -107,12 +84,14 @@ export default function EloSection({
             <p className="stats-muted">No ELO-counted matches in this range.</p>
           ) : (
             <ul className="elo-movers">
-              {elo.top_gains.map((m) => (
-                <MoverLine key={`g${m.match_id}`} m={m} />
-              ))}
-              {elo.top_losses.map((m) => (
-                <MoverLine key={`l${m.match_id}`} m={m} />
-              ))}
+              {/* Top 3 gains + top 3 losses, ONE list ranked by absolute
+                  impact — gains-then-losses used to read as "the biggest
+                  deduction is missing" when a small +Δ sat above a bigger −Δ. */}
+              {[...elo.top_gains, ...elo.top_losses]
+                .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
+                .map((m) => (
+                  <MoverLine key={m.match_id} m={m} />
+                ))}
             </ul>
           )}
         </div>

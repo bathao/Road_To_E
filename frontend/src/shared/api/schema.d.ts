@@ -348,6 +348,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tracker/players/{player_id}/matches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Player Matches
+         * @description Every match involving this player (any slot) — the Database tab's
+         *     per-player drill-down. All-time, newest first, ELO-annotated.
+         */
+        get: operations["player_matches_api_tracker_players__player_id__matches_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tracker/my-rating": {
         parameters: {
             query?: never;
@@ -1570,12 +1591,6 @@ export interface components {
             /** Levels */
             levels: components["schemas"]["LevelInfo"][];
         };
-        /** LevelRecord */
-        LevelRecord: {
-            /** Level */
-            level: string;
-            stats: components["schemas"]["MatchStats"];
-        };
         /** MatchIn */
         MatchIn: {
             /**
@@ -1787,8 +1802,6 @@ export interface components {
             /** Unit */
             unit: string;
             overall: components["schemas"]["MatchStats"];
-            /** By Level */
-            by_level: components["schemas"]["LevelRecord"][];
             /** Opponents */
             opponents: components["schemas"]["OpponentBrief"][];
             /** Singles H2H */
@@ -1822,6 +1835,8 @@ export interface components {
             losses: number;
             /** Win Rate */
             win_rate: number | null;
+            /** Form */
+            form?: number | null;
         };
         /** MuscleVolume */
         MuscleVolume: {
@@ -3167,6 +3182,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlayersDbResponse"];
+                };
+            };
+        };
+    };
+    player_matches_api_tracker_players__player_id__matches_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                player_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatchOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

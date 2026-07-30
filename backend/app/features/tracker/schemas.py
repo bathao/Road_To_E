@@ -341,11 +341,6 @@ class StatsResponse(BaseModel):
 
 
 # ---------- Match Stats tab (named-opponent matches only) ----------
-class LevelRecord(BaseModel):
-    level: str  # below | equal | above
-    stats: MatchStats
-
-
 class MatchLine(BaseModel):
     """One played match against an opponent (for the head-to-head detail)."""
     date: dt.date
@@ -418,6 +413,9 @@ class MatchTrendBucket(BaseModel):
     wins: int
     losses: int
     win_rate: float | None
+    # Rolling form at the bucket's end: win rate of the last FORM_WINDOW
+    # decided matches (per-bucket win rate is noise at 2-3 matches/day).
+    form: float | None = None
 
 
 class MatchStatsResponse(BaseModel):
@@ -427,7 +425,6 @@ class MatchStatsResponse(BaseModel):
     category: str  # all | practice | official | tournament
     unit: str  # month | week | day
     overall: MatchStats
-    by_level: list[LevelRecord]
     opponents: list[OpponentBrief]  # for the head-to-head dropdown
     singles_h2h: list[OpponentRecord]
     doubles_h2h: list[DoublesRecord]

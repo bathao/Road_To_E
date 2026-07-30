@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLoad } from "../../shared/useApi";
 import PeriodControl from "../../shared/ui/PeriodControl";
-import type { Bar } from "../../shared/ui/LineChart";
-import LineChart from "../../shared/ui/LineChart";
-import LevelBars from "./components/LevelBars";
 import { startOfMonth, toIso } from "../../shared/dates";
 import { DISCIPLINES, DISCIPLINE_LABEL } from "../../shared/disciplines";
 import type { Mode } from "../../shared/period";
@@ -13,6 +10,7 @@ import { pct } from "../../shared/format";
 import { matchStatsApi } from "./api";
 import MatchLines from "./components/MatchLines";
 import EloSection from "./components/EloSection";
+import TrendChart from "./components/TrendChart";
 import type {
   CategoryFilter,
   DisciplineFilter,
@@ -61,16 +59,10 @@ export default function MatchStats() {
   const o = data?.overall;
   const hasMatches = !!o && o.total > 0;
 
-  // Trend: only periods that actually had matches, so the line never crashes
-  // to 0% for months with no games.
-  const trendPoints: Bar[] = (data?.trend ?? [])
-    .filter((b) => b.matches > 0)
-    .map((b) => ({
-      label: b.label,
-      value: b.win_rate === null ? 0 : Math.round(b.win_rate * 100),
-      display: pct(b.win_rate),
-      tip: `${b.label}: ${b.wins}-${b.losses} · ${b.matches} matches`,
-    }));
+  // Trend: only periods that actually had matches (a per-day win-rate line
+  // was noise at 2-3 matches/day — the chart now shows W/L bars + rolling
+  // form instead, so skipped days simply have no bar).
+  const trendBuckets = (data?.trend ?? []).filter((b) => b.matches > 0);
 
   return (
     <div className="stats">
@@ -149,18 +141,14 @@ export default function MatchStats() {
             </div>
           </div>
 
-          {/* Three analytic blocks side-by-side (≈1/3 each on wide screens). */}
+          {/* Analytic blocks side-by-side. (The "win rate by opponent level"
+              bars were removed 2026-07-29 — the dynamic ELO already prices
+              opponent strength, so the level split told the user nothing.) */}
           <div className="stats-cols">
-          {/* Win rate by opponent level */}
-          <section className="stats-card">
-            <h3>Win rate by opponent level</h3>
-            <LevelBars levels={data!.by_level} />
-          </section>
-
-          {/* Trend over time */}
+          {/* Trend over time: W/L bars per bucket + rolling-form line. */}
           <section className="stats-card">
             <h3>
-              Win rate trend (
+              Results &amp; form (
               {data!.unit === "month"
                 ? "by month"
                 : data!.unit === "week"
@@ -168,13 +156,7 @@ export default function MatchStats() {
                 : "by day"}
               )
             </h3>
-            {trendPoints.length > 1 ? (
-              <LineChart points={trendPoints} formatY={(v) => `${Math.round(v)}%`} />
-            ) : (
-              <p className="stats-muted">
-                Not enough data to draw a trend (need ≥2 periods with matches).
-              </p>
-            )}
+            <TrendChart buckets={trendBuckets} />
           </section>
 
           {/* Head-to-head — pick one opponent from the dropdown */}

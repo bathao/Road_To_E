@@ -1,5 +1,4 @@
 // Domain types shared by more than one tab.
-import type { PlayerLevel } from "./levels";
 
 /** Aggregate W/L/T record over a set of matches. */
 export interface MatchStats {
@@ -10,12 +9,6 @@ export interface MatchStats {
   sets_won: number;
   sets_lost: number;
   win_rate: number | null; // 0..1
-}
-
-/** Per-level slice of match results (opponents below/equal/above/unrated). */
-export interface LevelRecord {
-  level: PlayerLevel;
-  stats: MatchStats;
 }
 
 /** Minutes spent in one tracker category over a range. */

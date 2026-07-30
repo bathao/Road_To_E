@@ -45,10 +45,8 @@ def test_build_match_stats_grouping_and_unnamed_exclusion(db):
     assert res.overall.sets_won == 8 and res.overall.sets_lost == 4
     assert res.overall.win_rate == 2 / 3
 
-    by_level = {lr.level: lr.stats for lr in res.by_level}
-    assert (by_level["above"].total, by_level["above"].wins, by_level["above"].losses) == (2, 1, 1)
-    assert (by_level["equal"].total, by_level["equal"].wins) == (1, 1)
-    assert by_level["below"].total == 0
+    # (by_level was removed 2026-07-29 — ELO already prices opponent
+    # strength; the derived level lives on in the h2h record labels below.)
 
     # Head-to-head sorted by matches played (Anna 2, Binh 1).
     assert [(o.name, o.played) for o in res.singles_h2h] == [("Anna", 2), ("Binh", 1)]
@@ -101,6 +99,47 @@ def test_build_match_stats_one_v_two_and_two_v_one(db):
         db, dt.date(2026, 6, 1), dt.date(2026, 6, 30), discipline="one_v_two"
     )
     assert only.overall.total == 1 and only.overall.wins == 1
+
+
+def test_trend_form_is_rolling_not_per_day(db):
+    """trend[].form = win rate of the last FORM_WINDOW decided matches ending
+    at that bucket — not the bucket's own (noisy) win rate. It hides until
+    FORM_MIN decided matches, skips ties, and matches before the range seed
+    the window so the line doesn't restart at the range edge."""
+    cat = category_id(db, "practice_match")
+    anna = Player(name="Anna", points=950)
+    db.add(anna)
+    db.commit()
+
+    d = dt.date(2026, 6, 5)
+    db.add_all([
+        _match(cat, d, 3, 0, opponent_id=anna.id),                        # W
+        _match(cat, d, 3, 1, opponent_id=anna.id),                        # W
+        _match(cat, d + dt.timedelta(days=1), 1, 3, opponent_id=anna.id),  # L
+        _match(cat, d + dt.timedelta(days=2), 2, 2, opponent_id=anna.id),  # T
+        _match(cat, d + dt.timedelta(days=3), 0, 3, opponent_id=anna.id),  # L
+    ])
+    db.commit()
+
+    res = service.build_match_stats(
+        db, d, d + dt.timedelta(days=3), unit="day"
+    )
+    forms = [b.form for b in res.trend]
+    # Day 1: only 2 decided matches — below FORM_MIN, no form yet.
+    assert forms[0] is None
+    # Day 2: window W,W,L. Day 3 is a tie — window (and form) unchanged,
+    # while the bucket's own win_rate is None.
+    assert forms[1] == forms[2] == 2 / 3
+    assert res.trend[2].win_rate is None
+    # Day 4: window W,W,L,L.
+    assert forms[3] == 0.5
+
+    # A range starting mid-history is seeded by the earlier matches: its
+    # first bucket already carries the full window instead of restarting.
+    later = service.build_match_stats(
+        db, d + dt.timedelta(days=3), d + dt.timedelta(days=3), unit="day"
+    )
+    assert later.trend[0].form == 0.5
 
 
 def test_build_handicap_split_directions(db):

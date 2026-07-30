@@ -19,50 +19,6 @@
   align-items: start;
 }
 
-/* Win-rate-by-level: horizontal progress bars. */
-
-.lvl-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 4px 0;
-}
-
-.lvl-row {
-  display: grid;
-  grid-template-columns: 72px 1fr auto;
-  gap: 12px;
-  align-items: center;
-}
-
-.lvl-name {
-  font-size: 13px;
-  color: var(--muted);
-}
-
-.lvl-track {
-  height: 10px;
-  background: #eef0f3;
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.lvl-fill {
-  height: 100%;
-  border-radius: 6px;
-  min-width: 2px;
-}
-
-.lvl-meta {
-  font-size: 13px;
-  white-space: nowrap;
-}
-
-.lvl-rec {
-  color: var(--muted);
-  font-size: 12px;
-}
-
 .stats-muted {
   color: var(--muted);
   font-size: 13px;
@@ -134,6 +90,157 @@
 .stats-card h3 {
   margin: 0 0 12px;
   font-size: 15px;
+}
+
+/* Results & form trend chart: W/L bars (counts, shared per-match scale)
+   diverging from a baseline + the rolling-form line on a 0-100% right axis. */
+.tc-legend {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.tc-sw {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  vertical-align: -1px;
+  margin-right: 4px;
+}
+
+.tc-sw-win {
+  background: #5fa83c;
+}
+
+.tc-sw-loss {
+  background: #d64545;
+}
+
+.tc-sw-form {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+  vertical-align: 2px;
+}
+
+.tc-row {
+  display: flex;
+}
+
+.tc-plot {
+  position: relative;
+  flex: 1;
+  height: 200px;
+}
+
+.tc-plot svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.tc-grid {
+  stroke: #e8ebef;
+  stroke-width: 1;
+}
+
+.tc-baseline {
+  stroke: #c6ccd4;
+  stroke-width: 1;
+}
+
+.tc-form-line {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.tc-bar {
+  position: absolute;
+  width: 12px;
+  max-width: 12px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  transition: filter 0.1s;
+}
+
+.tc-bar-win {
+  background: #5fa83c;
+  border-radius: 3px 3px 0 0;
+}
+
+.tc-bar-loss {
+  background: #d64545;
+  border-radius: 0 0 3px 3px;
+}
+
+.tc-bar.active {
+  filter: brightness(1.15);
+}
+
+.tc-form-dot {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid var(--accent);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+  pointer-events: none;
+}
+
+.tc-hit {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  transform: translateX(-50%);
+  cursor: pointer;
+}
+
+.tc-yaxis {
+  width: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--accent);
+  opacity: 0.75;
+  text-align: left;
+  padding: 0 0 2px 8px;
+}
+
+.tc-xaxis {
+  display: flex;
+  margin-right: 40px;
+  margin-top: 6px;
+}
+
+.tc-xlabel {
+  flex: 1 1 0;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.tc-tt-form {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.tc-tt-form b {
+  color: var(--accent-dark);
+  font-variant-numeric: tabular-nums;
 }
 
 .res {
@@ -284,59 +391,8 @@
   font-weight: 600;
 }
 
-/* Signed Δ bars around a center zero line. */
-.elo-delta-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.elo-delta-row {
-  display: grid;
-  grid-template-columns: 64px 1fr minmax(120px, auto);
-  gap: 10px;
-  align-items: center;
-  font-size: 12px;
-}
-
-.elo-delta-label {
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.elo-delta-track {
-  position: relative;
-  height: 12px;
-  background: #eef0f3;
-  border-radius: 6px;
-}
-
-.elo-delta-track::before {
-  /* the zero line */
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: -2px;
-  bottom: -2px;
-  width: 1px;
-  background: rgba(0, 0, 0, 0.18);
-}
-
-.elo-delta-fill {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  border-radius: 6px;
-}
-
-.elo-delta-fill.pos {
-  background: #5fa83c;
-}
-
-.elo-delta-fill.neg {
-  background: #d64545;
-}
-
+/* Signed ±Δ value (movers list; the old delta-bars block was replaced by
+   the shared EloCurve). */
 .elo-delta-val {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -348,11 +404,6 @@
 
 .elo-delta-val.neg {
   color: #d64545;
-}
-
-.elo-delta-n {
-  color: var(--muted);
-  font-weight: 400;
 }
 
 /* Top ±Δ movers list */

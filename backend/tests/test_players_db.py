@@ -128,6 +128,38 @@ def test_player_rename_updates_history_and_blocks_duplicates(db):
     assert ok is not None and ok.name == "Nam"
 
 
+def test_list_player_matches_any_slot_newest_first(db):
+    """The Database tab drill-down: every match involving the player in ANY
+    slot (opponent, opponent2, partner), newest first; other players' matches
+    and nonplaying rows excluded."""
+    cat = category_id(db, "practice_match")
+    anna = Player(name="Anna", points=1100)
+    binh = Player(name="Binh", points=950)
+    db.add_all([anna, binh])
+    db.commit()
+
+    old = _match(cat, opponent_id=anna.id)                       # singles vs Anna
+    old.date = dt.date(2026, 6, 3)
+    dbl = _match(cat, discipline="doubles", opponent_id=binh.id,
+                 opponent2_id=anna.id)                           # Anna as opp2
+    tvo = _match(cat, discipline="two_v_one", opponent_id=binh.id,
+                 partner_id=anna.id)                             # Anna as partner
+    tvo.date = dt.date(2026, 6, 7)
+    other = _match(cat, opponent_id=binh.id)                     # not Anna's
+    skip = _match(cat, opponent_id=anna.id)
+    skip.is_nonplaying = True
+    db.add_all([old, dbl, tvo, other, skip])
+    db.commit()
+
+    out = service.list_player_matches(db, anna.id)
+    assert [m.id for m in out] == [tvo.id, dbl.id, old.id]  # newest first
+    # Names resolve for the modal's "with X vs Y" line; ELO status is tagged.
+    assert out[0].partner_name == "Anna"
+    assert all(m.elo_status is not None for m in out)
+
+    assert service.list_player_matches(db, 9999) == []
+
+
 def test_my_rating_default_and_roundtrip(db):
     assert service.get_my_points(db) == 950  # seeded default (rank G)
     assert service.set_my_points(db, 985) == 985

@@ -1,9 +1,8 @@
 // Types for the Profile dashboard. Everything the tab reads comes from
 // existing tracker/training endpoints; most shapes are shared with other tabs.
-import type { LevelRecord, MatchStats } from "../../shared/types";
-import type { PlayerLevel } from "../../shared/levels";
+import type { MatchStats } from "../../shared/types";
 
-export type { LevelRecord, MatchStats, PlayerLevel };
+export type { MatchStats };
 
 // Full response of GET /api/tracker/stats (same endpoint as the Daily Tracker).
 export type { StatsResponse as TrackerStats } from "../daily-tracker/types";
@@ -11,7 +10,6 @@ export type { StatsResponse as TrackerStats } from "../daily-tracker/types";
 /** Subset of GET /api/tracker/match-stats we use here. */
 export interface MatchStatsLite {
   overall: MatchStats;
-  by_level: LevelRecord[];
 }
 
 export type RangeKey = "30" | "90" | "365" | "all";

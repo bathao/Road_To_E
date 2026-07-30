@@ -959,18 +959,6 @@ input:focus {
   padding: 0;
 }
 
-.lvl-fill.level-below {
-  background: #51b36a;
-}
-
-.lvl-fill.level-equal {
-  background: var(--accent);
-}
-
-.lvl-fill.level-above {
-  background: #e0734a;
-}
-
 /* note editor */
 
 .note-area {

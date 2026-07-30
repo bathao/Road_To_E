@@ -4,9 +4,10 @@ from __future__ import annotations
 import csv
 import datetime as dt
 import io
+from collections import deque
 from typing import NamedTuple
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, selectinload
 
 from app.features.tracker import rating, schemas
@@ -944,6 +945,32 @@ def list_stats_matches(
     return _annotate_elo(db, matches)
 
 
+def list_player_matches(db: Session, player_id: int) -> list[schemas.MatchOut]:
+    """Every playing match involving `player_id` in ANY slot (opponent,
+    second opponent, or my partner) — the Database tab's per-player
+    drill-down. All-time, newest first, ELO-annotated like the week view."""
+    matches = (
+        db.query(Match)
+        .options(
+            selectinload(Match.event),
+            selectinload(Match.opponent),
+            selectinload(Match.opponent2),
+            selectinload(Match.partner),
+        )
+        .filter(
+            Match.is_nonplaying == False,  # noqa: E712
+            or_(
+                Match.opponent_id == player_id,
+                Match.opponent2_id == player_id,
+                Match.partner_id == player_id,
+            ),
+        )
+        .order_by(Match.date.desc(), Match.order_index.desc(), Match.id.desc())
+        .all()
+    )
+    return _annotate_elo(db, matches)
+
+
 def build_stats(db: Session, date_from: dt.date, date_to: dt.date) -> schemas.StatsResponse:
     dates = _date_range(date_from, date_to)
     iso_dates = [d.isoformat() for d in dates]
@@ -1212,17 +1239,15 @@ def _record_tail(rec: dict) -> dict:
 
 class _H2HAcc(NamedTuple):
     overall: dict
-    by_level: dict[str, dict]
     singles_h2h: dict[int, dict]
     doubles_h2h: dict[str, dict]
     opp_brief: dict[int, dict]
 
 
 def _h2h_accumulate(matches: list[Match], my_now: int) -> _H2HAcc:
-    """One pass over the matches → overall/per-level tallies + head-to-head
-    records (singles per opponent; team-style per discipline+partner+pair)."""
+    """One pass over the matches → overall tally + head-to-head records
+    (singles per opponent; team-style per discipline+partner+pair)."""
     overall = _blank_match_stats()
-    by_level: dict[str, dict] = {lv: _blank_match_stats() for lv in _LEVEL_ORDER}
     singles_h2h: dict[int, dict] = {}  # keyed by opponent_id
     # Team-style matchups (doubles / 1v2 / 2v1), keyed by
     # discipline + partner + opponent-pair. Slots a format doesn't use stay None.
@@ -1231,9 +1256,9 @@ def _h2h_accumulate(matches: list[Match], my_now: int) -> _H2HAcc:
 
     for m in matches:
         _tally(overall, m)
+        # Derived at-match-time relative level (snapshot points vs my current
+        # rating) — used for the singles head-to-head record label.
         lvl = _level_of(m.opp_points_snap, m.opponent, my_now) or "unrated"
-        if lvl in by_level:
-            _tally(by_level[lvl], m)
 
         # Dropdown list: count every opponent appearance (opp1 + opp2).
         for opp in (m.opponent, m.opponent2):
@@ -1312,16 +1337,44 @@ def _h2h_accumulate(matches: list[Match], my_now: int) -> _H2HAcc:
                 event_name=m.event.name if m.event else None,
             )
         )
-    return _H2HAcc(overall, by_level, singles_h2h, doubles_h2h, opp_brief)
+    return _H2HAcc(overall, singles_h2h, doubles_h2h, opp_brief)
+
+
+# Rolling "form": win rate over the last FORM_WINDOW decided (W/L) matches.
+# Per-bucket win rate is pure noise at day granularity (2-3 matches/day), so
+# the trend chart plots this window instead; FORM_MIN keeps the very first
+# points from being a meaningless 0%/100% off one or two matches.
+FORM_WINDOW = 10
+FORM_MIN = 3
+
+
+def _prior_form_results(
+    db: Session, date_from: dt.date, discipline: str, category: str
+) -> list[str]:
+    """W/L letters of the last FORM_WINDOW decided named matches before
+    `date_from` (never before the tab floor), oldest first — they seed the
+    rolling form so the line doesn't restart from scratch at the range edge."""
+    if date_from <= MATCH_STATS_FLOOR:
+        return []
+    earlier = _query_named_matches(
+        db, MATCH_STATS_FLOOR, date_from - dt.timedelta(days=1), discipline, category
+    )
+    results = [r for r in map(_result_of, earlier) if r != "T"]
+    return results[-FORM_WINDOW:]
 
 
 def _trend_buckets(
-    matches: list[Match], date_from: dt.date, date_to: dt.date, unit: str
+    matches: list[Match],
+    date_from: dt.date,
+    date_to: dt.date,
+    unit: str,
+    prior_results: list[str] | None = None,
 ) -> list[schemas.MatchTrendBucket]:
-    """Win-rate over time, bucketed by day/week/month."""
+    """W/L counts per day/week/month bucket + the rolling form at each end."""
     by_iso: dict[str, list[Match]] = {}
     for m in matches:
         by_iso.setdefault(m.date.isoformat(), []).append(m)
+    window: deque[str] = deque(prior_results or (), maxlen=FORM_WINDOW)
     trend: list[schemas.MatchTrendBucket] = []
     for key, label, b_from, b_to in _bucket_ranges(date_from, date_to, unit):
         b_m = b_w = b_l = 0
@@ -1333,6 +1386,8 @@ def _trend_buckets(
                     b_w += 1
                 elif r == "L":
                     b_l += 1
+                if r != "T":
+                    window.append(r)
         trend.append(
             schemas.MatchTrendBucket(
                 key=key,
@@ -1343,6 +1398,11 @@ def _trend_buckets(
                 wins=b_w,
                 losses=b_l,
                 win_rate=win_rate(b_w, b_l),
+                form=(
+                    window.count("W") / len(window)
+                    if len(window) >= FORM_MIN
+                    else None
+                ),
             )
         )
     return trend
@@ -1417,14 +1477,13 @@ def build_match_stats(
         category=category,
         unit=unit,
         overall=_finalize_match_stats(acc.overall),
-        by_level=[
-            schemas.LevelRecord(level=lv, stats=_finalize_match_stats(acc.by_level[lv]))
-            for lv in _LEVEL_ORDER
-        ],
         opponents=opponents,
         singles_h2h=singles_list,
         doubles_h2h=doubles_list,
-        trend=_trend_buckets(matches, date_from, date_to, unit),
+        trend=_trend_buckets(
+            matches, date_from, date_to, unit,
+            _prior_form_results(db, date_from, discipline, category),
+        ),
     )
 
 

@@ -1,8 +1,8 @@
 // Types for the Match Stats tab. Mirror the backend MatchStatsResponse.
 import type { PlayerLevel } from "../../shared/levels";
-import type { LevelRecord, MatchStats } from "../../shared/types";
+import type { MatchStats } from "../../shared/types";
 
-export type { LevelRecord, PlayerLevel, MatchStats };
+export type { PlayerLevel, MatchStats };
 
 export interface MatchLine {
   date: string;
@@ -73,6 +73,9 @@ export interface MatchTrendBucket {
   wins: number;
   losses: number;
   win_rate: number | null;
+  // Rolling form at the bucket's end: win rate of the last 10 decided
+  // matches (null until enough matches have been played).
+  form: number | null;
 }
 
 // My ELO over time (shared shapes with the Daily Tracker's Analysis panel).
@@ -97,7 +100,6 @@ export interface MatchStatsResponse {
   category: CategoryFilter;
   unit: "month" | "week" | "day";
   overall: MatchStats;
-  by_level: LevelRecord[];
   opponents: OpponentBrief[];
   singles_h2h: OpponentRecord[];
   doubles_h2h: DoublesRecord[];

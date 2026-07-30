@@ -107,6 +107,26 @@
   font-weight: 600;
 }
 
+/* "+ Add player" inline form under the toolbar */
+.db-add-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.db-add-name {
+  width: 240px;
+}
+
+.db-add-points {
+  width: 190px;
+}
+
 /* Sortable header cells */
 .db-th-sort {
   cursor: pointer;
@@ -232,6 +252,29 @@
 .db-count {
   color: var(--muted);
   text-align: center;
+}
+
+/* Count as a link-style button — opens the per-player match drill-down. */
+.db-count-btn {
+  background: none;
+  border: none;
+  padding: 2px 8px;
+  font: inherit;
+  color: var(--accent);
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.db-count-btn:hover {
+  background: rgba(37, 99, 235, 0.08);
+  text-decoration: underline;
+}
+
+/* The drill-down modal's filter rows (role + W/L segs side by side). */
+.pm-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .db-row-unrated {

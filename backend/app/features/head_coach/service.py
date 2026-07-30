@@ -159,9 +159,10 @@ def _match_detail(
     top_h2h = sorted(detail.singles_h2h, key=lambda r: -r.played)[:8]
     return {
         "window": f"{detail.date_from.isoformat()} → {detail.date_to.isoformat()}",
-        "by_level": {r.level: _ms(r.stats) for r in detail.by_level},
         # Level × handicap direction (even / receiving / giving points): a
         # handicapped match must be read differently from an even one.
+        # (The plain by-level split was dropped 2026-07-29 with its GUI —
+        # this table still carries per-level context, ELO covers the rest.)
         "by_level_handicap": tracker_service.build_handicap_split(
             db, detail_from, today, replay=rep
         ),
@@ -293,13 +294,6 @@ def _bundle_to_text(b: schemas.SourceSummary) -> str:
     minutes_cat = "; ".join(f"{k}: {v_}p" for k, v_ in m.get("minutes_by_category", {}).items()) or "—"
     muscle = "; ".join(f"{k}×{v_}" for k, v_ in t.get("muscle_volume", {}).items()) or "—"
 
-    by_level = d.get("by_level", {})
-    level_lines = "\n".join(
-        f"  - Đối thủ {_LEVEL_VI.get(lv, lv)}: {_wr(by_level[lv])}"
-        for lv in ("below", "equal", "above", "unrated")
-        if lv in by_level and by_level[lv].get("played")
-    ) or "  (chưa có trận có tên đối thủ)"
-
     hdc = d.get("by_level_handicap", {})
     hdc_lines = "\n".join(
         f"  - Đối thủ {_LEVEL_VI.get(lv, lv)} · {_HANDICAP_VI[dr]}: {_wr(cell)}"
@@ -369,8 +363,7 @@ def _bundle_to_text(b: schemas.SourceSummary) -> str:
         f"Tổng các trận: {_wr(m.get('overall', {}))}\n"
         f"{_elo_line(m)}\n"
         f"=== PHÂN TÍCH TRẬN SÂU (cửa sổ {d.get('window')}, trận có tên đối thủ) ===\n"
-        f"Theo hạng đối thủ (so với học trò):\n{level_lines}\n"
-        f"Tách theo CHẤP (điểm chấp mỗi ván; trận có chấp phải diễn giải khác "
+        f"Tách theo hạng đối thủ và CHẤP (điểm chấp mỗi ván; trận có chấp phải diễn giải khác "
         f"trận đánh đồng):\n{hdc_lines}\n"
         f"THEO LOẠI TRẬN: đánh chơi (tập) {_wr(d.get('practice', {}))} · "
         f"đánh độ nhẹ {_wr(d.get('official', {}))} · "

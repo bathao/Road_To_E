@@ -7,6 +7,8 @@ import { useMemo, useRef, useState } from "react";
 import { useLoad, useMutate } from "../../shared/useApi";
 import { rankOf } from "../../shared/rank";
 import { databaseApi } from "./api";
+import PlayerMatchesModal from "./PlayerMatchesModal";
+import type { RoleFilter } from "./PlayerMatchesModal";
 import type { PlayerDbRow, PlayersDbResponse } from "./types";
 
 function RankChip({ points }: { points: number | null }) {
@@ -22,11 +24,13 @@ function PlayerRow({
   busy,
   onSave,
   onRename,
+  onOpenMatches,
 }: {
   p: PlayerDbRow;
   busy: boolean;
   onSave: (p: PlayerDbRow, points: number | null, playsPips: boolean) => Promise<boolean>;
   onRename: (p: PlayerDbRow, name: string) => Promise<boolean>;
+  onOpenMatches: (p: PlayerDbRow, role: RoleFilter) => void;
 }) {
   const [draft, setDraft] = useState(p.points === null ? "" : String(p.points));
   const [flash, setFlash] = useState<"saved" | "failed" | null>(null);
@@ -156,8 +160,32 @@ function PlayerRow({
           🏓 pips
         </label>
       </td>
-      <td className="db-count">{p.matches_vs || "—"}</td>
-      <td className="db-count">{p.matches_with || "—"}</td>
+      <td className="db-count">
+        {p.matches_vs ? (
+          <button
+            className="db-count-btn"
+            title={`See all ${p.matches_vs} matches vs ${p.name}`}
+            onClick={() => onOpenMatches(p, "vs")}
+          >
+            {p.matches_vs}
+          </button>
+        ) : (
+          "—"
+        )}
+      </td>
+      <td className="db-count">
+        {p.matches_with ? (
+          <button
+            className="db-count-btn"
+            title={`See all ${p.matches_with} matches with ${p.name} as my partner`}
+            onClick={() => onOpenMatches(p, "with")}
+          >
+            {p.matches_with}
+          </button>
+        ) : (
+          "—"
+        )}
+      </td>
     </tr>
   );
 }
@@ -203,14 +231,24 @@ function SortableTh({
 }
 
 export default function DatabaseTab() {
-  const { data, setData, error: loadError } = useLoad<PlayersDbResponse>(
+  const { data, setData, reload, error: loadError } = useLoad<PlayersDbResponse>(
     () => databaseApi.list(),
     []
   );
   const { run, error, busy, clearError } = useMutate();
   const [query, setQuery] = useState("");
+  // "+ Add player" inline form (backend get-or-creates by name, so re-adding
+  // an existing player just returns the existing row — harmless).
+  const [addOpen, setAddOpen] = useState(false);
+  const [addName, setAddName] = useState("");
+  const [addPoints, setAddPoints] = useState("");
+  const [addPips, setAddPips] = useState(false);
   // null = the server's default order (rated by points desc, unrated last).
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 } | null>(null);
+  // Per-player match drill-down, opened from a count cell with its role.
+  const [drill, setDrill] = useState<{ p: PlayerDbRow; role: RoleFilter } | null>(
+    null
+  );
 
   const players = data?.players ?? [];
   const filtered = useMemo(() => {
@@ -265,6 +303,31 @@ export default function DatabaseTab() {
     return true;
   };
 
+  const addPointsParsed = addPoints.trim() === "" ? null : Number(addPoints);
+  const addValid =
+    addName.trim() !== "" &&
+    (addPointsParsed === null ||
+      (!Number.isNaN(addPointsParsed) &&
+        addPointsParsed >= 0 &&
+        addPointsParsed <= 3000));
+
+  const addPlayer = async () => {
+    if (!addValid) return;
+    const out = await run(() =>
+      databaseApi.createPlayer({
+        name: addName.trim(),
+        plays_pips: addPips,
+        points: addPointsParsed,
+      })
+    );
+    if (out === undefined) return; // error banner explains
+    setAddOpen(false);
+    setAddName("");
+    setAddPoints("");
+    setAddPips(false);
+    reload(); // counts + ordering come from the server — refetch the list
+  };
+
   // Rename: matches store player IDs, so the whole history (grid, h2h,
   // coach) shows the new name on its next load — nothing else to update.
   const renameRow = async (p: PlayerDbRow, name: string): Promise<boolean> => {
@@ -314,7 +377,60 @@ export default function DatabaseTab() {
         <span className="db-progress">
           Rated {rated}/{players.length} players
         </span>
+        <button
+          className={`btn${addOpen ? "" : " primary"}`}
+          onClick={() => setAddOpen((v) => !v)}
+        >
+          {addOpen ? "Cancel" : "＋ Add player"}
+        </button>
       </div>
+
+      {addOpen && (
+        <div className="db-add-form">
+          <input
+            type="text"
+            className="pb-input db-add-name"
+            placeholder="Name"
+            autoFocus
+            value={addName}
+            onChange={(e) => setAddName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void addPlayer();
+              if (e.key === "Escape") setAddOpen(false);
+            }}
+          />
+          <input
+            type="number"
+            min={0}
+            max={3000}
+            className="pb-input db-add-points"
+            placeholder="Points (empty = unrated)"
+            value={addPoints}
+            onChange={(e) => setAddPoints(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void addPlayer();
+              if (e.key === "Escape") setAddOpen(false);
+            }}
+          />
+          <RankChip points={addValid ? addPointsParsed : null} />
+          <label className="db-pips">
+            <input
+              type="checkbox"
+              checked={addPips}
+              onChange={(e) => setAddPips(e.target.checked)}
+            />
+            🏓 pips
+          </label>
+          <button
+            className="btn primary"
+            disabled={busy || !addValid}
+            title={addValid ? undefined : "Enter a name (points 0–3000 or empty)"}
+            onClick={() => void addPlayer()}
+          >
+            Create
+          </button>
+        </div>
+      )}
 
       <div className="db-table-wrap">
         <table className="db-table">
@@ -348,6 +464,7 @@ export default function DatabaseTab() {
                 busy={busy}
                 onSave={saveRow}
                 onRename={renameRow}
+                onOpenMatches={(pl, role) => setDrill({ p: pl, role })}
               />
             ))}
           </tbody>
@@ -356,6 +473,14 @@ export default function DatabaseTab() {
           <div className="db-empty">No one matches “{query}”.</div>
         )}
       </div>
+
+      {drill && (
+        <PlayerMatchesModal
+          player={drill.p}
+          initialRole={drill.role}
+          onClose={() => setDrill(null)}
+        />
+      )}
     </div>
   );
 }

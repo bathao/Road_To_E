@@ -316,6 +316,13 @@ def players_db(db: Session = Depends(get_db)):
     return service.list_players_db(db)
 
 
+@router.get("/players/{player_id}/matches", response_model=list[schemas.MatchOut])
+def player_matches(player_id: int, db: Session = Depends(get_db)):
+    """Every match involving this player (any slot) — the Database tab's
+    per-player drill-down. All-time, newest first, ELO-annotated."""
+    return service.list_player_matches(db, player_id)
+
+
 @router.get("/my-rating", response_model=schemas.MyRatingOut)
 def get_my_rating(db: Session = Depends(get_db)):
     """The user's rating — static anchor + replayed dynamic ELO (Phase 1a)."""
