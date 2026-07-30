@@ -141,13 +141,17 @@ class RatingBucketOut(BaseModel):
 
 
 class RatingMoverOut(BaseModel):
-    """One counted match for the top ±Δ movers list."""
+    """One ELO-counted match in the movers table."""
 
     match_id: int
     date: dt.date
     delta: float
     discipline: str
     opponent_name: str | None
+    # Full line-up for team formats ("with P vs A + B"); None where the
+    # format doesn't use the slot.
+    opponent2_name: str | None = None
+    partner_name: str | None = None
     my_sets: int
     opp_sets: int
 
@@ -167,8 +171,9 @@ class MyRatingBreakdownOut(BaseModel):
     rating_start: int | None  # rating carried INTO the range; None = pre-anchor
     rating_end: int | None
     buckets: list[RatingBucketOut]
-    top_gains: list[RatingMoverOut]  # up to 3, biggest gains first
-    top_losses: list[RatingMoverOut]  # up to 3, biggest losses first
+    # EVERY counted match in the range, newest first — the GUI renders a
+    # sortable table (was top-3 gains + top-3 losses until 2026-07-30).
+    movers: list[RatingMoverOut]
 
 
 # ---------- Match ----------

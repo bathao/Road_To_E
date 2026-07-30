@@ -1,10 +1,6 @@
-/* Profile tab. */
-
-.prof-tab {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
+/* Profile page header + shared list styles. The standalone Profile tab was
+   merged into the former Match Stats tab (2026-07-30); these classes now
+   dress its GeneralInfoCard and the two training cards. */
 
 .prof-header {
   display: flex;
@@ -21,14 +17,6 @@
   flex: none;
 }
 
-.prof-avatar-blank {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 44px;
-  background: var(--today);
-}
-
 .prof-header-main {
   flex: 1;
   min-width: 0;
@@ -39,17 +27,11 @@
 }
 
 .prof-asof {
-  margin-top: 8px;
+  margin: 8px 0 0;
   font-size: 12px;
 }
 
-.prof-range {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
+/* Per-category / per-day-type breakdown list under a card's stat grid. */
 .prof-cat-list {
   margin-top: 12px;
   border-top: 1px solid var(--border);

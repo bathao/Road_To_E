@@ -343,6 +343,28 @@ body {
   overflow: visible;
 }
 
+/* Sortable table-header cells (shared/ui/SortableTh). */
+.th-sort {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.th-sort:hover {
+  color: var(--text);
+}
+
+.sort-arrow {
+  margin-left: 5px;
+  font-size: 11px;
+  opacity: 0.35;
+}
+
+.th-sort.active .sort-arrow {
+  opacity: 1;
+  color: var(--accent);
+}
+
 .lc-grid {
   stroke: #e8ebef;
   stroke-width: 1;

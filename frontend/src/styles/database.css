@@ -127,27 +127,8 @@
   width: 190px;
 }
 
-/* Sortable header cells */
-.db-th-sort {
-  cursor: pointer;
-  user-select: none;
-  white-space: nowrap;
-}
-
-.db-th-sort:hover {
-  color: var(--text);
-}
-
-.db-sort-arrow {
-  margin-left: 5px;
-  font-size: 11px;
-  opacity: 0.35;
-}
-
-.db-th-sort.active .db-sort-arrow {
-  opacity: 1;
-  color: var(--accent);
-}
+/* Sortable header cells (.th-sort/.sort-arrow) moved to base.css — the
+   shared SortableTh component serves this table and Match Stats' ELO one. */
 
 /* Rename button: invisible until the row is hovered (or it's focused). */
 .db-name-edit {

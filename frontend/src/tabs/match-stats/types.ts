@@ -85,6 +85,21 @@ export type {
   RatingMover,
 } from "../daily-tracker/types";
 
+// ---- the Profile pieces merged into this tab (2026-07-30) ----
+
+// Full response of GET /api/tracker/stats (same endpoint as the Daily
+// Tracker) — feeds the Training discipline card.
+export type { StatsResponse as TrackerStats } from "../daily-tracker/types";
+
+// `points` is the editable ANCHOR; `current` is the replayed dynamic ELO.
+// PUT = new anchor from today.
+export interface MyRating {
+  points: number;
+  current: number;
+  anchor_date: string;
+  counted_matches: number;
+}
+
 export type DisciplineFilter =
   | "all"
   | "singles"

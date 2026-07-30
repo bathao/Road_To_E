@@ -18,7 +18,14 @@ const KIND_LABEL: Record<string, string> = {
 };
 
 // "with <partner> vs <opponents>" — mirrors the MatchEditor list wording.
-function namesOf(m: Match): string {
+// Structurally typed so anything carrying the name slots can use it (Match
+// rows here, RatingMover rows in the Match Stats ELO table).
+export function matchupOf(m: {
+  discipline: string;
+  opponent_name?: string | null;
+  opponent2_name?: string | null;
+  partner_name?: string | null;
+}): string {
   const opp1 = m.opponent_name ?? "?";
   const opps =
     m.discipline === "doubles" || m.discipline === "one_v_two"
@@ -61,7 +68,7 @@ export default function MatchRowList({ matches }: { matches: Match[] }) {
             <span className="smm-tag">
               {DISCIPLINE_SHORT[m.discipline] ?? m.discipline}
             </span>
-            <span className="smm-names">{namesOf(m)}</span>
+            <span className="smm-names">{matchupOf(m)}</span>
             <b className={r === "W" ? "win" : r === "L" ? "loss" : ""}>
               {r} {m.my_sets}–{m.opp_sets}
             </b>

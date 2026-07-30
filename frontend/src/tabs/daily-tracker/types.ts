@@ -175,6 +175,9 @@ export interface RatingMover {
   delta: number;
   discipline: Discipline;
   opponent_name: string | null;
+  // Full line-up for team formats; null where the format skips the slot.
+  opponent2_name: string | null;
+  partner_name: string | null;
   my_sets: number;
   opp_sets: number;
 }
@@ -191,8 +194,9 @@ export interface RatingBreakdown {
   rating_start: number | null;
   rating_end: number | null;
   buckets: RatingBucket[];
-  top_gains: RatingMover[];
-  top_losses: RatingMover[];
+  // Every counted match in the range, biggest |Δ| first (the Match Stats
+  // table sorts client-side).
+  movers: RatingMover[];
 }
 
 // ---- request payloads ----

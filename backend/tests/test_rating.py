@@ -352,7 +352,7 @@ def test_week_elo_annotation(db):
 
 def test_rating_breakdown_buckets_and_movers(db):
     """ELO-over-time aggregation: per-bucket net Δ + carry-forward rating on
-    quiet days, None before the anchor, and the range's top ±Δ movers."""
+    quiet days, None before the anchor, and every counted match as a mover."""
     off = category_id(db, "official_match")
     equal = Player(name="Ngang", points=950)
     strong = Player(name="Manh", points=1200)
@@ -381,9 +381,10 @@ def test_rating_breakdown_buckets_and_movers(db):
 
     assert (b.rating_start, b.rating_end) == (950, 960)
     assert (b.total_delta, b.counted) == (9.5, 3)
-    assert [m.delta for m in b.top_gains] == [9.7, 7.5]
-    assert b.top_gains[0].opponent_name == "Manh"
-    assert [m.delta for m in b.top_losses] == [-7.7]
+    # Every counted match is a mover row, newest first (the GUI table's
+    # default sort; other orders are client-side).
+    assert [m.delta for m in b.movers] == [9.7, -7.7, 7.5]
+    assert b.movers[0].opponent_name == "Manh"
 
 
 def test_manual_edit_becomes_new_anchor(db):

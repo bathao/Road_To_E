@@ -7,9 +7,13 @@ import type { Mode } from "../../shared/period";
 import { chartUnitFor, resolveRange, stepAnchor } from "../../shared/period";
 import { levelShort } from "../../shared/levels";
 import { pct } from "../../shared/format";
+import { trainingApi } from "../training-center/api";
 import { matchStatsApi } from "./api";
 import MatchLines from "./components/MatchLines";
-import EloSection from "./components/EloSection";
+import { EloCurveCard, EloTableCard } from "./components/EloSection";
+import GeneralInfoCard from "./components/GeneralInfoCard";
+import TrainingCenterCard from "./components/TrainingCenterCard";
+import TrainingDisciplineCard from "./components/TrainingDisciplineCard";
 import TrendChart from "./components/TrendChart";
 import type {
   CategoryFilter,
@@ -17,11 +21,13 @@ import type {
   MatchStatsResponse,
   PlayerLevel,
   RatingBreakdown,
+  TrackerStats,
 } from "./types";
 
 export default function MatchStats() {
-  // Stats benefit from a wide default window → open on the current year.
-  const [mode, setMode] = useState<Mode>("year");
+  // Open on the current month (was "year" until 2026-07-30 — user prefers
+  // the tighter default window).
+  const [mode, setMode] = useState<Mode>("month");
   const [anchor, setAnchor] = useState<Date>(() => new Date());
   const [customFrom, setCustomFrom] = useState<string>(() =>
     toIso(startOfMonth(new Date()))
@@ -56,6 +62,15 @@ export default function MatchStats() {
     [range.fromIso, range.toIso, unit]
   );
 
+  // Bottom section (merged from the retired Profile tab 2026-07-30):
+  // training discipline follows the PeriodControl; the Training Center
+  // report is rangeless (always the latest).
+  const { data: training } = useLoad<TrackerStats>(
+    () => matchStatsApi.trainingStats(range.fromIso, range.toIso),
+    [range.fromIso, range.toIso]
+  );
+  const { data: trainingReport } = useLoad(() => trainingApi.getReport(), []);
+
   const o = data?.overall;
   const hasMatches = !!o && o.total > 0;
 
@@ -66,6 +81,9 @@ export default function MatchStats() {
 
   return (
     <div className="stats">
+      {/* 1) General info — rangeless header (avatar, current ELO). */}
+      <GeneralInfoCard />
+
       <PeriodControl
         mode={mode}
         label={range.label}
@@ -141,25 +159,39 @@ export default function MatchStats() {
             </div>
           </div>
 
-          {/* Analytic blocks side-by-side. (The "win rate by opponent level"
-              bars were removed 2026-07-29 — the dynamic ELO already prices
-              opponent strength, so the level split told the user nothing.) */}
-          <div className="stats-cols">
-          {/* Trend over time: W/L bars per bucket + rolling-form line. */}
-          <section className="stats-card">
-            <h3>
-              Results &amp; form (
-              {data!.unit === "month"
-                ? "by month"
-                : data!.unit === "week"
-                ? "by week"
-                : "by day"}
-              )
-            </h3>
-            <TrendChart buckets={trendBuckets} />
-          </section>
+        </>
+      )}
 
-          {/* Head-to-head — pick one opponent from the dropdown */}
+      {/* Charts row: results/form trend + the global ELO curve, side by
+          side. (The "win rate by opponent level" bars were removed
+          2026-07-29 — ELO already prices opponent strength.) */}
+      {(hasMatches || !!elo) && (
+        <div className="stats-cols">
+          {/* The ELO cards render even when the filtered match list is empty
+              — the rating is global and does not follow the filters. */}
+          {elo && <EloCurveCard elo={elo} unit={unit} />}
+          {hasMatches && (
+            <section className="stats-card">
+              <h3>
+                Results &amp; form (
+                {data!.unit === "month"
+                  ? "by month"
+                  : data!.unit === "week"
+                  ? "by week"
+                  : "by day"}
+                )
+              </h3>
+              <TrendChart buckets={trendBuckets} />
+            </section>
+          )}
+        </div>
+      )}
+
+      {/* Lookup row: the per-match ELO table + head-to-head detail. */}
+      {(hasMatches || !!elo) && (
+        <div className="stats-cols">
+          {elo && <EloTableCard elo={elo} />}
+          {hasMatches && (
           <section className="stats-card">
             <h3>Head-to-head (pick an opponent)</h3>
             <select
@@ -259,13 +291,16 @@ export default function MatchStats() {
                 );
               })()}
           </section>
-          </div>
-        </>
+          )}
+        </div>
       )}
 
-      {/* ELO over time — shown even when the filtered match list is empty
-          (the rating is global and does not follow the filters). */}
-      {elo && <EloSection elo={elo} unit={unit} />}
+      {/* 3) Training row (merged from the retired Profile tab): discipline
+          follows the PeriodControl above; Training Center is rangeless. */}
+      <div className="stats-cols">
+        <TrainingDisciplineCard training={training ?? null} />
+        <TrainingCenterCard report={trainingReport ?? null} />
+      </div>
     </div>
   );
 }

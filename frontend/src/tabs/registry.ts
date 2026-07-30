@@ -5,7 +5,6 @@ import ComingSoon from "./ComingSoon";
 import DailyTracker from "./daily-tracker";
 import DatabaseTab from "./database";
 import MatchStats from "./match-stats";
-import PlayerProfile from "./profile";
 import TrainingCenter from "./training-center";
 import HeadCoach from "./head-coach";
 
@@ -33,17 +32,13 @@ export const TABS: TabDef[] = [
     enabled: true,
   },
   {
+    // The old standalone Profile tab was merged in here 2026-07-30: general
+    // info on top, match stats in the middle, training cards at the bottom.
+    // The folder keeps its match-stats name; only the label/icon changed.
     id: "match-stats",
-    label: "Match Stats",
-    icon: "📊",
-    component: MatchStats,
-    enabled: true,
-  },
-  {
-    id: "profile",
     label: "Profile",
     icon: "🪪",
-    component: PlayerProfile,
+    component: MatchStats,
     enabled: true,
   },
   {

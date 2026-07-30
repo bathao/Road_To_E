@@ -1,9 +1,14 @@
-// Snapshot of the off-table physical program (Training Center tab).
+// Snapshot of the off-table physical program (Training Center tab). Moved
+// from the retired Profile tab 2026-07-30; rangeless — always the latest.
 import type { Report as TrainingReport } from "../../training-center/types";
 
-export default function TrainingCenterCard({ report }: { report: TrainingReport | null }) {
+export default function TrainingCenterCard({
+  report,
+}: {
+  report: TrainingReport | null;
+}) {
   return (
-    <section className="va-card">
+    <section className="stats-card">
       <h3>💪 Training Center</h3>
       {report && report.total_sessions_done > 0 ? (
         <>

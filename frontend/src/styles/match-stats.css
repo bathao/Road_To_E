@@ -368,31 +368,21 @@
 
 /* ===== "ELO over time" section (global — ignores the tab filters) ===== */
 
-.elo-section {
-  margin-top: 16px;
-}
-
-.elo-cols {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr;
-  gap: 24px;
-}
-
-@media (max-width: 900px) {
-  .elo-cols {
-    grid-template-columns: 1fr;
-  }
-}
-
-.elo-cols h4 {
-  margin: 6px 0 10px;
-  font-size: 13px;
+/* The two ELO cards (curve + per-match table) sit in the shared .stats-cols
+   grid since the 2026-07-30 layout rework — no dedicated section anymore. */
+.elo-note {
+  margin: -6px 0 10px;
+  font-size: 12px;
   color: var(--muted);
-  font-weight: 600;
 }
 
-/* Signed ±Δ value (movers list; the old delta-bars block was replaced by
-   the shared EloCurve). */
+.elo-note-inline {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Signed ±Δ value (ELO-per-match table; the old delta-bars block was
+   replaced by the shared EloCurve). */
 .elo-delta-val {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -406,30 +396,72 @@
   color: #d64545;
 }
 
-/* Top ±Δ movers list */
-.elo-movers {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+/* ELO-per-match sortable table (every counted match in the range; its own
+   card since 2026-07-30, so it gets room for many rows). */
+.elo-table-wrap {
+  max-height: 480px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
 }
 
-.elo-mover {
-  display: grid;
-  grid-template-columns: 52px 1fr auto;
-  gap: 10px;
-  align-items: baseline;
+.elo-table {
+  width: 100%;
+  border-collapse: collapse;
   font-size: 13px;
 }
 
-.elo-mover-desc {
-  min-width: 0;
+.elo-table th {
+  position: sticky; /* header stays put while the rows scroll */
+  top: 0;
+  background: var(--surface);
+  text-align: left;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
 }
 
-.elo-mover-date {
+/* The ±ELO column is right-aligned — its header must sit over the values. */
+.elo-table th:last-child {
+  text-align: right;
+}
+
+.elo-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid #f1f3f6;
+}
+
+.elo-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.elo-table tbody tr:hover {
+  background: #f7f9fc;
+}
+
+.elo-td-date {
   color: var(--muted);
   font-size: 12px;
+  white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+
+.elo-td-res {
+  font-weight: 700;
+}
+
+.elo-td-res.win {
+  color: #5fa83c;
+}
+
+.elo-td-res.loss {
+  color: #d64545;
+}
+
+.elo-td-delta {
+  text-align: right;
+  white-space: nowrap;
 }

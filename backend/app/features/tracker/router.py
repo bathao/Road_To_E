@@ -343,7 +343,7 @@ def my_rating_breakdown(
     unit: str = Query("day", pattern="^(day|week|month)$"),
     db: Session = Depends(get_db),
 ):
-    """Net ELO change per bucket + top ±Δ movers. Global — no filters."""
+    """Net ELO change per bucket + every counted match's ±Δ. Global — no filters."""
     return service.build_rating_breakdown(db, date_from, date_to, unit)
 
 

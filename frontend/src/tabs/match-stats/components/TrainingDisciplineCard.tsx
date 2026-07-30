@@ -1,11 +1,16 @@
-// Training discipline over the selected range: days trained, total time and
-// the per-category minutes list.
+// Training discipline over the page's selected range: days trained, total
+// time and the per-category minutes list. (Moved from the retired Profile
+// tab 2026-07-30 — it now follows the tab's PeriodControl.)
 import { fmtMinutes } from "../../../shared/format";
 import type { TrackerStats } from "../types";
 
-export default function TrainingDisciplineCard({ training }: { training: TrackerStats | null }) {
+export default function TrainingDisciplineCard({
+  training,
+}: {
+  training: TrackerStats | null;
+}) {
   return (
-    <section className="va-card">
+    <section className="stats-card">
       <h3>🏋️ Training discipline</h3>
       {training ? (
         <>
@@ -19,7 +24,9 @@ export default function TrainingDisciplineCard({ training }: { training: Tracker
             </div>
             <div className="stat-card">
               <div className="stat-card-title">Total time</div>
-              <div className="stat-big">{(training.minutes_total / 60).toFixed(1)}h</div>
+              <div className="stat-big">
+                {(training.minutes_total / 60).toFixed(1)}h
+              </div>
               <div className="stat-line muted">
                 <span>{fmtMinutes(training.minutes_total)}</span>
               </div>

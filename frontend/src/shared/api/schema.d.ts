@@ -402,7 +402,7 @@ export interface paths {
         };
         /**
          * My Rating Breakdown
-         * @description Net ELO change per bucket + top ±Δ movers. Global — no filters.
+         * @description Net ELO change per bucket + every counted match's ±Δ. Global — no filters.
          */
         get: operations["my_rating_breakdown_api_tracker_my_rating_breakdown_get"];
         put?: never;
@@ -1881,10 +1881,8 @@ export interface components {
             rating_end: number | null;
             /** Buckets */
             buckets: components["schemas"]["RatingBucketOut"][];
-            /** Top Gains */
-            top_gains: components["schemas"]["RatingMoverOut"][];
-            /** Top Losses */
-            top_losses: components["schemas"]["RatingMoverOut"][];
+            /** Movers */
+            movers: components["schemas"]["RatingMoverOut"][];
         };
         /** MyRatingIn */
         MyRatingIn: {
@@ -2200,7 +2198,7 @@ export interface components {
         };
         /**
          * RatingMoverOut
-         * @description One counted match for the top ±Δ movers list.
+         * @description One ELO-counted match in the movers table.
          */
         RatingMoverOut: {
             /** Match Id */
@@ -2216,6 +2214,10 @@ export interface components {
             discipline: string;
             /** Opponent Name */
             opponent_name: string | null;
+            /** Opponent2 Name */
+            opponent2_name?: string | null;
+            /** Partner Name */
+            partner_name?: string | null;
             /** My Sets */
             my_sets: number;
             /** Opp Sets */

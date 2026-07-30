@@ -6,6 +6,8 @@
 import { useMemo, useRef, useState } from "react";
 import { useLoad, useMutate } from "../../shared/useApi";
 import { rankOf } from "../../shared/rank";
+import SortableTh, { toggleSort } from "../../shared/ui/SortableTh";
+import type { Sort } from "../../shared/ui/SortableTh";
 import { databaseApi } from "./api";
 import PlayerMatchesModal from "./PlayerMatchesModal";
 import type { RoleFilter } from "./PlayerMatchesModal";
@@ -191,7 +193,8 @@ function PlayerRow({
 }
 
 // Sortable columns + each one's most useful FIRST direction (second click
-// reverses): names read A→Z, points/counts read biggest-first.
+// reverses): names read A→Z, points/counts read biggest-first. The header
+// cells themselves come from shared/ui/SortableTh.
 type SortKey = "name" | "points" | "vs" | "with";
 const SORT_DEFAULT_DIR: Record<SortKey, 1 | -1> = {
   name: 1,
@@ -199,36 +202,6 @@ const SORT_DEFAULT_DIR: Record<SortKey, 1 | -1> = {
   vs: -1,
   with: -1,
 };
-
-// Header cell: click to sort by this column, click again to reverse.
-// The active column shows ▲/▼; inactive ones a faint ↕ hint.
-function SortableTh({
-  label,
-  k,
-  sort,
-  onSort,
-  title,
-}: {
-  label: string;
-  k: SortKey;
-  sort: { key: SortKey; dir: 1 | -1 } | null;
-  onSort: (k: SortKey) => void;
-  title?: string;
-}) {
-  const active = sort?.key === k;
-  return (
-    <th
-      className={`db-th-sort${active ? " active" : ""}`}
-      title={title}
-      onClick={() => onSort(k)}
-    >
-      {label}
-      <span className="db-sort-arrow">
-        {active ? (sort!.dir === 1 ? "▲" : "▼") : "↕"}
-      </span>
-    </th>
-  );
-}
 
 export default function DatabaseTab() {
   const { data, setData, reload, error: loadError } = useLoad<PlayersDbResponse>(
@@ -244,7 +217,7 @@ export default function DatabaseTab() {
   const [addPoints, setAddPoints] = useState("");
   const [addPips, setAddPips] = useState(false);
   // null = the server's default order (rated by points desc, unrated last).
-  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 } | null>(null);
+  const [sort, setSort] = useState<Sort<SortKey> | null>(null);
   // Per-player match drill-down, opened from a count cell with its role.
   const [drill, setDrill] = useState<{ p: PlayerDbRow; role: RoleFilter } | null>(
     null
@@ -272,12 +245,8 @@ export default function DatabaseTab() {
   }, [players, query, sort]);
   const rated = players.filter((p) => p.points !== null).length;
 
-  const toggleSort = (key: SortKey) =>
-    setSort((s) =>
-      s?.key === key
-        ? { key, dir: -s.dir as 1 | -1 }
-        : { key, dir: SORT_DEFAULT_DIR[key] }
-    );
+  const onSort = (key: SortKey) =>
+    setSort((s) => toggleSort(s, key, SORT_DEFAULT_DIR));
 
   const saveRow = async (
     p: PlayerDbRow,
@@ -436,22 +405,22 @@ export default function DatabaseTab() {
         <table className="db-table">
           <thead>
             <tr>
-              <SortableTh label="Name" k="name" sort={sort} onSort={toggleSort} />
-              <SortableTh label="Points" k="points" sort={sort} onSort={toggleSort} />
+              <SortableTh label="Name" k="name" sort={sort} onSort={onSort} />
+              <SortableTh label="Points" k="points" sort={sort} onSort={onSort} />
               <th>Level</th>
               <th>Pips</th>
               <SortableTh
                 label="⚔️ Vs me"
                 k="vs"
                 sort={sort}
-                onSort={toggleSort}
+                onSort={onSort}
                 title="Matches where they faced me (opponent)"
               />
               <SortableTh
                 label="🤝 With me"
                 k="with"
                 sort={sort}
-                onSort={toggleSort}
+                onSort={onSort}
                 title="Matches where they were my partner"
               />
             </tr>

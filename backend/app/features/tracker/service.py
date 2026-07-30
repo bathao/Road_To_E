@@ -1551,7 +1551,7 @@ def build_rating_breakdown(
     unit: str = "day",
     replay: rating.ReplayResult | None = None,
 ) -> schemas.MyRatingBreakdownOut:
-    """Net ELO change per day/week/month bucket + the range's top ±Δ movers.
+    """Net ELO change per day/week/month bucket + every counted match's ±Δ.
 
     Replayed on demand via rating.replay — nothing stored. The rating is
     GLOBAL: no discipline/category filtering here (deltas could be filtered,
@@ -1590,21 +1590,40 @@ def build_rating_breakdown(
 
     in_range = [s for s in steps if date_from <= s.date <= date_to]
 
+    # EVERY counted match becomes a table row (the GUI sorts client-side),
+    # so batch-load the matches instead of a db.get per step.
+    match_ids = [s.match_id for s in in_range]
+    match_by_id: dict[int, Match] = (
+        {
+            m.id: m
+            for m in db.query(Match)
+            .options(
+                selectinload(Match.opponent),
+                selectinload(Match.opponent2),
+                selectinload(Match.partner),
+            )
+            .filter(Match.id.in_(match_ids))
+        }
+        if match_ids
+        else {}
+    )
+
     def _mover(s: "rating.ReplayStep") -> schemas.RatingMoverOut:
-        m = db.get(Match, s.match_id)
+        m = match_by_id.get(s.match_id)
         return schemas.RatingMoverOut(
             match_id=s.match_id,
             date=s.date,
             delta=round(s.delta, 1),
             discipline=m.discipline if m else "singles",
             opponent_name=m.opponent.name if m and m.opponent else None,
+            opponent2_name=m.opponent2.name if m and m.opponent2 else None,
+            partner_name=m.partner.name if m and m.partner else None,
             my_sets=m.my_sets if m else 0,
             opp_sets=m.opp_sets if m else 0,
         )
 
-    by_delta = sorted(in_range, key=lambda s: s.delta)
-    top_losses = [_mover(s) for s in by_delta[:3] if s.delta < 0]
-    top_gains = [_mover(s) for s in reversed(by_delta[-3:]) if s.delta > 0]
+    # Newest first — the GUI table's default sort order.
+    movers = [_mover(s) for s in reversed(in_range)]
 
     # Rating carried INTO the range; the anchor itself counts as the start
     # when the range begins on/before the anchor day.
@@ -1623,8 +1642,7 @@ def build_rating_breakdown(
         rating_start=rating_start,
         rating_end=value_at(date_to),
         buckets=buckets,
-        top_gains=top_gains,
-        top_losses=top_losses,
+        movers=movers,
     )
 
 
