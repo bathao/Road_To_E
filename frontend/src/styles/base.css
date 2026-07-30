@@ -1161,6 +1161,13 @@ input:focus {
   font-size: 12px;
 }
 
+/* Tournament-round chip on a match line (QF / SF / F / 1/16...). */
+.smm-tag.smm-round {
+  color: #9a7b1a;
+  border-color: #e2b13c;
+  background: #fff8e1;
+}
+
 /* ELO annotation chips on match rows (MatchEditor list) */
 .elo-chip {
   display: inline-block;

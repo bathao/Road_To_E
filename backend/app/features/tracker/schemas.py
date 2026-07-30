@@ -141,9 +141,11 @@ class RatingBucketOut(BaseModel):
 
 
 class RatingMoverOut(BaseModel):
-    """One ELO-counted match in the movers table."""
+    """One ELO-counted match — or one tournament placement bonus — in the
+    movers table. Bonus rows have match_id=None and carry `bonus_label`
+    ("Giải X — Champion"); the match-only fields stay at their zero values."""
 
-    match_id: int
+    match_id: int | None
     date: dt.date
     delta: float
     discipline: str
@@ -154,6 +156,7 @@ class RatingMoverOut(BaseModel):
     partner_name: str | None = None
     my_sets: int
     opp_sets: int
+    bonus_label: str | None = None
 
 
 class MyRatingBreakdownOut(BaseModel):
@@ -199,6 +202,10 @@ class MatchIn(BaseModel):
     handicap: int = 0
     # Per-set sequence for non-uniform ratios ("2-0-2"); None = uniform.
     handicap_pattern: str | None = None
+    # Tournament link: the registered discipline (entry) this match belongs
+    # to + the round played. Both None on ordinary matches.
+    tournament_entry_id: int | None = None
+    round: Literal["group", "r64", "r32", "r16", "r8", "qf", "sf", "f"] | None = None
 
 
 class MatchOut(BaseModel):
@@ -229,6 +236,10 @@ class MatchOut(BaseModel):
     partner_level: str | None = None
     handicap: int = 0
     handicap_pattern: str | None = None
+    # Tournament link (resolved name for display; None on ordinary matches).
+    tournament_entry_id: int | None = None
+    round: str | None = None
+    tournament_name: str | None = None
     # ELO annotation (week view only; None on single-match CRUD responses):
     # the ±Δ this match contributed to MY rating, and its status — "counted"
     # or the skip reason ("nonplaying" | "before_anchor" | "no_opponent" |
@@ -356,6 +367,7 @@ class MatchLine(BaseModel):
     handicap: int = 0
     handicap_pattern: str | None = None
     event_name: str | None = None
+    round: str | None = None  # tournament round ("group"/"qf"/…); None = n/a
 
 
 class OpponentRecord(BaseModel):

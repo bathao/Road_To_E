@@ -11,6 +11,7 @@ export type ColorGroup = "green" | "yellow" | "none";
 // one_v_two = I play ALONE vs two opponents; two_v_one = me + partner vs one.
 export type { Discipline } from "../../shared/disciplines";
 import type { Discipline } from "../../shared/disciplines";
+import type { TournamentRound } from "../../shared/matches";
 
 export interface Category {
   id: number;
@@ -82,6 +83,11 @@ export interface Match {
   handicap: number; // signed: +N = I give N points, -N = I receive
   // Per-set sequence for non-uniform ratios ("2-0-2"); null = uniform.
   handicap_pattern?: string | null;
+  // Tournament link: the registered entry the match belongs to + the round
+  // played; null on ordinary matches. tournament_name resolved for display.
+  tournament_entry_id?: number | null;
+  round?: TournamentRound | null;
+  tournament_name?: string | null;
   // ELO annotation (week view): ±Δ this match moved MY rating, or why it
   // doesn't count ("counted" | "nonplaying" | "before_anchor" |
   // "no_opponent" | "no_result" | "unrated").
@@ -170,16 +176,18 @@ export interface RatingBucket {
 }
 
 export interface RatingMover {
-  match_id: number;
+  // null = a tournament placement bonus row (see bonus_label), not a match.
+  match_id: number | null;
   date: string;
   delta: number;
-  discipline: Discipline;
+  discipline: Discipline | "team"; // "team" only on bonus rows (team events)
   opponent_name: string | null;
   // Full line-up for team formats; null where the format skips the slot.
   opponent2_name: string | null;
   partner_name: string | null;
   my_sets: number;
   opp_sets: number;
+  bonus_label?: string | null; // "Giải X — Champion" on bonus rows
 }
 
 // Global — the rating has no discipline/category filter.
@@ -211,6 +219,15 @@ export interface ActivityIn {
 // ---- tournaments (scheduling commitments; match results stay in the grid) ----
 export type TournamentDiscipline = "singles" | "doubles" | "team";
 
+// Final result of one entry, DERIVED by the backend from the entered
+// matches' rounds (never input). "third" = lost the SF (all bronze is
+// shared); "quarterfinal" = lost the QF, singles only.
+export type TournamentPlacement =
+  | "champion"
+  | "runner_up"
+  | "third"
+  | "quarterfinal";
+
 export interface TournamentEntry {
   id: number;
   discipline: TournamentDiscipline;
@@ -220,6 +237,10 @@ export interface TournamentEntry {
   teammate_names?: string[]; // resolved, same order as ids
   team_members?: string | null; // optional team name / note
   division?: string | null; // "hạng E", "U40"…
+  final_placement?: TournamentPlacement | null; // derived, read-only
+  bonus_points?: number | null; // ELO bonus the derived placement earned
+  // Data-gap warning: a knockout round was won but the next one is missing.
+  data_warning?: string | null;
 }
 
 export interface Tournament {
@@ -293,6 +314,8 @@ export interface MatchIn {
   partner_id?: number | null;
   handicap?: number;
   handicap_pattern?: string | null;
+  tournament_entry_id?: number | null;
+  round?: TournamentRound | null;
 }
 
 export interface EventOut {

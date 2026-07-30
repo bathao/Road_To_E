@@ -232,6 +232,7 @@ export default function DailyTracker() {
       {week ? (
         <WeekGrid
           week={week}
+          tournaments={tournaments}
           onLayout={setGridGutter}
           onCellClick={(category, dateIso) => setEditing({ category, dateIso })}
           onViewPhysical={async (dateIso) => {
@@ -276,6 +277,22 @@ export default function DailyTracker() {
             <MatchEditor
               category={editing.category}
               matches={editingMatches}
+              // Tournament context: the registered entries of tournaments
+              // running on this cell's date (tournament row only) — the
+              // editor shows the banner / entry pick / round picker from it.
+              tournamentCtx={
+                editing.category.key === "tournament_match"
+                  ? tournaments
+                      .filter(
+                        (t) =>
+                          t.start_date <= editing.dateIso &&
+                          editing.dateIso <= (t.end_date ?? t.start_date)
+                      )
+                      .flatMap((t) =>
+                        t.entries.map((entry) => ({ tournament: t, entry }))
+                      )
+                  : []
+              }
               onAdd={addMatch}
               onDelete={deleteMatch}
             />

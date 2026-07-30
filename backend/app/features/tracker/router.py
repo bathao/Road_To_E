@@ -145,7 +145,13 @@ def delete_activity(activity_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------------- matches
 @router.post("/matches", response_model=schemas.MatchOut)
 def create_match(payload: schemas.MatchIn, db: Session = Depends(get_db)):
-    event = service.get_or_create_event(db, payload.event_name)
+    # Tournament matches with no explicit event default to the tournament's
+    # name, so event-based displays label them automatically.
+    event = service.get_or_create_event(
+        db,
+        payload.event_name
+        or service.tournament_default_event(db, payload.tournament_entry_id),
+    )
     match = Match(
         date=payload.date,
         category_id=payload.category_id,
@@ -167,6 +173,8 @@ def create_match(payload: schemas.MatchIn, db: Session = Depends(get_db)):
         partner_id=payload.partner_id,
         handicap=payload.handicap or 0,
         handicap_pattern=service.normalize_handicap_pattern(payload.handicap_pattern),
+        tournament_entry_id=payload.tournament_entry_id,
+        round=payload.round,
     )
     # Freeze the involved players' points at match time (ELO reads these).
     service.snapshot_match_points(db, match)
@@ -181,7 +189,11 @@ def update_match(match_id: int, payload: schemas.MatchIn, db: Session = Depends(
     match = db.get(Match, match_id)
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
-    event = service.get_or_create_event(db, payload.event_name)
+    event = service.get_or_create_event(
+        db,
+        payload.event_name
+        or service.tournament_default_event(db, payload.tournament_entry_id),
+    )
     prev_ids = (match.opponent_id, match.opponent2_id, match.partner_id)
     if (payload.date, payload.category_id) != (match.date, match.category_id):
         # Moved to another cell → append after that cell's existing matches so
@@ -202,6 +214,8 @@ def update_match(match_id: int, payload: schemas.MatchIn, db: Session = Depends(
     match.partner_id = payload.partner_id
     match.handicap = payload.handicap or 0
     match.handicap_pattern = service.normalize_handicap_pattern(payload.handicap_pattern)
+    match.tournament_entry_id = payload.tournament_entry_id
+    match.round = payload.round
     # Re-snapshot points ONLY for slots whose player changed; editing a score
     # or date keeps the original at-match-time snapshots.
     service.snapshot_match_points(db, match, prev_ids=prev_ids)

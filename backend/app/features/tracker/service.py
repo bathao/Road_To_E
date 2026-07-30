@@ -159,6 +159,19 @@ _GROUP_ORDER = [
 # Cell/export prefix per discipline (singles stays bare, Excel-style).
 _DISCIPLINE_PREFIX = {"doubles": "D: ", "one_v_two": "1v2: ", "two_v_one": "2v1: "}
 
+# Short round labels for tournament matches — group-stage matches stay bare
+# (they're the bulk), knockout rounds each get their own prefixed cell line.
+ROUND_SHORT = {
+    "group": "",
+    "r64": "1/64",
+    "r32": "1/32",
+    "r16": "1/16",
+    "r8": "1/8",
+    "qf": "QF",
+    "sf": "SF",
+    "f": "F",
+}
+
 
 def format_match_cell(matches: list[Match]) -> str:
     """Render a day's matches the way the Excel sheet shows them.
@@ -184,12 +197,23 @@ def format_match_cell(matches: list[Match]) -> str:
         if not m.is_nonplaying and m.event and m.event.name and m.event.name not in events:
             events.append(m.event.name)
 
-    # Group scores by (discipline, result).
+    # Group scores by (discipline, result). Knockout-round matches (QF/SF/…)
+    # get their own line per round instead — "QF: W(3-1)" reads like the
+    # bracket; group-stage/no-round matches keep the compact grouping.
     groups: dict[tuple[str, str], list[str]] = {}
+    knockout: list[str] = []
     for m in ordered:
         if m.is_nonplaying:
             continue
-        key = (m.discipline, _result_letter(m.my_sets, m.opp_sets))
+        result = _result_letter(m.my_sets, m.opp_sets)
+        round_label = ROUND_SHORT.get(m.round or "group", "")
+        if round_label:
+            prefix = _DISCIPLINE_PREFIX.get(m.discipline, "")
+            knockout.append(
+                f"{round_label}: {prefix}{result}({m.my_sets}-{m.opp_sets})"
+            )
+            continue
+        key = (m.discipline, result)
         groups.setdefault(key, []).append(f"{m.my_sets}-{m.opp_sets}")
 
     lines.extend(nonplaying)
@@ -203,8 +227,22 @@ def format_match_cell(matches: list[Match]) -> str:
         discipline, result = key
         prefix = _DISCIPLINE_PREFIX.get(discipline, "")
         lines.append(f"{prefix}{result}({','.join(scores)})")
+    lines.extend(knockout)  # in play order, after the grouped results
 
     return "\n".join(lines)
+
+
+def tournament_default_event(db: Session, entry_id: int | None) -> str | None:
+    """Tournament matches default their Event to the tournament's name, so
+    every existing event-chip display shows the tournament for free."""
+    if entry_id is None:
+        return None
+    # Local import: the tournament feature is optional context for the
+    # tracker — keep it out of this module's import graph.
+    from app.features.tournament.models import TournamentEntry
+
+    entry = db.get(TournamentEntry, entry_id)
+    return entry.tournament.name if entry else None
 
 
 def match_to_out(m: Match, my_points: int) -> schemas.MatchOut:
@@ -238,6 +276,15 @@ def match_to_out(m: Match, my_points: int) -> schemas.MatchOut:
         partner_level=_level_of(m.partner_points_snap, m.partner, my_points),
         handicap=m.handicap or 0,
         handicap_pattern=m.handicap_pattern,
+        tournament_entry_id=m.tournament_entry_id,
+        round=m.round,
+        # Tolerate a deleted entry (ALTER-added FK, not enforced): the match
+        # simply loses its tournament label.
+        tournament_name=(
+            m.tournament_entry.tournament.name
+            if m.tournament_entry_id and m.tournament_entry
+            else None
+        ),
     )
 
 
@@ -667,7 +714,7 @@ def _annotate_elo(db: Session, matches: list[Match]) -> list[schemas.MatchOut]:
     tính"). The same pass yields my current rating for the derived *_level
     fields."""
     my_final, elo_steps = rating.replay(db)
-    elo_deltas = {s.match_id: s.delta for s in elo_steps}
+    elo_deltas = {s.match_id: s.delta for s in elo_steps if s.match_id is not None}
     anchor_date = rating.get_my_anchor_date(db)
     outs = [match_to_out(m, round(my_final)) for m in matches]
     for out, m in zip(outs, matches):
@@ -1345,6 +1392,7 @@ def _h2h_accumulate(matches: list[Match], my_now: int) -> _H2HAcc:
                 handicap=m.handicap or 0,
                 handicap_pattern=m.handicap_pattern,
                 event_name=m.event.name if m.event else None,
+                round=m.round,
             )
         )
     return _H2HAcc(overall, singles_h2h, doubles_h2h, opp_brief)
@@ -1607,7 +1655,8 @@ def build_rating_breakdown(
                 date_from=b_from,
                 date_to=b_to,
                 delta=round(sum(s.delta for s in in_bucket), 1),
-                counted=len(in_bucket),
+                # Matches only — placement bonuses move the delta, not this.
+                counted=sum(1 for s in in_bucket if s.match_id is not None),
                 rating_end=value_at(b_to),
             )
         )
@@ -1629,6 +1678,17 @@ def build_rating_breakdown(
     )
 
     def _mover(s: "rating.ReplayStep") -> schemas.RatingMoverOut:
+        if s.match_id is None:  # tournament placement bonus, not a match
+            return schemas.RatingMoverOut(
+                match_id=None,
+                date=s.date,
+                delta=round(s.delta, 1),
+                discipline=s.bonus_discipline or "singles",
+                opponent_name=None,
+                my_sets=0,
+                opp_sets=0,
+                bonus_label=s.bonus_label,
+            )
         m = match_by_id.get(s.match_id)
         return schemas.RatingMoverOut(
             match_id=s.match_id,
@@ -1658,7 +1718,7 @@ def build_rating_breakdown(
         anchor_date=anchor_date,
         anchor_points=anchor_points,
         total_delta=round(sum(s.delta for s in in_range), 1),
-        counted=len(in_range),
+        counted=sum(1 for s in in_range if s.match_id is not None),
         rating_start=rating_start,
         rating_end=value_at(date_to),
         buckets=buckets,

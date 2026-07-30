@@ -118,6 +118,16 @@ class Match(Base):
     # sign-based analytics keep working unchanged.
     handicap_pattern: Mapped[str | None] = mapped_column(String, default=None)
 
+    # Tournament link (2026-07-30): which registered discipline (entry) of a
+    # tournament this match belongs to, and the round it was played in —
+    # "group" | "r64" | "r32" | "r16" | "r8" | "qf" | "sf" | "f". Both NULL
+    # for ordinary (non-tournament) matches. ALTER-added → SQLite attaches no
+    # real FK constraint here; display code must tolerate a missing entry.
+    tournament_entry_id: Mapped[int | None] = mapped_column(
+        ForeignKey("tournament_entry.id"), default=None
+    )
+    round: Mapped[str | None] = mapped_column(String, default=None)
+
     # Points of the involved players AT MATCH TIME (user decision 2026-07-26:
     # raising a player's static points later must NOT rewrite old matches —
     # the new value only applies from the raise onward). Snapshotted on create
@@ -135,6 +145,9 @@ class Match(Base):
     opponent: Mapped[Player | None] = relationship("Player", foreign_keys=[opponent_id])
     opponent2: Mapped[Player | None] = relationship("Player", foreign_keys=[opponent2_id])
     partner: Mapped[Player | None] = relationship("Player", foreign_keys=[partner_id])
+    # String target — TournamentEntry registers on the shared Base via the
+    # feature registry, so no cross-feature import is needed here.
+    tournament_entry = relationship("TournamentEntry")
 
 
 class PhysicalCheck(Base):

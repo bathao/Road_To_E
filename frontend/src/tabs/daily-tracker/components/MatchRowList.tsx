@@ -7,7 +7,7 @@ import { useLoad } from "../../../shared/useApi";
 import { prettyDate } from "../../../shared/dates";
 import { DISCIPLINE_SHORT } from "../../../shared/disciplines";
 import { fmtDelta } from "../../../shared/format";
-import { matchupOf } from "../../../shared/matches";
+import { matchupOf, ROUND_SHORT } from "../../../shared/matches";
 import { resultOf } from "../../../shared/types";
 import { trackerApi } from "../api";
 import type { Category, Match } from "../types";
@@ -54,6 +54,9 @@ export default function MatchRowList({ matches }: { matches: Match[] }) {
               {r} {m.my_sets}–{m.opp_sets}
             </b>
             {hdc && <span className="smm-meta">{hdc}</span>}
+            {m.round && ROUND_SHORT[m.round] && (
+              <span className="smm-tag smm-round">{ROUND_SHORT[m.round]}</span>
+            )}
             <span className="smm-meta">{kindOf(m.category_id)}</span>
             {m.event_name && <span className="smm-meta">{m.event_name}</span>}
             {m.elo_delta != null && (

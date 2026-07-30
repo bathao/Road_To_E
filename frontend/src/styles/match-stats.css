@@ -439,6 +439,14 @@
   background: #f7f9fc;
 }
 
+/* Tournament placement bonus rows — flat add-ons, not matches. */
+.elo-table tbody tr.elo-row-bonus {
+  background: #fff8e1;
+}
+.elo-table tbody tr.elo-row-bonus:hover {
+  background: #fdf3d3;
+}
+
 .elo-td-date {
   color: var(--muted);
   font-size: 12px;

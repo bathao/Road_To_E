@@ -30,6 +30,11 @@ _MATCH_COLUMNS = {
     "opp_points_snap": "INTEGER",
     "opp2_points_snap": "INTEGER",
     "partner_points_snap": "INTEGER",
+    # Tournament link (2026-07-30): the registered discipline (entry) this
+    # match belongs to + the round played ("group"/"r32"/…/"f"). NULL on
+    # ordinary matches. ALTER can't attach a FK constraint — tolerated.
+    "tournament_entry_id": "INTEGER",
+    "round": "VARCHAR",
 }
 
 

@@ -1467,6 +1467,12 @@ export interface components {
             team_members?: string | null;
             /** Division */
             division?: string | null;
+            /** Final Placement */
+            final_placement?: string | null;
+            /** Bonus Points */
+            bonus_points?: number | null;
+            /** Data Warning */
+            data_warning?: string | null;
         };
         /** EventOut */
         EventOut: {
@@ -1648,6 +1654,10 @@ export interface components {
             handicap: number;
             /** Handicap Pattern */
             handicap_pattern?: string | null;
+            /** Tournament Entry Id */
+            tournament_entry_id?: number | null;
+            /** Round */
+            round?: ("group" | "r64" | "r32" | "r16" | "r8" | "qf" | "sf" | "f") | null;
         };
         /**
          * MatchLine
@@ -1676,6 +1686,8 @@ export interface components {
             handicap_pattern?: string | null;
             /** Event Name */
             event_name?: string | null;
+            /** Round */
+            round?: string | null;
         };
         /** MatchOut */
         MatchOut: {
@@ -1743,6 +1755,12 @@ export interface components {
             handicap: number;
             /** Handicap Pattern */
             handicap_pattern?: string | null;
+            /** Tournament Entry Id */
+            tournament_entry_id?: number | null;
+            /** Round */
+            round?: string | null;
+            /** Tournament Name */
+            tournament_name?: string | null;
             /** Elo Delta */
             elo_delta?: number | null;
             /** Elo Status */
@@ -2198,11 +2216,13 @@ export interface components {
         };
         /**
          * RatingMoverOut
-         * @description One ELO-counted match in the movers table.
+         * @description One ELO-counted match — or one tournament placement bonus — in the
+         *     movers table. Bonus rows have match_id=None and carry `bonus_label`
+         *     ("Giải X — Champion"); the match-only fields stay at their zero values.
          */
         RatingMoverOut: {
             /** Match Id */
-            match_id: number;
+            match_id: number | null;
             /**
              * Date
              * Format: date
@@ -2222,6 +2242,8 @@ export interface components {
             my_sets: number;
             /** Opp Sets */
             opp_sets: number;
+            /** Bonus Label */
+            bonus_label?: string | null;
         };
         /** RecentSession */
         RecentSession: {

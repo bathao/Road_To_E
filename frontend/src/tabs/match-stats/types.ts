@@ -14,6 +14,7 @@ export interface MatchLine {
   handicap: number;
   handicap_pattern?: string | null; // per-set sequence ("2-0-2"); null = uniform
   event_name: string | null;
+  round?: string | null; // tournament round ("group"/"qf"/…); null = n/a
 }
 
 export interface OpponentRecord {

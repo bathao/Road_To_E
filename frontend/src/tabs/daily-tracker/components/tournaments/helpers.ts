@@ -1,6 +1,20 @@
 // Shared countdown/label logic for the tournament strip + section.
 import { fromIso, todayIso } from "../../../../shared/dates";
-import type { Tournament, TournamentEntry } from "../../types";
+import type {
+  Tournament,
+  TournamentEntry,
+  TournamentPlacement,
+} from "../../types";
+
+// Final results, DERIVED by the backend from the entered matches' rounds
+// (never input). "3rd (lost SF)" — all bronze is shared, no 3rd-place match;
+// "Quarter-final" (lost the QF) is a singles-only bonus tier.
+export const PLACEMENT_LABEL: Record<TournamentPlacement, string> = {
+  champion: "🥇 Champion",
+  runner_up: "🥈 Runner-up",
+  third: "🥉 3rd (lost SF)",
+  quarterfinal: "Quarter-final",
+};
 
 const DAY_MS = 86_400_000;
 

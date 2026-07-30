@@ -71,6 +71,10 @@ export function EloCurveCard({
 // newest-first, matches A→Z by opponent, results wins-first, deltas
 // biggest-gain-first (reverse = biggest losses first).
 type SortKey = "date" | "match" | "result" | "delta";
+
+// "team" appears only on tournament-bonus rows (team events have no matches).
+const discLabel = (d: RatingMover["discipline"]) =>
+  d === "team" ? "Team" : DISCIPLINE_LABEL[d] ?? d;
 const SORT_DEFAULT_DIR: Record<SortKey, 1 | -1> = {
   date: -1,
   match: 1,
@@ -80,14 +84,14 @@ const SORT_DEFAULT_DIR: Record<SortKey, 1 | -1> = {
 
 function sortMovers(movers: RatingMover[], sort: Sort<SortKey>) {
   const { key, dir } = sort;
+  // Bonus rows (match_id null) land at the END of their day in play order.
+  const ord = (m: RatingMover) => m.match_id ?? Number.MAX_SAFE_INTEGER;
+  const name = (m: RatingMover) => m.bonus_label ?? m.opponent_name ?? "?";
   return [...movers].sort((a, b) => {
     if (key === "date")
       // Same-day ties follow the direction too (ids track entry order).
-      return dir * (a.date.localeCompare(b.date) || a.match_id - b.match_id);
-    if (key === "match")
-      return (
-        dir * (a.opponent_name ?? "?").localeCompare(b.opponent_name ?? "?", "vi")
-      );
+      return dir * (a.date.localeCompare(b.date) || ord(a) - ord(b));
+    if (key === "match") return dir * name(a).localeCompare(name(b), "vi");
     if (key === "result") {
       const rank = (m: RatingMover) => (resultOf(m) === "W" ? 0 : 1);
       // Within the same result, biggest impact first.
@@ -139,13 +143,30 @@ export function EloTableCard({ elo }: { elo: RatingBreakdown }) {
             </thead>
             <tbody>
               {rows.map((m) => {
+                // Tournament placement bonus — a flat add-on, not a match.
+                if (m.match_id === null)
+                  return (
+                    <tr
+                      key={`bonus-${m.date}-${m.bonus_label}`}
+                      className="elo-row-bonus"
+                    >
+                      <td className="elo-td-date">{shortDate(m.date)}</td>
+                      <td className="elo-td-match">
+                        🏆 {m.bonus_label} ({discLabel(m.discipline)})
+                      </td>
+                      <td className="elo-td-res">—</td>
+                      <td className="elo-td-delta elo-delta-val pos">
+                        {fmtDelta(m.delta)}
+                      </td>
+                    </tr>
+                  );
                 const r = resultOf(m);
                 return (
                   <tr key={m.match_id}>
                     <td className="elo-td-date">{shortDate(m.date)}</td>
                     <td className="elo-td-match">
                       {m.my_sets}-{m.opp_sets} {matchupOf(m)} (
-                      {DISCIPLINE_LABEL[m.discipline] ?? m.discipline})
+                      {discLabel(m.discipline)})
                     </td>
                     <td
                       className={`elo-td-res ${

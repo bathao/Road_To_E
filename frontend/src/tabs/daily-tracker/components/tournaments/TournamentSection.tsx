@@ -15,7 +15,13 @@ import { tournamentApi } from "../../api";
 import { useMutate } from "../../../../shared/useApi";
 import { prettyDate } from "../../../../shared/dates";
 import PlayerPicker from "../editors/PlayerPicker";
-import { countdownText, daysUntil, entryLabel, isPast } from "./helpers";
+import {
+  countdownText,
+  daysUntil,
+  entryLabel,
+  isPast,
+  PLACEMENT_LABEL,
+} from "./helpers";
 
 const PAST_PREVIEW = 3;
 
@@ -361,8 +367,22 @@ function TournamentCard({
           <span className="tour-chip tour-chip-limit">Level: {t.level_limit}</span>
         )}
         {t.entries.map((e) => (
-          <span key={e.id} className="tour-chip">
+          <span
+            key={e.id}
+            className={`tour-chip${e.data_warning ? " tour-chip-gap" : ""}`}
+            title={e.data_warning ?? undefined}
+          >
             {entryLabel(e)}
+            {e.final_placement && (
+              <b
+                className="tour-chip-result"
+                title="Derived from the tournament matches entered in the grid"
+              >
+                {PLACEMENT_LABEL[e.final_placement]}
+                {e.bonus_points ? ` +${e.bonus_points}` : ""}
+              </b>
+            )}
+            {e.data_warning && <b className="tour-chip-warn">⚠ {e.data_warning}</b>}
           </span>
         ))}
       </div>

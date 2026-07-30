@@ -42,6 +42,13 @@ class EntryOut(BaseModel):
     teammate_names: list[str] = []  # resolved for display, same order as ids
     team_members: str | None = None
     division: str | None = None
+    # DERIVED from the entered matches' rounds (never stored/input): the
+    # final result reached so far + the ELO bonus it earned.
+    final_placement: str | None = None
+    bonus_points: int | None = None
+    # Data-gap warning: deepest entered knockout round was WON but the next
+    # round is missing → the user forgot to enter matches.
+    data_warning: str | None = None
 
 
 class TournamentOut(BaseModel):

@@ -51,6 +51,10 @@ class TournamentEntry(Base):
     # is TournamentEntryMember rows referencing the shared player pool.
     team_members: Mapped[str | None] = mapped_column(String, nullable=True)
     division: Mapped[str | None] = mapped_column(String, nullable=True)  # "hạng E", "U40"…
+    # NOTE: the entry's final result is NOT stored — it is DERIVED from the
+    # entered matches' rounds (rating.derive_placements): reach the final →
+    # champion/runner-up by its result, lose the SF → shared 3rd, lose the
+    # QF → quarterfinal (singles-only tier). User decision 2026-07-31.
 
     tournament: Mapped[Tournament] = relationship(back_populates="entries")
     members: Mapped[list["TournamentEntryMember"]] = relationship(

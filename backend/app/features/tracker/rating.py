@@ -53,6 +53,109 @@ ELO_DECIDER_MULT = 0.75  # 3-2 / 2-1 / 4-3: a deciding set moves it less
 # The BBTV band the whole project aims at ("Road To E"): E starts at 1201.
 RANK_E_FLOOR = 1201
 
+# Tournament placement bonus (user table 2026-07-31): a FLAT add-on applied
+# at the end of the deciding match's day, after that day's matches — no K,
+# no expected score. "third" = lost the SF (all bronze is shared, there is
+# no 3rd-place match); "quarterfinal" = lost the QF, a singles-only tier.
+# Replay architecture applies here too: the bonus is a step in the timeline,
+# so editing/deleting the deciding match self-corrects on the next read.
+TOURNAMENT_BONUS: dict[str, dict[str, int]] = {
+    "singles": {"champion": 70, "runner_up": 50, "third": 35, "quarterfinal": 10},
+    "doubles": {"champion": 35, "runner_up": 25, "third": 10},
+    "team": {"champion": 30, "runner_up": 20, "third": 10},
+}
+
+PLACEMENT_LABEL = {
+    "champion": "Champion",
+    "runner_up": "Runner-up",
+    "third": "3rd (lost SF)",
+    "quarterfinal": "Quarter-final",
+}
+
+
+def placement_bonus(discipline: str, placement: str | None) -> int:
+    """Bonus points a placement earns; 0 = none (unknown key included)."""
+    if placement is None:
+        return 0
+    return TOURNAMENT_BONUS.get(discipline, {}).get(placement, 0)
+
+
+# The placement is NEVER input — it is derived from the matches entered in
+# the grid (user decision 2026-07-31: "dựa vào data tôi nhập của giải trong
+# sheet"). Reading the deepest round entered per entry:
+#   final won → champion · final lost → runner-up · SF lost → third ·
+#   QF lost → quarterfinal · anything shallower → no placement.
+# Tournaments are entered AFTER they finish (user 2026-07-31), so winning
+# the deepest entered knockout round with no later round = MISSING DATA,
+# not an ongoing event → no placement + a derive_warnings() entry.
+_ROUND_DEPTH = {"group": 0, "r64": 1, "r32": 2, "r16": 3, "r8": 4, "qf": 5, "sf": 6, "f": 7}
+_NEXT_ROUND = {"r64": "r32", "r32": "r16", "r16": "r8", "r8": "qf", "qf": "sf", "sf": "f"}
+_ROUND_NAME = {
+    "r64": "1/64", "r32": "1/32", "r16": "1/16", "r8": "1/8",
+    "qf": "Quarter-final", "sf": "Semi-final", "f": "Final",
+}
+
+
+def _deepest_decided(db: Session) -> dict[int, Match]:
+    """entry_id → last DECIDED match (has a result) of the deepest entered
+    round, for every entry with linked matches."""
+    matches = (
+        db.query(Match)
+        .filter(
+            Match.tournament_entry_id.isnot(None),
+            Match.is_nonplaying == False,  # noqa: E712
+            Match.my_sets != Match.opp_sets,  # a result exists
+        )
+        .order_by(Match.date, Match.order_index, Match.id)
+        .all()
+    )
+    by_entry: dict[int, list[Match]] = {}
+    for m in matches:
+        by_entry.setdefault(m.tournament_entry_id, []).append(m)
+    out: dict[int, Match] = {}
+    for entry_id, ms in by_entry.items():
+        deepest = max(_ROUND_DEPTH.get(m.round or "group", 0) for m in ms)
+        out[entry_id] = [
+            m for m in ms if _ROUND_DEPTH.get(m.round or "group", 0) == deepest
+        ][-1]
+    return out
+
+
+def derive_placements(db: Session) -> dict[int, tuple[str, dt.date]]:
+    """entry_id → (placement, date of the deciding match) for every linked
+    entry whose entered matches already decide a placement."""
+    out: dict[int, tuple[str, dt.date]] = {}
+    for entry_id, last in _deepest_decided(db).items():
+        deepest = _ROUND_DEPTH.get(last.round or "group", 0)
+        won = last.my_sets > last.opp_sets
+        if deepest == _ROUND_DEPTH["f"]:
+            placement = "champion" if won else "runner_up"
+        elif deepest == _ROUND_DEPTH["sf"] and not won:
+            placement = "third"
+        elif deepest == _ROUND_DEPTH["qf"] and not won:
+            placement = "quarterfinal"
+        else:
+            continue
+        out[entry_id] = (placement, last.date)
+    return out
+
+
+def derive_warnings(db: Session) -> dict[int, str]:
+    """entry_id → data-gap warning: the deepest entered knockout round was
+    WON but the next round has no decided match. Tournaments are entered
+    after the fact, so a won round with nothing after it means the user
+    forgot matches — surface it instead of silently paying no bonus."""
+    out: dict[int, str] = {}
+    for entry_id, last in _deepest_decided(db).items():
+        rnd = last.round or "group"
+        nxt = _NEXT_ROUND.get(rnd)
+        if nxt and last.my_sets > last.opp_sets:
+            out[entry_id] = (
+                f"Won the {_ROUND_NAME[rnd]} but no {_ROUND_NAME[nxt]} match"
+                " entered — matches missing?"
+            )
+    return out
+
 # The user's own points/anchor — stored in the key-value settings table.
 _MY_POINTS_KEY = "my_points"
 _MY_POINTS_DEFAULT = 950  # rank G, set 2026-07-25
@@ -225,23 +328,64 @@ def skip_reason(m: Match, anchor_date: dt.date) -> str | None:
 
 @dataclass
 class ReplayStep:
-    match_id: int
+    # None = a tournament placement bonus, not a match (see `bonus_label`).
+    match_id: int | None
     date: dt.date
     delta: float
     rating_after: float
+    bonus_label: str | None = None  # "Giải X — Champion" on bonus steps
+    bonus_discipline: str | None = None  # entry discipline on bonus steps
 
 
-# (final rating, one step per counted match) — what replay() returns. Callers
-# that need several ELO-dependent builds replay once and pass this around.
+# (final rating, one step per counted match or placement bonus) — what
+# replay() returns. Callers that need several ELO-dependent builds replay
+# once and pass this around.
 ReplayResult = tuple[float, list[ReplayStep]]
 
 
-def replay(db: Session) -> ReplayResult:
-    """Replay every eligible match since the anchor, in play order.
+@dataclass
+class _BonusEvent:
+    date: dt.date  # deciding match's day — the bonus lands after its matches
+    points: int
+    label: str
+    discipline: str
 
-    Returns (final rating, one step per counted match). Nothing is stored —
-    this is the single engine behind the current rating, the per-match ±Δ
-    annotations and the daily history curve."""
+
+def _bonus_events(db: Session, anchor_date: dt.date) -> list[_BonusEvent]:
+    """Derived placement bonuses since the anchor, oldest first."""
+    placements = derive_placements(db)
+    if not placements:
+        return []
+    # Local import: tournament ← tracker at module scope would be a cycle.
+    from app.features.tournament.models import Tournament, TournamentEntry
+
+    rows = (
+        db.query(TournamentEntry, Tournament)
+        .join(Tournament, TournamentEntry.tournament_id == Tournament.id)
+        .filter(TournamentEntry.id.in_(placements))
+        .order_by(TournamentEntry.id)
+        .all()
+    )
+    events: list[_BonusEvent] = []
+    for entry, tour in rows:
+        placement, date = placements[entry.id]
+        points = placement_bonus(entry.discipline, placement)
+        if points == 0 or date < anchor_date:
+            continue
+        label = f"{tour.name} — {PLACEMENT_LABEL[placement]}"
+        events.append(_BonusEvent(date, points, label, entry.discipline))
+    events.sort(key=lambda e: e.date)
+    return events
+
+
+def replay(db: Session) -> ReplayResult:
+    """Replay every eligible match since the anchor, in play order, plus one
+    flat bonus step per tournament placement (at the end of the tournament's
+    last day, after that day's matches).
+
+    Returns (final rating, one step per counted match/bonus). Nothing is
+    stored — this is the single engine behind the current rating, the
+    per-match ±Δ annotations and the daily history curve."""
     rating = float(get_my_points(db))
     anchor_date = get_my_anchor_date(db)
     kind_mult_by_cat = {
@@ -265,8 +409,29 @@ def replay(db: Session) -> ReplayResult:
         .order_by(Match.date, Match.order_index, Match.id)
         .all()
     )
+    bonuses = _bonus_events(db, anchor_date)
     steps: list[ReplayStep] = []
+
+    def flush_bonuses(before: dt.date | None) -> None:
+        """Apply pending bonuses dated before `before` (None = all): each
+        lands at the END of its own day, i.e. before any later-dated match."""
+        nonlocal rating
+        while bonuses and (before is None or bonuses[0].date < before):
+            b = bonuses.pop(0)
+            rating += b.points
+            steps.append(
+                ReplayStep(
+                    None,
+                    b.date,
+                    float(b.points),
+                    rating,
+                    bonus_label=b.label,
+                    bonus_discipline=b.discipline,
+                )
+            )
+
     for m in matches:
+        flush_bonuses(before=m.date)
         if skip_reason(m, anchor_date) is not None:
             continue
         opp_points = _snap_or_current(m.opp_points_snap, m.opponent)
@@ -324,6 +489,7 @@ def replay(db: Session) -> ReplayResult:
         )
         rating += delta
         steps.append(ReplayStep(m.id, m.date, delta, rating))
+    flush_bonuses(before=None)
     return rating, steps
 
 
@@ -338,5 +504,6 @@ def compute_my_rating(
         points=get_my_points(db),
         current=round(final),
         anchor_date=get_my_anchor_date(db).isoformat(),
-        counted_matches=len(steps),
+        # Matches only — placement bonus steps are not matches.
+        counted_matches=sum(1 for s in steps if s.match_id is not None),
     )

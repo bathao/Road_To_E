@@ -783,6 +783,43 @@
   white-space: nowrap;
 }
 
+/* Tournament-row cells on days a tournament runs: "matches go HERE". */
+.cell.cell-tournament {
+  background: #fff8e1;
+  box-shadow: inset 0 0 0 1px #f0c94a;
+}
+
+.cell.cell-tournament.today {
+  background: #fdf3c8;
+}
+
+.cell-tour-hint {
+  opacity: 0.45;
+  font-size: 13px;
+}
+
+/* Tournament banner inside the match editor. */
+.tour-banner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  border: 1px solid #f0c94a;
+  border-left: 4px solid #e2b13c;
+  border-radius: 8px;
+  background: #fff8e1;
+}
+
+.tour-banner-name {
+  font-weight: 700;
+}
+
+.tour-entry-pick {
+  margin-left: auto;
+}
+
 /* Section at the bottom of the page. */
 .tour-section {
   margin-top: 28px;
@@ -940,6 +977,24 @@
 .tour-chip-limit {
   background: #fef3c7;
   border-color: #f59e0b;
+}
+
+/* Final result derived from the entered matches ("🥇 Champion +70"). */
+.tour-chip-result {
+  margin-left: 6px;
+  color: #b45309;
+}
+
+/* Data-gap warning: a knockout round was won but the next one is missing —
+ * tournaments are entered after the fact, so this means forgotten matches. */
+.tour-chip-gap {
+  background: #fff1f2;
+  border-color: #e11d48;
+}
+.tour-chip-warn {
+  margin-left: 6px;
+  color: #be123c;
+  font-weight: 600;
 }
 
 /* Team-entry roster editor: pills + picker + optional team name. */

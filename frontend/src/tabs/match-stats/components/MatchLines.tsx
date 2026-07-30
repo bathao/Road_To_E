@@ -1,3 +1,5 @@
+import { ROUND_SHORT } from "../../../shared/matches";
+import type { TournamentRound } from "../../../shared/matches";
 import type { MatchLine } from "../types";
 
 // A clear, match-by-match list of set scores against one opponent (or pairing).
@@ -24,6 +26,11 @@ export default function MatchLines({ rows }: { rows: MatchLine[] }) {
             </span>
             <span className="ml-date">{m.date}</span>
             {hc && <span className="ml-hc">{hc}</span>}
+            {m.round && ROUND_SHORT[m.round as TournamentRound] && (
+              <span className="ml-event">
+                {ROUND_SHORT[m.round as TournamentRound]}
+              </span>
+            )}
             {m.event_name && <span className="ml-event">{m.event_name}</span>}
           </li>
         );

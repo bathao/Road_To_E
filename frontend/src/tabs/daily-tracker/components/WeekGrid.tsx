@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef } from "react";
-import type { Category, WeekResponse } from "../types";
+import type { Category, Tournament, WeekResponse } from "../types";
 import { cellKey } from "../types";
 import { dayHeader, monthGroups, todayIso } from "../../../shared/dates";
 
@@ -7,11 +7,15 @@ import { dayHeader, monthGroups, todayIso } from "../../../shared/dates";
 // Clicking any cell opens the matching editor for that (category, date).
 export default function WeekGrid({
   week,
+  tournaments = [],
   onCellClick,
   onViewPhysical,
   onLayout,
 }: {
   week: WeekResponse;
+  // For highlighting the Tournament-match row on days a tournament runs —
+  // "input the tournament's matches HERE".
+  tournaments?: Tournament[];
   onCellClick: (category: Category, dateIso: string) => void;
   // Read-only view of a Training Center session mirrored into the Physical row.
   onViewPhysical: (dateIso: string) => void;
@@ -110,11 +114,22 @@ export default function WeekGrid({
                   iso >= week.physical_cutover;
                 const editable =
                   !isRating && !isComputed && !isFuture && !isPhysicalMirror;
+                // Tournament-row cell on a day a tournament runs: highlight
+                // it so the user knows this is where its matches go.
+                const tourToday =
+                  cat.key === "tournament_match"
+                    ? tournaments.find(
+                        (t) =>
+                          t.start_date <= iso &&
+                          iso <= (t.end_date ?? t.start_date)
+                      )
+                    : undefined;
                 const classes = ["cell", `type-${cat.type}`];
                 if (isToday) classes.push("today");
                 if (isRating || isComputed || isPhysicalMirror)
                   classes.push("readonly");
                 if (isFuture) classes.push("future");
+                if (tourToday) classes.push("cell-tournament");
                 // Fill the whole cell background with the day's color
                 // (Overall row, and Physical Training when >=70% ticked).
                 if (cell?.color) classes.push(`rating-${cell.color}`);
@@ -137,9 +152,11 @@ export default function WeekGrid({
                         ? "Click to view the Training Center session 💪"
                         : isPhysicalMirror
                           ? "Managed in the Training Center tab 💪"
-                          : fullText
-                            ? `${cat.label} · ${iso}\n${fullText}`
-                            : undefined;
+                          : tourToday
+                            ? `🏆 ${tourToday.name} — enter this tournament's matches here${fullText ? `\n${fullText}` : ""}`
+                            : fullText
+                              ? `${cat.label} · ${iso}\n${fullText}`
+                              : undefined;
                 const handleClick = editable
                   ? () => onCellClick(cat, iso)
                   : viewablePhysical
@@ -153,9 +170,14 @@ export default function WeekGrid({
                     onClick={handleClick}
                     title={title}
                   >
-                    {!isRating && (
-                      <span className="cell-text">{cell?.display ?? ""}</span>
-                    )}
+                    {!isRating &&
+                      (tourToday && !cell?.display ? (
+                        // Empty tournament-day cell: a soft trophy hint marks
+                        // the input spot without pretending there's data.
+                        <span className="cell-tour-hint">🏆</span>
+                      ) : (
+                        <span className="cell-text">{cell?.display ?? ""}</span>
+                      ))}
                   </td>
                 );
               })}

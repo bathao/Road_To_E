@@ -12,12 +12,26 @@ from app.features.tournament.models import (
     TournamentEntryMember,
 )
 from app.features.tracker.models import Player
+from app.features.tracker.rating import (
+    derive_placements,
+    derive_warnings,
+    placement_bonus,
+)
 
 _DISCIPLINE_VI = {"singles": "đơn", "doubles": "đôi", "team": "đồng đội"}
 
+# entry_id → (placement, deciding-match date), from rating.derive_placements.
+_Placements = dict[int, tuple[str, dt.date]]
 
-def _entry_out(e: TournamentEntry, players: dict[int, str]) -> schemas.EntryOut:
+
+def _entry_out(
+    e: TournamentEntry,
+    players: dict[int, str],
+    placements: _Placements,
+    warnings: dict[int, str],
+) -> schemas.EntryOut:
     teammate_ids = [m.player_id for m in e.members]
+    placement = placements.get(e.id, (None,))[0]
     return schemas.EntryOut(
         id=e.id,
         discipline=e.discipline,
@@ -27,10 +41,18 @@ def _entry_out(e: TournamentEntry, players: dict[int, str]) -> schemas.EntryOut:
         teammate_names=[players.get(pid, "?") for pid in teammate_ids],
         team_members=e.team_members,
         division=e.division,
+        final_placement=placement,
+        bonus_points=placement_bonus(e.discipline, placement) or None,
+        data_warning=warnings.get(e.id),
     )
 
 
-def _to_out(t: Tournament, players: dict[int, str]) -> schemas.TournamentOut:
+def _to_out(
+    t: Tournament,
+    players: dict[int, str],
+    placements: _Placements,
+    warnings: dict[int, str],
+) -> schemas.TournamentOut:
     return schemas.TournamentOut(
         id=t.id,
         name=t.name,
@@ -39,7 +61,7 @@ def _to_out(t: Tournament, players: dict[int, str]) -> schemas.TournamentOut:
         end_date=t.end_date,
         level_limit=t.level_limit,
         note=t.note,
-        entries=[_entry_out(e, players) for e in t.entries],
+        entries=[_entry_out(e, players, placements, warnings) for e in t.entries],
     )
 
 
@@ -72,8 +94,12 @@ def list_tournaments(db: Session, today: dt.date | None = None) -> schemas.Tourn
 
     upcoming = sorted((t for t in rows if ends(t) >= today), key=lambda t: t.start_date)
     past = sorted((t for t in rows if ends(t) < today), key=lambda t: t.start_date, reverse=True)
+    placements = derive_placements(db)
+    warnings = derive_warnings(db)
     return schemas.TournamentsResponse(
-        tournaments=[_to_out(t, players) for t in upcoming + past]
+        tournaments=[
+            _to_out(t, players, placements, warnings) for t in upcoming + past
+        ]
     )
 
 

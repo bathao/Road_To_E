@@ -1,14 +1,40 @@
 import { useEffect, useState } from "react";
-import type { Category, Discipline, Match, MatchIn, Player } from "../../types";
+import type {
+  Category,
+  Discipline,
+  Match,
+  MatchIn,
+  Player,
+  Tournament,
+  TournamentEntry,
+} from "../../types";
 import { trackerApi } from "../../api";
 import { validScores } from "../../scores";
 import PlayerPicker from "./PlayerPicker";
 import { levelShort } from "../../../../shared/levels";
 import { DISCIPLINES, DISCIPLINE_SHORT } from "../../../../shared/disciplines";
+import { ROUND_LABEL, ROUND_SHORT } from "../../../../shared/matches";
+import type { TournamentRound } from "../../../../shared/matches";
 import { resultOf } from "../../../../shared/types";
 
 const FORMATS = [3, 5, 7];
 type HandicapDir = "none" | "give" | "receive";
+
+// One pickable "what am I playing in" option: a tournament's registered
+// discipline (entry). Usually exactly one per day; more when the user
+// entered several disciplines (or two tournaments overlap).
+export interface TournamentCtx {
+  tournament: Tournament;
+  entry: TournamentEntry;
+}
+
+const ROUND_OPTIONS = Object.entries(ROUND_LABEL) as [TournamentRound, string][];
+
+// "Singles hạng E · BBTV Open" — how one entry shows in the picker.
+function ctxLabel(c: TournamentCtx): string {
+  const disc = c.entry.discipline[0].toUpperCase() + c.entry.discipline.slice(1);
+  return `${c.tournament.name} · ${disc}${c.entry.division ? ` ${c.entry.division}` : ""}`;
+}
 
 // "vs Nam (Ngang)" for singles; "+ Partner vs A & B" for the team formats
 // (doubles / 1v2 / 2v1 — unused slots just don't render), plus handicap.
@@ -84,11 +110,14 @@ const HANDICAP_PATTERNS = [
 export default function MatchEditor({
   category,
   matches,
+  tournamentCtx = [],
   onAdd,
   onDelete,
 }: {
   category: Category;
   matches: Match[];
+  // Tournament(s) running on this cell's date (tournament row only).
+  tournamentCtx?: TournamentCtx[];
   onAdd: (payload: Omit<MatchIn, "date" | "category_id">) => void;
   onDelete: (id: number) => void;
 }) {
@@ -100,6 +129,42 @@ export default function MatchEditor({
   const [opponent, setOpponent] = useState<Player | null>(null);
   const [opponent2, setOpponent2] = useState<Player | null>(null);
   const [partner, setPartner] = useState<Player | null>(null);
+
+  // Tournament mode. The round picker shows on every tournament-row cell
+  // (even without a linked tournament — back-filling an old event); the
+  // banner/entry pick/partner prefill need an actual tournament that day.
+  const isTournamentCell = category.key === "tournament_match";
+  const [entryIdx, setEntryIdx] = useState(0);
+  const selCtx = tournamentCtx[entryIdx] ?? null;
+  // Default round = the round of the cell's latest match — mid-knockout the
+  // picker follows along; first match of the day starts at Group.
+  const [round, setRound] = useState<TournamentRound>(() => {
+    const last = [...matches].reverse().find((m) => m.round);
+    return (last?.round as TournamentRound) ?? "group";
+  });
+
+  // Applying the picked entry: doubles registrations lock the discipline and
+  // pre-fill the registered partner (still editable per match — the pair can
+  // change on the day); the tournament name pre-fills the Event box.
+  useEffect(() => {
+    if (!selCtx) return;
+    setEventName((cur) => cur.trim() ? cur : selCtx.tournament.name);
+    if (selCtx.entry.discipline === "doubles") {
+      setDiscipline("doubles");
+      if (selCtx.entry.partner_id) {
+        setPartner({
+          id: selCtx.entry.partner_id,
+          name: selCtx.entry.partner_name ?? "?",
+          level: "equal", // display-only here; the id is what gets saved
+          plays_pips: false,
+        });
+      }
+    } else if (selCtx.entry.discipline === "singles") {
+      setDiscipline("singles");
+    }
+    // Team entries: ties mix singles + doubles — leave the choice manual.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selCtx?.entry.id]);
 
   const [handicapDir, setHandicapDir] = useState<HandicapDir>("none");
   // A preset from HANDICAP_PATTERNS, or "custom" (digits in customPattern).
@@ -203,6 +268,8 @@ export default function MatchEditor({
       partner_id: hasPartner ? partner?.id ?? null : null,
       handicap,
       handicap_pattern: handicapPattern,
+      tournament_entry_id: selCtx?.entry.id ?? null,
+      round: isTournamentCell ? round : null,
     });
     // Clear the opponent(s) so the next person can be picked right away.
     // Partner + handicap + format are kept (usually the same across a session).
@@ -218,6 +285,52 @@ export default function MatchEditor({
     <div className="editor">
       <p className="editor-sub">{category.label}</p>
 
+      {/* Tournament banner: which competition/entry this match belongs to. */}
+      {selCtx && (
+        <div className="tour-banner">
+          <span className="tour-banner-name">
+            🏆 {selCtx.tournament.name}
+            {selCtx.entry.division ? ` · ${selCtx.entry.division}` : ""}
+          </span>
+          {selCtx.entry.discipline === "doubles" && selCtx.entry.partner_name && (
+            <span className="tour-chip">
+              🤝 with {selCtx.entry.partner_name}
+            </span>
+          )}
+          {tournamentCtx.length > 1 && (
+            <select
+              className="pb-select tour-entry-pick"
+              value={entryIdx}
+              onChange={(e) => setEntryIdx(Number(e.target.value))}
+            >
+              {tournamentCtx.map((c, i) => (
+                <option key={c.entry.id} value={i}>
+                  {ctxLabel(c)}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
+
+      {/* Round: group stage by default; knockout rounds as far as I survive. */}
+      {isTournamentCell && (
+        <div className="seg-row">
+          <span className="seg-label">Round</span>
+          <select
+            className="pb-select"
+            value={round}
+            onChange={(e) => setRound(e.target.value as TournamentRound)}
+          >
+            {ROUND_OPTIONS.map(([k, lbl]) => (
+              <option key={k} value={k}>
+                {lbl}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* Existing matches in this cell */}
       {matches.length > 0 && (
         <div className="match-list">
@@ -228,6 +341,7 @@ export default function MatchEditor({
                   ? m.nonplaying_label ?? "—"
                   : `${DISCIPLINE_SHORT[m.discipline]} ${resultOf(m)} ${m.my_sets}-${m.opp_sets}`}
                 {playersLabel(m) ? ` · ${playersLabel(m)}` : ""}
+                {m.round && ROUND_SHORT[m.round] ? ` · ${ROUND_SHORT[m.round]}` : ""}
                 {m.event_name ? ` · ${m.event_name}` : ""}
                 <EloChip m={m} />
               </span>
