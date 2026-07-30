@@ -1,6 +1,101 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-07-29, latest) — ELO readability, committed `d17b5ed`; ALL PUSHED
+## Current status (2026-07-30, latest) — batch committed `cfd65cf`
+
+> **The whole 2026-07-29..30 batch is COMMITTED as `cfd65cf`** (one code
+> commit, "commit code đi" 2026-07-30): (1) "+ Add player" form, (2) Match
+> Stats ELO curve replacing delta bars, (3) movers |Δ| sort, (4) level
+> chart removed from Match Stats, (5) per-level cards removed from
+> Profile, (6) by_level removed from the API, (7) "Results & form" trend
+> chart (KEPT after the revert wobble — see entry below), (8) Database
+> per-player match drill-down. 67/67 pytest, gen:api + build clean.
+> Backend changed (form field, by_level removal, players/{id}/matches) →
+> restart start.bat if not done since. No other open thread; next work is
+> the data-blocked TODO list.
+
+> **Database tab: per-player match drill-down (user request 2026-07-30,
+> built same day after plan OK, UNCOMMITTED, needs start.bat restart):**
+> the "⚔️ Vs me" / "🤝 With me" counts are now buttons → modal listing every
+> match with that player (all-time — the tab has no period control), same
+> match lines as the Daily Tracker Analysis drill-down. New endpoint
+> `GET /tracker/players/{id}/matches` (service.list_player_matches: any
+> slot — opponent/opponent2/partner — nonplaying excluded, newest first,
+> `_annotate_elo`'d so each row carries its ±ELO chip). The row rendering
+> was EXTRACTED from StatMatchesModal into shared
+> daily-tracker/components/MatchRowList.tsx (namesOf/hdcText/kind labels)
+> — both modals now render identical lines by construction. New
+> database/PlayerMatchesModal.tsx: role seg All/⚔️Vs/🤝With (only shown
+> when the player has BOTH roles; preset by which count was clicked) + the
+> usual All/W/L seg. CSS: .db-count-btn link-style counts, .pm-filters.
+> 67/67 pytest (new any-slot/ordering test), gen:api + build clean.
+
+> **"Win rate trend" chart: redesign kept after a wobble (2026-07-30):**
+> user first said the new "Results & form" chart was worse than the old
+> line once they realized 0% days were real losses — a revert was started —
+> then reconsidered mid-revert ("à thôi hiểu rồi, giữ cái hiện tại cũng
+> dc", "giữ results and form"). The revert was undone; the shipped state is
+> the NEW chart (verified byte-identical bundle to the pre-revert build).
+> Details in the entry below.
+
+> **"Win rate trend (by day)" chart REDESIGNED (user: "nhìn line chart xấu
+> quá", same day, UNCOMMITTED, needs start.bat restart):** the per-day
+> win-rate LINE was statistical noise at 2-3 matches/day (0%↔67% spikes;
+> a 0% day with 1 loss looked like a day with 8). NOTE: the 0% points the
+> user read as "days not played" were actually played-and-lost-all days —
+> non-played days were already filtered out. New chart "Results & form":
+> **W/L bars** (wins green up, losses red down from a shared baseline,
+> equal counts = equal heights — the only honest per-day signal) + a
+> **rolling-form line** = win rate of the last 10 DECIDED matches (right
+> 0-100% axis; ties skipped; hidden until 3 decided matches). Backend:
+> MatchTrendBucket gains `form`; `_trend_buckets` threads a deque window,
+> seeded by `_prior_form_results` (last 10 decided named matches BEFORE
+> date_from, floor-respecting, same discipline/category filters) so the
+> line doesn't restart at the range edge. FE: new
+> match-stats/components/TrendChart.tsx replaces LineChart in the tab
+> (LineChart itself still serves other tabs); tc-* CSS in match-stats.css;
+> tooltip reuses .lc-tooltip and shows "W-L[-T] · n matches" + form.
+> Chosen over per-day % alternatives on the user's "tự chọn như chuyên gia
+> thống kê" mandate. 66/66 pytest (new rolling-form test), gen:api + build
+> clean.
+
+> **"Win rate by opponent level" bars REMOVED from Match Stats (user:
+> "có điểm rồi vô nghĩa", same day, UNCOMMITTED):** the dynamic ELO already
+> prices opponent strength, so the below/equal/above split told the user
+> nothing. LevelBars.tsx deleted + its lvl-* CSS (match-stats.css) and
+> .lvl-fill.level-* (base.css). Follow-up "bỏ luôn đi": the Profile tab's
+> per-level cards went too — CompetitiveCard now shows the overall card
+> only; MatchStatsLite dropped by_level. Second follow-up "bỏ API luôn
+> đi": **by_level REMOVED from MatchStatsResponse entirely** —
+> schemas.LevelRecord deleted, _h2h_accumulate no longer tallies per level
+> (the derived at-match-time level still labels h2h records), and the
+> coach bundle/context lost its "Theo hạng đối thủ" line. The coach KEEPS
+> by_level_handicap (level × chấp split — still per-level context) + the
+> ELO trend. head-coach FE SourceMatchDetail.by_level? stays optional so
+> pre-removal snapshots still type-check. 65/65 pytest, gen:api + build
+> clean. Restart start.bat (backend change). (.level-chip.level-* rules
+> are separate and still live — h2h pair labels use them.)
+
+> **Match Stats ELO redesign (user: "nhìn ko hiểu", fixed same day,
+> UNCOMMITTED, FE-only — F5):** the center-zero signed delta BARS ("Δ by
+> day") were the one ELO visual unlike everywhere else — replaced with the
+> shared EloCurve (same line as Daily Tracker + Profile; per-bucket Δ and
+> match counts live in its hover tooltip). "Biggest movers" column kept.
+> Dead .elo-delta-rows/row/label/track/fill CSS removed (.elo-delta-val
+> pos/neg kept — the movers list uses it). Follow-up (user: "phải có cái
+> bị trừ lớn nhất chứ"): the losses WERE there, but gains-then-losses
+> ordering hid them (a +2.2 above a −3.6) — movers now render as ONE list
+> sorted by |Δ| desc, so the biggest deduction ranks right where its
+> impact puts it.
+
+> **"+ Add player" on the Database tab (user request, built same day,
+> UNCOMMITTED, FE-only — F5):** toolbar button toggles an inline dashed
+> form (Name + Points with live RankChip — empty = unrated — + pips
+> checkbox; Enter = create, Esc = close). Calls the existing POST
+> /tracker/players (get-or-create by name, so re-adding an existing player
+> harmlessly returns the existing row), then reload()s the list (counts +
+> ordering are server-side). databaseApi gained createPlayer.
+
+## Earlier same day (2026-07-29) — ELO readability, committed `d17b5ed`; ALL PUSHED
 
 > **Committed `d17b5ed`** + this PROGRESS right after, then PUSHED the whole
 > backlog to origin/master (was ~84 commits ahead). Tree clean.
