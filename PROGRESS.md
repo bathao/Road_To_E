@@ -1,6 +1,77 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-07-30, latest) — batch committed `cfd65cf`
+## Current status (2026-07-30, latest) — Profile merged into Match Stats → tab "Profile" 🪪 (committed `bfc1e09`)
+
+> **Committed as `bfc1e09`** ("commit code đi", second batch of
+> 2026-07-30): tab merge + read-only header + avatar + ELO per-match
+> sortable table + 2×2 layout + shared SortableTh + default Month.
+> Net −110 lines. Nothing uncommitted; restart start.bat if not done
+> since the movers API change.
+
+> **Tabs merged (user decision 2026-07-30, "Giải thể Profile" + layout
+> "General info trên, match stat giữa, training dưới", UNCOMMITTED,
+> FE-only — F5):** the standalone Profile tab is GONE; the Match Stats tab
+> absorbed its unique pieces and was RENAMED "Profile" 🪪 (folder stays
+> tabs/match-stats, registry id unchanged). Page order: (1)
+> GeneralInfoCard — avatar (user photo copied root "Nguyễn Bá Thảo.jpg" →
+> frontend/public/avatar.jpg, git-tracked; public-db-ok), name, CURRENT
+> ELO big number + "X to E" chip + anchor Edit (same no-op-save guard;
+> saving bumps a reloadSignal that refetches match-stats + breakdown),
+> "Data as of"; (2) PeriodControl + filters → KPIs → charts row → lookup
+> row (unchanged); (3) training row: TrainingDisciplineCard (now follows
+> the PeriodControl instead of the old 30/90/365/all picker — "All" is
+> gone, use Custom) + TrainingCenterCard (rangeless). Deleted:
+> tabs/profile/* (incl. MyRatingCard — its private ELO curve + period
+> picker died, the page's ELO card covers it; CompetitiveCard — the KPIs
+> cover it), profile.css slimmed to prof-header/avatar/name/asof/cat-list.
+> getMyRating/lastDate/trainingStats moved into matchStatsApi;
+> MyRating/TrackerStats types into match-stats/types. Backend untouched.
+> Follow-up (user: "Không cho cơ chế edit luôn... Tôi chỉ có thể tăng giảm
+> được điểm qua các trận đánh"): the anchor Edit UI was REMOVED entirely —
+> the header is read-only, setMyRating dropped from the FE api (PUT
+> /tracker/my-rating stays server-side for a deliberate manual re-anchor),
+> and the reloadSignal wiring went with it. The root photo "Nguyễn Bá
+> Thảo.jpg" was also MOVED (not just copied) into frontend/public/ — repo
+> root is clean. Build clean.
+
+## Earlier same day (2026-07-30) — Match Stats 2×2 layout + ELO table block (uncommitted)
+
+> **Match Stats layout rework (user: "nhìn khá lôm côm", same day,
+> UNCOMMITTED, needs start.bat restart):** the tab is now KPIs → charts row
+> (Results & form | ELO over time curve) → lookup row (ELO per match |
+> Head-to-head), all in the shared .stats-cols grid — the ELO table got its
+> OWN card ("tách riêng block") with a 480px scrollable body so many more
+> rows show. Its **default sort is now Date, newest first** (user request;
+> the API's movers order flipped to newest-first to match — test updated).
+> EloSection.tsx now exports EloCurveCard + EloTableCard (no more single
+> full-width section; .elo-section/.elo-cols CSS replaced by .elo-note*).
+> The long "computed over ALL ELO-counted matches" endnote became a short
+> muted line under the curve card's header. ELO cards still render when
+> the filtered match list is empty (rating is global). Follow-up (user:
+> "đôi phải hiện đủ tôi đứng với ai, bên kia là ai vs ai"): the Match
+> column now shows the FULL line-up for team formats — RatingMoverOut
+> gained opponent2_name/partner_name, and the "with P vs A + B" wording
+> was extracted from MatchRowList as the structurally-typed `matchupOf()`
+> and reused, so the table and both drill-down modals share one phrasing.
+> 67/67 pytest, gen:api + build clean.
+
+> **Match Stats "Biggest movers" → "ELO per match" sortable table (user
+> request 2026-07-30, built same day, UNCOMMITTED, needs start.bat
+> restart):** the top-3-gains+top-3-losses list became a 4-column table —
+> Date | Match ("3-0 vs X (Singles)") | W/L | ±ELO — with clickable sort
+> headers like the Database tab (Date newest-first, Match by opponent
+> A→Z, W/L wins-first, ±ELO gains-first / reversed = biggest losses; no
+> active sort = |Δ| desc, the old movers order). Sorting needs full data,
+> so the API now returns EVERY counted match in range:
+> MyRatingBreakdownOut.top_gains/top_losses REPLACED by `movers`
+> (batch-loaded matches, no more per-row db.get). The header component was
+> EXTRACTED to shared/ui/SortableTh.tsx (+ generic toggleSort helper;
+> .th-sort/.sort-arrow CSS moved database.css → base.css) and the Database
+> tab now uses it too. Table scrolls at ~262px with a sticky header;
+> .elo-mover* CSS replaced by .elo-table*. 67/67 pytest, gen:api + build
+> clean.
+
+## Earlier same day (2026-07-30) — batch committed `cfd65cf`
 
 > **The whole 2026-07-29..30 batch is COMMITTED as `cfd65cf`** (one code
 > commit, "commit code đi" 2026-07-30): (1) "+ Add player" form, (2) Match
