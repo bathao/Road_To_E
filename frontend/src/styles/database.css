@@ -23,38 +23,8 @@
   max-width: 460px;
 }
 
-/* "My rating" card — the only dynamic rating in the system. */
-.db-me {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  border: 1px solid var(--border);
-  border-left: 4px solid var(--accent);
-  border-radius: 10px;
-  padding: 10px 14px;
-  background: var(--surface);
-}
-
-.db-me-points {
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: var(--accent-dark);
-}
-
-.db-me input {
-  width: 90px;
-  padding: 6px 8px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 1rem;
-}
-
-.db-me-note {
-  flex-basis: 100%;
-  font-size: 0.75rem;
-  color: var(--muted);
-}
+/* (The "My rating" card styles moved to profile.css as .prof-elo* — the
+   card lives on the Profile page header since the 2026-07-30 merge.) */
 
 .db-toolbar {
   display: flex;
@@ -267,25 +237,3 @@
   color: var(--muted);
 }
 
-/* "con X toi E" chip next to the dynamic rating */
-.db-me-to-e {
-  padding: 1px 8px;
-  border-radius: 10px;
-  background: rgba(95, 168, 60, 0.14);
-  color: #5fa83c;
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-/* ELO curve card */
-.db-chart {
-  margin: 14px 0 4px;
-  padding: 10px 12px 4px;
-  border: 1px solid var(--border, rgba(128, 128, 128, 0.25));
-  border-radius: 10px;
-}
-.db-chart h3 {
-  margin: 0 0 6px;
-  font-size: 14px;
-}

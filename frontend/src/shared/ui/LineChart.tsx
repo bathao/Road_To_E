@@ -1,8 +1,8 @@
 import { useState } from "react";
 
-// One chart point/bar datum (the BarChart component this came from is gone;
-// the type lives on here for LineChart + Match Stats).
-export interface Bar {
+// One chart point datum (callers pass structurally-matching literals —
+// today only EloCurve builds them).
+interface Bar {
   label: string;
   value: number | null; // numeric height driver; null = gap (no dot, no line)
   display: string; // text shown above the bar

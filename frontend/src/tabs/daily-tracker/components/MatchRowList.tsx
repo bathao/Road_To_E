@@ -6,6 +6,8 @@ import { useMemo } from "react";
 import { useLoad } from "../../../shared/useApi";
 import { prettyDate } from "../../../shared/dates";
 import { DISCIPLINE_SHORT } from "../../../shared/disciplines";
+import { fmtDelta } from "../../../shared/format";
+import { matchupOf } from "../../../shared/matches";
 import { resultOf } from "../../../shared/types";
 import { trackerApi } from "../api";
 import type { Category, Match } from "../types";
@@ -16,27 +18,6 @@ const KIND_LABEL: Record<string, string> = {
   official_match: "light stakes",
   tournament_match: "tournament",
 };
-
-// "with <partner> vs <opponents>" — mirrors the MatchEditor list wording.
-// Structurally typed so anything carrying the name slots can use it (Match
-// rows here, RatingMover rows in the Match Stats ELO table).
-export function matchupOf(m: {
-  discipline: string;
-  opponent_name?: string | null;
-  opponent2_name?: string | null;
-  partner_name?: string | null;
-}): string {
-  const opp1 = m.opponent_name ?? "?";
-  const opps =
-    m.discipline === "doubles" || m.discipline === "one_v_two"
-      ? `${opp1} + ${m.opponent2_name ?? "?"}`
-      : opp1;
-  const partner =
-    m.discipline === "doubles" || m.discipline === "two_v_one"
-      ? m.partner_name ?? "?"
-      : null;
-  return partner ? `with ${partner} vs ${opps}` : `vs ${opps}`;
-}
 
 function hdcText(m: Match): string | null {
   if (!m.handicap) return null;
@@ -80,8 +61,7 @@ export default function MatchRowList({ matches }: { matches: Match[] }) {
                 className={`elo-chip ${m.elo_delta >= 0 ? "elo-up" : "elo-down"}`}
                 title="ELO change after this match"
               >
-                {m.elo_delta > 0 ? "+" : ""}
-                {m.elo_delta.toFixed(1)}
+                {fmtDelta(m.elo_delta)}
               </span>
             )}
           </li>

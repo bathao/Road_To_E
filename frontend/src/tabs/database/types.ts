@@ -16,5 +16,5 @@ export interface PlayersDbResponse {
   players: PlayerDbRow[];
 }
 
-// MyRating / MyRatingHistory moved to tabs/profile/types.ts (2026-07-27) —
-// the user's dynamic rating card lives on the Profile tab now.
+// MyRating lives in tabs/match-stats/types.ts — the user's dynamic rating
+// header sits on the Profile page (the merged Match Stats tab).

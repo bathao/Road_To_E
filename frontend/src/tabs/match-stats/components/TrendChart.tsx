@@ -17,11 +17,13 @@ export default function TrendChart({
   const n = buckets.length;
   if (n === 0) return null;
 
-  const maxW = Math.max(1, ...buckets.map((b) => b.wins));
-  const maxL = Math.max(1, ...buckets.map((b) => b.losses));
   // One shared per-match unit for both directions, so a 2-win bar and a
   // 2-loss bar are the same size; the baseline sits between the two ranges.
-  const unit = 100 / (maxW + maxL);
+  // Raw maxima (no floor of 1): an all-wins range must not reserve phantom
+  // loss space below the baseline, and vice versa.
+  const maxW = Math.max(...buckets.map((b) => b.wins), 0);
+  const maxL = Math.max(...buckets.map((b) => b.losses), 0);
+  const unit = 100 / Math.max(1, maxW + maxL);
   const base = maxW * unit;
 
   const xAt = (i: number) => ((i + 0.5) / n) * 100;
@@ -44,20 +46,20 @@ export default function TrendChart({
 
   return (
     <div className="trendchart">
-      <div className="tc-legend">
+      <div className="trend-legend">
         <span>
-          <i className="tc-sw tc-sw-win" /> Wins
+          <i className="trend-sw trend-sw-win" /> Wins
         </span>
         <span>
-          <i className="tc-sw tc-sw-loss" /> Losses
+          <i className="trend-sw trend-sw-loss" /> Losses
         </span>
         <span>
-          <i className="tc-sw tc-sw-form" /> Form (last 10 matches)
+          <i className="trend-sw trend-sw-form" /> Form (last 10 matches)
         </span>
       </div>
 
-      <div className="tc-row">
-        <div className="tc-plot" onMouseLeave={() => setHover(null)}>
+      <div className="trend-row">
+        <div className="trend-plot" onMouseLeave={() => setHover(null)}>
           <svg viewBox="0 0 100 100" preserveAspectRatio="none">
             {/* Form gridlines (right % axis) + the W/L baseline. */}
             {[0, 50, 100].map((y) => (
@@ -67,7 +69,7 @@ export default function TrendChart({
                 y1={y}
                 x2="100"
                 y2={y}
-                className="tc-grid"
+                className="trend-grid"
                 vectorEffect="non-scaling-stroke"
               />
             ))}
@@ -76,14 +78,14 @@ export default function TrendChart({
               y1={base}
               x2="100"
               y2={base}
-              className="tc-baseline"
+              className="trend-baseline"
               vectorEffect="non-scaling-stroke"
             />
             {segs.map((seg, si) => (
               <polyline
                 key={si}
                 points={seg.map((c) => `${c.x},${c.y}`).join(" ")}
-                className="tc-form-line"
+                className="trend-form-line"
                 fill="none"
                 vectorEffect="non-scaling-stroke"
               />
@@ -92,10 +94,10 @@ export default function TrendChart({
 
           {/* W/L bars (HTML overlays so widths stay in px, not stretched). */}
           {buckets.map((b, i) => (
-            <div key={i}>
+            <div key={b.key}>
               {b.wins > 0 && (
                 <div
-                  className={`tc-bar tc-bar-win${hover === i ? " active" : ""}`}
+                  className={`trend-bar trend-bar-win${hover === i ? " active" : ""}`}
                   style={{
                     left: `${xAt(i)}%`,
                     top: `${base - b.wins * unit}%`,
@@ -105,7 +107,7 @@ export default function TrendChart({
               )}
               {b.losses > 0 && (
                 <div
-                  className={`tc-bar tc-bar-loss${hover === i ? " active" : ""}`}
+                  className={`trend-bar trend-bar-loss${hover === i ? " active" : ""}`}
                   style={{
                     left: `${xAt(i)}%`,
                     top: `${base}%`,
@@ -119,7 +121,7 @@ export default function TrendChart({
           {/* Form dots only on hover — the line stays clean otherwise. */}
           {hover !== null && buckets[hover].form !== null && (
             <div
-              className="tc-form-dot"
+              className="trend-form-dot"
               style={{
                 left: `${xAt(hover)}%`,
                 top: `${yForm(buckets[hover].form!)}%`,
@@ -128,10 +130,10 @@ export default function TrendChart({
           )}
 
           {/* Invisible hit-bands make hovering easy. */}
-          {buckets.map((_, i) => (
+          {buckets.map((b, i) => (
             <div
-              key={`h${i}`}
-              className="tc-hit"
+              key={`h${b.key}`}
+              className="trend-hit"
               style={{ left: `${xAt(i)}%`, width: `${100 / n}%` }}
               onMouseEnter={() => setHover(i)}
             />
@@ -166,7 +168,7 @@ export default function TrendChart({
                     · {active.matches} match{active.matches === 1 ? "" : "es"}
                   </div>
                   {active.form !== null && (
-                    <div className="tc-tt-form">
+                    <div className="trend-tt-form">
                       Form (last 10): <b>{pct(active.form)}</b>
                     </div>
                   )}
@@ -177,16 +179,16 @@ export default function TrendChart({
 
         {/* Right axis reads the FORM line (0-100%); bar heights are counts
             and are read from the tooltip instead. */}
-        <div className="tc-yaxis">
+        <div className="trend-yaxis">
           <span>100%</span>
           <span>50%</span>
           <span>0%</span>
         </div>
       </div>
 
-      <div className="tc-xaxis">
+      <div className="trend-xaxis">
         {buckets.map((b, i) => (
-          <span key={i} className="tc-xlabel">
+          <span key={b.key} className="trend-xlabel">
             {i % labelStep === 0 ? b.label : ""}
           </span>
         ))}

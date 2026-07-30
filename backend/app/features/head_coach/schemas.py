@@ -60,7 +60,7 @@ class SourceSummary(BaseModel):
     player: str = ""
     training: dict = {}
     match: dict = {}  # volume + win-rate aggregates for the stats window
-    match_detail: dict = {}  # by-level, practice-vs-official, trend, head-to-head
+    match_detail: dict = {}  # level x handicap, practice-vs-official, trend, head-to-head
     notes: list[dict] = []  # recent day notes [{date, text}]
     coach_notes: list[dict] = []  # coach notebook entries [{date, text}]
     # Upcoming registered tournaments [{name, start_date, days_left, entries…}].

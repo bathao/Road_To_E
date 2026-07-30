@@ -365,7 +365,9 @@ def list_players_db(db: Session) -> schemas.PlayersDbResponse:
     ):
         rows = (
             db.query(col, func.count(Match.id))
-            .filter(col.isnot(None))
+            # Playing matches only — the same rule as the per-player
+            # drill-down, so a count badge always equals its modal rows.
+            .filter(col.isnot(None), Match.is_nonplaying == False)  # noqa: E712
             .group_by(col)
             .all()
         )
@@ -945,27 +947,38 @@ def list_stats_matches(
     return _annotate_elo(db, matches)
 
 
-def list_player_matches(db: Session, player_id: int) -> list[schemas.MatchOut]:
-    """Every playing match involving `player_id` in ANY slot (opponent,
-    second opponent, or my partner) — the Database tab's per-player
-    drill-down. All-time, newest first, ELO-annotated like the week view."""
-    matches = (
-        db.query(Match)
-        .options(
+# SQL ordering for "newest first" — order_index then id break same-day ties.
+_NEWEST_FIRST = (Match.date.desc(), Match.order_index.desc(), Match.id.desc())
+
+
+def _playing_matches(db: Session, with_relations: bool = True):
+    """Base query for playing matches (nonplaying rows excluded), optionally
+    eager-loading the full line-up + event so names resolve without N+1."""
+    q = db.query(Match).filter(Match.is_nonplaying == False)  # noqa: E712
+    if with_relations:
+        q = q.options(
             selectinload(Match.event),
             selectinload(Match.opponent),
             selectinload(Match.opponent2),
             selectinload(Match.partner),
         )
+    return q
+
+
+def list_player_matches(db: Session, player_id: int) -> list[schemas.MatchOut]:
+    """Every playing match involving `player_id` in ANY slot (opponent,
+    second opponent, or my partner) — the Database tab's per-player
+    drill-down. All-time, newest first, ELO-annotated like the week view."""
+    matches = (
+        _playing_matches(db)
         .filter(
-            Match.is_nonplaying == False,  # noqa: E712
             or_(
                 Match.opponent_id == player_id,
                 Match.opponent2_id == player_id,
                 Match.partner_id == player_id,
-            ),
+            )
         )
-        .order_by(Match.date.desc(), Match.order_index.desc(), Match.id.desc())
+        .order_by(*_NEWEST_FIRST)
         .all()
     )
     return _annotate_elo(db, matches)
@@ -1179,7 +1192,7 @@ def build_breakdown(
     return schemas.BreakdownResponse(unit=unit, buckets=buckets)
 
 
-# ---------------------------------------------------------------- match stats (Tab 3)
+# ------------------------------------------- match stats (Profile tab, middle)
 
 # Relative levels are DERIVED from points (vs my current dynamic rating);
 # "unrated" = opponent has no points yet. Hand-picked labels are retired.
@@ -1194,24 +1207,21 @@ MATCH_STATS_FLOOR = dt.date(2026, 6, 1)
 
 
 def _query_named_matches(
-    db: Session, date_from: dt.date, date_to: dt.date, discipline: str, category: str
+    db: Session,
+    date_from: dt.date,
+    date_to: dt.date,
+    discipline: str,
+    category: str,
+    with_relations: bool = True,
 ) -> list[Match]:
     """Playing matches with a named opponent in the range, in play order
-    (order_index breaks same-day ties so "last_result" is truly the last)."""
-    q = (
-        db.query(Match)
-        .options(
-            selectinload(Match.event),
-            selectinload(Match.opponent),
-            selectinload(Match.opponent2),
-            selectinload(Match.partner),
-        )
-        .filter(
-            Match.date >= date_from,
-            Match.date <= date_to,
-            Match.is_nonplaying == False,  # noqa: E712
-            Match.opponent_id.isnot(None),
-        )
+    (order_index breaks same-day ties so "last_result" is truly the last).
+    `with_relations=False` skips the four eager loads for callers that only
+    read scores (the rolling-form seed)."""
+    q = _playing_matches(db, with_relations).filter(
+        Match.date >= date_from,
+        Match.date <= date_to,
+        Match.opponent_id.isnot(None),
     )
     if discipline in ("singles", "doubles", "one_v_two", "two_v_one"):
         q = q.filter(Match.discipline == discipline)
@@ -1256,9 +1266,6 @@ def _h2h_accumulate(matches: list[Match], my_now: int) -> _H2HAcc:
 
     for m in matches:
         _tally(overall, m)
-        # Derived at-match-time relative level (snapshot points vs my current
-        # rating) — used for the singles head-to-head record label.
-        lvl = _level_of(m.opp_points_snap, m.opponent, my_now) or "unrated"
 
         # Dropdown list: count every opponent appearance (opp1 + opp2).
         for opp in (m.opponent, m.opponent2):
@@ -1315,7 +1322,10 @@ def _h2h_accumulate(matches: list[Match], my_now: int) -> _H2HAcc:
                     **_blank_match_stats(),
                     "opponent_id": m.opponent_id,
                     "name": m.opponent.name if m.opponent else "?",
-                    "level": lvl,
+                    # Derived at-match-time relative level (snapshot points vs
+                    # my current rating) — the h2h record's label.
+                    "level": _level_of(m.opp_points_snap, m.opponent, my_now)
+                    or "unrated",
                     "last_date": None,
                     "last_result": None,
                     "matches": [],
@@ -1357,7 +1367,12 @@ def _prior_form_results(
     if date_from <= MATCH_STATS_FLOOR:
         return []
     earlier = _query_named_matches(
-        db, MATCH_STATS_FLOOR, date_from - dt.timedelta(days=1), discipline, category
+        db,
+        MATCH_STATS_FLOOR,
+        date_from - dt.timedelta(days=1),
+        discipline,
+        category,
+        with_relations=False,  # only scores are read — skip the eager loads
     )
     results = [r for r in map(_result_of, earlier) if r != "T"]
     return results[-FORM_WINDOW:]
@@ -1416,6 +1431,7 @@ def build_match_stats(
     category: str = "all",
     unit: str = "month",
     replay: rating.ReplayResult | None = None,
+    form_seed: bool = True,
 ) -> schemas.MatchStatsResponse:
     """Stats over *named-opponent* matches only (opponent_id set, playing).
 
@@ -1423,6 +1439,10 @@ def build_match_stats(
     so matches without a recorded opponent are excluded. A match is attributed to
     its primary opponent_id (opponent #1 in doubles); use the Singles filter for
     clean 1-v-1 analysis.
+
+    The trend buckets carry the rolling form; seeding it issues one extra
+    pre-range query (`_prior_form_results`) — callers that ignore `form`
+    (the coach bundle) pass `form_seed=False` to skip it.
     """
     # Clamp to the floor — this tab only covers matches from June 2026 on.
     date_from = max(date_from, MATCH_STATS_FLOOR)
@@ -1482,7 +1502,9 @@ def build_match_stats(
         doubles_h2h=doubles_list,
         trend=_trend_buckets(
             matches, date_from, date_to, unit,
-            _prior_form_results(db, date_from, discipline, category),
+            _prior_form_results(db, date_from, discipline, category)
+            if form_seed
+            else None,
         ),
     )
 
@@ -1550,13 +1572,15 @@ def build_rating_breakdown(
     date_to: dt.date,
     unit: str = "day",
     replay: rating.ReplayResult | None = None,
+    with_movers: bool = True,
 ) -> schemas.MyRatingBreakdownOut:
     """Net ELO change per day/week/month bucket + every counted match's ±Δ.
 
     Replayed on demand via rating.replay — nothing stored. The rating is
     GLOBAL: no discipline/category filtering here (deltas could be filtered,
     but a filtered "rating at end of bucket" would be a lie — decided v1
-    2026-07-27)."""
+    2026-07-27). `with_movers=False` skips building the per-match rows for
+    callers that only read the buckets (the coach bundle)."""
     _final, steps = replay or rating.replay(db)
     anchor_date = rating.get_my_anchor_date(db)
     anchor_points = rating.get_my_points(db)
@@ -1590,21 +1614,17 @@ def build_rating_breakdown(
 
     in_range = [s for s in steps if date_from <= s.date <= date_to]
 
-    # EVERY counted match becomes a table row (the GUI sorts client-side),
-    # so batch-load the matches instead of a db.get per step.
-    match_ids = [s.match_id for s in in_range]
+    # EVERY counted match becomes a table row (the GUI sorts client-side).
+    # One date-window query batch-loads them (a superset that includes
+    # skipped matches — harmless, and it avoids an unbounded IN(id...) list).
     match_by_id: dict[int, Match] = (
         {
             m.id: m
-            for m in db.query(Match)
-            .options(
-                selectinload(Match.opponent),
-                selectinload(Match.opponent2),
-                selectinload(Match.partner),
+            for m in _playing_matches(db).filter(
+                Match.date >= date_from, Match.date <= date_to
             )
-            .filter(Match.id.in_(match_ids))
         }
-        if match_ids
+        if with_movers and in_range
         else {}
     )
 
@@ -1623,7 +1643,7 @@ def build_rating_breakdown(
         )
 
     # Newest first — the GUI table's default sort order.
-    movers = [_mover(s) for s in reversed(in_range)]
+    movers = [_mover(s) for s in reversed(in_range)] if with_movers else []
 
     # Rating carried INTO the range; the anchor itself counts as the start
     # when the range begins on/before the anchor day.

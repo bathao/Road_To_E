@@ -21,6 +21,9 @@ export interface CategoryMinutes {
 /** Result of a single match. */
 export type MatchResult = "W" | "L" | "T";
 
+/** W/L filter choice on the match drill-down modals. */
+export type ResultFilter = "all" | "W" | "L";
+
 /** W/L/T of a match derived from its set counts. */
 export function resultOf(m: { my_sets: number; opp_sets: number }): MatchResult {
   return m.my_sets > m.opp_sets ? "W" : m.my_sets < m.opp_sets ? "L" : "T";

@@ -1,4 +1,4 @@
-"""build_match_stats: named-opponent-only analytics (Match Stats tab)."""
+"""build_match_stats: named-opponent-only analytics (the Profile tab's middle section, formerly Match Stats)."""
 from __future__ import annotations
 
 import datetime as dt

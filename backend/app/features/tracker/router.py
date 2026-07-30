@@ -389,7 +389,7 @@ def match_stats(
     unit: str = Query("month", pattern="^(month|week|day)$"),
     db: Session = Depends(get_db),
 ):
-    """Match analytics over named-opponent matches only (for the Match Stats tab)."""
+    """Match analytics over named-opponent matches only (the Profile tab)."""
     return service.build_match_stats(db, date_from, date_to, discipline, category, unit)
 
 

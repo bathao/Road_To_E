@@ -1,5 +1,5 @@
 /* Base: reset, variables, app shell, shared toolbar/buttons/modals/editors,
-   shared chart components (LineChart / ActivityChart / BarChart / PeriodControl)
+   shared chart components (LineChart / ActivityChart / EloCurve / PeriodControl)
    and every rule referenced by more than one tab. */
 
 :root {
@@ -1033,41 +1033,8 @@ input:focus {
   width: 100%;
 }
 
-/* ============ Generic card layout (va-* = historical prefix) ============
-   Born in the retired Video Analysis tab; now the Profile tab's card shell. */
-
-.va-tab {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.va-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: var(--shadow);
-  padding: 14px 16px;
-}
-
-.va-card-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-.va-card-head h3 {
-  margin: 0;
-  font-size: 15px;
-}
-
-.va-card-head h4 {
-  margin: 0;
-  font-size: 14px;
-}
-
+/* Muted body text inside cards (va- = historical prefix from the retired
+   Video Analysis tab; the class survived because half the app uses it). */
 .va-muted {
   color: var(--muted);
   font-size: 13px;
@@ -1135,9 +1102,115 @@ input:focus {
   margin-top: 6px;
 }
 
-.va-card p code {
-  background: #eef0f3;
-  padding: 1px 5px;
-  border-radius: 4px;
+/* ===== Cross-tab match-line + ELO-header styles (moved from
+   daily-tracker.css 2026-07-30 — the Profile ELO cards and the Database
+   per-player modal use them too). ===== */
+
+.smm-filter {
+  margin-bottom: 10px;
+}
+
+.smm-empty {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 8px 0;
+}
+
+.smm-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.smm-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.smm-date {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.smm-tag {
+  font-size: 11px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 5px;
+  color: var(--muted);
+}
+
+.smm-names {
+  flex: 1;
+  min-width: 140px;
+}
+
+.smm-meta {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* ELO annotation chips on match rows (MatchEditor list) */
+.elo-chip {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  vertical-align: 1px;
+}
+.elo-chip.elo-up {
+  background: rgba(95, 168, 60, 0.16);
+  color: #5fa83c;
+}
+.elo-chip.elo-down {
+  background: rgba(214, 69, 69, 0.14);
+  color: #d64545;
+}
+.elo-chip.elo-skip {
+  background: rgba(128, 128, 128, 0.14);
+  color: #8a8a8a;
+  font-weight: 500;
+}
+
+/* ELO block in the Analysis panel (line over the shared timeline) */
+.elo-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.elo-head h3 {
+  margin: 0;
+}
+.elo-head .elo-chip {
+  margin-left: 0;
+  font-size: 12px;
+  line-height: 18px;
+  padding: 0 8px;
+}
+/* The one number the section exists for: the rating at the range's end. */
+.elo-current {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--accent-dark);
+  font-variant-numeric: tabular-nums;
+}
+.elo-endnote {
+  color: var(--muted);
   font-size: 12px;
 }

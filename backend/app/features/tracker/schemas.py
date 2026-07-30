@@ -157,9 +157,9 @@ class RatingMoverOut(BaseModel):
 
 
 class MyRatingBreakdownOut(BaseModel):
-    """ELO over time for the analytics tabs: per-bucket net change + the
-    range's biggest single-match movers. GLOBAL — the rating has no
-    discipline/category filter (a filtered rating_end would lie)."""
+    """ELO over time for the analytics tabs: per-bucket net change + every
+    ELO-counted match's ±Δ. GLOBAL — the rating has no discipline/category
+    filter (a filtered rating_end would lie)."""
 
     date_from: dt.date
     date_to: dt.date
@@ -345,7 +345,7 @@ class StatsResponse(BaseModel):
     vs_pips: MatchStats  # matches vs an opponent who plays pimpled rubber ("gai")
 
 
-# ---------- Match Stats tab (named-opponent matches only) ----------
+# ---------- Match stats (Profile tab; named-opponent matches only) ----------
 class MatchLine(BaseModel):
     """One played match against an opponent (for the head-to-head detail)."""
     date: dt.date

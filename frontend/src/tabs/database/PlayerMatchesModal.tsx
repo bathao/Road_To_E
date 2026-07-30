@@ -4,15 +4,16 @@
 // count cells, which preset the role filter.
 import { useState } from "react";
 import Modal from "../../shared/ui/Modal";
+import Seg from "../../shared/ui/Seg";
 import { useLoad } from "../../shared/useApi";
 import { resultOf } from "../../shared/types";
+import type { ResultFilter } from "../../shared/types";
 import type { Match } from "../daily-tracker/types";
 import MatchRowList from "../daily-tracker/components/MatchRowList";
 import { databaseApi } from "./api";
 import type { PlayerDbRow } from "./types";
 
 export type RoleFilter = "all" | "vs" | "with";
-type ResultFilter = "all" | "W" | "L";
 
 export default function PlayerMatchesModal({
   player,
@@ -46,44 +47,30 @@ export default function PlayerMatchesModal({
     <Modal title={`Matches · ${player.name}`} onClose={onClose}>
       <div className="pm-filters">
         {hasBothRoles && (
-          <div className="seg smm-filter">
-            {(
-              [
-                ["all", `All (${all.length})`],
-                ["vs", `⚔️ Vs me (${all.filter((m) => !isWith(m)).length})`],
-                ["with", `🤝 With me (${all.filter(isWith).length})`],
-              ] as [RoleFilter, string][]
-            ).map(([k, lbl]) => (
-              <button
-                key={k}
-                className={`seg-btn${role === k ? " active" : ""}`}
-                onClick={() => setRole(k)}
-              >
-                {lbl}
-              </button>
-            ))}
-          </div>
+          <Seg<RoleFilter>
+            className="smm-filter"
+            options={[
+              ["all", `All (${all.length})`],
+              ["vs", `⚔️ Vs me (${all.filter((m) => !isWith(m)).length})`],
+              ["with", `🤝 With me (${all.filter(isWith).length})`],
+            ]}
+            value={role}
+            onChange={(r) => {
+              setRole(r);
+              setResult("all"); // a stale W/L pick can be empty in the new role
+            }}
+          />
         )}
-        <div className="seg smm-filter">
-          <button
-            className={`seg-btn${result === "all" ? " active" : ""}`}
-            onClick={() => setResult("all")}
-          >
-            All ({byRole.length})
-          </button>
-          <button
-            className={`seg-btn${result === "W" ? " active" : ""}`}
-            onClick={() => setResult("W")}
-          >
-            {wins.length}W
-          </button>
-          <button
-            className={`seg-btn${result === "L" ? " active" : ""}`}
-            onClick={() => setResult("L")}
-          >
-            {losses.length}L
-          </button>
-        </div>
+        <Seg<ResultFilter>
+          className="smm-filter"
+          options={[
+            ["all", `All (${byRole.length})`],
+            ["W", `${wins.length}W`],
+            ["L", `${losses.length}L`],
+          ]}
+          value={result}
+          onChange={setResult}
+        />
       </div>
 
       {error && <div className="error-banner">⚠ {error}</div>}

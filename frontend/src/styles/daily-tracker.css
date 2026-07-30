@@ -362,60 +362,8 @@
   text-decoration: underline;
 }
 
-.smm-filter {
-  margin-bottom: 10px;
-}
-
-.smm-empty {
-  color: var(--muted);
-  font-size: 13px;
-  margin: 8px 0;
-}
-
-.smm-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-height: 60vh;
-  overflow-y: auto;
-}
-
-.smm-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 6px 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 13px;
-}
-
-.smm-date {
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-.smm-tag {
-  font-size: 11px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 0 5px;
-  color: var(--muted);
-}
-
-.smm-names {
-  flex: 1;
-  min-width: 140px;
-}
-
-.smm-meta {
-  color: var(--muted);
-  font-size: 12px;
-}
+/* (.smm-* match-line styles moved to base.css — the Database tab's
+   per-player modal shares them now.) */
 
 /* Composite activity chart (training time + matches + physical days) */
 
@@ -1002,59 +950,8 @@
   align-items: center;
 }
 
-/* ELO annotation chips on match rows (MatchEditor list) */
-.elo-chip {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 0 6px;
-  border-radius: 9px;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 16px;
-  vertical-align: 1px;
-}
-.elo-chip.elo-up {
-  background: rgba(95, 168, 60, 0.16);
-  color: #5fa83c;
-}
-.elo-chip.elo-down {
-  background: rgba(214, 69, 69, 0.14);
-  color: #d64545;
-}
-.elo-chip.elo-skip {
-  background: rgba(128, 128, 128, 0.14);
-  color: #8a8a8a;
-  font-weight: 500;
-}
-
-/* ELO block in the Analysis panel (line over the shared timeline) */
-.elo-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-.elo-head h3 {
-  margin: 0;
-}
-.elo-head .elo-chip {
-  margin-left: 0;
-  font-size: 12px;
-  line-height: 18px;
-  padding: 0 8px;
-}
-/* The one number the section exists for: the rating at the range's end. */
-.elo-current {
-  font-size: 22px;
-  font-weight: 800;
-  line-height: 1;
-  color: var(--accent-dark);
-  font-variant-numeric: tabular-nums;
-}
-.elo-endnote {
-  color: var(--muted);
-  font-size: 12px;
-}
+/* (.elo-chip / .elo-head / .elo-current / .elo-endnote moved to base.css —
+   the Profile tab's ELO cards share them now.) */
 
 /* Points-rank chip (replaces the retired relative-level chips) */
 .level-chip.level-points {

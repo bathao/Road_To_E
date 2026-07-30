@@ -7,6 +7,7 @@ import type { Mode } from "../../shared/period";
 import { chartUnitFor, resolveRange, stepAnchor } from "../../shared/period";
 import { levelShort } from "../../shared/levels";
 import { pct } from "../../shared/format";
+import Seg from "../../shared/ui/Seg";
 import { trainingApi } from "../training-center/api";
 import { matchStatsApi } from "./api";
 import MatchLines from "./components/MatchLines";
@@ -73,6 +74,9 @@ export default function MatchStats() {
 
   const o = data?.overall;
   const hasMatches = !!o && o.total > 0;
+  // The two card rows render when either side has content: the ELO cards are
+  // global (they ignore the filters), the rest needs matches in range.
+  const showCards = hasMatches || !!elo;
 
   // Trend: only periods that actually had matches (a per-day win-rate line
   // was noise at 2-3 matches/day — the chart now shows W/L bars + rolling
@@ -97,35 +101,21 @@ export default function MatchStats() {
       />
 
       <div className="stats-filters">
-        <div className="seg">
-          {([["all", "All"], ...DISCIPLINES] as [DisciplineFilter, string][]).map(([k, lbl]) => (
-            <button
-              key={k}
-              className={`seg-btn${discipline === k ? " active" : ""}`}
-              onClick={() => setDiscipline(k)}
-            >
-              {lbl}
-            </button>
-          ))}
-        </div>
-        <div className="seg">
-          {(
-            [
-              ["all", "All types"],
-              ["practice", "Practice"],
-              ["official", "Official"],
-              ["tournament", "Tournament"],
-            ] as [CategoryFilter, string][]
-          ).map(([k, lbl]) => (
-            <button
-              key={k}
-              className={`seg-btn${category === k ? " active" : ""}`}
-              onClick={() => setCategory(k)}
-            >
-              {lbl}
-            </button>
-          ))}
-        </div>
+        <Seg<DisciplineFilter>
+          options={[["all", "All"], ...DISCIPLINES] as [DisciplineFilter, string][]}
+          value={discipline}
+          onChange={setDiscipline}
+        />
+        <Seg<CategoryFilter>
+          options={[
+            ["all", "All types"],
+            ["practice", "Practice"],
+            ["official", "Official"],
+            ["tournament", "Tournament"],
+          ]}
+          value={category}
+          onChange={setCategory}
+        />
       </div>
 
       {error && <div className="pb-error">{error}</div>}
@@ -139,33 +129,29 @@ export default function MatchStats() {
           Daily Tracker, or change the time range.
         </p>
       ) : (
-        <>
-          {/* KPI cards */}
-          <div className="stats-kpis">
-            <div className="kpi">
-              <span className="kpi-value">{o!.total}</span>
-              <span className="kpi-label">Matches</span>
-            </div>
-            <div className="kpi">
-              <span className="kpi-value">
-                {o!.wins}-{o!.losses}
-                {o!.ties ? `-${o!.ties}` : ""}
-              </span>
-              <span className="kpi-label">W-L{o!.ties ? "-T" : ""}</span>
-            </div>
-            <div className="kpi">
-              <span className="kpi-value accent">{pct(o!.win_rate)}</span>
-              <span className="kpi-label">Win rate</span>
-            </div>
+        <div className="stats-kpis">
+          <div className="kpi">
+            <span className="kpi-value">{o!.total}</span>
+            <span className="kpi-label">Matches</span>
           </div>
-
-        </>
+          <div className="kpi">
+            <span className="kpi-value">
+              {o!.wins}-{o!.losses}
+              {o!.ties ? `-${o!.ties}` : ""}
+            </span>
+            <span className="kpi-label">W-L{o!.ties ? "-T" : ""}</span>
+          </div>
+          <div className="kpi">
+            <span className="kpi-value accent">{pct(o!.win_rate)}</span>
+            <span className="kpi-label">Win rate</span>
+          </div>
+        </div>
       )}
 
       {/* Charts row: results/form trend + the global ELO curve, side by
           side. (The "win rate by opponent level" bars were removed
           2026-07-29 — ELO already prices opponent strength.) */}
-      {(hasMatches || !!elo) && (
+      {showCards && (
         <div className="stats-cols">
           {/* The ELO cards render even when the filtered match list is empty
               — the rating is global and does not follow the filters. */}
@@ -188,7 +174,7 @@ export default function MatchStats() {
       )}
 
       {/* Lookup row: the per-match ELO table + head-to-head detail. */}
-      {(hasMatches || !!elo) && (
+      {showCards && (
         <div className="stats-cols">
           {elo && <EloTableCard elo={elo} />}
           {hasMatches && (

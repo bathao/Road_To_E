@@ -12,6 +12,8 @@ import type { MyRating } from "../types";
 // The whole project's target band: E starts at 1201 BBTV points.
 const RANK_E_FLOOR = 1201;
 
+const PLAYER_NAME = "Nguyễn Bá Thảo";
+
 export default function GeneralInfoCard() {
   const { data: myRating, error } = useLoad<MyRating>(
     () => matchStatsApi.getMyRating(),
@@ -21,21 +23,23 @@ export default function GeneralInfoCard() {
 
   return (
     <section className="stats-card prof-header">
-      <img className="prof-avatar" src="/avatar.jpg" alt="Nguyễn Bá Thảo" />
+      <img className="prof-avatar" src="/avatar.jpg" alt={PLAYER_NAME} />
       <div className="prof-header-main">
-        <h2 className="prof-name">Nguyễn Bá Thảo</h2>
-        <div className="db-me">
-          <span className="db-me-points">{pointsLabel(myRating?.current)}</span>
+        <h2 className="prof-name">{PLAYER_NAME}</h2>
+        <div className="prof-elo">
+          <span className="prof-elo-points">
+            {pointsLabel(myRating?.current)}
+          </span>
           {myRating && myRating.current < RANK_E_FLOOR && (
             <span
-              className="db-me-to-e"
+              className="prof-elo-to-e"
               title={`Rank E starts at ${RANK_E_FLOOR} points`}
             >
               {RANK_E_FLOOR - myRating.current} to E
             </span>
           )}
         </div>
-        <span className="db-me-note">
+        <span className="prof-elo-note">
           {myRating
             ? `Dynamic ELO · anchored ${myRating.points} since ${dmyDate(
                 myRating.anchor_date

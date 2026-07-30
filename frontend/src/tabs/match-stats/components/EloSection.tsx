@@ -6,7 +6,7 @@ import { resultOf } from "../../../shared/types";
 import EloCurve from "../../../shared/ui/EloCurve";
 import SortableTh, { toggleSort } from "../../../shared/ui/SortableTh";
 import type { Sort } from "../../../shared/ui/SortableTh";
-import { matchupOf } from "../../daily-tracker/components/MatchRowList";
+import { matchupOf } from "../../../shared/matches";
 import type { RatingBreakdown, RatingMover } from "../types";
 
 // The two ELO cards of the Match Stats tab, split so the layout can place
@@ -14,7 +14,7 @@ import type { RatingBreakdown, RatingMover } from "../types";
 // head-to-head lookup). Both are GLOBAL — the rating ignores the tab's
 // discipline/category filters (a filtered "rating at end" would lie).
 
-// "ELO over time": the SAME rating curve the Daily Tracker and Profile draw
+// "ELO over time": the SAME rating curve the Daily Tracker Analysis draws
 // (shared/ui/EloCurve — one mental model app-wide).
 export function EloCurveCard({
   elo,
@@ -82,7 +82,8 @@ function sortMovers(movers: RatingMover[], sort: Sort<SortKey>) {
   const { key, dir } = sort;
   return [...movers].sort((a, b) => {
     if (key === "date")
-      return dir * a.date.localeCompare(b.date) || b.match_id - a.match_id;
+      // Same-day ties follow the direction too (ids track entry order).
+      return dir * (a.date.localeCompare(b.date) || a.match_id - b.match_id);
     if (key === "match")
       return (
         dir * (a.opponent_name ?? "?").localeCompare(b.opponent_name ?? "?", "vi")

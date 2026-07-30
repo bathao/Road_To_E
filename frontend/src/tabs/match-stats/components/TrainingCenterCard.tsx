@@ -1,5 +1,6 @@
 // Snapshot of the off-table physical program (Training Center tab). Moved
 // from the retired Profile tab 2026-07-30; rangeless — always the latest.
+import { DAY_ICON } from "../../training-center/constants";
 import type { Report as TrainingReport } from "../../training-center/types";
 
 export default function TrainingCenterCard({
@@ -39,7 +40,7 @@ export default function TrainingCenterCard({
             {(["legs", "core", "balance"] as const).map((k) => (
               <div key={k} className="stat-line">
                 <span>
-                  {k === "legs" ? "🦵 Legs" : k === "core" ? "🌀 Core" : "⚖️ Balance"}
+                  {DAY_ICON[k]} {k[0].toUpperCase() + k.slice(1)}
                 </span>
                 <span>{report.day_type_counts[k] ?? 0} sessions</span>
               </div>

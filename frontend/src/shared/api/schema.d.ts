@@ -476,7 +476,7 @@ export interface paths {
         };
         /**
          * Match Stats
-         * @description Match analytics over named-opponent matches only (for the Match Stats tab).
+         * @description Match analytics over named-opponent matches only (the Profile tab).
          */
         get: operations["match_stats_api_tracker_match_stats_get"];
         put?: never;
@@ -1847,9 +1847,9 @@ export interface components {
         };
         /**
          * MyRatingBreakdownOut
-         * @description ELO over time for the analytics tabs: per-bucket net change + the
-         *     range's biggest single-match movers. GLOBAL — the rating has no
-         *     discipline/category filter (a filtered rating_end would lie).
+         * @description ELO over time for the analytics tabs: per-bucket net change + every
+         *     ELO-counted match's ±Δ. GLOBAL — the rating has no discipline/category
+         *     filter (a filtered rating_end would lie).
          */
         MyRatingBreakdownOut: {
             /**

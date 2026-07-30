@@ -4,8 +4,10 @@
 // filter with /stats so the card and the list can never disagree.
 import { useState } from "react";
 import Modal from "../../../shared/ui/Modal";
+import Seg from "../../../shared/ui/Seg";
 import { useLoad } from "../../../shared/useApi";
 import { resultOf } from "../../../shared/types";
+import type { ResultFilter } from "../../../shared/types";
 import { trackerApi } from "../api";
 import type { Match } from "../types";
 import MatchRowList from "./MatchRowList";
@@ -17,7 +19,7 @@ export type StatBucket =
   | "one_v_two"
   | "two_v_one"
   | "vs_pips";
-export type ResultFilter = "all" | "W" | "L";
+export type { ResultFilter };
 
 export default function StatMatchesModal({
   bucket,
@@ -49,26 +51,16 @@ export default function StatMatchesModal({
 
   return (
     <Modal title={`${title} · ${rangeLabel}`} onClose={onClose}>
-      <div className="seg smm-filter">
-        <button
-          className={`seg-btn${result === "all" ? " active" : ""}`}
-          onClick={() => setResult("all")}
-        >
-          All ({all.length})
-        </button>
-        <button
-          className={`seg-btn${result === "W" ? " active" : ""}`}
-          onClick={() => setResult("W")}
-        >
-          {wins.length}W
-        </button>
-        <button
-          className={`seg-btn${result === "L" ? " active" : ""}`}
-          onClick={() => setResult("L")}
-        >
-          {losses.length}L
-        </button>
-      </div>
+      <Seg<ResultFilter>
+        className="smm-filter"
+        options={[
+          ["all", `All (${all.length})`],
+          ["W", `${wins.length}W`],
+          ["L", `${losses.length}L`],
+        ]}
+        value={result}
+        onChange={setResult}
+      />
 
       {error && <div className="error-banner">⚠ {error}</div>}
       {loading && !matches && <p className="smm-empty">Loading…</p>}

@@ -157,6 +157,12 @@ def test_list_player_matches_any_slot_newest_first(db):
     assert out[0].partner_name == "Anna"
     assert all(m.elo_status is not None for m in out)
 
+    # The Database-tab badges must equal the modal's per-role row counts —
+    # both exclude nonplaying rows (regression: counts used to include them).
+    anna_row = {r.name: r for r in service.list_players_db(db).players}["Anna"]
+    assert anna_row.matches_vs == 2  # old + dbl (skip is nonplaying)
+    assert anna_row.matches_with == 1  # tvo
+
     assert service.list_player_matches(db, 9999) == []
 
 

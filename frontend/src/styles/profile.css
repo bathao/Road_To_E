@@ -31,6 +31,45 @@
   font-size: 12px;
 }
 
+/* The dynamic-ELO strip inside the header (the only dynamic rating in the
+   system; other players' points are static anchors). */
+.prof-elo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: var(--surface);
+}
+
+.prof-elo-points {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--accent-dark);
+}
+
+/* Anchor/counted summary line under the ELO strip. */
+.prof-elo-note {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* "X to E" chip next to the rating (rank E starts at 1201). */
+.prof-elo-to-e {
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: rgba(95, 168, 60, 0.14);
+  color: #5fa83c;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 /* Per-category / per-day-type breakdown list under a card's stat grid. */
 .prof-cat-list {
   margin-top: 12px;

@@ -233,8 +233,17 @@ export default function DatabaseTab() {
     const { key, dir } = sort;
     return [...list].sort((a, b) => {
       if (key === "name") return dir * a.name.localeCompare(b.name, "vi");
-      if (key === "vs") return dir * (a.matches_vs - b.matches_vs);
-      if (key === "with") return dir * (a.matches_with - b.matches_with);
+      // Counts tie-break by name so equal rows keep a stable order.
+      if (key === "vs")
+        return (
+          dir * (a.matches_vs - b.matches_vs) ||
+          a.name.localeCompare(b.name, "vi")
+        );
+      if (key === "with")
+        return (
+          dir * (a.matches_with - b.matches_with) ||
+          a.name.localeCompare(b.name, "vi")
+        );
       // Points: unrated players sink to the bottom in BOTH directions.
       if (a.points === null && b.points === null)
         return a.name.localeCompare(b.name, "vi");
@@ -438,8 +447,12 @@ export default function DatabaseTab() {
             ))}
           </tbody>
         </table>
-        {filtered.length === 0 && (
-          <div className="db-empty">No one matches “{query}”.</div>
+        {data && filtered.length === 0 && (
+          <div className="db-empty">
+            {query.trim()
+              ? `No one matches “${query}”.`
+              : "No players yet — add one above."}
+          </div>
         )}
       </div>
 

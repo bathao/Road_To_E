@@ -2,7 +2,8 @@ import { api } from "../../shared/api/client";
 import type { Match, Player, PlayerIn } from "../daily-tracker/types";
 import type { PlayersDbResponse } from "./types";
 
-// My-rating calls moved to profileApi (the card lives on the Profile tab now).
+// My-rating calls live in matchStatsApi — the ELO header sits on the Profile
+// page (the merged Match Stats tab) since 2026-07-30.
 export const databaseApi = {
   list: () => api.get<PlayersDbResponse>("/tracker/players-db"),
   // Per-player drill-down: every match involving them, any slot, newest first.

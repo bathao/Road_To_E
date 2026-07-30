@@ -121,8 +121,11 @@ def _match_summary(
         "vs_pips": _ms(stats.vs_pips),
     }
     my_elo = tracker_service.compute_my_rating(db, replay_result=rep)
+    # with_movers=False: the bundle reads only the weekly buckets — no need
+    # to build a per-match row for every counted match.
     elo_trend = tracker_service.build_rating_breakdown(
-        db, today - dt.timedelta(days=41), today, unit="week", replay=rep
+        db, today - dt.timedelta(days=41), today, unit="week", replay=rep,
+        with_movers=False,
     )
     out["my_elo"] = {
         "current": my_elo.current,
@@ -152,10 +155,18 @@ def _match_detail(
     monthly trend and the most-played singles head-to-heads (problem
     opponents float up via win_rate)."""
     detail_from = today - dt.timedelta(days=_MATCH_DETAIL_DAYS)
-    detail = tracker_service.build_match_stats(db, detail_from, today, "all", "all", "month", replay=rep)
-    practice = tracker_service.build_match_stats(db, detail_from, today, "all", "practice", "month", replay=rep)
-    official = tracker_service.build_match_stats(db, detail_from, today, "all", "official", "month", replay=rep)
-    tournament = tracker_service.build_match_stats(db, detail_from, today, "all", "tournament", "month", replay=rep)
+    # form_seed=False: the bundle's trend reads W/L/win_rate only — skip the
+    # rolling-form seed query (×4 here, one per kind).
+    def _stats(category: str):
+        return tracker_service.build_match_stats(
+            db, detail_from, today, "all", category, "month",
+            replay=rep, form_seed=False,
+        )
+
+    detail = _stats("all")
+    practice = _stats("practice")
+    official = _stats("official")
+    tournament = _stats("tournament")
     top_h2h = sorted(detail.singles_h2h, key=lambda r: -r.played)[:8]
     return {
         "window": f"{detail.date_from.isoformat()} → {detail.date_to.isoformat()}",

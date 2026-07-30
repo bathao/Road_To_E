@@ -1,8 +1,9 @@
-// Types for the Match Stats tab. Mirror the backend MatchStatsResponse.
+// Types for the Profile tab (formerly Match Stats). Mirror the backend
+// MatchStatsResponse.
 import type { PlayerLevel } from "../../shared/levels";
 import type { MatchStats } from "../../shared/types";
 
-export type { PlayerLevel, MatchStats };
+export type { PlayerLevel };
 
 export interface MatchLine {
   date: string;
@@ -79,11 +80,7 @@ export interface MatchTrendBucket {
 }
 
 // My ELO over time (shared shapes with the Daily Tracker's Analysis panel).
-export type {
-  RatingBreakdown,
-  RatingBucket,
-  RatingMover,
-} from "../daily-tracker/types";
+export type { RatingBreakdown, RatingMover } from "../daily-tracker/types";
 
 // ---- the Profile pieces merged into this tab (2026-07-30) ----
 
