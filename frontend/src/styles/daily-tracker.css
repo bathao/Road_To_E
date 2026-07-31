@@ -1017,3 +1017,118 @@
   background: rgba(128, 128, 128, 0.14);
   color: #8a8a8a;
 }
+
+/* ---------------- Coach & Recap editor (session notes) ---------------- */
+
+.sn-editor {
+  gap: 12px;
+}
+
+/* "Still working on" — advice carried over from earlier sessions. */
+.sn-active {
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(74, 144, 217, 0.05);
+}
+
+.sn-block-head {
+  font-weight: 700;
+  font-size: 13.5px;
+}
+.sn-block-sub {
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 12.5px;
+}
+
+.sn-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+}
+.sn-item input[type="checkbox"] {
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.sn-icon {
+  flex-shrink: 0;
+}
+.sn-date {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.sn-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+}
+.sn-text.done {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.sn-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.sn-tag.on {
+  background: rgba(74, 144, 217, 0.14);
+  border-color: rgba(74, 144, 217, 0.4);
+  color: #4a90d9;
+}
+/* Tags rendered on stored items are labels, not buttons. */
+.sn-item .sn-tag {
+  cursor: default;
+}
+
+.sn-del {
+  border: none;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 4px;
+  flex-shrink: 0;
+}
+.sn-del:hover {
+  color: #c62828;
+}
+
+.sn-add {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.sn-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.sn-input-row {
+  display: flex;
+  gap: 8px;
+}
+.sn-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+}

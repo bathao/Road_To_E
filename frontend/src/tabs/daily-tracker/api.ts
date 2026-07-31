@@ -12,6 +12,10 @@ import type {
   Player,
   PlayerIn,
   RatingBreakdown,
+  SessionNote,
+  SessionNoteIn,
+  SessionNoteTag,
+  SessionNoteUpdate,
   StatsResponse,
   TournamentIn,
   TournamentsResponse,
@@ -78,6 +82,23 @@ export const trackerApi = {
       date,
       text,
     }),
+
+  // Coach & Recap row (structured advice/recap items on coach days).
+  getSessionNoteTags: () =>
+    api.get<SessionNoteTag[]>("/tracker/session-note-tags"),
+
+  // All advice not yet marked done, oldest first (the standing checklist).
+  getActiveAdvice: () =>
+    api.get<SessionNote[]>("/tracker/session-notes/active"),
+
+  createSessionNote: (payload: SessionNoteIn) =>
+    api.post<SessionNote>("/tracker/session-notes", payload),
+
+  updateSessionNote: (id: number, payload: SessionNoteUpdate) =>
+    api.patch<SessionNote>(`/tracker/session-notes/${id}`, payload),
+
+  deleteSessionNote: (id: number) =>
+    api.del<void>(`/tracker/session-notes/${id}`),
 
   getCategories: () => api.get<Category[]>("/tracker/categories"),
 

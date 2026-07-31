@@ -31,6 +31,7 @@ from app.features.tracker.models import (
     Match,
     PhysicalCheck,
     Player,
+    SessionNote,
     Setting,
 )
 from app.features.training import service as training_service
@@ -123,6 +124,90 @@ def note_snippet(text: str) -> str:
     if len(s) > _NOTE_SNIPPET_LEN:
         s = s[:_NOTE_SNIPPET_LEN].rstrip() + "…"
     return f"📝 {s}".rstrip()
+
+
+# ------------------------------------------------- session notes (Coach & Recap)
+
+# Fixed tag set for Coach & Recap items. (key, English label) — same pattern
+# as PHYSICAL_ITEMS; unknown keys are dropped on write, never rejected.
+SESSION_NOTE_TAGS: list[tuple[str, str]] = [
+    ("serve", "Serve"),
+    ("receive", "Receive"),
+    ("fh_topspin", "FH Topspin"),
+    ("fh_backspin", "FH Backspin"),
+    ("fh_push", "FH Push"),
+    ("bh_topspin", "BH Topspin"),
+    ("bh_backspin", "BH Backspin"),
+    ("bh_push", "BH Push"),
+    ("short_touch", "Short Touch"),
+    ("footwork", "Footwork"),
+    ("tactics", "Tactics"),
+    ("physical", "Physical"),
+    ("mental", "Mental"),
+]
+SESSION_NOTE_TAG_LABELS = dict(SESSION_NOTE_TAGS)
+
+SN_KIND_ADVICE = "advice"  # something the coach told me to work on
+SN_KIND_DRILL = "drill"  # one concrete exercise of the session (auto-numbered)
+SN_KIND_RECAP = "recap"  # what the session covered overall
+_SN_KINDS = (SN_KIND_ADVICE, SN_KIND_DRILL, SN_KIND_RECAP)
+_SN_ICON = {SN_KIND_ADVICE: "🧑‍🏫", SN_KIND_DRILL: "🏓", SN_KIND_RECAP: "📋"}
+_SN_EXPORT_PREFIX = {SN_KIND_ADVICE: "Coach", SN_KIND_RECAP: "Recap"}
+
+
+def clean_session_tags(tags: list[str]) -> list[str]:
+    """Keep known tag keys only, deduped, in the canonical SESSION_NOTE_TAGS
+    order (so two items tagged the same way always render the same way)."""
+    wanted = set(tags or [])
+    return [key for key, _ in SESSION_NOTE_TAGS if key in wanted]
+
+
+def session_note_to_out(n: SessionNote) -> schemas.SessionNoteOut:
+    return schemas.SessionNoteOut(
+        id=n.id,
+        date=n.date,
+        kind=n.kind,
+        tags=[t for t in (n.tags or "").split(",") if t],
+        text=n.text,
+        is_done=bool(n.is_done),
+    )
+
+
+def format_session_note_cell(items: list[SessionNote], *, for_export: bool) -> str:
+    """Coach & Recap cell. Screen: a single item shows as an icon + snippet,
+    several items collapse to per-kind counts ('🧑‍🏫 2 · 📋 1') — full text
+    lives in the editor/tooltip (WeekResponse.session_notes). Export: every
+    item in full, 'Coach:'/'Drill N:'/'Recap:' prefixed (drills numbered in
+    entry order), tags appended in brackets."""
+    if for_export:
+        lines = []
+        drill_no = 0
+        for n in items:
+            tags = [t for t in (n.tags or "").split(",") if t]
+            tag_s = (
+                " [" + ", ".join(SESSION_NOTE_TAG_LABELS.get(t, t) for t in tags) + "]"
+                if tags
+                else ""
+            )
+            if n.kind == SN_KIND_DRILL:
+                drill_no += 1
+                prefix = f"Drill {drill_no}"
+            else:
+                prefix = _SN_EXPORT_PREFIX.get(n.kind, n.kind)
+            lines.append(f"{prefix}: {n.text}{tag_s}")
+        return "\n".join(lines)
+    if len(items) == 1:
+        n = items[0]
+        s = " ".join((n.text or "").split())
+        if len(s) > _NOTE_SNIPPET_LEN:
+            s = s[:_NOTE_SNIPPET_LEN].rstrip() + "…"
+        return f"{_SN_ICON.get(n.kind, '')} {s}".strip()
+    parts = []
+    for kind in _SN_KINDS:
+        count = sum(1 for n in items if n.kind == kind)
+        if count:
+            parts.append(f"{_SN_ICON[kind]} {count}")
+    return " · ".join(parts)
 
 
 # ---------------------------------------------------------------- formatting
@@ -547,6 +632,8 @@ class RangeData(NamedTuple):
     matches: list[Match]  # ordered by order_index
     checks_by_date: dict[str, list[str]]  # iso date -> ticked item keys (legacy)
     notes_by_date: dict[str, str]  # iso date -> day-note text
+    # Coach & Recap items per iso date, in entry (id) order.
+    session_notes_by_date: dict[str, list[SessionNote]]
     # Training Center sessions completed in-range, keyed by done date. From the
     # cutover forward these are the source of the physical-training signal.
     tc_physical: dict[str, dict]
@@ -590,14 +677,37 @@ def _load_range(
         .filter(DayNote.date >= date_from, DayNote.date <= date_to)
         .all()
     )
+    session_notes = (
+        db.query(SessionNote)
+        .filter(SessionNote.date >= date_from, SessionNote.date <= date_to)
+        .order_by(SessionNote.id)
+        .all()
+    )
+    session_by_date: dict[str, list[SessionNote]] = {}
+    for n in session_notes:
+        session_by_date.setdefault(n.date.isoformat(), []).append(n)
     return RangeData(
         categories=categories,
         activities=activities,
         matches=matches,
         checks_by_date=physical_checks_by_date(checks),
         notes_by_date={n.date.isoformat(): n.text for n in day_notes},
+        session_notes_by_date=session_by_date,
         tc_physical=training_service.physical_day_map(db, date_from, date_to),
     )
+
+
+def _coach_day_isos(rng: RangeData) -> set[str]:
+    """Days in range with a Train-with-Coach session (>0 min) — the only days
+    the Coach & Recap row accepts new items."""
+    coach = next((c for c in rng.categories if c.key == "train_with_coach"), None)
+    if coach is None:
+        return set()
+    return {
+        a.date.isoformat()
+        for a in rng.activities
+        if a.category_id == coach.id and (a.duration_minutes or 0) > 0
+    }
 
 
 def _physical_dates(rng: RangeData) -> set[str]:
@@ -692,6 +802,14 @@ def _grid_cells(
                 note_text if for_export else note_snippet(note_text)
             )
 
+    # Coach & Recap cells (structured advice/recap items).
+    coach_recap = cat_by_key.get("coach_recap")
+    if coach_recap is not None:
+        for iso, items in rng.session_notes_by_date.items():
+            text[(coach_recap.id, iso)] = format_session_note_cell(
+                items, for_export=for_export
+            )
+
     # Overall: auto-generated colors from the day's data (not a manual rating).
     overall_colors = compute_overall_colors(
         categories,
@@ -769,7 +887,94 @@ def build_week(
         cells=cells,
         physical_checks=checks_by_date,
         day_notes=notes_by_date,
+        session_notes={
+            iso: [session_note_to_out(n) for n in items]
+            for iso, items in rng.session_notes_by_date.items()
+        },
+        coach_days=sorted(_coach_day_isos(rng)),
         physical_cutover=training_service.get_cutover(db),
+    )
+
+
+# ------------------------------------------------- session notes (CRUD)
+
+
+def has_coach_session(db: Session, d: dt.date) -> bool:
+    """Whether the day has a Train-with-Coach activity with actual minutes."""
+    return (
+        db.query(Activity.id)
+        .join(Category, Category.id == Activity.category_id)
+        .filter(
+            Category.key == "train_with_coach",
+            Activity.date == d,
+            Activity.duration_minutes > 0,
+        )
+        .first()
+        is not None
+    )
+
+
+def create_session_note(db: Session, payload: schemas.SessionNoteIn) -> SessionNote:
+    """Add a Coach & Recap item. Only allowed on days that actually have a
+    coach session — the row is a record of those sessions, not a second Notes
+    row (self-training recaps belong in Notes)."""
+    text_ = (payload.text or "").strip()
+    if not text_:
+        raise ValueError("Text is required")
+    if not has_coach_session(db, payload.date):
+        raise ValueError("No Train with Coach session on this day — log it first")
+    n = SessionNote(
+        date=payload.date,
+        kind=payload.kind,
+        tags=",".join(clean_session_tags(payload.tags)),
+        text=text_,
+    )
+    db.add(n)
+    db.commit()
+    db.refresh(n)
+    return n
+
+
+def update_session_note(
+    db: Session, note_id: int, payload: schemas.SessionNoteUpdate
+) -> SessionNote:
+    """Partial update. Deliberately NOT re-gated on has_coach_session: the item
+    was valid when created, and it must stay manageable (esp. ticking advice
+    done) even if the coach activity was edited away later."""
+    n = db.get(SessionNote, note_id)
+    if n is None:
+        raise LookupError(f"session note {note_id} not found")
+    if payload.text is not None:
+        text_ = payload.text.strip()
+        if not text_:
+            raise ValueError("Text cannot be empty — delete the item instead")
+        n.text = text_
+    if payload.tags is not None:
+        n.tags = ",".join(clean_session_tags(payload.tags))
+    if payload.is_done is not None and n.kind == SN_KIND_ADVICE:
+        n.is_done = payload.is_done
+    db.commit()
+    db.refresh(n)
+    return n
+
+
+def delete_session_note(db: Session, note_id: int) -> bool:
+    n = db.get(SessionNote, note_id)
+    if n is None:
+        return False
+    db.delete(n)
+    db.commit()
+    return True
+
+
+def list_active_advice(db: Session) -> list[SessionNote]:
+    """Every advice item not yet marked done, oldest first — the standing
+    checklist of what the coach wants worked on (editor panel + AI bundle)."""
+    return (
+        db.query(SessionNote)
+        .filter(SessionNote.kind == SN_KIND_ADVICE, SessionNote.is_done.is_(False))
+        .order_by(SessionNote.date, SessionNote.id)
+        .all()
     )
 
 

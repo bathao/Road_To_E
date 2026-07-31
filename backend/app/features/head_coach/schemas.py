@@ -62,6 +62,10 @@ class SourceSummary(BaseModel):
     match: dict = {}  # volume + win-rate aggregates for the stats window
     match_detail: dict = {}  # level x handicap, practice-vs-official, trend, head-to-head
     notes: list[dict] = []  # recent day notes [{date, text}]
+    # From the Coach & Recap tracker row (the REAL-LIFE coach's sessions):
+    # still-active advice + recent session recaps, [{date, text, tags}].
+    coach_advice: list[dict] = []
+    session_recaps: list[dict] = []
     coach_notes: list[dict] = []  # coach notebook entries [{date, text}]
     # Upcoming registered tournaments [{name, start_date, days_left, entries…}].
     tournaments: list[dict] = []

@@ -6,7 +6,8 @@ export type CategoryType =
   | "rating"
   | "checklist"
   | "note"
-  | "computed"; // auto-calculated read-only row (Racket Time)
+  | "computed" // auto-calculated read-only row (Racket Time)
+  | "session_note"; // Coach & Recap — structured advice/recap items
 export type ColorGroup = "green" | "yellow" | "none";
 // one_v_two = I play ALONE vs two opponents; two_v_one = me + partner vs one.
 export type { Discipline } from "../../shared/disciplines";
@@ -100,6 +101,40 @@ export interface CellData {
   color: string | null;
 }
 
+// ---- session notes (Coach & Recap row) ----
+// advice = coach's instruction (done-lifecycle) · drill = one exercise of
+// the session (auto-numbered by entry order) · recap = overall summary.
+export type SessionNoteKind = "advice" | "drill" | "recap";
+
+export interface SessionNote {
+  id: number;
+  date: string;
+  kind: SessionNoteKind;
+  tags: string[]; // keys from GET /session-note-tags
+  text: string;
+  // Advice lifecycle: stays "active" (shown in the editor checklist + fed to
+  // the AI coach) until ticked done. Always false for recaps.
+  is_done: boolean;
+}
+
+export interface SessionNoteIn {
+  date: string;
+  kind: SessionNoteKind;
+  tags: string[];
+  text: string;
+}
+
+export interface SessionNoteUpdate {
+  tags?: string[];
+  text?: string;
+  is_done?: boolean;
+}
+
+export interface SessionNoteTag {
+  key: string;
+  label: string;
+}
+
 export interface WeekResponse {
   start: string;
   days: string[]; // 7 ISO dates, Mon..Sun
@@ -109,6 +144,11 @@ export interface WeekResponse {
   cells: Record<string, CellData>; // key = `${category_id}|${isoDate}`
   physical_checks: Record<string, string[]>; // isoDate -> ticked item keys (legacy)
   day_notes: Record<string, string>; // isoDate -> note text
+  // Coach & Recap items per isoDate (full text for the editor/tooltip).
+  session_notes: Record<string, SessionNote[]>;
+  // Days with a Train-with-Coach session (>0 min) — empty Coach & Recap
+  // cells only unlock on these days.
+  coach_days: string[];
   // From this date forward the Physical row mirrors Training Center (read-only
   // in the grid). null = unset (no Training Center activity yet).
   physical_cutover: string | null;

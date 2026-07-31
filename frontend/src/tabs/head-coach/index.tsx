@@ -279,6 +279,10 @@ export default function HeadCoach() {
                 {training.sessions_last_7d ?? 0} sessions/7 days · Notes: last{" "}
                 {notes.length} days
               </div>
+              <div>
+                Coach &amp; Recap: {data.sources.coach_advice?.length ?? 0} advice
+                open · {data.sources.session_recaps?.length ?? 0} recaps read
+              </div>
             </div>
           </details>
 

@@ -293,6 +293,38 @@ class DayNoteOut(BaseModel):
     text: str  # the stored note; empty string when cleared
 
 
+# ---------- Session notes (Coach & Recap row) ----------
+class SessionNoteIn(BaseModel):
+    date: dt.date
+    # advice = coach's instruction (has a done-lifecycle) · drill = one
+    # exercise of the session (auto-numbered in display) · recap = summary.
+    kind: Literal["advice", "drill", "recap"]
+    tags: list[str] = []  # keys from service.SESSION_NOTE_TAGS (unknown dropped)
+    text: str
+
+
+class SessionNoteUpdate(BaseModel):
+    """Partial update — omitted fields keep their stored value."""
+
+    tags: list[str] | None = None
+    text: str | None = None
+    is_done: bool | None = None  # advice lifecycle; ignored for recaps
+
+
+class SessionNoteOut(BaseModel):
+    id: int
+    date: dt.date
+    kind: str  # advice | recap
+    tags: list[str]
+    text: str
+    is_done: bool
+
+
+class SessionNoteTagOut(BaseModel):
+    key: str
+    label: str
+
+
 # ---------- Week aggregate ----------
 class CellData(BaseModel):
     """Pre-rendered display for one (category, date) cell."""
@@ -457,6 +489,12 @@ class WeekResponse(BaseModel):
     cells: dict[str, CellData]  # key = f"{category_id}|{date.isoformat()}"
     physical_checks: dict[str, list[str]]  # iso date -> ticked item keys (legacy)
     day_notes: dict[str, str]  # iso date -> note text
+    # Coach & Recap row: iso date -> that day's items (full text for the
+    # editor/tooltip; the cell only carries the compact rendering).
+    session_notes: dict[str, list[SessionNoteOut]] = {}
+    # Days in range with a Train-with-Coach session (>0 min) — the FE unlocks
+    # empty Coach & Recap cells only on these days.
+    coach_days: list[str] = []
     # From this date forward the Physical row mirrors Training Center (read-only
     # in the grid); before it, the legacy checklist stays editable. None = unset.
     physical_cutover: dt.date | None = None

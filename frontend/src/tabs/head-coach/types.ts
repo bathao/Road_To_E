@@ -99,12 +99,21 @@ export interface SourceNote {
   text?: string;
 }
 
+// Coach & Recap items fed to the coach (tags carry display labels).
+export interface SourceSessionNote {
+  date?: string;
+  text?: string;
+  tags?: string[];
+}
+
 export interface SourceSummary {
   player?: string;
   training: SourceTraining;
   match: SourceMatch;
   match_detail?: SourceMatchDetail;
   notes?: SourceNote[];
+  coach_advice?: SourceSessionNote[]; // real-life coach's still-open advice
+  session_recaps?: SourceSessionNote[]; // recent coach-session recaps
   generated_for_range: string;
   // Legacy fields — only present on snapshots generated before the
   // technique-analysis and playbook tabs were retired.

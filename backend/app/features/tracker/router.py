@@ -289,6 +289,50 @@ def upsert_day_note(payload: schemas.DayNoteIn, db: Session = Depends(get_db)):
     return schemas.DayNoteOut(date=payload.date, text=text)
 
 
+# ------------------------------------------------- session notes (Coach & Recap)
+@router.get("/session-note-tags", response_model=list[schemas.SessionNoteTagOut])
+def list_session_note_tags():
+    return [
+        schemas.SessionNoteTagOut(key=key, label=label)
+        for key, label in service.SESSION_NOTE_TAGS
+    ]
+
+
+@router.get("/session-notes/active", response_model=list[schemas.SessionNoteOut])
+def list_active_advice(db: Session = Depends(get_db)):
+    """All advice items not yet marked done, oldest first — the standing
+    checklist shown in the Coach & Recap editor."""
+    return [service.session_note_to_out(n) for n in service.list_active_advice(db)]
+
+
+@router.post("/session-notes", response_model=schemas.SessionNoteOut)
+def create_session_note(payload: schemas.SessionNoteIn, db: Session = Depends(get_db)):
+    try:
+        n = service.create_session_note(db, payload)
+    except ValueError as e:  # empty text / day has no coach session
+        raise HTTPException(status_code=400, detail=str(e))
+    return service.session_note_to_out(n)
+
+
+@router.patch("/session-notes/{note_id}", response_model=schemas.SessionNoteOut)
+def update_session_note(
+    note_id: int, payload: schemas.SessionNoteUpdate, db: Session = Depends(get_db)
+):
+    try:
+        n = service.update_session_note(db, note_id, payload)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="session note not found")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return service.session_note_to_out(n)
+
+
+@router.delete("/session-notes/{note_id}", status_code=204)
+def delete_session_note(note_id: int, db: Session = Depends(get_db)):
+    service.delete_session_note(db, note_id)
+    return Response(status_code=204)
+
+
 # ---------------------------------------------------------------- events
 @router.get("/events", response_model=list[schemas.EventOut])
 def list_events(q: str = Query("", description="search term"), db: Session = Depends(get_db)):

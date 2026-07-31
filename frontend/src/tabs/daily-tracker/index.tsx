@@ -12,6 +12,7 @@ import DurationEditor from "./components/editors/DurationEditor";
 import MatchEditor from "./components/editors/MatchEditor";
 import ChecklistEditor from "./components/editors/ChecklistEditor";
 import NoteEditor from "./components/editors/NoteEditor";
+import SessionNoteEditor from "./components/editors/SessionNoteEditor";
 import AnalysisPanel from "./components/AnalysisPanel";
 import TournamentStrip from "./components/tournaments/TournamentStrip";
 import TournamentSection from "./components/tournaments/TournamentSection";
@@ -308,6 +309,16 @@ export default function DailyTracker() {
             <NoteEditor
               current={week ? week.day_notes[editing.dateIso] ?? "" : ""}
               onSave={saveNote}
+            />
+          )}
+          {editing.category.type === "session_note" && (
+            <SessionNoteEditor
+              dateIso={editing.dateIso}
+              items={week ? week.session_notes[editing.dateIso] ?? [] : []}
+              // The editor mutates through its own api calls (item-level
+              // CRUD + the cross-day checklist) — it only needs the week
+              // refreshed; the modal stays open for rapid entry.
+              onChanged={afterMutate}
             />
           )}
         </Modal>

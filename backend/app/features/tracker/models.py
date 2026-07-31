@@ -17,7 +17,8 @@ class Category(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     key: Mapped[str] = mapped_column(String, unique=True, index=True)
     label: Mapped[str] = mapped_column(String)
-    type: Mapped[str] = mapped_column(String)  # duration | match | checklist | rating
+    # duration | match | checklist | rating | computed | note | session_note
+    type: Mapped[str] = mapped_column(String)
     color_group: Mapped[str] = mapped_column(String, default="none")  # green | yellow | none
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
@@ -172,3 +173,26 @@ class DayNote(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     date: Mapped[dt.date] = mapped_column(Date, index=True)
     text: Mapped[str] = mapped_column(String)
+
+
+class SessionNote(Base):
+    """One structured item on the Coach & Recap row: something the real-life
+    coach said (kind='advice'), one exercise of the session (kind='drill',
+    auto-numbered in display by entry order — nothing stored), or an overall
+    recap (kind='recap'). Multiple items per day; a day only accepts items
+    when it has a Train-with-Coach activity (service.create_session_note).
+
+    Advice has a lifecycle: it stays "active" across days — surfaced as a
+    checklist in the editor and fed to the AI coach — until the user marks it
+    done. ``is_done`` is meaningless for recaps (always False).
+    """
+
+    __tablename__ = "tracker_session_note"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    date: Mapped[dt.date] = mapped_column(Date, index=True)
+    kind: Mapped[str] = mapped_column(String)  # advice | drill | recap
+    # Comma-joined tag keys from service.SESSION_NOTE_TAGS ("" = untagged).
+    tags: Mapped[str] = mapped_column(String, default="")
+    text: Mapped[str] = mapped_column(String)
+    is_done: Mapped[bool] = mapped_column(Boolean, default=False)

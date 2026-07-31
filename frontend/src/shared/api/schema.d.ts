@@ -269,6 +269,79 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tracker/session-note-tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Session Note Tags */
+        get: operations["list_session_note_tags_api_tracker_session_note_tags_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tracker/session-notes/active": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Active Advice
+         * @description All advice items not yet marked done, oldest first — the standing
+         *     checklist shown in the Coach & Recap editor.
+         */
+        get: operations["list_active_advice_api_tracker_session_notes_active_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tracker/session-notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Session Note */
+        post: operations["create_session_note_api_tracker_session_notes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tracker/session-notes/{note_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Session Note */
+        delete: operations["delete_session_note_api_tracker_session_notes__note_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Session Note */
+        patch: operations["update_session_note_api_tracker_session_notes__note_id__patch"];
+        trace?: never;
+    };
     "/api/tracker/events": {
         parameters: {
             query?: never;
@@ -1080,6 +1153,8 @@ export interface components {
              *       "match": {},
              *       "match_detail": {},
              *       "notes": [],
+             *       "coach_advice": [],
+             *       "session_recaps": [],
              *       "coach_notes": [],
              *       "tournaments": [],
              *       "generated_for_range": "",
@@ -2300,6 +2375,63 @@ export interface components {
             /** Intensity Bias */
             intensity_bias: number;
         };
+        /** SessionNoteIn */
+        SessionNoteIn: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "advice" | "drill" | "recap";
+            /**
+             * Tags
+             * @default []
+             */
+            tags: string[];
+            /** Text */
+            text: string;
+        };
+        /** SessionNoteOut */
+        SessionNoteOut: {
+            /** Id */
+            id: number;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Kind */
+            kind: string;
+            /** Tags */
+            tags: string[];
+            /** Text */
+            text: string;
+            /** Is Done */
+            is_done: boolean;
+        };
+        /** SessionNoteTagOut */
+        SessionNoteTagOut: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+        };
+        /**
+         * SessionNoteUpdate
+         * @description Partial update — omitted fields keep their stored value.
+         */
+        SessionNoteUpdate: {
+            /** Tags */
+            tags?: string[] | null;
+            /** Text */
+            text?: string | null;
+            /** Is Done */
+            is_done?: boolean | null;
+        };
         /** SessionOut */
         SessionOut: {
             /** Id */
@@ -2417,6 +2549,16 @@ export interface components {
              * @default []
              */
             notes: Record<string, never>[];
+            /**
+             * Coach Advice
+             * @default []
+             */
+            coach_advice: Record<string, never>[];
+            /**
+             * Session Recaps
+             * @default []
+             */
+            session_recaps: Record<string, never>[];
             /**
              * Coach Notes
              * @default []
@@ -2624,6 +2766,18 @@ export interface components {
             day_notes: {
                 [key: string]: string;
             };
+            /**
+             * Session Notes
+             * @default {}
+             */
+            session_notes: {
+                [key: string]: components["schemas"]["SessionNoteOut"][];
+            };
+            /**
+             * Coach Days
+             * @default []
+             */
+            coach_days: string[];
             /** Physical Cutover */
             physical_cutover?: string | null;
         };
@@ -3045,6 +3199,143 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DayNoteOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_session_note_tags_api_tracker_session_note_tags_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionNoteTagOut"][];
+                };
+            };
+        };
+    };
+    list_active_advice_api_tracker_session_notes_active_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionNoteOut"][];
+                };
+            };
+        };
+    };
+    create_session_note_api_tracker_session_notes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionNoteIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionNoteOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_session_note_api_tracker_session_notes__note_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                note_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_session_note_api_tracker_session_notes__note_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                note_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionNoteUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionNoteOut"];
                 };
             };
             /** @description Validation Error */

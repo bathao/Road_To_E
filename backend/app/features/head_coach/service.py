@@ -30,7 +30,7 @@ from app.features.head_coach.prompt import (
 from app.features.tournament import service as tournament_service
 from app.features.tracker import rating as tracker_rating
 from app.features.tracker import service as tracker_service
-from app.features.tracker.models import DayNote
+from app.features.tracker.models import DayNote, SessionNote
 from app.features.training import service as training_service
 from app.features.training.models import TrainingSession
 
@@ -231,6 +231,33 @@ def gather_bundle(db: Session) -> schemas.SourceSummary:
         for n in db.query(DayNote).order_by(DayNote.date.desc()).limit(_RECENT_NOTES).all()
     ]
 
+    # What the REAL-LIFE coach is asking for (all still-active advice, oldest
+    # first) + what recent coach sessions covered (recaps, newest first).
+    def _sn(n: SessionNote) -> dict:
+        tags = [t for t in (n.tags or "").split(",") if t]
+        return {
+            "date": n.date.isoformat(),
+            "text": n.text,
+            "tags": [tracker_service.SESSION_NOTE_TAG_LABELS.get(t, t) for t in tags],
+        }
+
+    coach_advice = [_sn(n) for n in tracker_service.list_active_advice(db)]
+    # Drills count as recap material (what was actually practiced) — prefixed
+    # so the model can tell one exercise from an overall summary.
+    session_recaps = [
+        _sn(n)
+        | (
+            {"text": f"Bài tập: {n.text}"}
+            if n.kind == tracker_service.SN_KIND_DRILL
+            else {}
+        )
+        for n in db.query(SessionNote)
+        .filter(SessionNote.kind != tracker_service.SN_KIND_ADVICE)
+        .order_by(SessionNote.date.desc(), SessionNote.id.desc())
+        .limit(_RECENT_NOTES)
+        .all()
+    ]
+
     # The coach's notebook — goals/deadlines/constraints agreed in chat (or
     # added by the player). Oldest first so later notes read as refinements.
     coach_notes = [
@@ -244,6 +271,8 @@ def gather_bundle(db: Session) -> schemas.SourceSummary:
         match=match_sum,
         match_detail=match_detail,
         notes=notes,
+        coach_advice=coach_advice,
+        session_recaps=session_recaps,
         coach_notes=coach_notes,
         # Registered upcoming competitions — the week plan aims at these.
         tournaments=tournament_service.upcoming_for_coach(db),
@@ -354,6 +383,17 @@ def _bundle_to_text(b: schemas.SourceSummary) -> str:
         f"  - {n['date']}: {n['text']}" for n in b.coach_notes
     ) or "  (sổ tay trống)"
 
+    def _sn_line(n: dict) -> str:
+        tag_s = f" [{', '.join(n['tags'])}]" if n.get("tags") else ""
+        return f"  - {n['date']}{tag_s}: {n['text']}"
+
+    advice_lines = "\n".join(_sn_line(n) for n in b.coach_advice) or (
+        "  (không có lời dặn nào đang mở)"
+    )
+    recap_lines = "\n".join(_sn_line(n) for n in b.session_recaps) or (
+        "  (chưa có recap buổi tập nào)"
+    )
+
     racket_total = m.get("racket_minutes_total", 0)
     racket_tr = m.get("racket_minutes_training", 0)
     racket_ma = m.get("racket_minutes_matches", 0)
@@ -390,6 +430,10 @@ def _bundle_to_text(b: schemas.SourceSummary) -> str:
         f"Khối lượng theo nhóm cơ: {muscle}\n\n"
         f"=== GIẢI ĐẤU SẮP TỚI (học trò đã đăng ký) ===\n"
         f"{tour_lines}\n\n"
+        f"=== HLV TRỰC TIẾP ĐANG DẶN (học trò ghi lại; chưa hoàn thành — cần tập tiếp) ===\n"
+        f"{advice_lines}\n\n"
+        f"=== RECAP CÁC BUỔI TẬP VỚI HLV TRỰC TIẾP (mới nhất trước) ===\n"
+        f"{recap_lines}\n\n"
         f"=== GHI CHÚ HẰNG NGÀY CỦA HỌC TRÒ (mới nhất trước) ===\n"
         f"{note_lines}\n\n"
         f"=== SỔ TAY HLV (mục tiêu/mốc thời gian/ràng buộc đã chốt với học trò) ===\n"
