@@ -36,6 +36,9 @@ scannable. Last full sync: 2026-07-29.
 
 - [ ] First tournament entered via the Daily Tracker → check the coach
   bundle's "đánh giải" split and the t=1.5 delta look sane.
+- [ ] First real Coach & Recap entries (advice + ticking done) → check the
+  coach bundle's "HLV TRỰC TIẾP ĐANG DẶN" section reads sane and the AI
+  actually schedules the open advice into week plans.
 - [ ] `RACKET_MINUTES_PER_SET = 5` — user confirmed keeping it (2026-07-27,
   "thôi vậy cũng dc"); recalibrate only if session-length data ever says
   otherwise.

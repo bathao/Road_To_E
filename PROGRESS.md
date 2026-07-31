@@ -1,6 +1,68 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-07-31, latest) — Tournament link + placement bonus committed `0c043d9`
+## Current status (2026-07-31, latest) — Coach & Recap grid row committed `39e7b24`
+
+> **New Daily Tracker row "Coach & Recap" 🧑‍🏫 (user request + plan OK'd
+> 2026-07-31, built same day, committed `39e7b24`, needs start.bat restart):**
+> structured advice/recap items per coach-session day — the user explicitly
+> rejected "1 ô note đơn thuần"; the Notes row already covers free text.
+>   - **Item model (tracker_session_note, NEW table → zero migration):**
+>     date + kind (`advice` 🧑‍🏫 = what the real-life coach said · `drill` 🏓
+>     = ONE exercise of the session · `recap` 📋 = overall summary) + tags
+>     (csv from the fixed set — unknown keys DROPPED not rejected, canonical
+>     order) + text + is_done. Several items per day.
+>   - **Tag set (user-corrected same day, replacing plain FH/BH):** Serve,
+>     Receive, FH Topspin, FH Backspin, FH Push, BH Topspin, BH Backspin,
+>     BH Push, Short Touch, Footwork, Tactics, Physical, Mental.
+>   - **Drill kind (user follow-up same day, "Bài tập 1/2/3…"):** pick 🏓
+>     Drill and Enter each exercise — numbers are DERIVED from entry order
+>     within the day (display + export "Drill N: …"), nothing stored; the
+>     input placeholder counts up ("Drill 3 — …"). Drills have no done-
+>     lifecycle and never enter the advice checklist; in the coach bundle
+>     they ride along with recaps prefixed "Bài tập: …".
+>   - **Advice lifecycle (the point of the feature):** advice stays ACTIVE
+>     across days until ticked done — the editor shows a "Still working on"
+>     checklist of every open advice from earlier sessions (tick = absorbed;
+>     GET /tracker/session-notes/active, oldest first). is_done is ignored
+>     for recaps.
+>   - **Gating (user constraint):** the row only unlocks on days whose
+>     `train_with_coach` activity has >0 minutes — FE locks empty cells via
+>     new WeekResponse.coach_days (tooltip "Log a Train with Coach session
+>     first"), backend re-checks in create_session_note → 400. Cells that
+>     already HAVE items stay clickable even if the coach activity is later
+>     edited away (never orphan data behind the gate); creates stay blocked.
+>     Self-training recaps on non-coach days belong in Notes (deliberate).
+>   - **Category `coach_recap`** (type `session_note`, NEW CategoryType) sits
+>     at sort_order 1 right under Train with Coach; seed reconciler re-sorts
+>     existing rows automatically (smoke-verified on a real-DB copy).
+>   - **Cell render (in `_grid_cells` → export for free):** 1 item = icon +
+>     22-char snippet; several = counts "🧑‍🏫 2 · 🏓 3 · 📋 1"; hover tooltip = full
+>     text of every item (FE builds it from WeekResponse.session_notes);
+>     CSV/XLSX = every item in full, "Coach:"/"Recap:" prefix + [tag labels].
+>   - **AI coach reads the real coach (bundle):** SourceSummary gains
+>     coach_advice (ALL still-active advice) + session_recaps (last 12,
+>     newest first); prompt sections "=== HLV TRỰC TIẾP ĐANG DẶN ===" +
+>     "=== RECAP CÁC BUỔI TẬP VỚI HLV TRỰC TIẾP ===". SYSTEM_PROMPT + CHAT
+>     rule: đó là nguồn nhận xét kỹ thuật duy nhất đáng tin, ưu tiên nhắc
+>     tập, KHÔNG ra lệnh ngược HLV trực tiếp. Done advice stays out of the
+>     prompt. hc-sources panel shows "Coach & Recap: N advice open · M
+>     recaps read".
+>   - **API:** GET /tracker/session-note-tags · GET /session-notes/active ·
+>     POST /session-notes (400 khi ngày không có coach session / text rỗng)
+>     · PATCH /{id} (partial: text/tags/is_done; empty text → 400 "delete
+>     instead"; 404 khi mất) · DELETE /{id} (204, idempotent như các delete
+>     khác). api client gained `patch`.
+>   - **FE:** SessionNoteEditor.tsx (Still-working-on checklist → day items
+>     với checkbox done/✕ delete, drill đánh số "🏓 N." → quick-add: Seg
+>     🧑‍🏫 Coach said/🏓 Drill/📋 Recap + tag chips + input, Enter = add,
+>     modal stays open for rapid entry); sn-* CSS in daily-tracker.css;
+>     WeekGrid gate + full-text tooltip.
+>   - 84/84 pytest (test_session_notes.py ×8: gating incl. 0-minute + edited-
+>     away activity, tag cleaning, cell/export render, drill numbering,
+>     lifecycle, bundle), gen:api + build clean. Smoke on real-DB copy: row
+>     order + coach_days OK.
+
+## Earlier same day (2026-07-31) — Tournament link + placement bonus committed `0c043d9`
 
 > **Placement bonus mechanic (user table 2026-07-31, committed `0c043d9`
 > together with the 07-30 tournament-link batch below; needs start.bat
