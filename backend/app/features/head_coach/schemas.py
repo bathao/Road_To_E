@@ -93,12 +93,6 @@ class AssessmentOut(BaseModel):
     empty: bool = False
 
 
-class SourcesOut(BaseModel):
-    """The live bundle, for the transparency / debug view (no AI call)."""
-
-    sources: SourceSummary
-
-
 class GenerateStatusOut(BaseModel):
     """State of the most recent generation attempt (polled by the GUI)."""
 
@@ -130,10 +124,9 @@ class DirectiveProgressOut(BaseModel):
 
 # ------------------------------------------------------- weekly/monthly recap
 class RecapPeriodStats(BaseModel):
-    """Code-computed numbers for one recap window (never from the LLM)."""
+    """Code-computed numbers for one recap window (never from the LLM).
+    The window's dates live on RecapOut.period_start/period_end."""
 
-    date_from: dt.date
-    date_to: dt.date
     days_trained: int = 0
     days_physical: int = 0
     physical_sessions: int = 0  # completed Training Center sessions
@@ -177,7 +170,6 @@ class RecapsOut(BaseModel):
     explicitly dropped history browsing AND auto-generation (2026-08-01):
     recaps run only when the button is pressed."""
 
-    period_type: str
     # The newest generated recap of this window type (any status), or None
     # when none has been generated yet.
     latest: RecapOut | None = None

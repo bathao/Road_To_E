@@ -839,26 +839,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/head-coach/sources": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Sources
-         * @description The live source bundle without calling the AI (transparency view).
-         */
-        get: operations["get_sources_api_head_coach_sources_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/head-coach/directive-progress": {
         parameters: {
             query?: never;
@@ -2451,18 +2431,9 @@ export interface components {
         /**
          * RecapPeriodStats
          * @description Code-computed numbers for one recap window (never from the LLM).
+         *     The window's dates live on RecapOut.period_start/period_end.
          */
         RecapPeriodStats: {
-            /**
-             * Date From
-             * Format: date
-             */
-            date_from: string;
-            /**
-             * Date To
-             * Format: date
-             */
-            date_to: string;
             /**
              * Days Trained
              * @default 0
@@ -2530,8 +2501,6 @@ export interface components {
          *     recaps run only when the button is pressed.
          */
         RecapsOut: {
-            /** Period Type */
-            period_type: string;
             latest?: components["schemas"]["RecapOut"] | null;
         };
         /** RecentSession */
@@ -2576,16 +2545,6 @@ export interface components {
              * @default 0
              */
             losses: number;
-            /**
-             * Sets Won
-             * @default 0
-             */
-            sets_won: number;
-            /**
-             * Sets Lost
-             * @default 0
-             */
-            sets_lost: number;
             /**
              * Matches
              * @default []
@@ -2644,8 +2603,6 @@ export interface components {
             start_date: string;
             /** End Date */
             end_date?: string | null;
-            /** Level Limit */
-            level_limit?: string | null;
             /**
              * Entries
              * @default []
@@ -2898,13 +2855,6 @@ export interface components {
              * @default {}
              */
             tactics: Record<string, never>;
-        };
-        /**
-         * SourcesOut
-         * @description The live bundle, for the transparency / debug view (no AI call).
-         */
-        SourcesOut: {
-            sources: components["schemas"]["SourceSummary"];
         };
         /** StatsResponse */
         StatsResponse: {
@@ -4468,26 +4418,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GenerateStatusOut"];
-                };
-            };
-        };
-    };
-    get_sources_api_head_coach_sources_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SourcesOut"];
                 };
             };
         };

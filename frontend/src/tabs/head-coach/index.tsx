@@ -40,8 +40,8 @@ const METRIC_SCOPE: Record<string, string> = {
 };
 
 export default function HeadCoach() {
-  // Verdict = the on-demand holistic assessment; Recaps = the automatic
-  // closed-week/month reviews. Chat + notebook stay visible for both.
+  // Verdict = the on-demand holistic assessment; Recaps = on-demand reviews
+  // of the last 7/30 days. Chat + notebook stay visible for both.
   const [view, setView] = useState<"verdict" | "recaps">("verdict");
   const [generating, setGenerating] = useState(false);
   const {
@@ -178,8 +178,8 @@ export default function HeadCoach() {
       {!loading && data?.empty && !generating && (
         <div className="hc-empty">
           No assessment yet. Click <b>“First analysis”</b> to have the head
-          coach read your technique profile, fitness, match results and
-          tactics.
+          coach read your training volume, match results, ELO trend and
+          fitness — and deliver a verdict.
         </div>
       )}
 

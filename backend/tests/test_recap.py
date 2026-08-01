@@ -25,6 +25,11 @@ def _fake_recap(*_args, **_kwargs) -> dict:
     }
 
 
+def _latest(db):
+    """The production read path: newest generated week recap."""
+    return hc_service.get_recaps(db, "week").latest
+
+
 def _seed_day(db, day: dt.date, minutes: int = 60, matches: int = 0) -> None:
     coach = category_id(db, "train_with_coach")
     official = category_id(db, "official_match")
@@ -116,7 +121,7 @@ def test_same_day_press_reuses_row(db, monkeypatch):
     assert second.id == first.id and second.status == "generating"
     assert db.query(HeadCoachRecap).count() == 1
     hc_service.run_recap_job(second.id, db)
-    assert hc_service.get_recap(db, second.id).status == "done"
+    assert _latest(db).status == "done"
 
 
 # ------------------------------------------------------------------ the job
@@ -129,7 +134,7 @@ def test_run_recap_job_fills_row_and_stats(db, monkeypatch):
     out = hc_service.start_recap(db, "week", today=TODAY)
     hc_service.run_recap_job(out.id, db)
 
-    rec = hc_service.get_recap(db, out.id)
+    rec = _latest(db)
     assert rec.status == "done" and rec.error_msg is None
     assert rec.headline == "Giai đoạn ổn."
     assert rec.went_well == ["Đánh 2 trận"] and rec.focus_next == ["Thêm 1 buổi thể lực"]
@@ -148,7 +153,7 @@ def test_run_recap_job_no_previous_before_first_data(db, monkeypatch):
 
     out = hc_service.start_recap(db, "week", today=TODAY)
     hc_service.run_recap_job(out.id, db)
-    rec = hc_service.get_recap(db, out.id)
+    rec = _latest(db)
     assert rec.status == "done" and rec.stats.previous is None
 
 
@@ -163,7 +168,7 @@ def test_run_recap_job_error_marks_row(db, monkeypatch):
     out = hc_service.start_recap(db, "week", today=TODAY)
     hc_service.run_recap_job(out.id, db)
 
-    rec = hc_service.get_recap(db, out.id)
+    rec = _latest(db)
     assert rec.status == "error" and "ollama down" in rec.error_msg
 
 

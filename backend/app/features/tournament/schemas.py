@@ -102,8 +102,6 @@ class RecordEntry(BaseModel):
     reached_won: bool = False
     wins: int = 0
     losses: int = 0
-    sets_won: int = 0
-    sets_lost: int = 0
     matches: list[RecordMatch] = []
 
 
@@ -113,7 +111,6 @@ class RecordTournament(BaseModel):
     location: str | None = None
     start_date: dt.date
     end_date: dt.date | None = None
-    level_limit: str | None = None
     entries: list[RecordEntry] = []
 
 

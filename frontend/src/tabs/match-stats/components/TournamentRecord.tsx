@@ -7,11 +7,15 @@ import { PLACEMENT_LABEL, entryLabel } from "../../../shared/tournaments";
 import { matchStatsApi } from "../api";
 import type { RecordEntry, TournamentRecordResponse } from "../types";
 
-// "How far did I get" in one phrase: a derived medal placement when the
-// matches decide one, otherwise the deepest decided round.
+// "How far did I get" in one phrase: a derived medal placement (with the
+// flat ELO bonus it earned) when the matches decide one, otherwise the
+// deepest decided round.
 function resultLabel(rec: RecordEntry): string {
   const p = rec.entry.final_placement;
-  if (p) return PLACEMENT_LABEL[p] ?? p;
+  if (p) {
+    const bonus = rec.entry.bonus_points ? ` +${rec.entry.bonus_points}` : "";
+    return `${PLACEMENT_LABEL[p] ?? p}${bonus}`;
+  }
   const r = rec.round_reached;
   if (!r) return "No matches entered";
   if (r === "group") return "Group stage";

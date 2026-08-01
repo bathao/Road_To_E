@@ -41,7 +41,7 @@ export default function CoachNotes({
       )}
       <ul className="hc-notes-list">
         {notes.map((n) => (
-          <li key={n.id} className="hc-note">
+          <li key={n.id} className="hc-note-item">
             <div className="hc-note-text">{n.text}</div>
             <div className="hc-note-meta">
               <span>{fmtChatTime(n.created_at)}</span>

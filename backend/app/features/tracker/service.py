@@ -556,6 +556,32 @@ def earliest_data_date(db: Session) -> dt.date | None:
     return min(dates) if dates else None
 
 
+def has_data_between(db: Session, date_from: dt.date, date_to: dt.date) -> bool:
+    """Whether ANY tracked data exists inside the range — the same four
+    sources as earliest_data_date (activities, matches, legacy physical
+    checks, Training Center sessions). Used e.g. to refuse generating a
+    coach recap over an empty window."""
+    for model, col in (
+        (Activity, Activity.date),
+        (Match, Match.date),
+        (PhysicalCheck, PhysicalCheck.date),
+    ):
+        if db.query(model.id).filter(col >= date_from, col <= date_to).first() is not None:
+            return True
+    from app.features.training.models import TrainingSession  # local: no cycle
+
+    return (
+        db.query(TrainingSession.id)
+        .filter(
+            TrainingSession.status == "done",
+            TrainingSession.done_on >= date_from,
+            TrainingSession.done_on <= date_to,
+        )
+        .first()
+        is not None
+    )
+
+
 def latest_data_date(db: Session) -> dt.date | None:
     """The most recent day that has any tracked data (for opening the grid there)."""
     _, tc_hi = training_service.done_date_bounds(db)

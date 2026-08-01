@@ -90,7 +90,7 @@ def test_placement_derives_from_entered_rounds(db):
 def test_won_round_without_the_next_warns_about_missing_data(client, db):
     """Tournaments are entered AFTER they finish (user 2026-07-31): a won
     knockout round with no later round = forgotten matches → no bonus + a
-    data_warning the GUI surfaces on the entry chip."""
+    data_warning (surfaced by the Profile tab's Tournament Record)."""
     cat = category_id(db, "tournament_match")
     entry = _tournament(db)
 
@@ -195,7 +195,8 @@ def test_bonus_row_in_movers_and_derived_entry_echo(client, db):
     assert (row.match_id, row.delta) == (None, 70.0)
     assert row.bonus_label == "BBTV Open — Champion"
 
-    # The entry echoes its DERIVED placement + points for the GUI chip.
+    # The entry echoes its DERIVED placement + points (API contract shared
+    # with /tournaments/record — the Profile Tournament Record renders it).
     e = client.get("/api/tournaments").json()["tournaments"][0]["entries"][0]
     assert e["final_placement"] == "champion"
     assert e["bonus_points"] == 70

@@ -88,6 +88,29 @@ def _is_played(t: Tournament, today: dt.date, linked: set[int]) -> bool:
     )
 
 
+def _load_split(
+    db: Session, today: dt.date
+) -> tuple[list[Tournament], list[Tournament]]:
+    """All tournaments split on the played rule: (upcoming soonest-first,
+    played newest-first). The one loader behind the list AND the record."""
+    rows = (
+        db.query(Tournament)
+        .options(selectinload(Tournament.entries).selectinload(TournamentEntry.members))
+        .all()
+    )
+    linked = _linked_entry_ids(db)
+    upcoming = sorted(
+        (t for t in rows if not _is_played(t, today, linked)),
+        key=lambda t: t.start_date,
+    )
+    played = sorted(
+        (t for t in rows if _is_played(t, today, linked)),
+        key=lambda t: t.start_date,
+        reverse=True,
+    )
+    return upcoming, played
+
+
 def _player_names(db: Session, tournaments: list[Tournament]) -> dict[int, str]:
     ids: set[int] = set()
     for t in tournaments:
@@ -105,29 +128,18 @@ def list_tournaments(db: Session, today: dt.date | None = None) -> schemas.Tourn
     """All tournaments: upcoming first (soonest on top), then played (newest
     first). "Played" = ended before today OR results already entered."""
     today = today or dt.date.today()
-    rows = (
-        db.query(Tournament)
-        .options(selectinload(Tournament.entries).selectinload(TournamentEntry.members))
-        .all()
-    )
-    players = _player_names(db, rows)
-    linked = _linked_entry_ids(db)
-
-    upcoming = sorted(
-        (t for t in rows if not _is_played(t, today, linked)),
-        key=lambda t: t.start_date,
-    )
-    past = sorted(
-        (t for t in rows if _is_played(t, today, linked)),
-        key=lambda t: t.start_date,
-        reverse=True,
-    )
+    upcoming, played = _load_split(db, today)
+    players = _player_names(db, upcoming + played)
     placements = derive_placements(db)
     warnings = derive_warnings(db)
     return schemas.TournamentsResponse(
         tournaments=[
-            _to_out(t, players, placements, warnings, played=t in past)
-            for t in upcoming + past
+            _to_out(t, players, placements, warnings, played=False)
+            for t in upcoming
+        ]
+        + [
+            _to_out(t, players, placements, warnings, played=True)
+            for t in played
         ]
     )
 
@@ -196,20 +208,10 @@ def build_record(db: Session, today: dt.date | None = None) -> schemas.Tournamen
     Daily Tracker matches linked via tournament_entry_id. Nothing stored.
 
     "Played" = ended before today OR any match already linked — the same
-    rule the Daily Tracker groups on: entering a same-day tournament's
+    rule the Daily Tracker filters on: entering a same-day tournament's
     results moves it here immediately, not tomorrow (user 2026-08-01)."""
     today = today or dt.date.today()
-    rows = (
-        db.query(Tournament)
-        .options(selectinload(Tournament.entries).selectinload(TournamentEntry.members))
-        .all()
-    )
-    linked = _linked_entry_ids(db)
-    past = sorted(
-        (t for t in rows if _is_played(t, today, linked)),
-        key=lambda t: t.start_date,
-        reverse=True,
-    )
+    _, past = _load_split(db, today)
     if not past:
         return schemas.TournamentRecordResponse()
 
@@ -262,8 +264,6 @@ def build_record(db: Session, today: dt.date | None = None) -> schemas.Tournamen
             reached_won=won,
             wins=sum(1 for m in decided if m.my_sets > m.opp_sets),
             losses=sum(1 for m in decided if m.my_sets < m.opp_sets),
-            sets_won=sum(m.my_sets for m in ms),
-            sets_lost=sum(m.opp_sets for m in ms),
             matches=[_record_match(m) for m in ms],
         )
 
@@ -275,7 +275,6 @@ def build_record(db: Session, today: dt.date | None = None) -> schemas.Tournamen
                 location=t.location,
                 start_date=t.start_date,
                 end_date=t.end_date,
-                level_limit=t.level_limit,
                 entries=[_record_entry(e) for e in t.entries],
             )
             for t in past
@@ -297,7 +296,7 @@ def upcoming_for_coach(
             # scan (incl. a same-day tournament whose results are already in)
         days_left = (t.start_date - today).days
         if days_left > horizon_days:
-            continue
+            break  # upcoming is sorted soonest-first — the rest are further out
         entries = []
         for e in t.entries:
             label = _DISCIPLINE_VI.get(e.discipline, e.discipline)

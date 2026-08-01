@@ -264,16 +264,6 @@
 
 .hc-recap-list li { margin-bottom: 6px; line-height: 1.5; }
 
-.hc-recap-regen {
-  border: none;
-  background: none;
-  color: var(--accent);
-  cursor: pointer;
-  font-size: 12px;
-  padding: 0;
-  text-decoration: underline;
-}
-
 /* ------------------------------------------------------------ dev log panel */
 
 .hc-devlogs { margin-top: 18px; }
@@ -427,12 +417,14 @@
 
 .hc-notes-list { list-style: none; margin: 0; padding: 0; }
 
-.hc-note {
+/* .hc-note-item, NOT .hc-note — that name belongs to the info banner above
+   (same-specificity collision used to mangle the banner's padding/border). */
+.hc-note-item {
   padding: 8px 2px;
   border-bottom: 1px dashed #e7dfc4;
 }
 
-.hc-note:last-child { border-bottom: none; }
+.hc-note-item:last-child { border-bottom: none; }
 
 .hc-note-text { font-size: 13px; line-height: 1.5; }
 

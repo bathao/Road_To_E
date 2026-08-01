@@ -30,7 +30,7 @@ def test_crud_ordering_and_partner_resolution(db):
             entries=[schemas.EntryIn(discipline="singles", division="hạng E")],
         ),
     )
-    resp = service.create_tournament(
+    service.create_tournament(
         db,
         _payload(
             "Giải gần",
@@ -46,7 +46,7 @@ def test_crud_ordering_and_partner_resolution(db):
         ),
     )
     # Past tournament (single-day, yesterday).
-    resp = service.create_tournament(db, _payload("Giải cũ", TODAY - dt.timedelta(days=1)))
+    service.create_tournament(db, _payload("Giải cũ", TODAY - dt.timedelta(days=1)))
 
     resp = service.list_tournaments(db, today=TODAY)
     # Upcoming soonest-first, then past.

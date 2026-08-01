@@ -85,7 +85,6 @@ export interface SourceH2H {
 
 export interface SourceMatchDetail {
   window?: string;
-  by_level?: Record<string, SourceMatchSide>;
   practice?: SourceMatchSide; // casual
   official?: SourceMatchSide; // light stakes
   tournament?: SourceMatchSide; // tournament
@@ -148,10 +147,9 @@ export interface GenerateStatus {
 // the day the Generate button is pressed. Button-only, nothing automatic.
 export type RecapPeriod = "week" | "month";
 
-// Code-computed numbers for one recap window (never from the LLM).
+// Code-computed numbers for one recap window (never from the LLM). The
+// window's dates live on Recap.period_start/period_end.
 export interface RecapPeriodStats {
-  date_from: string;
-  date_to: string;
   days_trained: number;
   days_physical: number;
   physical_sessions: number;
@@ -192,7 +190,6 @@ export interface Recap {
 // Only the most recently generated recap is surfaced (no history browsing,
 // no auto-generation — the user's explicit choices, 2026-08-01).
 export interface RecapsOut {
-  period_type: RecapPeriod;
   latest: Recap | null;
 }
 

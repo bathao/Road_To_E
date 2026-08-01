@@ -155,8 +155,6 @@ export interface RecordEntry {
   reached_won: boolean;
   wins: number;
   losses: number;
-  sets_won: number;
-  sets_lost: number;
   matches: RecordMatch[];
 }
 
@@ -166,7 +164,6 @@ export interface RecordTournament {
   location: string | null;
   start_date: string;
   end_date: string | null;
-  level_limit: string | null;
   entries: RecordEntry[];
 }
 

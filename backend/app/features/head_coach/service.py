@@ -4,7 +4,7 @@ The Head Coach is a *consumer*. It calls the tracker/training service
 functions in-process (never HTTP), assembles a compact facts bundle (volume,
 racket time, per-match results with opponent context, physical load, day
 notes), asks the local text model for a strict holistic verdict + plan, and
-persists the result as a snapshot. See HEAD_COACH_PLAN.md.
+persists the result as a snapshot.
 """
 from __future__ import annotations
 
@@ -37,7 +37,7 @@ from app.features.head_coach.prompt import (
 from app.features.tournament import service as tournament_service
 from app.features.tracker import rating as tracker_rating
 from app.features.tracker import service as tracker_service
-from app.features.tracker.models import Activity, DayNote, Match, PhysicalCheck, SessionNote
+from app.features.tracker.models import DayNote, SessionNote
 from app.features.training import service as training_service
 from app.features.training.models import TrainingSession
 
@@ -53,6 +53,8 @@ _RECENT_NOTES = 12
 # Below this many matches a segment is tagged [MẪU NHỎ] in the context block
 # and the prompt forbids drawing win-rate conclusions from it.
 _MIN_SAMPLE_MATCHES = 5
+# Most-played singles head-to-heads fed to the verdict prompt.
+_VERDICT_H2H = 8
 
 # Relative levels are derived from POINTS vs the athlete's dynamic ELO
 # (hand-picked labels retired 2026-07-27); "unrated" = no points entered yet.
@@ -72,6 +74,34 @@ _HANDICAP_VI = {
 # ---------------------------------------------------------------- gather inputs
 def _ms(m) -> dict:
     return {"played": m.total, "wins": m.wins, "losses": m.losses, "win_rate": m.win_rate}
+
+
+def _dm(iso: str) -> str:
+    """"2026-07-21" → "21/07" — compact date in the prompt's weekly ELO lines."""
+    return f"{iso[8:10]}/{iso[5:7]}"
+
+
+def _session_note_dict(n: SessionNote, with_kind: bool = False) -> dict:
+    """One Coach & Recap item as a prompt-ready dict (tag keys → display
+    labels). Shared by the verdict bundle and the recap bundle."""
+    tags = [t for t in (n.tags or "").split(",") if t]
+    out = {
+        "date": n.date.isoformat(),
+        "text": n.text,
+        "tags": [tracker_service.SESSION_NOTE_TAG_LABELS.get(t, t) for t in tags],
+    }
+    if with_kind:
+        out["kind"] = n.kind
+    return out
+
+
+def _coach_note_dicts(db: Session) -> list[dict]:
+    """The coach's notebook as prompt dicts — oldest first, so later notes
+    read as refinements. Shared by the verdict and recap bundles."""
+    return [
+        {"date": n.created_at.date().isoformat() if n.created_at else "", "text": n.text}
+        for n in db.query(CoachNote).order_by(CoachNote.created_at.asc()).all()
+    ]
 
 
 def _player_name(db: Session) -> str:
@@ -174,7 +204,7 @@ def _match_detail(
     practice = _stats("practice")
     official = _stats("official")
     tournament = _stats("tournament")
-    top_h2h = sorted(detail.singles_h2h, key=lambda r: -r.played)[:8]
+    top_h2h = sorted(detail.singles_h2h, key=lambda r: -r.played)[:_VERDICT_H2H]
     return {
         "window": f"{detail.date_from.isoformat()} → {detail.date_to.isoformat()}",
         # Level × handicap direction (even / receiving / giving points): a
@@ -240,19 +270,13 @@ def gather_bundle(db: Session) -> schemas.SourceSummary:
 
     # What the REAL-LIFE coach is asking for (all still-active advice, oldest
     # first) + what recent coach sessions covered (recaps, newest first).
-    def _sn(n: SessionNote) -> dict:
-        tags = [t for t in (n.tags or "").split(",") if t]
-        return {
-            "date": n.date.isoformat(),
-            "text": n.text,
-            "tags": [tracker_service.SESSION_NOTE_TAG_LABELS.get(t, t) for t in tags],
-        }
-
-    coach_advice = [_sn(n) for n in tracker_service.list_active_advice(db)]
+    coach_advice = [
+        _session_note_dict(n) for n in tracker_service.list_active_advice(db)
+    ]
     # Drills count as recap material (what was actually practiced) — prefixed
     # so the model can tell one exercise from an overall summary.
     session_recaps = [
-        _sn(n)
+        _session_note_dict(n)
         | (
             {"text": f"Bài tập: {n.text}"}
             if n.kind == tracker_service.SN_KIND_DRILL
@@ -265,13 +289,6 @@ def gather_bundle(db: Session) -> schemas.SourceSummary:
         .all()
     ]
 
-    # The coach's notebook — goals/deadlines/constraints agreed in chat (or
-    # added by the player). Oldest first so later notes read as refinements.
-    coach_notes = [
-        {"date": n.created_at.date().isoformat() if n.created_at else "", "text": n.text}
-        for n in db.query(CoachNote).order_by(CoachNote.created_at.asc()).all()
-    ]
-
     return schemas.SourceSummary(
         player=_player_name(db),
         training=training_sum,
@@ -280,7 +297,7 @@ def gather_bundle(db: Session) -> schemas.SourceSummary:
         notes=notes,
         coach_advice=coach_advice,
         session_recaps=session_recaps,
-        coach_notes=coach_notes,
+        coach_notes=_coach_note_dicts(db),
         # Registered upcoming competitions — the week plan aims at these.
         tournaments=tournament_service.upcoming_for_coach(db),
         generated_for_range=(
@@ -315,9 +332,6 @@ def _elo_line(m: dict) -> str:
     to_e = elo.get("to_rank_e")
     if to_e:
         line += f" · còn {to_e} điểm nữa tới hạng E"
-
-    def _dm(iso: str) -> str:  # "2026-07-21" → "21/07"
-        return f"{iso[8:10]}/{iso[5:7]}"
 
     weekly = elo.get("weekly") or []
     if weekly:
@@ -580,9 +594,8 @@ def recover_stuck_jobs(db: Session) -> None:
 
 def start_generate(db: Session) -> schemas.AssessmentOut:
     """Create a `generating` placeholder row; the heavy work (gather + local
-    LLM, up to minutes) runs in run_generate_job on a background task. Mirrors
-    the video-analysis parse flow: the UI polls /assessment until the status
-    leaves `generating`."""
+    LLM, up to minutes) runs in run_generate_job on a background task. The
+    UI polls GET /status until the status leaves `generating`."""
     row = HeadCoachAssessment(model=HEAD_COACH_MODEL, status="generating")
     db.add(row)
     db.commit()
@@ -590,9 +603,11 @@ def start_generate(db: Session) -> schemas.AssessmentOut:
     return _to_out(row)
 
 
-def run_generate_job(assessment_id: int) -> None:
-    """Background job: gather the bundle, call the model, fill the snapshot."""
-    db = SessionLocal()
+def run_generate_job(assessment_id: int, db_or_none: Session | None = None) -> None:
+    """Background job: gather the bundle, call the model, fill the snapshot.
+    Accepts an injected session so tests can run it synchronously (same
+    contract as run_chat_job / run_recap_job)."""
+    db = db_or_none or SessionLocal()
     try:
         row = db.get(HeadCoachAssessment, assessment_id)
         if row is None or row.status != "generating":
@@ -624,7 +639,8 @@ def run_generate_job(assessment_id: int) -> None:
             row.directives_json = json.dumps(
                 _sanitize_directives(data.get("directives", [])), ensure_ascii=False
             )
-            row.tactics_json = json.dumps(data.get("tactics", []), ensure_ascii=False)
+            # (tactics_json is legacy read-only — RESPONSE_SCHEMA has no
+            # `tactics` key, so the model can never produce one.)
             row.week_plan_json = json.dumps(data.get("week_plan", []), ensure_ascii=False)
             row.watch_items_json = json.dumps(data.get("watch_items", []), ensure_ascii=False)
             row.sources_json = bundle.model_dump_json()
@@ -641,7 +657,8 @@ def run_generate_job(assessment_id: int) -> None:
                 db.commit()
             return
     finally:
-        db.close()
+        if db_or_none is None:
+            db.close()
 
 
 def _to_out(row: HeadCoachAssessment) -> schemas.AssessmentOut:
@@ -689,15 +706,10 @@ def get_status(db: Session) -> schemas.GenerateStatusOut:
     )
 
 
-def live_sources(db: Session) -> schemas.SourcesOut:
-    """The current bundle without calling the AI — transparency / debug view."""
-    return schemas.SourcesOut(sources=gather_bundle(db))
-
-
 # ------------------------------------------------- directive live progress
 # Plausible weekly ranges per metric. A model-filled value outside its range is
 # nonsense (e.g. "240 coach hours/week") → the metric tag is dropped and the
-# directive stays text-only. Defense-in-depth like the video clamps used to be.
+# directive stays text-only.
 _METRIC_RANGE = {
     "physical_sessions_per_week": (1, 7),
     "racket_hours_per_week": (1, 30),
@@ -824,37 +836,16 @@ _RECAP_H2H = 5
 
 
 def _period_label_vi(period_type: str, start: dt.date, end: dt.date) -> str:
-    days = _RECAP_WINDOW_DAYS.get(period_type, 0)
+    # period_type is validated against _RECAP_PERIODS before any row exists.
+    days = _RECAP_WINDOW_DAYS[period_type]
     return f"{days} NGÀY GẦN NHẤT ({start.isoformat()} → {end.isoformat()})"
-
-
-def _period_has_data(db: Session, start: dt.date, end: dt.date) -> bool:
-    """Whether anything was tracked inside the period (mirrors the sources of
-    tracker_service.earliest_data_date) — an empty period is never recapped."""
-    for model, col in (
-        (Activity, Activity.date),
-        (Match, Match.date),
-        (PhysicalCheck, PhysicalCheck.date),
-    ):
-        if db.query(model.id).filter(col >= start, col <= end).first() is not None:
-            return True
-    return (
-        db.query(TrainingSession.id)
-        .filter(
-            TrainingSession.status == "done",
-            TrainingSession.done_on >= start,
-            TrainingSession.done_on <= end,
-        )
-        .first()
-        is not None
-    )
 
 
 def _period_stats(
     db: Session, start: dt.date, end: dt.date, rep: "tracker_rating.ReplayResult"
 ) -> tuple:
-    """Code-computed snapshot for one period (+ the full StatsResponse so the
-    bundle can reuse it without querying twice)."""
+    """Code-computed snapshot for one period (+ the full StatsResponse and
+    the ELO breakdown, so the bundle can reuse both without querying twice)."""
     stats = tracker_service.build_stats(db, start, end)
     elo = tracker_service.build_rating_breakdown(
         db, start, end, unit="week", replay=rep, with_movers=False
@@ -869,8 +860,6 @@ def _period_stats(
         .count()
     )
     snapshot = schemas.RecapPeriodStats(
-        date_from=start,
-        date_to=end,
         days_trained=stats.days_trained,
         days_physical=stats.days_physical,
         minutes_total=stats.minutes_total,
@@ -884,7 +873,7 @@ def _period_stats(
         elo_counted=elo.counted,
         physical_sessions=physical_sessions,
     )
-    return snapshot, stats
+    return snapshot, stats, elo
 
 
 def gather_recap_bundle(
@@ -895,9 +884,11 @@ def gather_recap_bundle(
     rep: "tracker_rating.ReplayResult",
     stats: schemas.RecapStats,
     full_stats,
+    elo,
 ) -> dict:
     """The recap's inputs: the code-computed snapshot pair + in-period detail
-    (per-discipline/kind results, ELO buckets, h2h, notes, coach sessions)."""
+    (per-discipline/kind results, ELO buckets, h2h, notes, coach sessions).
+    `full_stats` / `elo` come from _period_stats — no recomputation here."""
     detail = tracker_service.build_match_stats(
         db, start, end, "all", "all", "week", replay=rep, form_seed=False
     )
@@ -909,22 +900,10 @@ def gather_recap_bundle(
             ).overall
         )
 
-    elo = tracker_service.build_rating_breakdown(
-        db, start, end, unit="week", replay=rep, with_movers=False
-    )
     top_h2h = sorted(detail.singles_h2h, key=lambda r: -r.played)[:_RECAP_H2H]
 
-    def _sn(n: SessionNote) -> dict:
-        tags = [t for t in (n.tags or "").split(",") if t]
-        return {
-            "date": n.date.isoformat(),
-            "kind": n.kind,
-            "text": n.text,
-            "tags": [tracker_service.SESSION_NOTE_TAG_LABELS.get(t, t) for t in tags],
-        }
-
     session_notes = [
-        _sn(n)
+        _session_note_dict(n, with_kind=True)
         for n in db.query(SessionNote)
         .filter(SessionNote.date >= start, SessionNote.date <= end)
         .order_by(SessionNote.date.asc(), SessionNote.id.asc())
@@ -936,10 +915,6 @@ def gather_recap_bundle(
         .filter(DayNote.date >= start, DayNote.date <= end)
         .order_by(DayNote.date.asc())
         .all()
-    ]
-    coach_notes = [
-        {"date": n.created_at.date().isoformat() if n.created_at else "", "text": n.text}
-        for n in db.query(CoachNote).order_by(CoachNote.created_at.asc()).all()
     ]
 
     return {
@@ -987,7 +962,7 @@ def gather_recap_bundle(
         ],
         "session_notes": session_notes,
         "day_notes": day_notes,
-        "coach_notes": coach_notes,
+        "coach_notes": _coach_note_dicts(db),
     }
 
 
@@ -1056,7 +1031,7 @@ def _recap_bundle_to_text(b: dict) -> str:
     elo_lines = ""
     if len(weekly) > 1:  # month recaps: show the week-by-week path
         parts = [
-            f"{w['from'][8:10]}/{w['from'][5:7]}–{w['to'][8:10]}/{w['to'][5:7]}: "
+            f"{_dm(w['from'])}–{_dm(w['to'])}: "
             f"{'+' if w['delta'] > 0 else ''}{w['delta']} ({w['counted']} trận, "
             f"cuối tuần {w['rating_end']})"
             for w in weekly
@@ -1175,14 +1150,8 @@ def get_recaps(db: Session, period_type: str) -> schemas.RecapsOut:
         .first()
     )
     return schemas.RecapsOut(
-        period_type=period_type,
         latest=_recap_to_out(latest_row) if latest_row is not None else None,
     )
-
-
-def get_recap(db: Session, recap_id: int) -> schemas.RecapOut | None:
-    row = db.get(HeadCoachRecap, recap_id)
-    return _recap_to_out(row) if row is not None else None
 
 
 def start_recap(
@@ -1206,7 +1175,7 @@ def start_recap(
     )
     if in_flight is not None:
         raise ValueError("A recap is already being generated — wait for it to finish")
-    if not _period_has_data(db, start, today):
+    if not tracker_service.has_data_between(db, start, today):
         raise ValueError(f"No logged data in the last {days} days — nothing to recap")
 
     row = (
@@ -1240,20 +1209,22 @@ def run_recap_job(recap_id: int, db_or_none: Session | None = None) -> None:
             return
         try:
             rep = tracker_rating.replay(db)
-            cur_snap, full_stats = _period_stats(db, row.period_start, row.period_end, rep)
+            cur_snap, full_stats, elo = _period_stats(
+                db, row.period_start, row.period_end, rep
+            )
             # The comparison window: the same number of days right before.
-            days = _RECAP_WINDOW_DAYS.get(row.period_type, 7)
+            days = _RECAP_WINDOW_DAYS[row.period_type]
             prev_end = row.period_start - dt.timedelta(days=1)
             prev_start = prev_end - dt.timedelta(days=days - 1)
             earliest = tracker_service.earliest_data_date(db)
             prev_snap = None
             if earliest is not None and prev_end >= earliest:
-                prev_snap, _ = _period_stats(db, prev_start, prev_end, rep)
+                prev_snap, _, _ = _period_stats(db, prev_start, prev_end, rep)
             stats = schemas.RecapStats(current=cur_snap, previous=prev_snap)
 
             bundle = gather_recap_bundle(
                 db, row.period_type, row.period_start, row.period_end,
-                rep, stats, full_stats,
+                rep, stats, full_stats, elo,
             )
             use_model = resolve_model()
             row.model = use_model
@@ -1443,9 +1414,9 @@ def run_chat_job(db_or_none: Session | None = None) -> None:
             bundle = gather_bundle(db)
             use_model = resolve_model()
             row.model = use_model
+
             def call() -> dict:
-                # Coerce non-dict JSON to {} — `data` is read after the try
-                # block, so it must always be a dict.
+                # Coerce non-dict JSON to {} so `data` is always a dict.
                 out = _call_chat_model(
                     _bundle_to_text(bundle),
                     history=_history_for_prompt(all_rows[:-1]),
@@ -1453,7 +1424,22 @@ def run_chat_job(db_or_none: Session | None = None) -> None:
                     model=use_model,
                 )
                 return out if isinstance(out, dict) else {}
+
             data = _call_with_empty_retry(call, "reply", "coach chat", use_model)
+
+            # Persistence stays inside the try (same rule as the verdict and
+            # recap jobs): a commit failure must mark the row `error` — a
+            # reply left `pending` forever blocks the chat input AND every
+            # new POST /chat (409) until a server restart.
+            row.content = (data.get("reply") or "").strip()
+            if not row.content:
+                row.status = "error"
+                row.error_msg = "Model trả về câu trả lời rỗng."
+            else:
+                row.status = "done"
+                row.error_msg = None
+                _save_new_notes(db, data.get("new_notes"))
+            db.commit()
         except Exception as exc:  # noqa: BLE001 — surfaced to the GUI via status
             log.exception("coach chat reply failed")
             db.rollback()
@@ -1468,15 +1454,6 @@ def run_chat_job(db_or_none: Session | None = None) -> None:
                 row.error_msg = str(exc)[:1000]
                 db.commit()
             return
-        row.content = (data.get("reply") or "").strip()
-        if not row.content:
-            row.status = "error"
-            row.error_msg = "Model trả về câu trả lời rỗng."
-        else:
-            row.status = "done"
-            row.error_msg = None
-            _save_new_notes(db, data.get("new_notes"))
-        db.commit()
     finally:
         if db_or_none is None:
             db.close()

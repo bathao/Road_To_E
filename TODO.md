@@ -18,9 +18,9 @@ scannable. Last full sync: 2026-07-29.
   (chosen 2026-07-27 from a backtest of 23 pre-anchor matches; kèo-selection
   suspected). Harness lives in the session scratchpad — recreate from
   PROGRESS.md 2026-07-27 notes if lost.
-- [ ] **Tournament ELO multiplier** (`t = 1.5`) is still a placeholder — no
-  tournament matches logged yet; revisit once real `tournament_match` rows
-  exist.
+- [ ] **Tournament ELO multiplier** (`t = 1.5`) is still a placeholder — the
+  first real tournament matches exist now (Homyland2, 2026-08-01, 4 matches)
+  but one event is far too little; revisit after several tournaments.
 
 ## Open — feature ideas (no blocker, just not built)
 

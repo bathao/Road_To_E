@@ -1,7 +1,10 @@
-// Bottom-of-page tournament manager: upcoming cards with countdown, a
-// collapsed add/edit form, and past tournaments capped at 3. Deliberately
-// NOT a results store — match results live in the grid above; a tournament
-// here is only "on day X I play discipline Y" so the Head Coach can plan.
+// Bottom-of-page tournament manager: UPCOMING cards with countdown + a
+// collapsed add/edit form. Deliberately NOT a results store — match results
+// live in the grid above; a tournament here is only "on day X I play
+// discipline Y" so the Head Coach can plan. Played tournaments left this
+// section 2026-08-01 (user request): entering results retires the card, and
+// the history lives in the Profile tab's Tournament Record (read-only —
+// editing/deleting a played tournament has no GUI path anymore).
 import { useState } from "react";
 import type {
   Player,
@@ -15,15 +18,7 @@ import { tournamentApi } from "../../api";
 import { useMutate } from "../../../../shared/useApi";
 import { prettyDate } from "../../../../shared/dates";
 import PlayerPicker from "../editors/PlayerPicker";
-import {
-  countdownText,
-  daysUntil,
-  entryLabel,
-  isPast,
-  PLACEMENT_LABEL,
-} from "./helpers";
-
-const PAST_PREVIEW = 3;
+import { countdownText, daysUntil, entryLabel, isPast } from "./helpers";
 
 // The fixed rank ladder (A strongest → I weakest). A tournament's limit is a
 // set of these; "Open" means explicitly unrestricted.
@@ -349,10 +344,11 @@ function TournamentCard({
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const past = isPast(t);
-  const urgent = !past && daysUntil(t) <= 7;
+  // Only upcoming cards render here — entering results retires a card to
+  // the Profile Tournament Record, so result/warning chips never apply.
+  const urgent = daysUntil(t) <= 7;
   return (
-    <div className={`tour-card${past ? " past" : ""}${urgent ? " urgent" : ""}`}>
+    <div className={`tour-card${urgent ? " urgent" : ""}`}>
       <div className="tour-card-head">
         <span className="tour-card-name">🏆 {t.name}</span>
         <span className="tour-card-count">{countdownText(t)}</span>
@@ -367,22 +363,8 @@ function TournamentCard({
           <span className="tour-chip tour-chip-limit">Level: {t.level_limit}</span>
         )}
         {t.entries.map((e) => (
-          <span
-            key={e.id}
-            className={`tour-chip${e.data_warning ? " tour-chip-gap" : ""}`}
-            title={e.data_warning ?? undefined}
-          >
+          <span key={e.id} className="tour-chip">
             {entryLabel(e)}
-            {e.final_placement && (
-              <b
-                className="tour-chip-result"
-                title="Derived from the tournament matches entered in the grid"
-              >
-                {PLACEMENT_LABEL[e.final_placement]}
-                {e.bonus_points ? ` +${e.bonus_points}` : ""}
-              </b>
-            )}
-            {e.data_warning && <b className="tour-chip-warn">⚠ {e.data_warning}</b>}
           </span>
         ))}
       </div>
@@ -416,11 +398,8 @@ export default function TournamentSection({
   const { run, error, busy, clearError } = useMutate();
   // null = form closed; "new" = adding; a Tournament = editing it.
   const [editing, setEditing] = useState<Tournament | "new" | null>(null);
-  const [showAllPast, setShowAllPast] = useState(false);
 
   const upcoming = tournaments.filter((t) => !isPast(t));
-  const past = tournaments.filter((t) => isPast(t));
-  const pastShown = showAllPast ? past : past.slice(0, PAST_PREVIEW);
 
   const save = async (d: Draft) => {
     const payload = toPayload(d);
@@ -485,27 +464,6 @@ export default function TournamentSection({
           />
         ))}
       </div>
-
-      {past.length > 0 && (
-        <>
-          <div className="tour-past-head">Played</div>
-          <div className="tour-cards">
-            {pastShown.map((t) => (
-              <TournamentCard
-                key={t.id}
-                t={t}
-                onEdit={() => setEditing(t)}
-                onDelete={() => remove(t.id)}
-              />
-            ))}
-          </div>
-          {past.length > PAST_PREVIEW && (
-            <button className="btn" onClick={() => setShowAllPast((v) => !v)}>
-              {showAllPast ? "Show less" : `Show all (${past.length})`}
-            </button>
-          )}
-        </>
-      )}
     </section>
   );
 }

@@ -259,15 +259,10 @@ export interface ActivityIn {
 // ---- tournaments (scheduling commitments; match results stay in the grid) ----
 export type TournamentDiscipline = "singles" | "doubles" | "team";
 
-// Final result of one entry, DERIVED by the backend from the entered
-// matches' rounds (never input). "third" = lost the SF (all bronze is
-// shared); "quarterfinal" = lost the QF, singles only.
-export type TournamentPlacement =
-  | "champion"
-  | "runner_up"
-  | "third"
-  | "quarterfinal";
-
+// Only the fields the Daily Tracker reads — the API also echoes derived
+// result fields (final_placement, bonus_points, data_warning), but those
+// are rendered exclusively by the Profile tab's Tournament Record, which
+// has its own mirror (tabs/match-stats/types.ts RecordEntryInfo).
 export interface TournamentEntry {
   id: number;
   discipline: TournamentDiscipline;
@@ -277,10 +272,6 @@ export interface TournamentEntry {
   teammate_names?: string[]; // resolved, same order as ids
   team_members?: string | null; // optional team name / note
   division?: string | null; // "hạng E", "U40"…
-  final_placement?: TournamentPlacement | null; // derived, read-only
-  bonus_points?: number | null; // ELO bonus the derived placement earned
-  // Data-gap warning: a knockout round was won but the next one is missing.
-  data_warning?: string | null;
 }
 
 export interface Tournament {
@@ -291,8 +282,9 @@ export interface Tournament {
   end_date?: string | null; // null = single-day
   level_limit?: string | null; // allowed ranks, free text ("E F G"…)
   note?: string | null;
-  // Ended before today OR results already entered — the GUI groups on this
-  // flag (upcoming vs Played), not on dates.
+  // Ended before today OR results already entered — the strip + section
+  // filter played tournaments OUT on this flag (history lives in the
+  // Profile tab's Tournament Record).
   played: boolean;
   entries: TournamentEntry[];
 }

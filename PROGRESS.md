@@ -1,6 +1,72 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-08-01, latest) — Profile "Tournament Record" section committed `58c63a4`
+## Current status (2026-08-01, latest) — project-wide review + cleanup after the feature churn (UNCOMMITTED)
+
+> **Whole-codebase review & cleanup (user request 2026-08-01 — "review tổng
+> thể, clean up & refactory"; two parallel review agents + verification,
+> everything below applied):**
+>   - **One real bug fixed:** run_chat_job persisted the reply OUTSIDE its
+>     try/except (unlike the verdict/recap jobs) — a commit failure would
+>     leave the row `pending` forever, blocking the chat input and 409-ing
+>     every new POST /chat until restart. Persistence moved inside the try.
+>   - **One visual bug fixed:** `.hc-note` was defined twice in
+>     head-coach.css (info banner vs notebook list item) — the later rule
+>     mangled the recap/verdict "generating…" banner. Notebook item renamed
+>     `.hc-note-item`.
+>   - **Dead code removed:** GET /head-coach/sources + live_sources +
+>     SourcesOut (zero consumers — the GUI reads AssessmentOut.sources);
+>     service.get_recap (route deleted with history browsing; tests now use
+>     get_recaps().latest); the tactics_json write in run_generate_job
+>     (RESPONSE_SCHEMA has no tactics key — read path kept for legacy rows);
+>     FE levelLabel, TournamentPlacement + result fields in the DT
+>     TournamentEntry mirror, .hc-recap-regen CSS, unreachable
+>     _RECAP_WINDOW_DAYS defaults.
+>   - **Deduplicated:** tournament _load_split() now the one loader behind
+>     list_tournaments + build_record (was 5 identical steps), played flag
+>     computed once (was re-derived via list membership); head_coach gained
+>     shared _dm/_session_note_dict/_coach_note_dicts (verdict + recap
+>     bundles built them separately), _period_stats returns the ELO
+>     breakdown so the recap no longer recomputes it, _period_has_data moved
+>     to tracker_service.has_data_between (single source-of-data-sources
+>     next to earliest_data_date); upcoming_for_coach's horizon `continue`
+>     → `break` (list is soonest-first).
+>   - **Coverage gap closed:** run_generate_job had NO test (recap/chat jobs
+>     did) — it now takes the same injected-session param and
+>     test_coach_verdict.py ×2 covers happy path (incl. directive sanitizer)
+>     + error path. 103/103 pytest.
+>   - **Schema/mirror hygiene:** RecapsOut.period_type,
+>     RecapPeriodStats.date_from/date_to (dup of RecapOut.period_start/end),
+>     RecordEntry.sets_won/sets_lost, RecordTournament.level_limit removed
+>     end-to-end; stale FE by_level key dropped; EntryOut.bonus_points is
+>     now actually RENDERED again (Tournament Record shows "🥇 Champion
+>     +35" — the display was lost with the Played cards).
+>   - **Stale docs/comments fixed:** README tab list rewritten (Match Stats
+>     + Profile were still listed as two tabs; Recaps/Coach & Recap row/
+>     Tournament Record added); dead HEAD_COACH_PLAN.md references, video-
+>     analysis mentions, "automatic closed-week/month recaps" comment, DT
+>     "groups upcoming vs Played" comment, coach empty-state advertising the
+>     retired technique/tactics tabs, test comments pointing at the removed
+>     DT chips. TODO.md: t=1.5 item notes the first real tournament matches
+>     now exist.
+>   - Verified end-to-end: 103/103 pytest, gen:api + tsc + build clean,
+>     deleted-name greps come back empty.
+
+## Earlier same day (2026-08-01) — Daily Tracker "Played" cards removed (UNCOMMITTED)
+
+> **"Played" group removed from the Daily Tracker Tournaments section (user
+> request 2026-08-01, right after `58c63a4`):** the Profile Tournament
+> Record now owns played-tournament history, so the dimmed 3-card preview +
+> "Show all" below the upcoming cards was duplication. TournamentSection
+> renders UPCOMING only; the card lost its result/warning chips (unreachable
+> — entering results retires the card before a result can exist), helpers'
+> countdownText lost the "played" branch, dead CSS purged (tour-past-head,
+> tour-card.past, tour-chip-result/gap/warn), PLACEMENT_LABEL re-export
+> dropped from DT helpers (Profile-only now).
+> **KNOWN TRADE-OFF (flagged to the user):** played tournaments no longer
+> have ANY Edit/Delete GUI — the Record is read-only. If a played tournament
+> ever needs fixing, add a small Edit path to the Record detail. Build clean.
+
+## Earlier same day (2026-08-01) — Profile "Tournament Record" section committed `58c63a4`
 
 > **Also removed same day (user request):** the Profile tab's "Results &
 > form" W/L-bars + rolling-form chart — "nhìn ko cần thiết"; ELO already

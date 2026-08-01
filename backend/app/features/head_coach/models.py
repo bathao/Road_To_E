@@ -1,10 +1,11 @@
-"""ORM model for the Head Coach tab.
+"""ORM models for the Head Coach tab.
 
-A single table holding generated verdict snapshots. The Head Coach does not
-collect data — these rows are the synthesised output, kept so the verdict is
-stable between page loads and so we have a history of how the assessment evolved.
-The heavy fields (priorities, directives, tactics, week plan, the raw source
-bundle) are stored as JSON text; the schemas layer parses them back out.
+Generated output snapshots (verdicts, recaps) + the chat and notebook. The
+Head Coach does not collect data — these rows are the synthesised output,
+kept so the GUI is stable between page loads. Heavy fields (priorities,
+directives, week plan, the raw source bundle) are stored as JSON text; the
+schemas layer parses them back out. `tactics_json` is legacy read-only —
+kept so pre-2026-07 verdict rows still parse.
 """
 from __future__ import annotations
 

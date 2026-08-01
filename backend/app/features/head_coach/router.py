@@ -34,12 +34,6 @@ def get_status(db: Session = Depends(get_db)):
     return service.get_status(db)
 
 
-@router.get("/sources", response_model=schemas.SourcesOut)
-def get_sources(db: Session = Depends(get_db)):
-    """The live source bundle without calling the AI (transparency view)."""
-    return service.live_sources(db)
-
-
 @router.get("/directive-progress", response_model=schemas.DirectiveProgressOut)
 def get_directive_progress(db: Session = Depends(get_db)):
     """This week's database actual vs each trackable directive's weekly target."""

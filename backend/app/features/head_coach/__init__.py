@@ -8,5 +8,6 @@ holistic verdict + a concrete, demanding plan via the local text model.
 No AI-derived technique ratings: the retired technique-analysis pipeline was
 model guesswork, so the coach reasons only over recorded results.
 
-See HEAD_COACH_PLAN.md for the design contract.
+Surfaces: the on-demand verdict (+ live directive progress), rolling 7/30-day
+recaps (button-only), grounded chat with an auto-written notebook.
 """

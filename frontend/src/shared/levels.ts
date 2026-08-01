@@ -4,17 +4,13 @@
 // has no points yet — never a statement about their skill.
 export type PlayerLevel = "below" | "equal" | "above" | "unrated";
 
-export const LEVELS: { key: PlayerLevel; label: string; short: string }[] = [
-  { key: "below", label: "Below me", short: "Below" },
-  { key: "equal", label: "Equal", short: "Equal" },
-  { key: "above", label: "Above me", short: "Above" },
-  { key: "unrated", label: "Unrated", short: "unranked" },
-];
+const SHORT: Record<PlayerLevel, string> = {
+  below: "Below",
+  equal: "Equal",
+  above: "Above",
+  unrated: "unranked",
+};
 
 export function levelShort(level: PlayerLevel | null | undefined): string {
-  return LEVELS.find((l) => l.key === level)?.short ?? "";
-}
-
-export function levelLabel(level: PlayerLevel | null | undefined): string {
-  return LEVELS.find((l) => l.key === level)?.label ?? "";
+  return level ? SHORT[level] ?? "" : "";
 }

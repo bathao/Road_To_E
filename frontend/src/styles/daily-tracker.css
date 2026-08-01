@@ -861,9 +861,6 @@
 .tour-card.urgent {
   border-color: #dc2626;
 }
-.tour-card.past {
-  opacity: 0.65;
-}
 .tour-card-head {
   display: flex;
   justify-content: space-between;
@@ -900,12 +897,6 @@
   gap: 8px;
   margin-top: 8px;
 }
-.tour-past-head {
-  font-weight: 600;
-  color: var(--muted);
-  margin: 10px 0 6px;
-}
-
 /* Add/edit form (collapsed behind the button). */
 .tour-form {
   border: 1px solid var(--border);
@@ -979,23 +970,8 @@
   border-color: #f59e0b;
 }
 
-/* Final result derived from the entered matches ("🥇 Champion +70"). */
-.tour-chip-result {
-  margin-left: 6px;
-  color: #b45309;
-}
-
-/* Data-gap warning: a knockout round was won but the next one is missing —
- * tournaments are entered after the fact, so this means forgotten matches. */
-.tour-chip-gap {
-  background: #fff1f2;
-  border-color: #e11d48;
-}
-.tour-chip-warn {
-  margin-left: 6px;
-  color: #be123c;
-  font-weight: 600;
-}
+/* (Result / data-gap chips left with the Played cards 2026-08-01 — played
+   tournaments now live in the Profile Tournament Record.) */
 
 /* Team-entry roster editor: pills + picker + optional team name. */
 .tour-team {

@@ -36,22 +36,28 @@ model; it falls back to `qwen3:14b` if not pulled — see
   - Physical Training → checklist, or auto-filled from the Training Center.
   - Match rows (Practice / Official / Tournament) → Singles / Doubles / 1v2 /
     2v1, BO3/5/7, score picker, opponents/partner from the player pool,
-    per-set handicap patterns, per-match ±ELO chip. No typing.
-  - Overall row → auto color; day notes; upcoming-tournament strip + section.
+    per-set handicap patterns, tournament link + round, per-match ±ELO chip.
+    No typing.
+  - Coach & Recap row → structured items per coach-session day (advice with
+    a done-lifecycle, numbered drills, session recaps) — feeds the AI coach.
+  - Overall row → auto color; day notes; upcoming-tournament strip + section
+    (entering a tournament's results retires its card — played history lives
+    in the Profile tab).
   - Analysis panel under the grid: comparison chart + ELO curve on the SAME
     day axis, stat cards with click-through to the exact matches behind each
     number; Excel/CSV export.
 - **🧠 Coach** — a strict Vietnamese head coach backed by a local LLM. Reads
   ONLY database facts (volume, matches with opponent context, ELO trend,
-  physical load, day notes, upcoming tournaments), issues a verdict +
-  measurable weekly directives (tracked live against real data) + a week
-  plan; grounded chat with an auto-written notebook.
-- **📊 Match Stats** — win rates by opponent level, trend over time,
-  head-to-head per opponent (singles + team formats), ELO-over-time section
-  (global, filter-independent).
+  physical load, day notes, real-life coach's advice, upcoming tournaments).
+  Two views: **Verdict** (holistic assessment + measurable weekly directives
+  tracked live against real data + a week plan) and **Recaps** (on-demand
+  review of the last 7 or 30 days vs the window before); grounded chat with
+  an auto-written notebook.
 - **🪪 Profile** — my dynamic ELO (the only dynamic rating: anchor + replay)
-  with the since-anchor curve, competitive record and training-discipline
-  snapshots over a selectable range.
+  with the since-anchor curve + per-match ELO table, win rates and
+  head-to-head per opponent, training snapshots over a selectable range, and
+  the Tournament Record (played tournaments: result reached, W-L, every
+  match — all derived from the grid).
 - **💪 Training Center** — knee-safe (grade-1 osteoarthritis) physical
   program: leveled day templates, workout player, progressive targets with
   pain/RPE autoregulation, weekly summary.

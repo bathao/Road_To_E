@@ -110,7 +110,6 @@ def test_record_entry_aggregates_and_matches(db):
     out = t_service.build_record(db)
     rec = out.tournaments[0].entries[0]
     assert rec.wins == 2 and rec.losses == 1
-    assert rec.sets_won == 7 and rec.sets_lost == 6
     assert rec.round_reached == "qf" and rec.reached_won is False
     assert rec.entry.final_placement == "quarterfinal"
     assert len(rec.matches) == 3
