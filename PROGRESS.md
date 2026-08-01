@@ -1,6 +1,6 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-08-01, latest) — Profile "Tournament Record" section (UNCOMMITTED)
+## Current status (2026-08-01, latest) — Profile "Tournament Record" section committed `58c63a4`
 
 > **Also removed same day (user request):** the Profile tab's "Results &
 > form" W/L-bars + rolling-form chart — "nhìn ko cần thiết"; ELO already
@@ -11,7 +11,7 @@
 
 > **🏅 Tournament Record in the Profile tab (user request + plan OK'd
 > 2026-08-01 — "không cần đếm tổng số huy chương, chỉ cần lịch sử + đi được
-> đến đâu"; UNCOMMITTED, needs start.bat restart):** read-only history of
+> đến đâu"; committed `58c63a4`, needs start.bat restart):** read-only history of
 > PAST tournaments — how far each entry got, its W-L, and every match behind
 > it. ALL derived from the Daily Tracker matches (tournament_entry_id +
 > round); nothing stored, no migration. NO medal tally (explicitly cut).
@@ -55,11 +55,11 @@
 >     missed today's writes): Homyland2 renders Doubles · Stopped at 1/8 ·
 >     2W-2L with all 4 matches + per-match ELO.
 
-## Earlier same day (2026-08-01) — Coach tab Recaps: rolling 7/30 days, button-only (UNCOMMITTED)
+## Earlier same day (2026-08-01) — Coach tab Recaps: rolling 7/30 days, button-only (committed `58c63a4`)
 
 > **Recaps view in the Coach tab (user request 2026-08-01, redesigned twice
-> the same day on user feedback — final shape below; UNCOMMITTED, needs
-> start.bat restart):** the AI coach reviews a ROLLING window ending the
+> the same day on user feedback — final shape below; committed `58c63a4`,
+> needs start.bat restart):** the AI coach reviews a ROLLING window ending the
 > moment the button is pressed — Week = last 7 days, Month = last 30 days,
 > compared against the same-length window right before it.
 >   - **Button-only, nothing automatic (user's final call):** original design
