@@ -1,6 +1,6 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-08-01, latest) — project-wide review + cleanup after the feature churn (UNCOMMITTED)
+## Current status (2026-08-01, latest) — project-wide review + cleanup after the feature churn (committed 11fe29d)
 
 > **Whole-codebase review & cleanup (user request 2026-08-01 — "review tổng
 > thể, clean up & refactory"; two parallel review agents + verification,
@@ -51,7 +51,7 @@
 >   - Verified end-to-end: 103/103 pytest, gen:api + tsc + build clean,
 >     deleted-name greps come back empty.
 
-## Earlier same day (2026-08-01) — Daily Tracker "Played" cards removed (UNCOMMITTED)
+## Earlier same day (2026-08-01) — Daily Tracker "Played" cards removed (committed 11fe29d)
 
 > **"Played" group removed from the Daily Tracker Tournaments section (user
 > request 2026-08-01, right after `58c63a4`):** the Profile Tournament
