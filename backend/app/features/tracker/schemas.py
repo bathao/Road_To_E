@@ -423,7 +423,9 @@ class OpponentBrief(BaseModel):
     id: int
     name: str
     level: str
+    points: int | None = None  # static BBTV points (None = not rated yet)
     played: int
+    is_new: bool = False  # first-ever match vs me falls inside the range
 
 
 class DoublesRecord(BaseModel):
@@ -474,6 +476,9 @@ class MatchStatsResponse(BaseModel):
     category: str  # all | practice | official | tournament
     unit: str  # month | week | day
     overall: MatchStats
+    # Opponents faced in range whom I had never faced before it (any match in
+    # history counts as "faced", either opponent slot, unfiltered).
+    new_opponents: int = 0
     opponents: list[OpponentBrief]  # for the head-to-head dropdown
     singles_h2h: list[OpponentRecord]
     doubles_h2h: list[DoublesRecord]

@@ -1509,6 +1509,29 @@ def _query_named_matches(
     return q.order_by(Match.date, Match.order_index).all()
 
 
+def _opponent_ids_in(db: Session, date_from: dt.date | None, date_to: dt.date | None) -> set[int]:
+    """Distinct named opponents (either slot) in playing matches within the
+    bounds (None = unbounded). Deliberately unfiltered — meeting someone in
+    doubles still counts as having met them."""
+    ids: set[int] = set()
+    for col in (Match.opponent_id, Match.opponent2_id):
+        q = db.query(col).filter(Match.is_nonplaying == False, col.isnot(None))  # noqa: E712
+        if date_from is not None:
+            q = q.filter(Match.date >= date_from)
+        if date_to is not None:
+            q = q.filter(Match.date <= date_to)
+        ids.update(row[0] for row in q.distinct())
+    return ids
+
+
+def count_new_opponents(db: Session, date_from: dt.date, date_to: dt.date) -> int:
+    """How many opponents faced in the window had never been faced before it
+    (the user's sparring goal: play people not yet in the history). The
+    "before" check spans the FULL history — no tab floor, no filters."""
+    faced = _opponent_ids_in(db, date_from, date_to)
+    return len(faced - _opponent_ids_in(db, None, date_from - dt.timedelta(days=1)))
+
+
 def _record_tail(rec: dict) -> dict:
     """The stat fields OpponentRecord and DoublesRecord share."""
     return {
@@ -1554,6 +1577,7 @@ def _h2h_accumulate(matches: list[Match], my_now: int) -> _H2HAcc:
                         "id": opp.id,
                         "name": opp.name,
                         "level": level_from_points(opp.points, my_now),
+                        "points": opp.points,
                         "played": 0,
                     }
                 b["played"] += 1
@@ -1735,6 +1759,15 @@ def build_match_stats(
     my_now = round((replay or rating.replay(db))[0])
 
     acc = _h2h_accumulate(matches, my_now)
+
+    # "New" = never faced before the range starts, in ANY match (full history,
+    # both opponent slots, ignoring the filters) — first met in doubles means
+    # not new when first playing them in singles. The in-range side follows
+    # the tab's filters, like every other number on the tab.
+    seen_before = _opponent_ids_in(db, None, date_from - dt.timedelta(days=1))
+    for oid, brief in acc.opp_brief.items():
+        brief["is_new"] = oid not in seen_before
+
     singles_list = sorted(
         (
             schemas.OpponentRecord(
@@ -1776,6 +1809,7 @@ def build_match_stats(
         category=category,
         unit=unit,
         overall=_finalize_match_stats(acc.overall),
+        new_opponents=sum(1 for b in acc.opp_brief.values() if b["is_new"]),
         opponents=opponents,
         singles_h2h=singles_list,
         doubles_h2h=doubles_list,

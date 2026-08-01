@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLoad } from "../../shared/useApi";
 import PeriodControl from "../../shared/ui/PeriodControl";
-import { startOfMonth, toIso } from "../../shared/dates";
+import { dmyDate, startOfMonth, toIso } from "../../shared/dates";
 import { DISCIPLINES, DISCIPLINE_LABEL } from "../../shared/disciplines";
 import type { Mode } from "../../shared/period";
 import { chartUnitFor, resolveRange, stepAnchor } from "../../shared/period";
@@ -38,6 +38,7 @@ export default function MatchStats() {
   const [category, setCategory] = useState<CategoryFilter>("all");
 
   const [selOpp, setSelOpp] = useState<number | "">(""); // head-to-head dropdown
+  const [showNew, setShowNew] = useState(false); // "New opponents" KPI drill-down
 
   const period = { mode, anchor, customFrom, customTo };
   const range = useMemo(
@@ -55,6 +56,7 @@ export default function MatchStats() {
   // side effect inside the loader — setState in a fetcher body is fragile).
   useEffect(() => {
     setSelOpp("");
+    setShowNew(false);
   }, [range.fromIso, range.toIso, discipline, category, unit]);
 
   // ELO over time — global, so it deliberately ignores the two filters.
@@ -71,6 +73,33 @@ export default function MatchStats() {
     [range.fromIso, range.toIso]
   );
   const { data: trainingReport } = useLoad(() => trainingApi.getReport(), []);
+
+  // Drill-down rows for the "New opponents" KPI — assembled from the h2h
+  // records already in the response (singles + any team-style matchup they
+  // appear in), so no extra endpoint. First met = earliest match in range,
+  // which for a NEW opponent is their first match ever.
+  const newOpps = useMemo(() => {
+    if (!data) return [];
+    return data.opponents
+      .filter((op) => op.is_new)
+      .map((op) => {
+        const singles = data.singles_h2h.find((r) => r.opponent_id === op.id);
+        const doubles = data.doubles_h2h.filter(
+          (d) => d.opp1_id === op.id || d.opp2_id === op.id
+        );
+        const recs = [...(singles ? [singles] : []), ...doubles];
+        const dates = recs.flatMap((r) => r.matches.map((m) => m.date));
+        return {
+          ...op,
+          wins: recs.reduce((s, r) => s + r.wins, 0),
+          losses: recs.reduce((s, r) => s + r.losses, 0),
+          firstDate: dates.length
+            ? dates.reduce((a, b) => (b < a ? b : a))
+            : null,
+        };
+      })
+      .sort((a, b) => (a.firstDate ?? "").localeCompare(b.firstDate ?? ""));
+  }, [data]);
 
   const o = data?.overall;
   const hasMatches = !!o && o.total > 0;
@@ -140,7 +169,64 @@ export default function MatchStats() {
             <span className="kpi-value accent">{pct(o!.win_rate)}</span>
             <span className="kpi-label">Win rate</span>
           </div>
+          <div
+            className={`kpi${data!.new_opponents > 0 ? " kpi-btn" : ""}`}
+            title="Opponents you had never faced before this range started (any match in history counts as faced). Click to see who."
+            onClick={() =>
+              data!.new_opponents > 0 && setShowNew((s) => !s)
+            }
+          >
+            <span className="kpi-value">{data!.new_opponents}</span>
+            <span className="kpi-label">
+              New opponents
+              {data!.new_opponents > 0 && (showNew ? " ▾" : " ▸")}
+            </span>
+          </div>
         </div>
+      )}
+
+      {/* "New opponents" drill-down: who they are, when first met, and the
+          record so far — click a row to open their full head-to-head below. */}
+      {hasMatches && showNew && newOpps.length > 0 && (
+        <section className="stats-card newopp-card">
+          <h3>🆕 New opponents in this range</h3>
+          <table className="newopp-table">
+            <thead>
+              <tr>
+                <th>Opponent</th>
+                <th>First met</th>
+                <th>Matches</th>
+                <th>W-L</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {newOpps.map((op) => (
+                <tr key={op.id}>
+                  <td>
+                    {op.name}
+                    {op.points != null && (
+                      <span className="newopp-pts"> · {op.points}</span>
+                    )}
+                  </td>
+                  <td>{op.firstDate ? dmyDate(op.firstDate) : "—"}</td>
+                  <td>{op.played}</td>
+                  <td>
+                    {op.wins}-{op.losses}
+                  </td>
+                  <td>
+                    <button
+                      className="btn newopp-h2h"
+                      onClick={() => setSelOpp(op.id)}
+                    >
+                      Head-to-head ↓
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
       )}
 
       {/* ELO curve row. (The "Results & form" W/L-bars chart was removed
@@ -170,6 +256,7 @@ export default function MatchStats() {
               {data!.opponents.map((op) => (
                 <option key={op.id} value={op.id}>
                   {op.name} · {levelShort(op.level)} · {op.played} matches
+                  {op.is_new ? " · NEW" : ""}
                 </option>
               ))}
             </select>

@@ -92,6 +92,12 @@ function StatsRow({ recap }: { recap: Recap }) {
         diff={prev ? cur.matches_played - prev.matches_played : undefined}
       />
       <Stat
+        label="New opponents"
+        value={String(cur.new_opponents)}
+        prev={prev ? String(prev.new_opponents) : undefined}
+        diff={prev ? cur.new_opponents - prev.new_opponents : undefined}
+      />
+      <Stat
         label="ELO"
         value={
           cur.elo_end != null

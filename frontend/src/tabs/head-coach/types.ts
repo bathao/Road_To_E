@@ -159,6 +159,7 @@ export interface RecapPeriodStats {
   matches_wins: number;
   matches_losses: number;
   win_rate: number | null;
+  new_opponents: number; // opponents never faced before this window
   elo_delta: number;
   elo_end: number | null; // null = period ends before the ELO anchor
   elo_counted: number;

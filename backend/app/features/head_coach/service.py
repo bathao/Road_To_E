@@ -872,6 +872,7 @@ def _period_stats(
         elo_end=elo.rating_end,
         elo_counted=elo.counted,
         physical_sessions=physical_sessions,
+        new_opponents=tracker_service.count_new_opponents(db, start, end),
     )
     return snapshot, stats, elo
 
@@ -1003,6 +1004,7 @@ def _snapshot_pair_lines(stats: dict) -> str:
         _pair("Tổng phút cầm vợt", "racket_minutes_total", "p"),
         f"- Trận đấu: {_matches(cur)}"
         + (f" (kỳ trước: {_matches(prev)})" if prev is not None else ""),
+        _pair("Đối thủ MỚI lần đầu gặp", "new_opponents"),
         f"- ELO: {_elo(cur)}" + (f" (kỳ trước: {_elo(prev)})" if prev is not None else ""),
     ]
     if prev is None:

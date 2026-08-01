@@ -136,6 +136,7 @@ class RecapPeriodStats(BaseModel):
     matches_wins: int = 0
     matches_losses: int = 0
     win_rate: float | None = None
+    new_opponents: int = 0  # opponents never faced before this window
     elo_delta: float = 0
     elo_end: int | None = None  # None = period ends before the ELO anchor
     elo_counted: int = 0

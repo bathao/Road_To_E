@@ -1,6 +1,56 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-08-01, latest) — project-wide review + cleanup after the feature churn (committed 11fe29d)
+## Current status (2026-08-01, latest) — "New opponents" stat (UNCOMMITTED)
+
+> **New-opponents stat (user goal 2026-08-01 — "cọ xát thi đấu với nhiều
+> người mới": count opponents faced in a range whom I had never faced
+> before it; plan OK'd, built same day):**
+>   - **Definition:** new = first-EVER match vs me falls inside the range.
+>     The "met before" check spans the FULL history (no MATCH_STATS_FLOOR
+>     clamp, no filters, both opponent slots — first met in doubles ≠ new
+>     when later playing them in singles). Partners don't count; unnamed
+>     opponents can't be identified so they don't count.
+>   - **Backend:** tracker `_opponent_ids_in(db, from, to)` +
+>     `count_new_opponents(db, from, to)`; `build_match_stats` sets
+>     `MatchStatsResponse.new_opponents` + `OpponentBrief.is_new` (in-range
+>     side follows the tab's discipline/category filters, like every other
+>     number there). Recap: `RecapPeriodStats.new_opponents` via
+>     `count_new_opponents` in `_period_stats` — the previous window counts
+>     its own new-vs-its-start, so the comparison is fair.
+>   - **Coach knows the goal:** RECAP_SYSTEM_PROMPT now states the sparring
+>     goal and tells the coach to praise a rising count / call out a window
+>     spent only on familiar opponents; `_snapshot_pair_lines` feeds the
+>     number ("Đối thủ MỚI lần đầu gặp", with kỳ trước pair).
+>   - **GUI:** Profile match KPIs get a 4th tile "New opponents" (tooltip
+>     explains the definition); the head-to-head dropdown options get a
+>     "· NEW" suffix; Recaps StatsRow gets a "New opponents" tile with the
+>     usual ▲/▼ prev diff (grid is auto-fill, no CSS change).
+>   - **Drill-down (user follow-up same day — "click vào có thể xem dc"):**
+>     the KPI tile toggles a table of the new opponents — name + static
+>     points (user follow-up: points, NOT the Equal/Below level chip;
+>     `OpponentBrief.points` added for this), first-met date, matches, W-L
+>     (assembled CLIENT-side from the h2h
+>     records already in the response, no new endpoint; for a new opponent,
+>     earliest in-range match = first ever). A "Head-to-head ↓" button per
+>     row selects them in the h2h section below. Tile shows ▸/▾ and is only
+>     clickable when the count > 0; drill-down resets on range/filter change.
+>   - **Real-data smoke:** Jul 1 → Aug 1: 29 of 37 opponents were new
+>     (Nguyễn Văn Trung 9 matches, Lợi Phạm 8, rest 1-2); last 7 days: 17.
+>     The sparring goal is visibly already happening. User verified the
+>     GUI same day (points needed a backend restart to show — new response
+>     field, as usual).
+>   - **Standing rule (memory'd):** every player in the DB has static
+>     points, maintained by the user — 87/87 verified. If a NULL ever shows
+>     up, report the name so the user assigns points; never treat "not
+>     rated" as a normal state.
+>   - **Tests (104 passing, +1):** test_match_stats
+>     `test_new_opponents_first_ever_meeting_only` (first-ever rule, opp2
+>     slot, filter narrowing, all-known window = 0, recap counter agrees);
+>     test_recap job test extended (Anna met in prev window → not new now,
+>     prev window's own count = 1).
+>   - Verified: 104/104 pytest, gen:api + tsc + vite build clean.
+
+## Earlier same day (2026-08-01) — project-wide review + cleanup after the feature churn (committed 11fe29d)
 
 > **Whole-codebase review & cleanup (user request 2026-08-01 — "review tổng
 > thể, clean up & refactory"; two parallel review agents + verification,

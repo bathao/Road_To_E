@@ -101,6 +101,46 @@ def test_build_match_stats_one_v_two_and_two_v_one(db):
     assert only.overall.total == 1 and only.overall.wins == 1
 
 
+def test_new_opponents_first_ever_meeting_only(db):
+    """new_opponents counts people whose FIRST-EVER match vs me falls in the
+    range: any earlier match disqualifies (even doubles / other filters),
+    both opponent slots count, and count_new_opponents (the recap path)
+    agrees with the tab."""
+    cat = category_id(db, "practice_match")
+    anna = Player(name="Anna", points=1250)   # met before the range
+    binh = Player(name="Binh", points=950)    # first met in range (opp2 slot)
+    cara = Player(name="Cara", points=700)    # first met in range
+    db.add_all([anna, binh, cara])
+    db.commit()
+
+    d = dt.date(2026, 7, 10)
+    old = _match(cat, dt.date(2026, 6, 5), 3, 1, opponent_id=anna.id)
+    dbl = _match(cat, d, 3, 1, opponent_id=anna.id)  # doubles: Anna + Binh
+    dbl.discipline = "doubles"
+    dbl.opponent2_id = binh.id
+    db.add_all([old, dbl, _match(cat, d + dt.timedelta(days=1), 1, 3, opponent_id=cara.id)])
+    db.commit()
+
+    res = service.build_match_stats(db, d, d + dt.timedelta(days=5))
+    assert res.new_opponents == 2  # Binh + Cara; Anna was met in June
+    assert {o.name for o in res.opponents if o.is_new} == {"Binh", "Cara"}
+    assert service.count_new_opponents(db, d, d + dt.timedelta(days=5)) == 2
+
+    # The singles filter narrows the in-range side (only Cara qualifies) but
+    # "met before" still spans the whole history: Anna stays not-new.
+    singles = service.build_match_stats(
+        db, d, d + dt.timedelta(days=5), discipline="singles"
+    )
+    assert singles.new_opponents == 1
+    assert {o.name for o in singles.opponents if o.is_new} == {"Cara"}
+
+    # A later range where everyone is already known → zero.
+    db.add(_match(cat, dt.date(2026, 7, 20), 3, 0, opponent_id=cara.id))
+    db.commit()
+    later = service.build_match_stats(db, dt.date(2026, 7, 20), dt.date(2026, 7, 25))
+    assert later.new_opponents == 0 and all(not o.is_new for o in later.opponents)
+
+
 def test_trend_form_is_rolling_not_per_day(db):
     """trend[].form = win rate of the last FORM_WINDOW decided matches ending
     at that bucket — not the bucket's own (noisy) win rate. It hides until

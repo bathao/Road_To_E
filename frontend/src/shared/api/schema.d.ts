@@ -1941,6 +1941,11 @@ export interface components {
             /** Unit */
             unit: string;
             overall: components["schemas"]["MatchStats"];
+            /**
+             * New Opponents
+             * @default 0
+             */
+            new_opponents: number;
             /** Opponents */
             opponents: components["schemas"]["OpponentBrief"][];
             /** Singles H2H */
@@ -2114,8 +2119,15 @@ export interface components {
             name: string;
             /** Level */
             level: string;
+            /** Points */
+            points?: number | null;
             /** Played */
             played: number;
+            /**
+             * Is New
+             * @default false
+             */
+            is_new: boolean;
         };
         /** OpponentRecord */
         OpponentRecord: {
@@ -2476,6 +2488,11 @@ export interface components {
             matches_losses: number;
             /** Win Rate */
             win_rate?: number | null;
+            /**
+             * New Opponents
+             * @default 0
+             */
+            new_opponents: number;
             /**
              * Elo Delta
              * @default 0

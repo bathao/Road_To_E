@@ -5,7 +5,7 @@ import datetime as dt
 
 from app.features.head_coach import service as hc_service
 from app.features.head_coach.models import HeadCoachRecap
-from app.features.tracker.models import Activity, Match
+from app.features.tracker.models import Activity, Match, Player
 
 from conftest import category_id
 
@@ -131,6 +131,27 @@ def test_run_recap_job_fills_row_and_stats(db, monkeypatch):
     _seed_day(db, TODAY, minutes=90, matches=3)  # 2W/1L, inside the window
     _seed_day(db, WEEK_START - dt.timedelta(days=1), minutes=999)  # just outside
 
+    # New-opponent counting: Anna first met in the PREVIOUS window and met
+    # again now (not new); Binh first met inside the current window (new).
+    anna = Player(name="Anna", points=950)
+    binh = Player(name="Binh", points=950)
+    db.add_all([anna, binh])
+    db.commit()
+    official = category_id(db, "official_match")
+
+    def _vs(day: dt.date, opponent_id: int) -> Match:
+        return Match(
+            date=day, category_id=official, my_sets=3, opp_sets=1,
+            opponent_id=opponent_id,
+        )
+
+    db.add_all([
+        _vs(WEEK_START - dt.timedelta(days=1), anna.id),  # previous window
+        _vs(TODAY, anna.id),
+        _vs(TODAY, binh.id),
+    ])
+    db.commit()
+
     out = hc_service.start_recap(db, "week", today=TODAY)
     hc_service.run_recap_job(out.id, db)
 
@@ -140,10 +161,15 @@ def test_run_recap_job_fills_row_and_stats(db, monkeypatch):
     assert rec.went_well == ["Đánh 2 trận"] and rec.focus_next == ["Thêm 1 buổi thể lực"]
     cur = rec.stats.current
     assert cur.minutes_total == 90  # the 999m day is outside the 7-day window
-    assert cur.matches_played == 3 and cur.matches_wins == 2 and cur.matches_losses == 1
+    # 3 unnamed (2W/1L) + the 2 named wins vs Anna and Binh.
+    assert cur.matches_played == 5 and cur.matches_wins == 4 and cur.matches_losses == 1
+    # Binh is new (first-ever meeting in the window); Anna was met the window
+    # before — where SHE was the new one.
+    assert cur.new_opponents == 1
     # The just-outside day falls in the PREVIOUS 7-day window.
     assert rec.stats.previous is not None
     assert rec.stats.previous.minutes_total == 999
+    assert rec.stats.previous.new_opponents == 1
 
 
 def test_run_recap_job_no_previous_before_first_data(db, monkeypatch):

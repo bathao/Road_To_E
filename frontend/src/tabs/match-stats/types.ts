@@ -37,7 +37,9 @@ export interface OpponentBrief {
   id: number;
   name: string;
   level: PlayerLevel;
+  points: number | null; // static BBTV points (null = not rated yet)
   played: number;
+  is_new: boolean; // first-ever match vs me falls inside the range
 }
 
 // A team-style matchup: doubles, 1v2 (me alone vs a pair) or 2v1
@@ -113,6 +115,9 @@ export interface MatchStatsResponse {
   category: CategoryFilter;
   unit: "month" | "week" | "day";
   overall: MatchStats;
+  // Opponents faced in range whom I had never faced before it (the sparring
+  // goal: play people not yet in the history).
+  new_opponents: number;
   opponents: OpponentBrief[];
   singles_h2h: OpponentRecord[];
   doubles_h2h: DoublesRecord[];
