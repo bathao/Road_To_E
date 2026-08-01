@@ -213,6 +213,67 @@
 
 .hc-meta { margin-top: 14px; color: #99a; font-size: 12px; }
 
+/* ------------------------------------------------- weekly / monthly recaps */
+
+.hc-view-seg { margin-bottom: 16px; }
+
+/* Window picker + Generate button, top-right of the Recaps view. */
+.hc-recap-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.hc-recap-period {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--accent-dark);
+  margin-bottom: 12px;
+}
+
+/* Code-computed numbers above the coach's text. */
+.hc-recap-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.hc-stat {
+  background: #fff;
+  border: 1px solid #e2e6ec;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.hc-stat-label { font-size: 11.5px; color: #778; }
+
+.hc-stat-value { font-weight: 700; font-size: 16px; margin: 2px 0; }
+
+.hc-stat-prev { font-size: 11.5px; color: #99a; }
+
+.hc-diff-up { color: #5fa83c; }
+
+.hc-diff-down { color: #c33; }
+
+.hc-recap-noprev { font-size: 12px; color: #99a; margin-bottom: 10px; }
+
+.hc-recap-list { margin: 0; padding-left: 20px; }
+
+.hc-recap-list li { margin-bottom: 6px; line-height: 1.5; }
+
+.hc-recap-regen {
+  border: none;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+  text-decoration: underline;
+}
+
 /* ------------------------------------------------------------ dev log panel */
 
 .hc-devlogs { margin-top: 18px; }

@@ -10,8 +10,8 @@ import { matchupOf } from "../../../shared/matches";
 import type { RatingBreakdown, RatingMover } from "../types";
 
 // The two ELO cards of the Match Stats tab, split so the layout can place
-// them independently (curve next to the trend chart, table next to the
-// head-to-head lookup). Both are GLOBAL — the rating ignores the tab's
+// them independently (curve on its own row, table next to the head-to-head
+// lookup). Both are GLOBAL — the rating ignores the tab's
 // discipline/category filters (a filtered "rating at end" would lie).
 
 // "ELO over time": the SAME rating curve the Daily Tracker Analysis draws

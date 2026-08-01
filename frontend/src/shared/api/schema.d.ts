@@ -879,6 +879,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/head-coach/recaps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Recaps
+         * @description The most recently generated recap of one window type — read-only.
+         *     Generation happens ONLY via POST /recaps/generate (explicit button).
+         */
+        get: operations["get_recaps_api_head_coach_recaps_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/head-coach/recaps/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate Recap
+         * @description Generate a recap of the window ending today (week = last 7 days,
+         *     month = last 30 days, results up to now). Returns status=`generating`;
+         *     poll GET /recaps until it leaves `generating`.
+         */
+        post: operations["generate_recap_api_head_coach_recaps_generate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/head-coach/chat": {
         parameters: {
             query?: never;
@@ -984,6 +1027,29 @@ export interface paths {
         put?: never;
         /** Create Tournament */
         post: operations["create_tournament_api_tournaments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tournaments/record": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Record
+         * @description Read-only history of PLAYED tournaments for the Profile tab (ended,
+         *     or with matches already entered — a same-day tournament shows up as soon
+         *     as its results go in): how far each entry got, its W-L record, and the
+         *     entered matches behind it — all derived, nothing stored.
+         */
+        get: operations["get_record_api_tournaments_record_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2320,6 +2386,154 @@ export interface components {
             /** Bonus Label */
             bonus_label?: string | null;
         };
+        /** RecapGenerateIn */
+        RecapGenerateIn: {
+            /** Period Type */
+            period_type: string;
+        };
+        /** RecapOut */
+        RecapOut: {
+            /** Id */
+            id: number;
+            /** Created At */
+            created_at?: string | null;
+            /**
+             * Model
+             * @default
+             */
+            model: string;
+            /**
+             * Status
+             * @default generating
+             */
+            status: string;
+            /** Error Msg */
+            error_msg?: string | null;
+            /** Period Type */
+            period_type: string;
+            /**
+             * Period Start
+             * Format: date
+             */
+            period_start: string;
+            /**
+             * Period End
+             * Format: date
+             */
+            period_end: string;
+            /**
+             * Headline
+             * @default
+             */
+            headline: string;
+            /**
+             * Overall
+             * @default
+             */
+            overall: string;
+            /**
+             * Went Well
+             * @default []
+             */
+            went_well: string[];
+            /**
+             * Concerns
+             * @default []
+             */
+            concerns: string[];
+            /**
+             * Focus Next
+             * @default []
+             */
+            focus_next: string[];
+            stats?: components["schemas"]["RecapStats"] | null;
+        };
+        /**
+         * RecapPeriodStats
+         * @description Code-computed numbers for one recap window (never from the LLM).
+         */
+        RecapPeriodStats: {
+            /**
+             * Date From
+             * Format: date
+             */
+            date_from: string;
+            /**
+             * Date To
+             * Format: date
+             */
+            date_to: string;
+            /**
+             * Days Trained
+             * @default 0
+             */
+            days_trained: number;
+            /**
+             * Days Physical
+             * @default 0
+             */
+            days_physical: number;
+            /**
+             * Physical Sessions
+             * @default 0
+             */
+            physical_sessions: number;
+            /**
+             * Minutes Total
+             * @default 0
+             */
+            minutes_total: number;
+            /**
+             * Racket Minutes Total
+             * @default 0
+             */
+            racket_minutes_total: number;
+            /**
+             * Matches Played
+             * @default 0
+             */
+            matches_played: number;
+            /**
+             * Matches Wins
+             * @default 0
+             */
+            matches_wins: number;
+            /**
+             * Matches Losses
+             * @default 0
+             */
+            matches_losses: number;
+            /** Win Rate */
+            win_rate?: number | null;
+            /**
+             * Elo Delta
+             * @default 0
+             */
+            elo_delta: number;
+            /** Elo End */
+            elo_end?: number | null;
+            /**
+             * Elo Counted
+             * @default 0
+             */
+            elo_counted: number;
+        };
+        /** RecapStats */
+        RecapStats: {
+            current: components["schemas"]["RecapPeriodStats"];
+            previous?: components["schemas"]["RecapPeriodStats"] | null;
+        };
+        /**
+         * RecapsOut
+         * @description Only the most recently generated recap is surfaced — the user
+         *     explicitly dropped history browsing AND auto-generation (2026-08-01):
+         *     recaps run only when the button is pressed.
+         */
+        RecapsOut: {
+            /** Period Type */
+            period_type: string;
+            latest?: components["schemas"]["RecapOut"] | null;
+        };
         /** RecentSession */
         RecentSession: {
             /**
@@ -2337,6 +2551,106 @@ export interface components {
             done_count: number;
             /** Total */
             total: number;
+        };
+        /**
+         * RecordEntry
+         * @description One entry's read-only record: how far it went + the matches behind it.
+         *     Everything is DERIVED from the Daily Tracker matches — nothing stored.
+         */
+        RecordEntry: {
+            entry: components["schemas"]["EntryOut"];
+            /** Round Reached */
+            round_reached?: string | null;
+            /**
+             * Reached Won
+             * @default false
+             */
+            reached_won: boolean;
+            /**
+             * Wins
+             * @default 0
+             */
+            wins: number;
+            /**
+             * Losses
+             * @default 0
+             */
+            losses: number;
+            /**
+             * Sets Won
+             * @default 0
+             */
+            sets_won: number;
+            /**
+             * Sets Lost
+             * @default 0
+             */
+            sets_lost: number;
+            /**
+             * Matches
+             * @default []
+             */
+            matches: components["schemas"]["RecordMatch"][];
+        };
+        /**
+         * RecordMatch
+         * @description One entered match of a tournament entry, in play order.
+         */
+        RecordMatch: {
+            /** Id */
+            id: number;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Round */
+            round?: string | null;
+            /** Discipline */
+            discipline: string;
+            /** Opponent Name */
+            opponent_name?: string | null;
+            /** Opponent2 Name */
+            opponent2_name?: string | null;
+            /** Partner Name */
+            partner_name?: string | null;
+            /**
+             * My Sets
+             * @default 0
+             */
+            my_sets: number;
+            /**
+             * Opp Sets
+             * @default 0
+             */
+            opp_sets: number;
+            /** Won */
+            won?: boolean | null;
+            /** Elo Delta */
+            elo_delta?: number | null;
+        };
+        /** RecordTournament */
+        RecordTournament: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Location */
+            location?: string | null;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /** End Date */
+            end_date?: string | null;
+            /** Level Limit */
+            level_limit?: string | null;
+            /**
+             * Entries
+             * @default []
+             */
+            entries: components["schemas"]["RecordEntry"][];
         };
         /** ReportOut */
         ReportOut: {
@@ -2717,10 +3031,23 @@ export interface components {
             /** Note */
             note?: string | null;
             /**
+             * Played
+             * @default false
+             */
+            played: boolean;
+            /**
              * Entries
              * @default []
              */
             entries: components["schemas"]["EntryOut"][];
+        };
+        /** TournamentRecordResponse */
+        TournamentRecordResponse: {
+            /**
+             * Tournaments
+             * @default []
+             */
+            tournaments: components["schemas"]["RecordTournament"][];
         };
         /** TournamentsResponse */
         TournamentsResponse: {
@@ -4185,6 +4512,70 @@ export interface operations {
             };
         };
     };
+    get_recaps_api_head_coach_recaps_get: {
+        parameters: {
+            query?: {
+                period?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecapsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_recap_api_head_coach_recaps_generate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecapGenerateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecapOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_chat_api_head_coach_chat_get: {
         parameters: {
             query?: never;
@@ -4391,6 +4782,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_record_api_tournaments_record_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TournamentRecordResponse"];
                 };
             };
         };

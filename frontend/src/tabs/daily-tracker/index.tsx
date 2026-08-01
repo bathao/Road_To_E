@@ -62,8 +62,10 @@ export default function DailyTracker() {
   const error = mutateError ?? loadError;
 
   // Tournaments: one load shared by the strip (top) and the section (bottom);
-  // section mutations push the fresh list back via setTournaments.
-  const { data: tournData, setData: setTournaments } =
+  // section mutations push the fresh list back via setTournaments. Grid
+  // mutations refetch it (afterMutate): entering a tournament's results
+  // flips its derived `played` flag / result chips immediately.
+  const { data: tournData, setData: setTournaments, reload: reloadTournaments } =
     useLoad<TournamentsResponse>(() => tournamentApi.list(), []);
   const tournaments = tournData?.tournaments ?? [];
   const tournRef = useRef<HTMLDivElement>(null);
@@ -87,6 +89,7 @@ export default function DailyTracker() {
   // the error banner instead of rejecting silently) ----
   const afterMutate = () => {
     reload();
+    reloadTournaments();
     setDataVersion((v) => v + 1);
   };
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import datetime as dt
 
-from sqlalchemy import DateTime, String, Text
+from sqlalchemy import Date, DateTime, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.base import Base
@@ -43,6 +43,42 @@ class HeadCoachAssessment(Base):
 
     # A compact snapshot of the inputs the verdict was built from (for the
     # "nguồn dữ liệu" transparency view + a freshness check on later loads).
+    sources_json: Mapped[str] = mapped_column(Text, default="{}")
+
+
+class HeadCoachRecap(Base):
+    """One generated recap — the coach's review of a ROLLING window ending
+    the day the button was pressed (week = last 7 days, month = last 30 days).
+
+    Generation is button-only (no auto-trigger — user's choice 2026-08-01).
+    One row per (period_type, start): pressing again the same day reuses that
+    day's row; a new day gets a new row. Only the newest is ever surfaced."""
+
+    __tablename__ = "hc_recap"
+    __table_args__ = (UniqueConstraint("period_type", "period_start"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow, index=True)
+    model: Mapped[str] = mapped_column(String, default="")
+    # generating → done | error (same polling contract as hc_assessment).
+    status: Mapped[str] = mapped_column(String, default="generating")
+    error_msg: Mapped[str | None] = mapped_column(Text, default=None)
+
+    period_type: Mapped[str] = mapped_column(String)  # week (7d) | month (30d)
+    period_start: Mapped[dt.date] = mapped_column(Date, index=True)
+    period_end: Mapped[dt.date] = mapped_column(Date)  # the button-press day
+
+    # LLM output (Vietnamese).
+    headline: Mapped[str] = mapped_column(Text, default="")
+    overall: Mapped[str] = mapped_column(Text, default="")
+    went_well_json: Mapped[str] = mapped_column(Text, default="[]")
+    concerns_json: Mapped[str] = mapped_column(Text, default="[]")
+    focus_next_json: Mapped[str] = mapped_column(Text, default="[]")
+
+    # Code-computed numbers shown above the coach's text (current + previous
+    # period) — never touched by the model, stays correct even if the LLM errs.
+    stats_json: Mapped[str] = mapped_column(Text, default="{}")
+    # The frozen input bundle (transparency, same idea as hc_assessment).
     sources_json: Mapped[str] = mapped_column(Text, default="{}")
 
 

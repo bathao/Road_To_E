@@ -128,6 +128,65 @@ class DirectiveProgressOut(BaseModel):
     items: list[DirectiveProgress] = []
 
 
+# ------------------------------------------------------- weekly/monthly recap
+class RecapPeriodStats(BaseModel):
+    """Code-computed numbers for one recap window (never from the LLM)."""
+
+    date_from: dt.date
+    date_to: dt.date
+    days_trained: int = 0
+    days_physical: int = 0
+    physical_sessions: int = 0  # completed Training Center sessions
+    minutes_total: int = 0
+    racket_minutes_total: int = 0
+    matches_played: int = 0
+    matches_wins: int = 0
+    matches_losses: int = 0
+    win_rate: float | None = None
+    elo_delta: float = 0
+    elo_end: int | None = None  # None = period ends before the ELO anchor
+    elo_counted: int = 0
+
+
+class RecapStats(BaseModel):
+    current: RecapPeriodStats
+    # None when the previous period predates all tracked data (showing zeros
+    # there would read as "did nothing" instead of "wasn't tracking yet").
+    previous: RecapPeriodStats | None = None
+
+
+class RecapOut(BaseModel):
+    id: int
+    created_at: dt.datetime | None = None
+    model: str = ""
+    status: str = "generating"  # generating | done | error
+    error_msg: str | None = None
+    period_type: str  # week = last 7 days | month = last 30 days
+    period_start: dt.date
+    period_end: dt.date  # the day the button was pressed
+    headline: str = ""
+    overall: str = ""
+    went_well: list[str] = []
+    concerns: list[str] = []
+    focus_next: list[str] = []
+    stats: RecapStats | None = None
+
+
+class RecapsOut(BaseModel):
+    """Only the most recently generated recap is surfaced — the user
+    explicitly dropped history browsing AND auto-generation (2026-08-01):
+    recaps run only when the button is pressed."""
+
+    period_type: str
+    # The newest generated recap of this window type (any status), or None
+    # when none has been generated yet.
+    latest: RecapOut | None = None
+
+
+class RecapGenerateIn(BaseModel):
+    period_type: str  # week (last 7 days) | month (last 30 days), ending today
+
+
 # ------------------------------------------------------------- coach chat
 class ChatMessageOut(BaseModel):
     id: int

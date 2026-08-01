@@ -34,6 +34,14 @@ scannable. Last full sync: 2026-07-29.
 
 ## Watch list (not actionable yet)
 
+- [ ] Homyland2 (2026-08-01) now shows in the Profile Tournament Record
+  (smoke-verified: Doubles · Stopped at 1/8 · 2W-2L, 4 matches + ELO) →
+  user to eyeball the card/detail in the GUI once.
+
+- [ ] First real Recap run (Coach tab → Recaps → Generate; rolling last
+  7/30 days ending at the button press) → check the Vietnamese output
+  quality and that the stats row + prev-window diffs read sane.
+
 - [ ] First tournament entered via the Daily Tracker → check the coach
   bundle's "đánh giải" split and the t=1.5 delta look sane.
 - [ ] First real Coach & Recap entries (advice + ticking done) → check the

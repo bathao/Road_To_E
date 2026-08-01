@@ -1,6 +1,117 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-07-31, latest) — Coach & Recap grid row committed `39e7b24`
+## Current status (2026-08-01, latest) — Profile "Tournament Record" section (UNCOMMITTED)
+
+> **Also removed same day (user request):** the Profile tab's "Results &
+> form" W/L-bars + rolling-form chart — "nhìn ko cần thiết"; ELO already
+> tells the story (the by-level bars went the same way 2026-07-29). Deleted
+> TrendChart.tsx + trend-* CSS + the section; the ELO curve now sits alone
+> on its row. Backend build_match_stats.trend stays (the coach bundle and
+> recaps read it). Build clean.
+
+> **🏅 Tournament Record in the Profile tab (user request + plan OK'd
+> 2026-08-01 — "không cần đếm tổng số huy chương, chỉ cần lịch sử + đi được
+> đến đâu"; UNCOMMITTED, needs start.bat restart):** read-only history of
+> PAST tournaments — how far each entry got, its W-L, and every match behind
+> it. ALL derived from the Daily Tracker matches (tournament_entry_id +
+> round); nothing stored, no migration. NO medal tally (explicitly cut).
+>   - **Layout (user, same day):** the card shows GENERAL INFO only (name,
+>     dates, location; per entry: label + result + W-L + ⚠ gap chip);
+>     clicking a tournament expands the detail listing every entered match
+>     (date, round, matchup, score W/L-colored, per-match ±ELO from one
+>     shared replay). Placed at the bottom of the Profile tab, rangeless —
+>     it deliberately ignores the PeriodControl (career record).
+>   - **Result label:** derived placement when the matches decide one
+>     (existing derive_placements → 🥇/🥈/🥉/Quarter-final), else the NEW
+>     rating.derive_round_reached(db) → "Group stage" / "Stopped at 1/16" /
+>     "Reached Semi-final" (won the deepest round = later rounds missing →
+>     rides with the existing data_warning ⚠). Round fallback "group" for
+>     matches saved without a round, same as the placement derivation.
+>   - **"Played" = results entered, not just date passed (user follow-up
+>     same day — "input xong kết quả thì tournament đó đồng nghĩa đã diễn
+>     ra"):** shared rule `_is_played` = ended BEFORE today OR ≥1 linked
+>     match. TournamentOut gains `played: bool`; the Daily Tracker groups
+>     its cards on that flag (FE isPast reads it) and afterMutate() now also
+>     refetches the tournament list — so the moment a same-day tournament's
+>     results go into the grid, its card drops out of upcoming into
+>     "Played", the coach's upcoming view stops listing it, and the Profile
+>     record shows it (fetches fresh on tab switch). A today tournament
+>     with NO results yet stays upcoming ("TODAY").
+>   - **Backend:** GET /api/tournaments/record → TournamentRecordResponse
+>     (played only, newest first; RecordTournament → RecordEntry{entry:
+>     EntryOut, round_reached, reached_won, wins/losses/sets, matches:
+>     [RecordMatch]}). tournament/service.build_record reuses
+>     derive_placements/warnings + one rating.replay for per-match deltas.
+>   - **FE:** TournamentRecord.tsx section in tabs/match-stats (bottom),
+>     trec-* CSS. PLACEMENT_LABEL + entryLabel moved to NEW
+>     shared/tournaments.ts (structurally typed; daily-tracker
+>     tournaments/helpers.ts re-exports them so the strip/section imports
+>     stay put). Upcoming-tournament UI in the Daily Tracker untouched.
+>   - 101/101 pytest (test_tournament_record.py ×7: round-reached
+>     derivation, played-only + newest-first, aggregates + match rows,
+>     no-matches entry, champion + gap warning, same-day flip incl. played
+>     flag + coach drop, API shape), gen:api + build clean. Smoke on
+>     real-DB copy (WAL files must be copied too — first smoke silently
+>     missed today's writes): Homyland2 renders Doubles · Stopped at 1/8 ·
+>     2W-2L with all 4 matches + per-match ELO.
+
+## Earlier same day (2026-08-01) — Coach tab Recaps: rolling 7/30 days, button-only (UNCOMMITTED)
+
+> **Recaps view in the Coach tab (user request 2026-08-01, redesigned twice
+> the same day on user feedback — final shape below; UNCOMMITTED, needs
+> start.bat restart):** the AI coach reviews a ROLLING window ending the
+> moment the button is pressed — Week = last 7 days, Month = last 30 days,
+> compared against the same-length window right before it.
+>   - **Button-only, nothing automatic (user's final call):** original design
+>     was closed calendar periods (Mon→Sun / 1st→last) + lazy auto-generation
+>     on first visit after the period ended, plus a browsable History list.
+>     User cut BOTH on first contact: "tuần cũ bỏ luôn, không có nhu cầu phân
+>     tích data cũ" and "Không auto generate, mỗi lần vô tab đó tôi bấm thì
+>     mới generate" — plus "tính luôn kết quả tới lúc bấm nút" → windows end
+>     TODAY, not at the last closed boundary. GET /recaps is now read-only
+>     (newest generated recap); POST /recaps/generate {period_type} is the
+>     only trigger (400 when the window has no data; one in-flight per type).
+>   - **Two-layer content:** a code-computed stats snapshot (active days,
+>     purposeful minutes, racket time, fitness sessions, matches W-L + win
+>     rate, ELO Δ + end — each vs the PREVIOUS same-length window with ▲/▼)
+>     rendered above the LLM text, so numbers stay correct even if the model
+>     errs. previous=None when the prior window predates all tracked data.
+>   - **Model (hc_recap, NEW table → zero migration):** one row per
+>     (period_type, period_start) UNIQUE — pressing again the same day reuses
+>     that day's row, a new day starts a new row; only the newest is ever
+>     surfaced (older rows stay in the DB, never listed, never deleted).
+>     status generating→done|error; stats_json (snapshot pair), recap fields
+>     (headline/overall/went_well/concerns/focus_next), sources_json (frozen
+>     bundle). recover_stuck_jobs also un-bricks generating recaps at startup;
+>     error rows never auto-retry (no Ollama-down loops) — Retry is a button.
+>   - **Bundle (range-scoped, reuses tracker services):** build_stats +
+>     build_rating_breakdown (weekly ELO buckets shown for 30-day recaps) +
+>     build_match_stats per kind (practice/official/tournament) + top-5
+>     in-window singles h2h + session notes (Coach & Recap row, kind-labeled)
+>     + day notes in window + the full coach notebook as context. Windows
+>     fully before the ELO anchor honestly say "chưa có ELO (trước mốc neo)".
+>   - **Prompt (RECAP_SYSTEM_PROMPT, Vietnamese):** same strict HLV Trưởng
+>     persona + rules (anh/tôi, chấp, 1v2/2v1, MẪU NHỎ, no invented
+>     technique, knee safety); recap-specific: compare vs the previous
+>     window, ±20 ELO over 7 days is noise, cross-check day notes (ốm/bận/đi
+>     công tác) before criticizing a light stretch. Schema: headline +
+>     overall + went_well[] + concerns[] + focus_next[] (next 7/30 days).
+>   - **FE:** Coach tab main column gains a Seg `🧠 Verdict | 📅 Recaps`
+>     (chat + notebook sidebar stays for both). Recaps view: Seg `Last 7
+>     days | Last 30 days` + primary Generate button (disabled + 3s polling
+>     while generating, same contract as the verdict), stat tiles with
+>     prev-window diffs, coach sections, Retry inside the error box. New
+>     CoachRecaps.tsx + hc-recap-* / hc-stat CSS.
+>   - **Leftover:** one hc_recap row from the auto-gen prototype (week
+>     2026-07-20→26, done) remains in the real DB — it displays as the last
+>     generated week recap until the first button press supersedes it.
+>   - 94/94 pytest (test_recap.py ×10: read-only GET, newest-surfaced,
+>     window math ends today, week/month independence, empty-window +
+>     in-flight validation, same-day press reuses the row, job stats incl.
+>     prev-window + outside-window exclusion, error path, crash recovery,
+>     API shape), gen:api + build clean.
+
+## Earlier (2026-07-31) — Coach & Recap grid row committed `39e7b24`
 
 > **New Daily Tracker row "Coach & Recap" 🧑‍🏫 (user request + plan OK'd
 > 2026-07-31, built same day, committed `39e7b24`, needs start.bat restart):**

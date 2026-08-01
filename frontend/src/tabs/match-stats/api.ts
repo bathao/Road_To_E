@@ -5,6 +5,7 @@ import type {
   MatchStatsResponse,
   MyRating,
   RatingBreakdown,
+  TournamentRecordResponse,
   TrackerStats,
 } from "./types";
 
@@ -36,4 +37,7 @@ export const matchStatsApi = {
   // Same endpoint as the Daily Tracker's aggregates (training discipline card).
   trainingStats: (fromIso: string, toIso: string) =>
     api.get<TrackerStats>(`/tracker/stats?from=${fromIso}&to=${toIso}`),
+  // Past-tournament history (rangeless) — derived from the linked matches.
+  tournamentRecord: () =>
+    api.get<TournamentRecordResponse>("/tournaments/record"),
 };

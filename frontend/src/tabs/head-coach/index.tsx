@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { headCoachApi } from "./api";
 import { useLoad, useMutate } from "../../shared/useApi";
+import Seg from "../../shared/ui/Seg";
 import CoachChat from "./components/CoachChat";
 import CoachNotes from "./components/CoachNotes";
+import CoachRecaps from "./components/CoachRecaps";
 import DevLogs from "./components/DevLogs";
 import { fmtTime } from "./fmt";
 import type { Assessment, Directive, DirectiveProgress, NotesOut } from "./types";
@@ -38,6 +40,9 @@ const METRIC_SCOPE: Record<string, string> = {
 };
 
 export default function HeadCoach() {
+  // Verdict = the on-demand holistic assessment; Recaps = the automatic
+  // closed-week/month reviews. Chat + notebook stay visible for both.
+  const [view, setView] = useState<"verdict" | "recaps">("verdict");
   const [generating, setGenerating] = useState(false);
   const {
     data,
@@ -136,6 +141,18 @@ export default function HeadCoach() {
   return (
     <div className="hc">
       <div className="hc-main">
+      <Seg<"verdict" | "recaps">
+        className="hc-view-seg"
+        options={[
+          ["verdict", "🧠 Verdict"],
+          ["recaps", "📅 Recaps"],
+        ]}
+        value={view}
+        onChange={setView}
+      />
+      {view === "recaps" && <CoachRecaps />}
+      {view === "verdict" && (
+      <>
       <div className="hc-top">
         <div>
           <h2 className="hc-title">🧠 Head Coach</h2>
@@ -292,6 +309,8 @@ export default function HeadCoach() {
         </>
       )}
       <DevLogs />
+      </>
+      )}
       </div>
 
       <aside className="hc-side">

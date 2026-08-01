@@ -118,3 +118,58 @@ export interface MatchStatsResponse {
   doubles_h2h: DoublesRecord[];
   trend: MatchTrendBucket[];
 }
+
+// ------------------------- Tournament Record (read-only history, rangeless)
+// Mirrors backend app/features/tournament/schemas.py (Record* models) —
+// everything DERIVED from the Daily Tracker matches, nothing stored.
+
+export interface RecordMatch {
+  id: number;
+  date: string;
+  round: string | null; // group|r64|…|f; null = saved without a round
+  discipline: string;
+  opponent_name: string | null;
+  opponent2_name: string | null;
+  partner_name: string | null;
+  my_sets: number;
+  opp_sets: number;
+  won: boolean | null; // null = no result entered
+  elo_delta: number | null; // null = not ELO-counted (e.g. pre-anchor)
+}
+
+export interface RecordEntryInfo {
+  id: number;
+  discipline: string;
+  partner_name: string | null;
+  teammate_names: string[];
+  team_members: string | null;
+  division: string | null;
+  final_placement: string | null;
+  bonus_points: number | null;
+  data_warning: string | null;
+}
+
+export interface RecordEntry {
+  entry: RecordEntryInfo;
+  round_reached: string | null; // deepest decided round; null = no matches
+  reached_won: boolean;
+  wins: number;
+  losses: number;
+  sets_won: number;
+  sets_lost: number;
+  matches: RecordMatch[];
+}
+
+export interface RecordTournament {
+  id: number;
+  name: string;
+  location: string | null;
+  start_date: string;
+  end_date: string | null;
+  level_limit: string | null;
+  entries: RecordEntry[];
+}
+
+export interface TournamentRecordResponse {
+  tournaments: RecordTournament[];
+}

@@ -59,6 +59,11 @@ class TournamentOut(BaseModel):
     end_date: dt.date | None = None
     level_limit: str | None = None
     note: str | None = None
+    # Ended before today OR results already entered (linked matches exist) —
+    # entering a same-day tournament's results retires it immediately: the
+    # Daily Tracker moves it to "Played" and the Profile record picks it up
+    # (user 2026-08-01). The GUI groups on this flag, not on dates.
+    played: bool = False
     entries: list[EntryOut] = []
 
 
@@ -66,3 +71,52 @@ class TournamentsResponse(BaseModel):
     # Every tournament, upcoming first (soonest start date on top), then past
     # (most recent first). The GUI derives countdown/past locally.
     tournaments: list[TournamentOut] = []
+
+
+# --------------------------------------------- tournament record (Profile tab)
+class RecordMatch(BaseModel):
+    """One entered match of a tournament entry, in play order."""
+
+    id: int
+    date: dt.date
+    round: str | None = None  # group|r64|…|f; None = saved without a round
+    discipline: str
+    opponent_name: str | None = None
+    opponent2_name: str | None = None
+    partner_name: str | None = None
+    my_sets: int = 0
+    opp_sets: int = 0
+    won: bool | None = None  # None = no result entered (0-0 / tie)
+    elo_delta: float | None = None  # None = not ELO-counted (e.g. pre-anchor)
+
+
+class RecordEntry(BaseModel):
+    """One entry's read-only record: how far it went + the matches behind it.
+    Everything is DERIVED from the Daily Tracker matches — nothing stored."""
+
+    entry: EntryOut  # carries the derived final_placement / data_warning
+    # Deepest DECIDED round entered (group|r64|…|f); None = no matches yet.
+    round_reached: str | None = None
+    # Won that deepest match (true + no placement = later rounds missing —
+    # entry.data_warning says so).
+    reached_won: bool = False
+    wins: int = 0
+    losses: int = 0
+    sets_won: int = 0
+    sets_lost: int = 0
+    matches: list[RecordMatch] = []
+
+
+class RecordTournament(BaseModel):
+    id: int
+    name: str
+    location: str | None = None
+    start_date: dt.date
+    end_date: dt.date | None = None
+    level_limit: str | None = None
+    entries: list[RecordEntry] = []
+
+
+class TournamentRecordResponse(BaseModel):
+    # Past tournaments only, newest first — the Profile tab's history view.
+    tournaments: list[RecordTournament] = []

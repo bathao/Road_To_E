@@ -16,6 +16,15 @@ def list_tournaments(db: Session = Depends(get_db)):
     return service.list_tournaments(db)
 
 
+@router.get("/record", response_model=schemas.TournamentRecordResponse)
+def get_record(db: Session = Depends(get_db)):
+    """Read-only history of PLAYED tournaments for the Profile tab (ended,
+    or with matches already entered — a same-day tournament shows up as soon
+    as its results go in): how far each entry got, its W-L record, and the
+    entered matches behind it — all derived, nothing stored."""
+    return service.build_record(db)
+
+
 @router.post("", response_model=schemas.TournamentsResponse)
 def create_tournament(payload: schemas.TournamentIn, db: Session = Depends(get_db)):
     return service.create_tournament(db, payload)

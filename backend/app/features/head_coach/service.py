@@ -20,17 +20,24 @@ from sqlalchemy.orm import Session
 from app.core.db import SessionLocal
 from app.core.settings import HEAD_COACH_MODEL, OLLAMA_BASE_URL, TEXT_MODEL
 from app.features.head_coach import schemas
-from app.features.head_coach.models import CoachChatMessage, CoachNote, HeadCoachAssessment
+from app.features.head_coach.models import (
+    CoachChatMessage,
+    CoachNote,
+    HeadCoachAssessment,
+    HeadCoachRecap,
+)
 from app.features.head_coach.prompt import (
     CHAT_RESPONSE_SCHEMA,
     CHAT_SYSTEM_PROMPT,
+    RECAP_RESPONSE_SCHEMA,
+    RECAP_SYSTEM_PROMPT,
     RESPONSE_SCHEMA,
     SYSTEM_PROMPT,
 )
 from app.features.tournament import service as tournament_service
 from app.features.tracker import rating as tracker_rating
 from app.features.tracker import service as tracker_service
-from app.features.tracker.models import DayNote, SessionNote
+from app.features.tracker.models import Activity, DayNote, Match, PhysicalCheck, SessionNote
 from app.features.training import service as training_service
 from app.features.training.models import TrainingSession
 
@@ -554,13 +561,19 @@ def recover_stuck_jobs(db: Session) -> None:
         .filter(CoachChatMessage.status == "pending")
         .all()
     )
-    for row in stuck_rows + stuck_chats:
+    stuck_recaps = (
+        db.query(HeadCoachRecap)
+        .filter(HeadCoachRecap.status == "generating")
+        .all()
+    )
+    for row in stuck_rows + stuck_chats + stuck_recaps:
         row.status = "error"
         row.error_msg = msg
-    if stuck_rows or stuck_chats:
+    if stuck_rows or stuck_chats or stuck_recaps:
         log.warning(
-            "head coach: recovered %d stuck assessment(s) + %d stuck chat row(s)",
-            len(stuck_rows), len(stuck_chats),
+            "head coach: recovered %d stuck assessment(s) + %d stuck chat row(s)"
+            " + %d stuck recap(s)",
+            len(stuck_rows), len(stuck_chats), len(stuck_recaps),
         )
         db.commit()
 
@@ -796,6 +809,492 @@ def directive_progress(db: Session) -> schemas.DirectiveProgressOut:
     return schemas.DirectiveProgressOut(
         assessment_id=latest.id, week_start=week_start, items=items
     )
+
+
+# ------------------------------------------------------- weekly/monthly recap
+# The recap looks back over a ROLLING window ending TODAY — week = the last
+# 7 days, month = the last 30 days, results up to the moment the button is
+# pressed (redesigned 2026-08-01; the original closed-calendar-period +
+# lazy-auto-generate version was cut on first contact — the user wants an
+# explicit button, exactly like the verdict's Re-analyze).
+_RECAP_PERIODS = ("week", "month")
+_RECAP_WINDOW_DAYS = {"week": 7, "month": 30}
+# Most-played in-period head-to-heads fed to the recap prompt.
+_RECAP_H2H = 5
+
+
+def _period_label_vi(period_type: str, start: dt.date, end: dt.date) -> str:
+    days = _RECAP_WINDOW_DAYS.get(period_type, 0)
+    return f"{days} NGÀY GẦN NHẤT ({start.isoformat()} → {end.isoformat()})"
+
+
+def _period_has_data(db: Session, start: dt.date, end: dt.date) -> bool:
+    """Whether anything was tracked inside the period (mirrors the sources of
+    tracker_service.earliest_data_date) — an empty period is never recapped."""
+    for model, col in (
+        (Activity, Activity.date),
+        (Match, Match.date),
+        (PhysicalCheck, PhysicalCheck.date),
+    ):
+        if db.query(model.id).filter(col >= start, col <= end).first() is not None:
+            return True
+    return (
+        db.query(TrainingSession.id)
+        .filter(
+            TrainingSession.status == "done",
+            TrainingSession.done_on >= start,
+            TrainingSession.done_on <= end,
+        )
+        .first()
+        is not None
+    )
+
+
+def _period_stats(
+    db: Session, start: dt.date, end: dt.date, rep: "tracker_rating.ReplayResult"
+) -> tuple:
+    """Code-computed snapshot for one period (+ the full StatsResponse so the
+    bundle can reuse it without querying twice)."""
+    stats = tracker_service.build_stats(db, start, end)
+    elo = tracker_service.build_rating_breakdown(
+        db, start, end, unit="week", replay=rep, with_movers=False
+    )
+    physical_sessions = (
+        db.query(TrainingSession)
+        .filter(
+            TrainingSession.status == "done",
+            TrainingSession.done_on >= start,
+            TrainingSession.done_on <= end,
+        )
+        .count()
+    )
+    snapshot = schemas.RecapPeriodStats(
+        date_from=start,
+        date_to=end,
+        days_trained=stats.days_trained,
+        days_physical=stats.days_physical,
+        minutes_total=stats.minutes_total,
+        racket_minutes_total=stats.racket_minutes_total,
+        matches_played=stats.overall.total,
+        matches_wins=stats.overall.wins,
+        matches_losses=stats.overall.losses,
+        win_rate=stats.overall.win_rate,
+        elo_delta=elo.total_delta,
+        elo_end=elo.rating_end,
+        elo_counted=elo.counted,
+        physical_sessions=physical_sessions,
+    )
+    return snapshot, stats
+
+
+def gather_recap_bundle(
+    db: Session,
+    period_type: str,
+    start: dt.date,
+    end: dt.date,
+    rep: "tracker_rating.ReplayResult",
+    stats: schemas.RecapStats,
+    full_stats,
+) -> dict:
+    """The recap's inputs: the code-computed snapshot pair + in-period detail
+    (per-discipline/kind results, ELO buckets, h2h, notes, coach sessions)."""
+    detail = tracker_service.build_match_stats(
+        db, start, end, "all", "all", "week", replay=rep, form_seed=False
+    )
+
+    def _kind(category: str) -> dict:
+        return _ms(
+            tracker_service.build_match_stats(
+                db, start, end, "all", category, "week", replay=rep, form_seed=False
+            ).overall
+        )
+
+    elo = tracker_service.build_rating_breakdown(
+        db, start, end, unit="week", replay=rep, with_movers=False
+    )
+    top_h2h = sorted(detail.singles_h2h, key=lambda r: -r.played)[:_RECAP_H2H]
+
+    def _sn(n: SessionNote) -> dict:
+        tags = [t for t in (n.tags or "").split(",") if t]
+        return {
+            "date": n.date.isoformat(),
+            "kind": n.kind,
+            "text": n.text,
+            "tags": [tracker_service.SESSION_NOTE_TAG_LABELS.get(t, t) for t in tags],
+        }
+
+    session_notes = [
+        _sn(n)
+        for n in db.query(SessionNote)
+        .filter(SessionNote.date >= start, SessionNote.date <= end)
+        .order_by(SessionNote.date.asc(), SessionNote.id.asc())
+        .all()
+    ]
+    day_notes = [
+        {"date": n.date.isoformat(), "text": n.text}
+        for n in db.query(DayNote)
+        .filter(DayNote.date >= start, DayNote.date <= end)
+        .order_by(DayNote.date.asc())
+        .all()
+    ]
+    coach_notes = [
+        {"date": n.created_at.date().isoformat() if n.created_at else "", "text": n.text}
+        for n in db.query(CoachNote).order_by(CoachNote.created_at.asc()).all()
+    ]
+
+    return {
+        "player": _player_name(db),
+        "period_type": period_type,
+        "period_start": start.isoformat(),
+        "period_end": end.isoformat(),
+        "stats": stats.model_dump(mode="json"),
+        "results": {
+            "singles": _ms(full_stats.singles),
+            "doubles": _ms(full_stats.doubles),
+            "one_v_two": _ms(full_stats.one_v_two),
+            "two_v_one": _ms(full_stats.two_v_one),
+            "vs_pips": _ms(full_stats.vs_pips),
+            "overall": _ms(full_stats.overall),
+        },
+        "by_kind": {
+            "practice": _kind("practice"),
+            "official": _kind("official"),
+            "tournament": _kind("tournament"),
+        },
+        "minutes_by_category": {
+            c.label: c.minutes for c in full_stats.minutes_by_category
+        },
+        "elo_weekly": [
+            {
+                "from": b.date_from.isoformat(),
+                "to": b.date_to.isoformat(),
+                "delta": b.delta,
+                "counted": b.counted,
+                "rating_end": b.rating_end,
+            }
+            for b in elo.buckets
+            if b.rating_end is not None
+        ],
+        "top_h2h": [
+            {
+                "name": r.name,
+                "level": r.level,
+                "played": r.played,
+                "wins": r.wins,
+                "losses": r.losses,
+            }
+            for r in top_h2h
+        ],
+        "session_notes": session_notes,
+        "day_notes": day_notes,
+        "coach_notes": coach_notes,
+    }
+
+
+def _snapshot_pair_lines(stats: dict) -> str:
+    """Render the current-vs-previous snapshot for the prompt — every number
+    computed by code; the model only compares."""
+    cur = stats.get("current") or {}
+    prev = stats.get("previous")
+
+    def _pair(label: str, key: str, unit: str = "") -> str:
+        line = f"- {label}: {cur.get(key, 0)}{unit}"
+        if prev is not None:
+            line += f" (kỳ trước: {prev.get(key, 0)}{unit})"
+        return line
+
+    def _elo(d: dict) -> str:
+        if d.get("elo_end") is None:
+            return "chưa có ELO (trước mốc neo)"
+        delta = d.get("elo_delta", 0)
+        return (
+            f"{'+' if delta > 0 else ''}{delta} điểm "
+            f"({d.get('elo_counted', 0)} trận tính điểm, cuối kỳ {d.get('elo_end')})"
+        )
+
+    def _matches(d: dict) -> str:
+        wr = d.get("win_rate")
+        wr_s = f"{round(wr * 100)}%" if wr is not None else "—"
+        return (
+            f"{d.get('matches_played', 0)} trận "
+            f"(T{d.get('matches_wins', 0)}/B{d.get('matches_losses', 0)}, thắng {wr_s})"
+        )
+
+    lines = [
+        _pair("Số ngày có hoạt động", "days_trained"),
+        _pair("Ngày thể lực", "days_physical"),
+        _pair("Buổi thể lực hoàn thành (Training Center)", "physical_sessions"),
+        _pair("Phút tập có chủ đích", "minutes_total", "p"),
+        _pair("Tổng phút cầm vợt", "racket_minutes_total", "p"),
+        f"- Trận đấu: {_matches(cur)}"
+        + (f" (kỳ trước: {_matches(prev)})" if prev is not None else ""),
+        f"- ELO: {_elo(cur)}" + (f" (kỳ trước: {_elo(prev)})" if prev is not None else ""),
+    ]
+    if prev is None:
+        lines.append("(Kỳ liền trước chưa có dữ liệu theo dõi — không so sánh được.)")
+    return "\n".join(lines)
+
+
+_SN_KIND_VI = {"advice": "HLV dặn", "drill": "Bài tập", "recap": "Recap buổi tập"}
+
+
+def _recap_bundle_to_text(b: dict) -> str:
+    """Render the recap bundle into the Vietnamese context block."""
+    label = _period_label_vi(
+        b["period_type"],
+        dt.date.fromisoformat(b["period_start"]),
+        dt.date.fromisoformat(b["period_end"]),
+    )
+    r = b.get("results", {})
+    k = b.get("by_kind", {})
+
+    minutes_cat = "; ".join(
+        f"{cat}: {v_}p" for cat, v_ in b.get("minutes_by_category", {}).items()
+    ) or "—"
+
+    weekly = b.get("elo_weekly") or []
+    elo_lines = ""
+    if len(weekly) > 1:  # month recaps: show the week-by-week path
+        parts = [
+            f"{w['from'][8:10]}/{w['from'][5:7]}–{w['to'][8:10]}/{w['to'][5:7]}: "
+            f"{'+' if w['delta'] > 0 else ''}{w['delta']} ({w['counted']} trận, "
+            f"cuối tuần {w['rating_end']})"
+            for w in weekly
+        ]
+        elo_lines = "Diễn biến ELO theo tuần trong kỳ: " + " · ".join(parts) + "\n"
+
+    h2h_lines = "\n".join(
+        f"  - {p['name']} ({_LEVEL_VI.get(p['level'], p['level'])}): "
+        f"{p['played']} trận (T{p['wins']}/B{p['losses']})"
+        for p in b.get("top_h2h", [])
+    ) or "  (không có trận đơn có tên đối thủ trong kỳ)"
+
+    def _sn_line(n: dict) -> str:
+        tag_s = f" [{', '.join(n['tags'])}]" if n.get("tags") else ""
+        kind = _SN_KIND_VI.get(n.get("kind", ""), n.get("kind", ""))
+        return f"  - {n['date']} · {kind}{tag_s}: {n['text']}"
+
+    sn_lines = "\n".join(_sn_line(n) for n in b.get("session_notes", [])) or (
+        "  (không có buổi tập với HLV trực tiếp trong kỳ)"
+    )
+    note_lines = "\n".join(
+        f"  - {n['date']}: {n['text']}" for n in b.get("day_notes", [])
+    ) or "  (không có ghi chú)"
+    coach_note_lines = "\n".join(
+        f"  - {n['date']}: {n['text']}" for n in b.get("coach_notes", [])
+    ) or "  (sổ tay trống)"
+
+    return (
+        f"Vận động viên: {b.get('player')}.\n"
+        f"KỲ TỔNG KẾT: {label}.\n\n"
+        f"=== SỐ LIỆU KỲ NÀY (so với KỲ LIỀN TRƯỚC) ===\n"
+        f"{_snapshot_pair_lines(b.get('stats', {}))}\n"
+        f"Phút tập theo hạng mục (kỳ này): {minutes_cat}\n\n"
+        f"=== KẾT QUẢ THI ĐẤU TRONG KỲ ===\n"
+        f"Đơn: {_wr(r.get('singles', {}))}\n"
+        f"Đôi: {_wr(r.get('doubles', {}))}\n"
+        f"1v2 (học trò đánh 1 MÌNH vs 2 người): {_wr(r.get('one_v_two', {}))}\n"
+        f"2v1 (học trò + đồng đội vs 1 người): {_wr(r.get('two_v_one', {}))}\n"
+        f"Gặp đối thủ đánh gai: {_wr(r.get('vs_pips', {}))}\n"
+        f"Tổng các trận: {_wr(r.get('overall', {}))}\n"
+        f"THEO LOẠI TRẬN: đánh chơi (tập) {_wr(k.get('practice', {}))} · "
+        f"đánh độ nhẹ {_wr(k.get('official', {}))} · "
+        f"đánh giải (tournament) {_wr(k.get('tournament', {}))}\n"
+        f"{elo_lines}"
+        f"Đối đầu nhiều nhất trong kỳ (đơn):\n{h2h_lines}\n\n"
+        f"=== HLV TRỰC TIẾP TRONG KỲ (lời dặn / bài tập / recap học trò ghi lại) ===\n"
+        f"{sn_lines}\n\n"
+        f"=== GHI CHÚ HẰNG NGÀY CỦA HỌC TRÒ TRONG KỲ ===\n"
+        f"{note_lines}\n\n"
+        f"=== SỔ TAY HLV (mục tiêu/ràng buộc đã chốt — bối cảnh, có thể ngoài kỳ) ===\n"
+        f"{coach_note_lines}\n"
+    )
+
+
+def _call_recap_model(
+    context_text: str, player_name: str, period_type: str, model: str
+) -> dict:
+    next_vi = "7 ngày tới" if period_type == "week" else "30 ngày tới"
+    user_text = (
+        f"Dưới đây là toàn bộ số liệu của học trò {player_name} trong giai đoạn "
+        "vừa qua, tính đến HÔM NAY (kèm giai đoạn cùng độ dài liền trước để so "
+        "sánh). Hãy tổng kết NGHIÊM KHẮC giai đoạn này.\n\n"
+        f"{context_text}\n"
+        "Yêu cầu trả về (tiếng Việt, đúng JSON schema):\n"
+        "- headline: MỘT câu chốt lại giai đoạn này (trích được con số đắt nhất).\n"
+        "- overall: 3-6 câu đánh giá tổng thể giai đoạn này so với giai đoạn "
+        "trước — khối lượng, số trận, ELO, mức bám sát lời dặn của HLV trực tiếp.\n"
+        "- went_well: những điểm LÀM ĐƯỢC trong giai đoạn (kèm số liệu; không có "
+        "thì để mảng rỗng, không bịa).\n"
+        "- concerns: những điểm ĐÁNG LO / tụt so với giai đoạn trước (kèm số liệu).\n"
+        f"- focus_next: 2-4 việc cụ thể cần dồn sức trong {next_vi} (đo được, "
+        "thực tế với người đi làm; không ra lệnh ngược HLV trực tiếp)."
+    )
+    return _ollama_chat(
+        model,
+        [
+            {"role": "system", "content": RECAP_SYSTEM_PROMPT},
+            {"role": "user", "content": user_text},
+        ],
+        RECAP_RESPONSE_SCHEMA,
+        temperature=0.3,
+        tag="coach recap",
+    )
+
+
+def _recap_to_out(row: HeadCoachRecap) -> schemas.RecapOut:
+    stats_raw = json.loads(row.stats_json or "{}")
+    return schemas.RecapOut(
+        id=row.id,
+        created_at=_tz(row.created_at),
+        model=row.model,
+        status=row.status or "done",
+        error_msg=row.error_msg,
+        period_type=row.period_type,
+        period_start=row.period_start,
+        period_end=row.period_end,
+        headline=row.headline,
+        overall=row.overall,
+        went_well=json.loads(row.went_well_json),
+        concerns=json.loads(row.concerns_json),
+        focus_next=json.loads(row.focus_next_json),
+        stats=schemas.RecapStats(**stats_raw) if stats_raw.get("current") else None,
+    )
+
+
+def get_recaps(db: Session, period_type: str) -> schemas.RecapsOut:
+    """The most recently generated recap of one window type — read-only.
+
+    NO auto-generation (user's explicit choice 2026-08-01): generation only
+    happens through start_recap when the button is pressed. Older rows stay
+    in the DB untouched but are never listed."""
+    latest_row = (
+        db.query(HeadCoachRecap)
+        .filter(HeadCoachRecap.period_type == period_type)
+        .order_by(HeadCoachRecap.period_start.desc(), HeadCoachRecap.id.desc())
+        .first()
+    )
+    return schemas.RecapsOut(
+        period_type=period_type,
+        latest=_recap_to_out(latest_row) if latest_row is not None else None,
+    )
+
+
+def get_recap(db: Session, recap_id: int) -> schemas.RecapOut | None:
+    row = db.get(HeadCoachRecap, recap_id)
+    return _recap_to_out(row) if row is not None else None
+
+
+def start_recap(
+    db: Session, period_type: str, today: dt.date | None = None
+) -> schemas.RecapOut:
+    """Start generating a recap of the window ENDING TODAY (last 7/30 days,
+    results up to the moment the button is pressed). Pressing again on the
+    same day reuses that day's row (regenerate) — no duplicate rows."""
+    today = today or dt.date.today()
+    if period_type not in _RECAP_PERIODS:
+        raise ValueError("period_type must be 'week' or 'month'")
+    days = _RECAP_WINDOW_DAYS[period_type]
+    start = today - dt.timedelta(days=days - 1)
+    in_flight = (
+        db.query(HeadCoachRecap)
+        .filter(
+            HeadCoachRecap.period_type == period_type,
+            HeadCoachRecap.status == "generating",
+        )
+        .first()
+    )
+    if in_flight is not None:
+        raise ValueError("A recap is already being generated — wait for it to finish")
+    if not _period_has_data(db, start, today):
+        raise ValueError(f"No logged data in the last {days} days — nothing to recap")
+
+    row = (
+        db.query(HeadCoachRecap)
+        .filter(
+            HeadCoachRecap.period_type == period_type,
+            HeadCoachRecap.period_start == start,
+        )
+        .first()
+    )
+    if row is None:
+        row = HeadCoachRecap(period_type=period_type, period_start=start, period_end=today)
+        db.add(row)
+    row.period_end = today
+    row.model = HEAD_COACH_MODEL
+    row.status = "generating"
+    row.error_msg = None
+    row.created_at = dt.datetime.now(dt.timezone.utc)
+    db.commit()
+    db.refresh(row)
+    return _recap_to_out(row)
+
+
+def run_recap_job(recap_id: int, db_or_none: Session | None = None) -> None:
+    """Background job: compute the period's stats, call the model, persist.
+    Accepts an injected session so tests can run it synchronously."""
+    db = db_or_none or SessionLocal()
+    try:
+        row = db.get(HeadCoachRecap, recap_id)
+        if row is None or row.status != "generating":
+            return
+        try:
+            rep = tracker_rating.replay(db)
+            cur_snap, full_stats = _period_stats(db, row.period_start, row.period_end, rep)
+            # The comparison window: the same number of days right before.
+            days = _RECAP_WINDOW_DAYS.get(row.period_type, 7)
+            prev_end = row.period_start - dt.timedelta(days=1)
+            prev_start = prev_end - dt.timedelta(days=days - 1)
+            earliest = tracker_service.earliest_data_date(db)
+            prev_snap = None
+            if earliest is not None and prev_end >= earliest:
+                prev_snap, _ = _period_stats(db, prev_start, prev_end, rep)
+            stats = schemas.RecapStats(current=cur_snap, previous=prev_snap)
+
+            bundle = gather_recap_bundle(
+                db, row.period_type, row.period_start, row.period_end,
+                rep, stats, full_stats,
+            )
+            use_model = resolve_model()
+            row.model = use_model
+
+            def call() -> dict:
+                out = _call_recap_model(
+                    _recap_bundle_to_text(bundle),
+                    player_name=bundle.get("player") or "vận động viên",
+                    period_type=row.period_type,
+                    model=use_model,
+                )
+                return out if isinstance(out, dict) else {}
+
+            data = _call_with_empty_retry(call, "overall", "coach recap", use_model)
+            if not (data.get("overall") or "").strip():
+                raise ValueError("Model trả về bản tổng kết rỗng.")
+
+            # Persistence stays inside the try (same reasoning as the verdict
+            # job): a failure must mark the row `error`, never leave it stuck.
+            row.headline = (data.get("headline") or "").strip()
+            row.overall = data.get("overall", "")
+            row.went_well_json = json.dumps(data.get("went_well", []), ensure_ascii=False)
+            row.concerns_json = json.dumps(data.get("concerns", []), ensure_ascii=False)
+            row.focus_next_json = json.dumps(data.get("focus_next", []), ensure_ascii=False)
+            row.stats_json = stats.model_dump_json()
+            row.sources_json = json.dumps(bundle, ensure_ascii=False)
+            row.status = "done"
+            row.error_msg = None
+            db.commit()
+        except Exception as exc:  # noqa: BLE001 — surfaced to the GUI via status
+            log.exception("coach recap(%d) failed", recap_id)
+            db.rollback()
+            row = db.get(HeadCoachRecap, recap_id)
+            if row is not None:
+                row.status = "error"
+                row.error_msg = str(exc)[:1000]
+                db.commit()
+            return
+    finally:
+        if db_or_none is None:
+            db.close()
 
 
 # ------------------------------------------------------------------ coach chat

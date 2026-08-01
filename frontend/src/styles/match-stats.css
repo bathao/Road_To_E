@@ -89,156 +89,8 @@
   font-size: 15px;
 }
 
-/* Results & form trend chart: W/L bars (counts, shared per-match scale)
-   diverging from a baseline + the rolling-form line on a 0-100% right axis. */
-.trend-legend {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  font-size: 11.5px;
-  color: var(--muted);
-  margin-bottom: 8px;
-}
-
-.trend-sw {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 3px;
-  vertical-align: -1px;
-  margin-right: 4px;
-}
-
-.trend-sw-win {
-  background: #5fa83c;
-}
-
-.trend-sw-loss {
-  background: #d64545;
-}
-
-.trend-sw-form {
-  width: 14px;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--accent);
-  vertical-align: 2px;
-}
-
-.trend-row {
-  display: flex;
-}
-
-.trend-plot {
-  position: relative;
-  flex: 1;
-  height: 200px;
-}
-
-.trend-plot svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-
-.trend-grid {
-  stroke: #e8ebef;
-  stroke-width: 1;
-}
-
-.trend-baseline {
-  stroke: #c6ccd4;
-  stroke-width: 1;
-}
-
-.trend-form-line {
-  stroke: var(--accent);
-  stroke-width: 2;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-}
-
-.trend-bar {
-  position: absolute;
-  width: 12px;
-  max-width: 12px;
-  transform: translateX(-50%);
-  pointer-events: none;
-  transition: filter 0.1s;
-}
-
-.trend-bar-win {
-  background: #5fa83c;
-  border-radius: 3px 3px 0 0;
-}
-
-.trend-bar-loss {
-  background: #d64545;
-  border-radius: 0 0 3px 3px;
-}
-
-.trend-bar.active {
-  filter: brightness(1.15);
-}
-
-.trend-form-dot {
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #fff;
-  border: 2px solid var(--accent);
-  transform: translate(-50%, -50%);
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
-  pointer-events: none;
-}
-
-.trend-hit {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  transform: translateX(-50%);
-  cursor: pointer;
-}
-
-.trend-yaxis {
-  width: 40px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  font-size: 11px;
-  color: var(--accent);
-  opacity: 0.75;
-  text-align: left;
-  padding: 0 0 2px 8px;
-}
-
-.trend-xaxis {
-  display: flex;
-  margin-right: 40px;
-  margin-top: 6px;
-}
-
-.trend-xlabel {
-  flex: 1 1 0;
-  font-size: 11px;
-  color: var(--muted);
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-}
-
-.trend-tt-form {
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 3px;
-}
-
-.trend-tt-form b {
-  color: var(--accent-dark);
-  font-variant-numeric: tabular-nums;
-}
+/* (The "Results & form" trend chart's styles were removed 2026-08-01 with
+   the chart itself — user request; ELO already tells the story.) */
 
 .res {
   display: inline-block;
@@ -470,3 +322,100 @@
   text-align: right;
   white-space: nowrap;
 }
+
+/* ------------------------------------------- Tournament Record (history) */
+
+.trec { margin-top: 18px; }
+
+.trec-sub { margin: 0 0 12px; color: #667; font-size: 12.5px; }
+
+.trec-card {
+  border: 1px solid #e2e6ec;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.trec-card.open { border-color: var(--accent); }
+
+.trec-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.trec-head:hover { background: #f7f9fc; }
+
+.trec-title { min-width: 0; }
+
+.trec-title b { display: block; font-size: 13.5px; }
+
+.trec-date { font-size: 12px; color: #99a; }
+
+.trec-entries {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  justify-content: flex-end;
+}
+
+.trec-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+}
+
+.trec-entry-label { color: #667; }
+
+.trec-result { color: var(--accent-dark); white-space: nowrap; }
+
+.trec-wl {
+  background: #eef0f3;
+  border-radius: 10px;
+  padding: 1px 8px;
+  font-size: 11.5px;
+  color: #556;
+  white-space: nowrap;
+}
+
+.trec-warn { cursor: help; }
+
+.trec-caret { color: #aab; font-size: 12px; }
+
+.trec-detail { border-top: 1px solid #e9ecf1; padding: 10px 12px; }
+
+.trec-entry-detail h4 { margin: 8px 0 6px; font-size: 13px; }
+
+.trec-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.trec-table th {
+  text-align: left;
+  color: #99a;
+  font-weight: 600;
+  font-size: 11.5px;
+  padding: 4px 8px;
+  border-bottom: 1px solid #e9ecf1;
+}
+
+.trec-table td { padding: 5px 8px; border-bottom: 1px solid #f2f4f7; }
+
+.trec-table tr:last-child td { border-bottom: none; }
+
+.trec-td-date { white-space: nowrap; color: #667; }
+
+.trec-td-match { min-width: 0; }
+
+.trec-td-elo { text-align: right; white-space: nowrap; }
+
+.trec-w { color: #5fa83c; font-weight: 600; }
+
+.trec-l { color: #d64545; font-weight: 600; }

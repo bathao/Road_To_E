@@ -11,11 +11,13 @@ from app.features.tournament.models import (
     TournamentEntry,
     TournamentEntryMember,
 )
-from app.features.tracker.models import Player
+from app.features.tracker.models import Match, Player
 from app.features.tracker.rating import (
     derive_placements,
+    derive_round_reached,
     derive_warnings,
     placement_bonus,
+    replay,
 )
 
 _DISCIPLINE_VI = {"singles": "đơn", "doubles": "đôi", "team": "đồng đội"}
@@ -52,6 +54,7 @@ def _to_out(
     players: dict[int, str],
     placements: _Placements,
     warnings: dict[int, str],
+    played: bool,
 ) -> schemas.TournamentOut:
     return schemas.TournamentOut(
         id=t.id,
@@ -61,7 +64,27 @@ def _to_out(
         end_date=t.end_date,
         level_limit=t.level_limit,
         note=t.note,
+        played=played,
         entries=[_entry_out(e, players, placements, warnings) for e in t.entries],
+    )
+
+
+def _linked_entry_ids(db: Session) -> set[int]:
+    """Entry ids that already have at least one Daily Tracker match linked."""
+    return {
+        eid
+        for (eid,) in db.query(Match.tournament_entry_id)
+        .filter(Match.tournament_entry_id.isnot(None))
+        .distinct()
+        .all()
+    }
+
+
+def _is_played(t: Tournament, today: dt.date, linked: set[int]) -> bool:
+    """Ended before today OR results already entered — entering a same-day
+    tournament's results retires it immediately (user 2026-08-01)."""
+    return (t.end_date or t.start_date) < today or any(
+        e.id in linked for e in t.entries
     )
 
 
@@ -79,8 +102,8 @@ def _player_names(db: Session, tournaments: list[Tournament]) -> dict[int, str]:
 
 
 def list_tournaments(db: Session, today: dt.date | None = None) -> schemas.TournamentsResponse:
-    """All tournaments: upcoming first (soonest on top), then past (newest
-    first). "Past" = ended before today (end_date falls back to start_date)."""
+    """All tournaments: upcoming first (soonest on top), then played (newest
+    first). "Played" = ended before today OR results already entered."""
     today = today or dt.date.today()
     rows = (
         db.query(Tournament)
@@ -88,17 +111,23 @@ def list_tournaments(db: Session, today: dt.date | None = None) -> schemas.Tourn
         .all()
     )
     players = _player_names(db, rows)
+    linked = _linked_entry_ids(db)
 
-    def ends(t: Tournament) -> dt.date:
-        return t.end_date or t.start_date
-
-    upcoming = sorted((t for t in rows if ends(t) >= today), key=lambda t: t.start_date)
-    past = sorted((t for t in rows if ends(t) < today), key=lambda t: t.start_date, reverse=True)
+    upcoming = sorted(
+        (t for t in rows if not _is_played(t, today, linked)),
+        key=lambda t: t.start_date,
+    )
+    past = sorted(
+        (t for t in rows if _is_played(t, today, linked)),
+        key=lambda t: t.start_date,
+        reverse=True,
+    )
     placements = derive_placements(db)
     warnings = derive_warnings(db)
     return schemas.TournamentsResponse(
         tournaments=[
-            _to_out(t, players, placements, warnings) for t in upcoming + past
+            _to_out(t, players, placements, warnings, played=t in past)
+            for t in upcoming + past
         ]
     )
 
@@ -160,6 +189,100 @@ def delete_tournament(db: Session, tournament_id: int) -> schemas.TournamentsRes
     return list_tournaments(db)
 
 
+# ------------------------------------------- tournament record (Profile tab)
+def build_record(db: Session, today: dt.date | None = None) -> schemas.TournamentRecordResponse:
+    """Read-only history of PLAYED tournaments (newest first): how far each
+    entry got + its W-L record + every entered match, all derived from the
+    Daily Tracker matches linked via tournament_entry_id. Nothing stored.
+
+    "Played" = ended before today OR any match already linked — the same
+    rule the Daily Tracker groups on: entering a same-day tournament's
+    results moves it here immediately, not tomorrow (user 2026-08-01)."""
+    today = today or dt.date.today()
+    rows = (
+        db.query(Tournament)
+        .options(selectinload(Tournament.entries).selectinload(TournamentEntry.members))
+        .all()
+    )
+    linked = _linked_entry_ids(db)
+    past = sorted(
+        (t for t in rows if _is_played(t, today, linked)),
+        key=lambda t: t.start_date,
+        reverse=True,
+    )
+    if not past:
+        return schemas.TournamentRecordResponse()
+
+    players = _player_names(db, past)
+    placements = derive_placements(db)
+    warnings = derive_warnings(db)
+    reached = derive_round_reached(db)
+
+    entry_ids = [e.id for t in past for e in t.entries]
+    matches = (
+        db.query(Match)
+        .filter(
+            Match.tournament_entry_id.in_(entry_ids),
+            Match.is_nonplaying == False,  # noqa: E712
+        )
+        .order_by(Match.date, Match.order_index, Match.id)
+        .all()
+    ) if entry_ids else []
+    by_entry: dict[int, list[Match]] = {}
+    for m in matches:
+        by_entry.setdefault(m.tournament_entry_id, []).append(m)
+
+    # One replay for the per-match ±Δ annotations (bonus steps have no match).
+    _, steps = replay(db)
+    delta_by_match = {s.match_id: s.delta for s in steps if s.match_id is not None}
+
+    def _record_match(m: Match) -> schemas.RecordMatch:
+        delta = delta_by_match.get(m.id)
+        return schemas.RecordMatch(
+            id=m.id,
+            date=m.date,
+            round=m.round,
+            discipline=m.discipline,
+            opponent_name=m.opponent.name if m.opponent else None,
+            opponent2_name=m.opponent2.name if m.opponent2 else None,
+            partner_name=m.partner.name if m.partner else None,
+            my_sets=m.my_sets,
+            opp_sets=m.opp_sets,
+            won=None if m.my_sets == m.opp_sets else m.my_sets > m.opp_sets,
+            elo_delta=round(delta, 1) if delta is not None else None,
+        )
+
+    def _record_entry(e: TournamentEntry) -> schemas.RecordEntry:
+        ms = by_entry.get(e.id, [])
+        decided = [m for m in ms if m.my_sets != m.opp_sets]
+        rnd, won = reached.get(e.id, (None, False))
+        return schemas.RecordEntry(
+            entry=_entry_out(e, players, placements, warnings),
+            round_reached=rnd,
+            reached_won=won,
+            wins=sum(1 for m in decided if m.my_sets > m.opp_sets),
+            losses=sum(1 for m in decided if m.my_sets < m.opp_sets),
+            sets_won=sum(m.my_sets for m in ms),
+            sets_lost=sum(m.opp_sets for m in ms),
+            matches=[_record_match(m) for m in ms],
+        )
+
+    return schemas.TournamentRecordResponse(
+        tournaments=[
+            schemas.RecordTournament(
+                id=t.id,
+                name=t.name,
+                location=t.location,
+                start_date=t.start_date,
+                end_date=t.end_date,
+                level_limit=t.level_limit,
+                entries=[_record_entry(e) for e in t.entries],
+            )
+            for t in past
+        ]
+    )
+
+
 # ------------------------------------------------------------- head coach view
 def upcoming_for_coach(
     db: Session, today: dt.date | None = None, horizon_days: int = 90
@@ -169,9 +292,9 @@ def upcoming_for_coach(
     resp = list_tournaments(db, today)
     out: list[dict] = []
     for t in resp.tournaments:
-        ends = t.end_date or t.start_date
-        if ends < today:
-            break  # list is upcoming-first; the first past row ends the scan
+        if t.played:
+            break  # list is upcoming-first; the first played row ends the
+            # scan (incl. a same-day tournament whose results are already in)
         days_left = (t.start_date - today).days
         if days_left > horizon_days:
             continue

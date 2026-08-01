@@ -13,9 +13,9 @@ import { matchStatsApi } from "./api";
 import MatchLines from "./components/MatchLines";
 import { EloCurveCard, EloTableCard } from "./components/EloSection";
 import GeneralInfoCard from "./components/GeneralInfoCard";
+import TournamentRecord from "./components/TournamentRecord";
 import TrainingCenterCard from "./components/TrainingCenterCard";
 import TrainingDisciplineCard from "./components/TrainingDisciplineCard";
-import TrendChart from "./components/TrendChart";
 import type {
   CategoryFilter,
   DisciplineFilter,
@@ -77,11 +77,6 @@ export default function MatchStats() {
   // The two card rows render when either side has content: the ELO cards are
   // global (they ignore the filters), the rest needs matches in range.
   const showCards = hasMatches || !!elo;
-
-  // Trend: only periods that actually had matches (a per-day win-rate line
-  // was noise at 2-3 matches/day — the chart now shows W/L bars + rolling
-  // form instead, so skipped days simply have no bar).
-  const trendBuckets = (data?.trend ?? []).filter((b) => b.matches > 0);
 
   return (
     <div className="stats">
@@ -148,28 +143,14 @@ export default function MatchStats() {
         </div>
       )}
 
-      {/* Charts row: results/form trend + the global ELO curve, side by
-          side. (The "win rate by opponent level" bars were removed
-          2026-07-29 — ELO already prices opponent strength.) */}
-      {showCards && (
+      {/* ELO curve row. (The "Results & form" W/L-bars chart was removed
+          2026-08-01 on user request — ELO already tells the story; the
+          "win rate by opponent level" bars went the same way 2026-07-29.) */}
+      {showCards && elo && (
         <div className="stats-cols">
           {/* The ELO cards render even when the filtered match list is empty
               — the rating is global and does not follow the filters. */}
-          {elo && <EloCurveCard elo={elo} unit={unit} />}
-          {hasMatches && (
-            <section className="stats-card">
-              <h3>
-                Results &amp; form (
-                {data!.unit === "month"
-                  ? "by month"
-                  : data!.unit === "week"
-                  ? "by week"
-                  : "by day"}
-                )
-              </h3>
-              <TrendChart buckets={trendBuckets} />
-            </section>
-          )}
+          <EloCurveCard elo={elo} unit={unit} />
         </div>
       )}
 
@@ -287,6 +268,10 @@ export default function MatchStats() {
         <TrainingDisciplineCard training={training ?? null} />
         <TrainingCenterCard report={trainingReport ?? null} />
       </div>
+
+      {/* 4) Tournament record — read-only past-tournament history, rangeless
+          (it deliberately ignores the PeriodControl: a career record). */}
+      <TournamentRecord />
     </div>
   );
 }

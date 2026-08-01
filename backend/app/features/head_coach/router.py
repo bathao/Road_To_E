@@ -46,6 +46,33 @@ def get_directive_progress(db: Session = Depends(get_db)):
     return service.directive_progress(db)
 
 
+# ------------------------------------------------------- weekly/monthly recap
+@router.get("/recaps", response_model=schemas.RecapsOut)
+def get_recaps(period: str = "week", db: Session = Depends(get_db)):
+    """The most recently generated recap of one window type — read-only.
+    Generation happens ONLY via POST /recaps/generate (explicit button)."""
+    if period not in ("week", "month"):
+        raise HTTPException(status_code=400, detail="period must be 'week' or 'month'")
+    return service.get_recaps(db, period)
+
+
+@router.post("/recaps/generate", response_model=schemas.RecapOut)
+def generate_recap(
+    payload: schemas.RecapGenerateIn,
+    background: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """Generate a recap of the window ending today (week = last 7 days,
+    month = last 30 days, results up to now). Returns status=`generating`;
+    poll GET /recaps until it leaves `generating`."""
+    try:
+        out = service.start_recap(db, payload.period_type)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    background.add_task(service.run_recap_job, out.id)
+    return out
+
+
 # ------------------------------------------------------------------ coach chat
 @router.get("/chat", response_model=schemas.ChatHistoryOut)
 def get_chat(db: Session = Depends(get_db)):

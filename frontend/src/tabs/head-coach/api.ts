@@ -6,6 +6,9 @@ import type {
   DirectiveProgressOut,
   GenerateStatus,
   NotesOut,
+  Recap,
+  RecapPeriod,
+  RecapsOut,
 } from "./types";
 
 export const headCoachApi = {
@@ -25,6 +28,13 @@ export const headCoachApi = {
   getNotes: () => api.get<NotesOut>("/head-coach/notes"),
   addNote: (text: string) => api.post<NotesOut>("/head-coach/notes", { text }),
   deleteNote: (id: number) => api.del<NotesOut>(`/head-coach/notes/${id}`),
+  // Recaps: GET is read-only (newest generated one); generateRecap starts a
+  // review of the window ending today (week = last 7 days, month = last 30)
+  // — poll getRecaps until latest.status leaves "generating".
+  getRecaps: (period: RecapPeriod) =>
+    api.get<RecapsOut>(`/head-coach/recaps?period=${period}`),
+  generateRecap: (period_type: RecapPeriod) =>
+    api.post<Recap>("/head-coach/recaps/generate", { period_type }),
   // Dev panel: recent backend log lines + Ollama VRAM occupancy.
   getDebug: () => api.get<DebugOut>("/head-coach/debug"),
 };

@@ -291,6 +291,9 @@ export interface Tournament {
   end_date?: string | null; // null = single-day
   level_limit?: string | null; // allowed ranks, free text ("E F G"…)
   note?: string | null;
+  // Ended before today OR results already entered — the GUI groups on this
+  // flag (upcoming vs Played), not on dates.
+  played: boolean;
   entries: TournamentEntry[];
 }
 

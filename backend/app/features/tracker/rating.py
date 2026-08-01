@@ -140,6 +140,17 @@ def derive_placements(db: Session) -> dict[int, tuple[str, dt.date]]:
     return out
 
 
+def derive_round_reached(db: Session) -> dict[int, tuple[str, bool]]:
+    """entry_id → (deepest DECIDED round key, won that match?) for every
+    entry with linked matches — the "how far did I get" fact behind the
+    Tournament Record section (Profile tab). Matches saved without a round
+    count as group stage, same fallback as the placement derivation."""
+    return {
+        entry_id: (last.round or "group", last.my_sets > last.opp_sets)
+        for entry_id, last in _deepest_decided(db).items()
+    }
+
+
 def derive_warnings(db: Session) -> dict[int, str]:
     """entry_id → data-gap warning: the deepest entered knockout round was
     WON but the next round has no decided match. Tournaments are entered

@@ -143,6 +143,59 @@ export interface GenerateStatus {
   error_msg: string | null;
 }
 
+// ------------------------------------------------------ weekly/monthly recap
+// week = the last 7 days, month = the last 30 days — rolling windows ending
+// the day the Generate button is pressed. Button-only, nothing automatic.
+export type RecapPeriod = "week" | "month";
+
+// Code-computed numbers for one recap window (never from the LLM).
+export interface RecapPeriodStats {
+  date_from: string;
+  date_to: string;
+  days_trained: number;
+  days_physical: number;
+  physical_sessions: number;
+  minutes_total: number;
+  racket_minutes_total: number;
+  matches_played: number;
+  matches_wins: number;
+  matches_losses: number;
+  win_rate: number | null;
+  elo_delta: number;
+  elo_end: number | null; // null = period ends before the ELO anchor
+  elo_counted: number;
+}
+
+export interface RecapStats {
+  current: RecapPeriodStats;
+  // null when the previous period predates all tracked data.
+  previous: RecapPeriodStats | null;
+}
+
+export interface Recap {
+  id: number;
+  created_at: string | null;
+  model: string;
+  status: "generating" | "done" | "error";
+  error_msg: string | null;
+  period_type: RecapPeriod;
+  period_start: string;
+  period_end: string;
+  headline: string;
+  overall: string;
+  went_well: string[];
+  concerns: string[];
+  focus_next: string[];
+  stats: RecapStats | null;
+}
+
+// Only the most recently generated recap is surfaced (no history browsing,
+// no auto-generation — the user's explicit choices, 2026-08-01).
+export interface RecapsOut {
+  period_type: RecapPeriod;
+  latest: Recap | null;
+}
+
 // ---------------------------------------------------------------- coach chat
 export interface ChatMessage {
   id: number;
