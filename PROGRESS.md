@@ -1,6 +1,6 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-08-01, latest) — "New opponents" stat (UNCOMMITTED)
+## Current status (2026-08-01, latest) — "New opponents" stat (committed 5bfad2b)
 
 > **New-opponents stat (user goal 2026-08-01 — "cọ xát thi đấu với nhiều
 > người mới": count opponents faced in a range whom I had never faced
