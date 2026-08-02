@@ -49,6 +49,9 @@ export const trackerApi = {
   createMatch: (payload: MatchIn) =>
     api.post<Match>("/tracker/matches", payload),
 
+  updateMatch: (id: number, payload: MatchIn) =>
+    api.put<Match>(`/tracker/matches/${id}`, payload),
+
   deleteMatch: (id: number) => api.del<void>(`/tracker/matches/${id}`),
 
   searchEvents: (q: string) =>
@@ -104,12 +107,6 @@ export const trackerApi = {
 
   getStats: (fromIso: string, toIso: string) =>
     api.get<StatsResponse>(`/tracker/stats?from=${fromIso}&to=${toIso}`),
-
-  // Drill-down behind one stat card — same filter as /stats, newest first.
-  statsMatches: (fromIso: string, toIso: string, bucket: string) =>
-    api.get<Match[]>(
-      `/tracker/stats/matches?from=${fromIso}&to=${toIso}&bucket=${bucket}`
-    ),
 
   getBreakdown: (fromIso: string, toIso: string, unit: "month" | "week" | "day") =>
     api.get<BreakdownResponse>(

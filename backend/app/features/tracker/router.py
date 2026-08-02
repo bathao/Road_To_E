@@ -46,6 +46,13 @@ def last_date(db: Session = Depends(get_db)):
     return schemas.LastDateResponse(date=service.latest_data_date(db))
 
 
+@router.get("/first-date", response_model=schemas.LastDateResponse)
+def first_date(db: Session = Depends(get_db)):
+    """The earliest date that has any data (the Profile "Lifetime" range and
+    the year/month lists of its range picker)."""
+    return schemas.LastDateResponse(date=service.earliest_data_date(db))
+
+
 # ---------------------------------------------------------------- week
 @router.get("/weeks", response_model=schemas.WeekResponse)
 def get_week(
@@ -406,19 +413,6 @@ def my_rating_breakdown(
 
 
 # ---------------------------------------------------------------- stats
-@router.get("/stats/matches", response_model=list[schemas.MatchOut])
-def stats_matches(
-    date_from: dt.date = Query(..., alias="from"),
-    date_to: dt.date = Query(..., alias="to"),
-    bucket: str = Query(
-        ..., pattern="^(overall|singles|doubles|one_v_two|two_v_one|vs_pips)$"
-    ),
-    db: Session = Depends(get_db),
-):
-    """Drill-down behind one stat card — same filter as /stats, newest first."""
-    return service.list_stats_matches(db, date_from, date_to, bucket)
-
-
 @router.get("/stats", response_model=schemas.StatsResponse)
 def stats(
     date_from: dt.date = Query(..., alias="from"),

@@ -1004,7 +1004,7 @@ def _snapshot_pair_lines(stats: dict) -> str:
         _pair("Tổng phút cầm vợt", "racket_minutes_total", "p"),
         f"- Trận đấu: {_matches(cur)}"
         + (f" (kỳ trước: {_matches(prev)})" if prev is not None else ""),
-        _pair("Đối thủ MỚI lần đầu gặp", "new_opponents"),
+        _pair("Đối thủ MỚI lần đầu gặp (đánh ĐƠN)", "new_opponents"),
         f"- ELO: {_elo(cur)}" + (f" (kỳ trước: {_elo(prev)})" if prev is not None else ""),
     ]
     if prev is None:

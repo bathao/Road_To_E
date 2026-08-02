@@ -53,6 +53,7 @@ function matchesText(s: RecapPeriodStats) {
   return `${s.matches_played} (${s.matches_wins}W–${s.matches_losses}L${wr})`;
 }
 
+
 function StatsRow({ recap }: { recap: Recap }) {
   const cur = recap.stats?.current;
   if (!cur) return null;
@@ -92,7 +93,7 @@ function StatsRow({ recap }: { recap: Recap }) {
         diff={prev ? cur.matches_played - prev.matches_played : undefined}
       />
       <Stat
-        label="New opponents"
+        label="New opponents (singles)"
         value={String(cur.new_opponents)}
         prev={prev ? String(prev.new_opponents) : undefined}
         diff={prev ? cur.new_opponents - prev.new_opponents : undefined}

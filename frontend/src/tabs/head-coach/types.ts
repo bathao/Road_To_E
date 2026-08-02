@@ -159,7 +159,9 @@ export interface RecapPeriodStats {
   matches_wins: number;
   matches_losses: number;
   win_rate: number | null;
-  new_opponents: number; // opponents never faced before this window
+  // Opponents who played SINGLES vs me in the window, never faced before it
+  // (in any format). Team-only meetings don't count.
+  new_opponents: number;
   elo_delta: number;
   elo_end: number | null; // null = period ends before the ELO anchor
   elo_counted: number;

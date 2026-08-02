@@ -34,6 +34,8 @@ export const matchStatsApi = {
   // server-side for a deliberate manual re-anchor.
   getMyRating: () => api.get<MyRating>("/tracker/my-rating"),
   lastDate: () => api.get<{ date: string | null }>("/tracker/last-date"),
+  // Earliest tracked data — the range picker's Lifetime start + year/month lists.
+  firstDate: () => api.get<{ date: string | null }>("/tracker/first-date"),
   // Same endpoint as the Daily Tracker's aggregates (training discipline card).
   trainingStats: (fromIso: string, toIso: string) =>
     api.get<TrackerStats>(`/tracker/stats?from=${fromIso}&to=${toIso}`),

@@ -1,7 +1,9 @@
-"""Drill-down list behind the Analysis stat cards (GET /stats/matches).
+"""build_stats' summary buckets (overall / singles / doubles / vs_pips).
 
-The list must use the SAME filter as build_stats' summary buckets — a card
-saying "4 matches" must open a list of exactly those 4."""
+These numbers feed the Daily Tracker summary cards and the coach bundle.
+(The per-card match drill-down GET /stats/matches was removed 2026-08-02
+with the Daily Tracker win-rate cards — the Profile tab owns match stats.)
+"""
 import datetime as dt
 
 from app.features.tracker import service
@@ -22,7 +24,7 @@ def _match(cat, date, my=3, opp_sets=1, **kw):
     )
 
 
-def test_stats_matches_buckets_match_build_stats(db):
+def test_build_stats_buckets(db):
     cat = category_id(db, "practice_match")
     pips = Player(name="Gai", points=1000, plays_pips=1)
     plain = Player(name="Thuong", points=950)
@@ -36,34 +38,16 @@ def test_stats_matches_buckets_match_build_stats(db):
         _match(cat, D2, discipline="doubles", opponent_id=plain.id,
                opponent2_id=pips.id, partner_id=plain.id),         # doubles vs pips
         _match(cat, D2, is_nonplaying=True, nonplaying_label="Travel",
-               order_index=1),                                     # never listed
+               order_index=1),                                     # never counted
         _match(cat, dt.date(2026, 6, 1), opponent_id=pips.id),     # out of range
     ])
     db.commit()
 
     stats = service.build_stats(db, D1, D2)
-    for bucket, expected in (
-        ("overall", stats.overall.total),
-        ("singles", stats.singles.total),
-        ("doubles", stats.doubles.total),
-        ("vs_pips", stats.vs_pips.total),
-    ):
-        listed = service.list_stats_matches(db, D1, D2, bucket)
-        assert len(listed) == expected, bucket
-
+    assert stats.overall.total == 3  # nonplaying + out-of-range excluded
+    assert stats.singles.total == 2
+    assert stats.doubles.total == 1
     # vs_pips covers BOTH the singles match vs the pips player and the
     # doubles match where opponent2 plays pips.
-    vs = service.list_stats_matches(db, D1, D2, "vs_pips")
-    assert {(m.date.isoformat(), m.discipline) for m in vs} == {
-        ("2026-07-27", "singles"),
-        ("2026-07-28", "doubles"),
-    }
-
-    # Newest first (date desc, then order_index desc) + ELO annotation set.
-    overall = service.list_stats_matches(db, D1, D2, "overall")
-    assert [(m.date.isoformat(), m.order_index) for m in overall] == [
-        ("2026-07-28", 0),
-        ("2026-07-27", 1),
-        ("2026-07-27", 0),
-    ]
-    assert all(m.elo_status is not None for m in overall)
+    assert stats.vs_pips.total == 2
+    assert (stats.vs_pips.wins, stats.vs_pips.losses) == (2, 0)

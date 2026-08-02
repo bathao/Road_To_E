@@ -1,7 +1,5 @@
-import { useState } from "react";
 import type {
   BreakdownBucket,
-  MatchStats,
   RatingBreakdown,
   StatsResponse,
 } from "../types";
@@ -14,9 +12,6 @@ import ActivityChart from "../../../shared/ui/ActivityChart";
 import type { ActivityPoint } from "../../../shared/ui/ActivityChart";
 import EloCurve from "../../../shared/ui/EloCurve";
 import CoachPackageCard from "./CoachPackageCard";
-import MatchCard from "./MatchCard";
-import StatMatchesModal from "./StatMatchesModal";
-import type { ResultFilter, StatBucket } from "./StatMatchesModal";
 import { fmtDelta, fmtMinutes } from "../../../shared/format";
 
 const UNIT_TITLE: Record<Unit, string> = {
@@ -112,13 +107,6 @@ export default function AnalysisPanel({
   // Width of the grid's Category column, used to align the chart's day axis.
   gutterPx?: number;
 }) {
-  // Open drill-down: which card's matches to list, optionally W/L-filtered.
-  const [drill, setDrill] = useState<{
-    bucket: StatBucket;
-    title: string;
-    result: ResultFilter;
-  } | null>(null);
-
   const chartUnit: Unit | null = chartUnitFor(mode, "line", fromIso, rangeToIso);
   const rangeValid = fromIso <= rangeToIso;
 
@@ -256,25 +244,9 @@ export default function AnalysisPanel({
               </div>
             </div>
 
-            {/* 1v2/2v1 are logged (rare formats, entered for the data) but
-                not worth a daily card — their matches still count in "All
-                matches" and can be filtered in Match Stats. */}
-            {(
-              [
-                ["Singles", "singles", stats.singles],
-                ["Doubles", "doubles", stats.doubles],
-                ["All matches", "overall", stats.overall],
-                ["🏓 vs Pips", "vs_pips", stats.vs_pips],
-              ] as [string, StatBucket, MatchStats][]
-            ).map(([title, bucket, s]) => (
-              <MatchCard
-                key={bucket}
-                title={title}
-                s={s}
-                onOpen={(result) => setDrill({ bucket, title, result })}
-              />
-            ))}
-
+            {/* The Singles/Doubles/All/vs-Pips win-rate cards were removed
+                2026-08-02 (user request) — the Profile tab's KPI row owns
+                match stats now, with the same drill-down. */}
             {packages.length > 0 && (
               <CoachPackageCard
                 current={
@@ -287,17 +259,6 @@ export default function AnalysisPanel({
             )}
           </div>
 
-          {drill && (
-            <StatMatchesModal
-              bucket={drill.bucket}
-              title={drill.title}
-              rangeLabel={label}
-              fromIso={fromIso}
-              toIso={rangeToIso}
-              initialResult={drill.result}
-              onClose={() => setDrill(null)}
-            />
-          )}
         </>
       )}
     </section>

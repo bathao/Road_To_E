@@ -425,7 +425,9 @@ class OpponentBrief(BaseModel):
     level: str
     points: int | None = None  # static BBTV points (None = not rated yet)
     played: int
-    is_new: bool = False  # first-ever match vs me falls inside the range
+    plays_pips: bool = False  # live player flag (drives the vs-pips drill-down)
+    # Played singles vs me in range and never faced before it (in any format).
+    is_new: bool = False
 
 
 class DoublesRecord(BaseModel):
@@ -476,8 +478,12 @@ class MatchStatsResponse(BaseModel):
     category: str  # all | practice | official | tournament
     unit: str  # month | week | day
     overall: MatchStats
-    # Opponents faced in range whom I had never faced before it (any match in
-    # history counts as "faced", either opponent slot, unfiltered).
+    # Subset of overall: an opponent (either slot) plays pimpled rubber
+    # ("gai") — same predicate as the Daily Tracker's "vs pips" card.
+    vs_pips: MatchStats
+    # Opponents who played SINGLES vs me in range and whom I had never faced
+    # before it (any match in history counts as "faced", either opponent
+    # slot, unfiltered). Team-only meetings don't count (user rule 2026-08-02).
     new_opponents: int = 0
     opponents: list[OpponentBrief]  # for the head-to-head dropdown
     singles_h2h: list[OpponentRecord]

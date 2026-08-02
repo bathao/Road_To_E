@@ -39,7 +39,9 @@ export interface OpponentBrief {
   level: PlayerLevel;
   points: number | null; // static BBTV points (null = not rated yet)
   played: number;
-  is_new: boolean; // first-ever match vs me falls inside the range
+  plays_pips: boolean; // live player flag (drives the vs-pips drill-down)
+  // Played singles vs me in range and never faced before it (in any format).
+  is_new: boolean;
 }
 
 // A team-style matchup: doubles, 1v2 (me alone vs a pair) or 2v1
@@ -115,8 +117,11 @@ export interface MatchStatsResponse {
   category: CategoryFilter;
   unit: "month" | "week" | "day";
   overall: MatchStats;
-  // Opponents faced in range whom I had never faced before it (the sparring
-  // goal: play people not yet in the history).
+  // Subset of overall: an opponent (either slot) plays pimpled rubber ("gai").
+  vs_pips: MatchStats;
+  // Opponents who played SINGLES vs me in range and whom I had never faced
+  // before it (the sparring goal: singles vs people not yet in the history;
+  // team-only meetings don't count).
   new_opponents: number;
   opponents: OpponentBrief[];
   singles_h2h: OpponentRecord[];

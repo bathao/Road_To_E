@@ -346,24 +346,8 @@
   margin-top: 22px;
 }
 
-/* Clickable stat cards (match drill-down) + the drill-down modal list. */
-
-.stat-card.clickable {
-  cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-
-.stat-card.clickable:hover {
-  border-color: var(--accent);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
-}
-
-.smm-open:hover {
-  text-decoration: underline;
-}
-
-/* (.smm-* match-line styles moved to base.css — the Database tab's
-   per-player modal shares them now.) */
+/* (.smm-* match-line styles live in base.css — the Database tab's
+   per-player modal shares them.) */
 
 /* Composite activity chart (training time + matches + physical days) */
 
@@ -488,6 +472,39 @@
   justify-content: space-between;
   font-size: 14px;
   gap: 8px;
+}
+
+.match-item-btns {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+/* the row currently loaded into the form for editing */
+.match-item.editing {
+  background: #fff8e1;
+  border: 1px solid #f0d48a;
+  border-radius: 6px;
+  padding: 3px 6px;
+}
+
+.match-edit-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: #fff8e1;
+  border: 1px solid #f0d48a;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* edit mode: the picked score (buttons select instead of saving) */
+.score-btn.selected {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 /* ---- player picker / level / handicap ---- */

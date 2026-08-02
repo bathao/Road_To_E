@@ -101,15 +101,15 @@ def test_build_match_stats_one_v_two_and_two_v_one(db):
     assert only.overall.total == 1 and only.overall.wins == 1
 
 
-def test_new_opponents_first_ever_meeting_only(db):
-    """new_opponents counts people whose FIRST-EVER match vs me falls in the
-    range: any earlier match disqualifies (even doubles / other filters),
-    both opponent slots count, and count_new_opponents (the recap path)
-    agrees with the tab."""
+def test_new_opponents_singles_first_ever_meeting_only(db):
+    """new_opponents counts people who played SINGLES vs me in the range and
+    whose FIRST-EVER match vs me falls in it: any earlier match disqualifies
+    (even doubles), team-only meetings don't count at all (user rule
+    2026-08-02), and count_new_opponents (the recap path) agrees with the tab."""
     cat = category_id(db, "practice_match")
     anna = Player(name="Anna", points=1250)   # met before the range
-    binh = Player(name="Binh", points=950)    # first met in range (opp2 slot)
-    cara = Player(name="Cara", points=700)    # first met in range
+    binh = Player(name="Binh", points=950)    # first met in range (doubles only)
+    cara = Player(name="Cara", points=700)    # first met in range (singles)
     db.add_all([anna, binh, cara])
     db.commit()
 
@@ -121,24 +121,62 @@ def test_new_opponents_first_ever_meeting_only(db):
     db.add_all([old, dbl, _match(cat, d + dt.timedelta(days=1), 1, 3, opponent_id=cara.id)])
     db.commit()
 
+    # Binh was only met in doubles → NOT counted; Cara played singles → new.
     res = service.build_match_stats(db, d, d + dt.timedelta(days=5))
-    assert res.new_opponents == 2  # Binh + Cara; Anna was met in June
+    assert res.new_opponents == 1
+    assert {o.name for o in res.opponents if o.is_new} == {"Cara"}
+    assert service.count_new_opponents(db, d, d + dt.timedelta(days=5)) == 1
+
+    # Once Binh also plays a SINGLES match inside the range he counts too
+    # (his first-ever meeting — the doubles — is in range, so he's new).
+    db.add(_match(cat, d + dt.timedelta(days=2), 3, 2, opponent_id=binh.id))
+    db.commit()
+    res = service.build_match_stats(db, d, d + dt.timedelta(days=5))
+    assert res.new_opponents == 2
     assert {o.name for o in res.opponents if o.is_new} == {"Binh", "Cara"}
     assert service.count_new_opponents(db, d, d + dt.timedelta(days=5)) == 2
 
-    # The singles filter narrows the in-range side (only Cara qualifies) but
-    # "met before" still spans the whole history: Anna stays not-new.
-    singles = service.build_match_stats(
-        db, d, d + dt.timedelta(days=5), discipline="singles"
-    )
-    assert singles.new_opponents == 1
-    assert {o.name for o in singles.opponents if o.is_new} == {"Cara"}
-
-    # A later range where everyone is already known → zero.
-    db.add(_match(cat, dt.date(2026, 7, 20), 3, 0, opponent_id=cara.id))
+    # "Met before" spans the whole history INCLUDING team matches: Anna's
+    # singles match in range doesn't make her new (met in June), and someone
+    # first met in doubles BEFORE the range is not new in a later range.
+    db.add(_match(cat, d + dt.timedelta(days=3), 3, 0, opponent_id=anna.id))
     db.commit()
-    later = service.build_match_stats(db, dt.date(2026, 7, 20), dt.date(2026, 7, 25))
+    res = service.build_match_stats(db, d, d + dt.timedelta(days=5))
+    assert res.new_opponents == 2  # still just Binh + Cara
+
+    later_start = dt.date(2026, 7, 20)
+    db.add(_match(cat, later_start, 3, 0, opponent_id=binh.id))  # singles again
+    db.commit()
+    later = service.build_match_stats(db, later_start, dt.date(2026, 7, 25))
     assert later.new_opponents == 0 and all(not o.is_new for o in later.opponents)
+    assert service.count_new_opponents(db, later_start, dt.date(2026, 7, 25)) == 0
+
+
+def test_match_stats_vs_pips_bucket(db):
+    """vs_pips = subset of overall where an opponent (either slot) plays
+    pips — same predicate as the Daily Tracker card, live from the player
+    flag (never snapshotted)."""
+    cat = category_id(db, "practice_match")
+    gai = Player(name="Gai", points=900, plays_pips=True)
+    norm = Player(name="Norm", points=900)
+    db.add_all([gai, norm])
+    db.commit()
+
+    d = dt.date(2026, 7, 10)
+    dbl = _match(cat, d, 1, 3, opponent_id=norm.id)  # pips player in opp2 slot
+    dbl.discipline = "doubles"
+    dbl.opponent2_id = gai.id
+    db.add_all([
+        _match(cat, d, 3, 1, opponent_id=gai.id),
+        dbl,
+        _match(cat, d, 3, 0, opponent_id=norm.id),
+    ])
+    db.commit()
+
+    res = service.build_match_stats(db, d, d)
+    assert res.overall.total == 3
+    assert (res.vs_pips.total, res.vs_pips.wins, res.vs_pips.losses) == (2, 1, 1)
+    assert res.vs_pips.win_rate == 0.5
 
 
 def test_trend_form_is_rolling_not_per_day(db):

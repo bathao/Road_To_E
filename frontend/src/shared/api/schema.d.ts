@@ -41,6 +41,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tracker/first-date": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * First Date
+         * @description The earliest date that has any data (the Profile "Lifetime" range and
+         *     the year/month lists of its range picker).
+         */
+        get: operations["first_date_api_tracker_first_date_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tracker/weeks": {
         parameters: {
             query?: never;
@@ -478,26 +499,6 @@ export interface paths {
          * @description Net ELO change per bucket + every counted match's ±Δ. Global — no filters.
          */
         get: operations["my_rating_breakdown_api_tracker_my_rating_breakdown_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/tracker/stats/matches": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Stats Matches
-         * @description Drill-down behind one stat card — same filter as /stats, newest first.
-         */
-        get: operations["stats_matches_api_tracker_stats_matches_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1941,6 +1942,7 @@ export interface components {
             /** Unit */
             unit: string;
             overall: components["schemas"]["MatchStats"];
+            vs_pips: components["schemas"]["MatchStats"];
             /**
              * New Opponents
              * @default 0
@@ -2123,6 +2125,11 @@ export interface components {
             points?: number | null;
             /** Played */
             played: number;
+            /**
+             * Plays Pips
+             * @default false
+             */
+            plays_pips: boolean;
             /**
              * Is New
              * @default false
@@ -3124,6 +3131,26 @@ export interface operations {
             };
         };
     };
+    first_date_api_tracker_first_date_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LastDateResponse"];
+                };
+            };
+        };
+    };
     get_week_api_tracker_weeks_get: {
         parameters: {
             query: {
@@ -3899,39 +3926,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MyRatingBreakdownOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    stats_matches_api_tracker_stats_matches_get: {
-        parameters: {
-            query: {
-                from: string;
-                to: string;
-                bucket: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MatchOut"][];
                 };
             };
             /** @description Validation Error */

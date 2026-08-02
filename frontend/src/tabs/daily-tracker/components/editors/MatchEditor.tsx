@@ -5,6 +5,7 @@ import type {
   Match,
   MatchIn,
   Player,
+  PlayerLevel,
   Tournament,
   TournamentEntry,
 } from "../../types";
@@ -107,11 +108,14 @@ const HANDICAP_PATTERNS = [
 
 // Dropdown-driven match entry. Pick discipline + format + the player(s) + an
 // optional handicap, then tap a final score. Plus event autocomplete & Travel/Rest.
+// ✏️ on a saved match loads it back into the same form for editing — score
+// buttons then SELECT instead of save, and 💾 Save commits via PUT.
 export default function MatchEditor({
   category,
   matches,
   tournamentCtx = [],
   onAdd,
+  onUpdate,
   onDelete,
 }: {
   category: Category;
@@ -119,6 +123,11 @@ export default function MatchEditor({
   // Tournament(s) running on this cell's date (tournament row only).
   tournamentCtx?: TournamentCtx[];
   onAdd: (payload: Omit<MatchIn, "date" | "category_id">) => void;
+  // Resolves true when the PUT landed (edit mode only exits on success).
+  onUpdate: (
+    id: number,
+    payload: Omit<MatchIn, "date" | "category_id">
+  ) => Promise<boolean>;
   onDelete: (id: number) => void;
 }) {
   const [discipline, setDiscipline] = useState<Discipline>("singles");
@@ -146,9 +155,10 @@ export default function MatchEditor({
   // Applying the picked entry: doubles registrations lock the discipline and
   // pre-fill the registered partner (still editable per match — the pair can
   // change on the day); the tournament name pre-fills the Event box.
-  useEffect(() => {
+  // Also re-applied after an edit ends, so the add form comes back pre-filled.
+  const applyEntryPrefill = () => {
     if (!selCtx) return;
-    setEventName((cur) => cur.trim() ? cur : selCtx.tournament.name);
+    setEventName((cur) => (cur.trim() ? cur : selCtx.tournament.name));
     if (selCtx.entry.discipline === "doubles") {
       setDiscipline("doubles");
       if (selCtx.entry.partner_id) {
@@ -163,6 +173,9 @@ export default function MatchEditor({
       setDiscipline("singles");
     }
     // Team entries: ties mix singles + doubles — leave the choice manual.
+  };
+  useEffect(() => {
+    applyEntryPrefill();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selCtx?.entry.id]);
 
@@ -170,6 +183,34 @@ export default function MatchEditor({
   // A preset from HANDICAP_PATTERNS, or "custom" (digits in customPattern).
   const [handicapChoice, setHandicapChoice] = useState("2-2-2");
   const [customPattern, setCustomPattern] = useState("");
+
+  // Edit mode: the saved match currently loaded into the form (null = adding).
+  // While editing, the score buttons select instead of save; selScore holds
+  // the pick (pre-set to the match's current score).
+  const [editingMatch, setEditingMatch] = useState<Match | null>(null);
+  const [selScore, setSelScore] = useState<{ my: number; opp: number } | null>(
+    null
+  );
+
+  // Signed handicap + optional per-set pattern → the three form fields.
+  // Shared by the last-handicap prefill and by loading a match for edit.
+  const applyHandicap = (hdc: number, pattern: string | null | undefined) => {
+    if (hdc === 0) {
+      setHandicapDir("none");
+      return;
+    }
+    setHandicapDir(hdc > 0 ? "give" : "receive");
+    const digits = (pattern ?? "").replace(/\D/g, "");
+    const abs = Math.abs(hdc);
+    // Uniform ratios come back as a plain int → present as N-N-N.
+    const p = digits ? digits.split("").join("-") : `${abs}-${abs}-${abs}`;
+    if (HANDICAP_PATTERNS.includes(p)) {
+      setHandicapChoice(p);
+    } else {
+      setHandicapChoice("custom");
+      setCustomPattern(digits || String(abs).repeat(3));
+    }
+  };
 
   // Event autocomplete (debounced).
   useEffect(() => {
@@ -192,36 +233,22 @@ export default function MatchEditor({
   // Remember the ratio per opponent: picking a singles opponent pre-fills
   // the handicap from the last match against them (Tuấn Gỗ → được chấp
   // 4-4-4, Lợi Phạm → 2-2-2…). The user can still change it before saving.
+  // Skipped while editing — the form already holds the match's own handicap.
   useEffect(() => {
-    if (discipline !== "singles" || !opponent) return;
+    if (editingMatch || discipline !== "singles" || !opponent) return;
     let alive = true;
     trackerApi
       .lastHandicap(opponent.id)
       .then((r) => {
         if (!alive || !r.found) return;
-        if (r.handicap === 0) {
-          setHandicapDir("none");
-          return;
-        }
-        setHandicapDir(r.handicap > 0 ? "give" : "receive");
-        const digits = (r.handicap_pattern ?? "").replace(/\D/g, "");
-        const abs = Math.abs(r.handicap);
-        // Uniform ratios come back as a plain int → present as N-N-N.
-        const pattern = digits
-          ? digits.split("").join("-")
-          : `${abs}-${abs}-${abs}`;
-        if (HANDICAP_PATTERNS.includes(pattern)) {
-          setHandicapChoice(pattern);
-        } else {
-          setHandicapChoice("custom");
-          setCustomPattern(digits || String(abs).repeat(3));
-        }
+        applyHandicap(r.handicap, r.handicap_pattern);
       })
       .catch(() => {}); // suggestion only — never block entry
     return () => {
       alive = false;
     };
-  }, [opponent, discipline]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opponent, discipline, editingMatch]);
 
   const { wins, losses } = validScores(bestOf);
 
@@ -255,6 +282,110 @@ export default function MatchEditor({
     handicapDir === "give" ? points : handicapDir === "receive" ? -points : 0;
   const handicapPattern =
     handicapDir !== "none" && !uniform ? patternDigits.join("-") : null;
+
+  // ---- edit mode ----
+
+  // Match rows only carry id/name/level/pips — enough for the picker to work
+  // (the id is what gets saved); the points chip is patched in by `enrich`.
+  const toPlayer = (
+    id: number,
+    name: string | null,
+    level: PlayerLevel | null,
+    pips: boolean
+  ): Player => ({ id, name: name ?? "?", level: level ?? "equal", plays_pips: pips });
+
+  // Cosmetic: swap the placeholder for the real DB row (points chip). Only
+  // replaces the slot if the user hasn't changed/cleared it meanwhile.
+  const enrich = (
+    id: number | null | undefined,
+    name: string | null | undefined,
+    set: (fn: (cur: Player | null) => Player | null) => void
+  ) => {
+    if (id == null || !name) return;
+    trackerApi
+      .searchPlayers(name)
+      .then((rs) => {
+        const p = rs.find((r) => r.id === id);
+        if (p) set((cur) => (cur && cur.id === id ? p : cur));
+      })
+      .catch(() => {});
+  };
+
+  const startEdit = (m: Match) => {
+    setEditingMatch(m);
+    setSelScore({ my: m.my_sets, opp: m.opp_sets });
+    setDiscipline(m.discipline);
+    setBestOf(m.best_of);
+    setEventName(m.event_name ?? "");
+    setOpponent(
+      m.opponent_id != null
+        ? toPlayer(m.opponent_id, m.opponent_name, m.opponent_level, m.opponent_plays_pips)
+        : null
+    );
+    setOpponent2(
+      m.opponent2_id != null
+        ? toPlayer(m.opponent2_id, m.opponent2_name, m.opponent2_level, m.opponent2_plays_pips)
+        : null
+    );
+    setPartner(
+      m.partner_id != null
+        ? toPlayer(m.partner_id, m.partner_name, m.partner_level, false)
+        : null
+    );
+    applyHandicap(m.handicap, m.handicap_pattern);
+    if (m.round) setRound(m.round as TournamentRound);
+    enrich(m.opponent_id, m.opponent_name, setOpponent);
+    enrich(m.opponent2_id, m.opponent2_name, setOpponent2);
+    enrich(m.partner_id, m.partner_name, setPartner);
+  };
+
+  // Back to a clean add form (also runs after a successful save).
+  const resetForm = () => {
+    setEditingMatch(null);
+    setSelScore(null);
+    setOpponent(null);
+    setOpponent2(null);
+    setPartner(null);
+    setHandicapDir("none");
+    setHandicapChoice("2-2-2");
+    setCustomPattern("");
+    setEventName("");
+    applyEntryPrefill(); // tournament cells get their name/partner back
+  };
+
+  // Changing the format mid-edit can orphan the picked score (3-2 under BO3).
+  const scoreValid =
+    selScore != null &&
+    [...wins, ...losses].some(
+      (s) => s.my === selScore.my && s.opp === selScore.opp
+    );
+
+  const saveEdit = async () => {
+    if (!editingMatch || !selScore || !scoreValid) return;
+    const ok = await onUpdate(editingMatch.id, {
+      discipline,
+      best_of: bestOf,
+      my_sets: selScore.my,
+      opp_sets: selScore.opp,
+      event_name: eventName.trim() || null,
+      note: editingMatch.note, // not editable here — carry through
+      opponent_id: opponent?.id ?? null,
+      opponent2_id: hasOpp2 ? opponent2?.id ?? null : null,
+      partner_id: hasPartner ? partner?.id ?? null : null,
+      handicap,
+      handicap_pattern: handicapPattern,
+      // The tournament link is not re-pickable when editing — keep it as-is.
+      tournament_entry_id: editingMatch.tournament_entry_id ?? null,
+      round: isTournamentCell ? round : editingMatch.round ?? null,
+    });
+    if (ok) resetForm();
+  };
+
+  // Score buttons: save immediately when adding, select when editing.
+  const pickScore = (my: number, opp: number) => {
+    if (editingMatch) setSelScore({ my, opp });
+    else addScore(my, opp);
+  };
 
   const addScore = (my: number, opp: number) => {
     onAdd({
@@ -331,11 +462,24 @@ export default function MatchEditor({
         </div>
       )}
 
+      {/* Edit mode banner */}
+      {editingMatch && (
+        <div className="match-edit-banner">
+          <span>✏️ Editing this match — adjust below, then Save</span>
+          <button className="btn" onClick={resetForm}>
+            Cancel
+          </button>
+        </div>
+      )}
+
       {/* Existing matches in this cell */}
       {matches.length > 0 && (
         <div className="match-list">
           {matches.map((m) => (
-            <div key={m.id} className="match-item">
+            <div
+              key={m.id}
+              className={`match-item${editingMatch?.id === m.id ? " editing" : ""}`}
+            >
               <span>
                 {m.is_nonplaying
                   ? m.nonplaying_label ?? "—"
@@ -345,13 +489,25 @@ export default function MatchEditor({
                 {m.event_name ? ` · ${m.event_name}` : ""}
                 <EloChip m={m} />
               </span>
-              <button
-                className="icon-btn danger"
-                onClick={() => onDelete(m.id)}
-                aria-label="Delete match"
-              >
-                ✕
-              </button>
+              <span className="match-item-btns">
+                {!m.is_nonplaying && (
+                  <button
+                    className="icon-btn"
+                    onClick={() => startEdit(m)}
+                    aria-label="Edit match"
+                    title="Edit match"
+                  >
+                    ✏️
+                  </button>
+                )}
+                <button
+                  className="icon-btn danger"
+                  onClick={() => onDelete(m.id)}
+                  aria-label="Delete match"
+                >
+                  ✕
+                </button>
+              </span>
             </div>
           ))}
         </div>
@@ -475,7 +631,7 @@ export default function MatchEditor({
         </datalist>
       </div>
 
-      {/* Score picker */}
+      {/* Score picker (adding: tap = save; editing: tap = select, 💾 saves) */}
       <div className="score-picker">
         <div className="score-col">
           <span className="score-head win">Win</span>
@@ -483,8 +639,12 @@ export default function MatchEditor({
             {wins.map((s) => (
               <button
                 key={`w${s.my}-${s.opp}`}
-                className="score-btn win"
-                onClick={() => addScore(s.my, s.opp)}
+                className={`score-btn win${
+                  editingMatch && selScore?.my === s.my && selScore?.opp === s.opp
+                    ? " selected"
+                    : ""
+                }`}
+                onClick={() => pickScore(s.my, s.opp)}
               >
                 {s.my}-{s.opp}
               </button>
@@ -497,8 +657,12 @@ export default function MatchEditor({
             {losses.map((s) => (
               <button
                 key={`l${s.my}-${s.opp}`}
-                className="score-btn loss"
-                onClick={() => addScore(s.my, s.opp)}
+                className={`score-btn loss${
+                  editingMatch && selScore?.my === s.my && selScore?.opp === s.opp
+                    ? " selected"
+                    : ""
+                }`}
+                onClick={() => pickScore(s.my, s.opp)}
               >
                 {s.my}-{s.opp}
               </button>
@@ -507,15 +671,32 @@ export default function MatchEditor({
         </div>
       </div>
 
-      {/* Non-playing quick buttons */}
-      <div className="quick-row">
-        <button className="btn" onClick={() => addNonPlaying("Travel")}>
-          ✈️ Travel
-        </button>
-        <button className="btn" onClick={() => addNonPlaying("Rest")}>
-          😴 Rest
-        </button>
-      </div>
+      {editingMatch ? (
+        /* Edit mode: explicit save (the common edit keeps the score as-is) */
+        <div className="quick-row">
+          <button
+            className="btn primary"
+            onClick={saveEdit}
+            disabled={!scoreValid}
+            title={scoreValid ? undefined : "Pick a score for this format"}
+          >
+            💾 Save changes
+          </button>
+          <button className="btn" onClick={resetForm}>
+            Cancel
+          </button>
+        </div>
+      ) : (
+        /* Non-playing quick buttons */
+        <div className="quick-row">
+          <button className="btn" onClick={() => addNonPlaying("Travel")}>
+            ✈️ Travel
+          </button>
+          <button className="btn" onClick={() => addNonPlaying("Rest")}>
+            😴 Rest
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -1196,9 +1196,8 @@ def _finalize_match_stats(s: dict) -> schemas.MatchStats:
 def _in_stats_bucket(m: Match, bucket: str) -> bool:
     """Whether a match belongs to one of build_stats' summary buckets.
 
-    The SAME predicate backs the stat cards (build_stats) and the drill-down
-    list (list_stats_matches), so a card's numbers and its match list can
-    never disagree."""
+    The SAME predicate backs build_stats (coach bundle numbers) and the
+    Profile tab's vs_pips KPI, so the two can never disagree."""
     if m.is_nonplaying:
         return False
     if bucket == "overall":
@@ -1212,17 +1211,6 @@ def _in_stats_bucket(m: Match, bucket: str) -> bool:
     if bucket == "singles":
         return m.discipline not in ("doubles", "one_v_two", "two_v_one")
     return m.discipline == bucket
-
-
-def list_stats_matches(
-    db: Session, date_from: dt.date, date_to: dt.date, bucket: str
-) -> list[schemas.MatchOut]:
-    """Drill-down behind one stat card: the matches making up that bucket's
-    numbers in the range, newest first, ELO-annotated like the week view."""
-    rng = _load_range(db, date_from, date_to, with_match_relations=True)
-    matches = [m for m in rng.matches if _in_stats_bucket(m, bucket)]
-    matches.sort(key=lambda m: (m.date, m.order_index, m.id), reverse=True)
-    return _annotate_elo(db, matches)
 
 
 # SQL ordering for "newest first" — order_index then id break same-day ties.
@@ -1525,11 +1513,27 @@ def _opponent_ids_in(db: Session, date_from: dt.date | None, date_to: dt.date | 
 
 
 def count_new_opponents(db: Session, date_from: dt.date, date_to: dt.date) -> int:
-    """How many opponents faced in the window had never been faced before it
-    (the user's sparring goal: play people not yet in the history). The
-    "before" check spans the FULL history — no tab floor, no filters."""
-    faced = _opponent_ids_in(db, date_from, date_to)
-    return len(faced - _opponent_ids_in(db, None, date_from - dt.timedelta(days=1)))
+    """How many opponents played SINGLES vs me in the window whom I had never
+    faced before it (the user's sparring goal: singles vs people not yet in
+    the history — team formats dropped from the stat, user rule 2026-08-02).
+    The "before" check still spans the FULL history including team matches —
+    someone first met in doubles is not new when later playing them in
+    singles. No tab floor, no filters."""
+    seen_before = _opponent_ids_in(db, None, date_from - dt.timedelta(days=1))
+    faced_singles: set[int] = set()
+    rows = (
+        db.query(Match.opponent_id)
+        .filter(
+            Match.is_nonplaying == False,  # noqa: E712
+            Match.discipline == "singles",
+            Match.opponent_id.isnot(None),
+            Match.date >= date_from,
+            Match.date <= date_to,
+        )
+        .distinct()
+    )
+    faced_singles.update(row[0] for row in rows)
+    return len(faced_singles - seen_before)
 
 
 def _record_tail(rec: dict) -> dict:
@@ -1550,6 +1554,7 @@ def _record_tail(rec: dict) -> dict:
 
 class _H2HAcc(NamedTuple):
     overall: dict
+    vs_pips: dict  # subset of overall: an opponent (either slot) plays pips
     singles_h2h: dict[int, dict]
     doubles_h2h: dict[str, dict]
     opp_brief: dict[int, dict]
@@ -1559,6 +1564,7 @@ def _h2h_accumulate(matches: list[Match], my_now: int) -> _H2HAcc:
     """One pass over the matches → overall tally + head-to-head records
     (singles per opponent; team-style per discipline+partner+pair)."""
     overall = _blank_match_stats()
+    vs_pips = _blank_match_stats()
     singles_h2h: dict[int, dict] = {}  # keyed by opponent_id
     # Team-style matchups (doubles / 1v2 / 2v1), keyed by
     # discipline + partner + opponent-pair. Slots a format doesn't use stay None.
@@ -1567,6 +1573,10 @@ def _h2h_accumulate(matches: list[Match], my_now: int) -> _H2HAcc:
 
     for m in matches:
         _tally(overall, m)
+        # Same predicate as the Daily Tracker's "vs pips" card, so the two
+        # tabs' numbers can never drift apart.
+        if _in_stats_bucket(m, "vs_pips"):
+            _tally(vs_pips, m)
 
         # Dropdown list: count every opponent appearance (opp1 + opp2).
         for opp in (m.opponent, m.opponent2):
@@ -1579,7 +1589,12 @@ def _h2h_accumulate(matches: list[Match], my_now: int) -> _H2HAcc:
                         "level": level_from_points(opp.points, my_now),
                         "points": opp.points,
                         "played": 0,
+                        "plays_pips": bool(opp.plays_pips),
+                        # Did any in-range meeting happen in singles? (the
+                        # "new opponents" stat only counts singles meetings)
+                        "met_in_singles": False,
                     }
+                b["met_in_singles"] = b["met_in_singles"] or m.discipline == "singles"
                 b["played"] += 1
 
         if m.discipline != "singles":
@@ -1650,7 +1665,7 @@ def _h2h_accumulate(matches: list[Match], my_now: int) -> _H2HAcc:
                 round=m.round,
             )
         )
-    return _H2HAcc(overall, singles_h2h, doubles_h2h, opp_brief)
+    return _H2HAcc(overall, vs_pips, singles_h2h, doubles_h2h, opp_brief)
 
 
 # Rolling "form": win rate over the last FORM_WINDOW decided (W/L) matches.
@@ -1760,13 +1775,16 @@ def build_match_stats(
 
     acc = _h2h_accumulate(matches, my_now)
 
-    # "New" = never faced before the range starts, in ANY match (full history,
-    # both opponent slots, ignoring the filters) — first met in doubles means
-    # not new when first playing them in singles. The in-range side follows
-    # the tab's filters, like every other number on the tab.
+    # "New" = played SINGLES vs me in range AND never faced before the range
+    # starts, in ANY match (full history, both opponent slots, ignoring the
+    # filters) — first met in doubles means not new when first playing them
+    # in singles, and team-only meetings don't count at all (user rule
+    # 2026-08-02). The in-range side follows the tab's filters, like every
+    # other number on the tab.
     seen_before = _opponent_ids_in(db, None, date_from - dt.timedelta(days=1))
     for oid, brief in acc.opp_brief.items():
-        brief["is_new"] = oid not in seen_before
+        met_in_singles = brief.pop("met_in_singles")
+        brief["is_new"] = met_in_singles and oid not in seen_before
 
     singles_list = sorted(
         (
@@ -1809,6 +1827,7 @@ def build_match_stats(
         category=category,
         unit=unit,
         overall=_finalize_match_stats(acc.overall),
+        vs_pips=_finalize_match_stats(acc.vs_pips),
         new_opponents=sum(1 for b in acc.opp_brief.values() if b["is_new"]),
         opponents=opponents,
         singles_h2h=singles_list,

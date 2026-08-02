@@ -141,6 +141,25 @@ export default function DailyTracker() {
     afterMutate();
   };
 
+  // Edit-in-place from the match list. Returns success so the editor only
+  // leaves edit mode when the PUT actually landed.
+  const updateMatch = async (
+    id: number,
+    payload: Omit<MatchIn, "date" | "category_id">
+  ): Promise<boolean> => {
+    if (!editing) return false;
+    const ok = await run(() =>
+      trackerApi.updateMatch(id, {
+        date: editing.dateIso,
+        category_id: editing.category.id,
+        ...payload,
+      })
+    );
+    if (ok === undefined) return false;
+    afterMutate();
+    return true;
+  };
+
   const deleteMatch = async (id: number) => {
     // DELETE returns 204 (no body) → the api client resolves to undefined,
     // which is also run()'s failure sentinel — wrap so success stays truthy.
@@ -298,6 +317,7 @@ export default function DailyTracker() {
                   : []
               }
               onAdd={addMatch}
+              onUpdate={updateMatch}
               onDelete={deleteMatch}
             />
           )}
