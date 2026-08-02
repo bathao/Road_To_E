@@ -36,6 +36,18 @@ export const ROUND_SHORT: Record<TournamentRound, string> = {
   f: "F",
 };
 
+// "give 2-0-2" / "receive 4" — one handicap phrasing for every list row
+// (MatchEditor, MatchRowList, Profile drill-down, h2h MatchLines). Non-uniform
+// ratios show the per-set sequence; null = no handicap.
+export function hdcLabel(
+  handicap: number,
+  pattern?: string | null
+): string | null {
+  if (handicap === 0) return null;
+  const amount = pattern ?? String(Math.abs(handicap));
+  return `${handicap > 0 ? "give" : "receive"} ${amount}`;
+}
+
 // "with <partner> vs <opponents>" — mirrors the MatchEditor list wording.
 // Structurally typed so anything carrying the name slots can use it (Match
 // rows in the drill-down modals, RatingMover rows in the Profile ELO table).

@@ -1,13 +1,13 @@
 // One match per line — date, format tag, "with <partner> vs <opponents>",
-// result + score, handicap, match kind, event, ±ELO chip. Shared by the
-// Analysis drill-down modal and the Database tab's per-player modal so the
-// two lists can never drift apart.
+// result + score, handicap, match kind, event, ±ELO chip. Sole consumer is
+// the Database tab's per-player modal (its other user, the Analysis
+// drill-down modal, was removed 2026-08-02 with the win-rate cards).
 import { useMemo } from "react";
 import { useLoad } from "../../../shared/useApi";
 import { prettyDate } from "../../../shared/dates";
 import { DISCIPLINE_SHORT } from "../../../shared/disciplines";
 import { fmtDelta } from "../../../shared/format";
-import { matchupOf, ROUND_SHORT } from "../../../shared/matches";
+import { hdcLabel, matchupOf, ROUND_SHORT } from "../../../shared/matches";
 import { resultOf } from "../../../shared/types";
 import { trackerApi } from "../api";
 import type { Category, Match } from "../types";
@@ -18,12 +18,6 @@ const KIND_LABEL: Record<string, string> = {
   official_match: "light stakes",
   tournament_match: "tournament",
 };
-
-function hdcText(m: Match): string | null {
-  if (!m.handicap) return null;
-  const amount = m.handicap_pattern ?? String(Math.abs(m.handicap));
-  return m.handicap > 0 ? `give ${amount}` : `receive ${amount}`;
-}
 
 export default function MatchRowList({ matches }: { matches: Match[] }) {
   const { data: categories } = useLoad<Category[]>(
@@ -42,7 +36,7 @@ export default function MatchRowList({ matches }: { matches: Match[] }) {
     <ul className="smm-list">
       {matches.map((m) => {
         const r = resultOf(m);
-        const hdc = hdcText(m);
+        const hdc = hdcLabel(m.handicap, m.handicap_pattern);
         return (
           <li key={m.id} className="smm-row">
             <span className="smm-date">{prettyDate(m.date)}</span>

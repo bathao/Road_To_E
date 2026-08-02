@@ -154,8 +154,8 @@ def test_new_opponents_singles_first_ever_meeting_only(db):
 
 def test_match_stats_vs_pips_bucket(db):
     """vs_pips = subset of overall where an opponent (either slot) plays
-    pips — same predicate as the Daily Tracker card, live from the player
-    flag (never snapshotted)."""
+    pips — same predicate as build_stats' bucket (the coach's numbers), live
+    from the player flag (never snapshotted)."""
     cat = category_id(db, "practice_match")
     gai = Player(name="Gai", points=900, plays_pips=True)
     norm = Player(name="Norm", points=900)

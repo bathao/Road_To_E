@@ -14,7 +14,7 @@ import { validScores } from "../../scores";
 import PlayerPicker from "./PlayerPicker";
 import { levelShort } from "../../../../shared/levels";
 import { DISCIPLINES, DISCIPLINE_SHORT } from "../../../../shared/disciplines";
-import { ROUND_LABEL, ROUND_SHORT } from "../../../../shared/matches";
+import { hdcLabel, ROUND_LABEL, ROUND_SHORT } from "../../../../shared/matches";
 import type { TournamentRound } from "../../../../shared/matches";
 import { resultOf } from "../../../../shared/types";
 
@@ -54,10 +54,8 @@ function playersLabel(m: Match): string {
     const gai = m.opponent_plays_pips ? " 🏓pips" : "";
     parts.push(`vs ${m.opponent_name} (${levelShort(m.opponent_level)})${gai}`);
   }
-  // Non-uniform ratios show the per-set sequence ("2-0-2"), uniform the number.
-  const hdc = m.handicap_pattern ?? String(Math.abs(m.handicap));
-  if (m.handicap > 0) parts.push(`give ${hdc}`);
-  else if (m.handicap < 0) parts.push(`receive ${hdc}`);
+  const hdc = hdcLabel(m.handicap, m.handicap_pattern);
+  if (hdc) parts.push(hdc);
   return parts.join(" ");
 }
 
@@ -191,6 +189,10 @@ export default function MatchEditor({
   const [selScore, setSelScore] = useState<{ my: number; opp: number } | null>(
     null
   );
+  // Whether the user touched the Round dropdown during THIS edit — a match
+  // saved without a round must not silently inherit the picker's leftover
+  // value on save.
+  const [roundTouched, setRoundTouched] = useState(false);
 
   // Signed handicap + optional per-set pattern → the three form fields.
   // Shared by the last-handicap prefill and by loading a match for edit.
@@ -313,6 +315,7 @@ export default function MatchEditor({
 
   const startEdit = (m: Match) => {
     setEditingMatch(m);
+    setRoundTouched(false);
     setSelScore({ my: m.my_sets, opp: m.opp_sets });
     setDiscipline(m.discipline);
     setBestOf(m.best_of);
@@ -342,6 +345,7 @@ export default function MatchEditor({
   // Back to a clean add form (also runs after a successful save).
   const resetForm = () => {
     setEditingMatch(null);
+    setRoundTouched(false);
     setSelScore(null);
     setOpponent(null);
     setOpponent2(null);
@@ -353,12 +357,18 @@ export default function MatchEditor({
     applyEntryPrefill(); // tournament cells get their name/partner back
   };
 
-  // Changing the format mid-edit can orphan the picked score (3-2 under BO3).
+  // Changing the format mid-edit can orphan the picked score (3-2 under
+  // BO3). The match's ORIGINAL score is always accepted — imported/legacy
+  // rows can hold scores validScores() never offers (e.g. a 1-1 tie), and
+  // "fix the handicap, keep the score" must still be saveable for them.
   const scoreValid =
     selScore != null &&
-    [...wins, ...losses].some(
-      (s) => s.my === selScore.my && s.opp === selScore.opp
-    );
+    ((editingMatch != null &&
+      selScore.my === editingMatch.my_sets &&
+      selScore.opp === editingMatch.opp_sets) ||
+      [...wins, ...losses].some(
+        (s) => s.my === selScore.my && s.opp === selScore.opp
+      ));
 
   const saveEdit = async () => {
     if (!editingMatch || !selScore || !scoreValid) return;
@@ -376,7 +386,13 @@ export default function MatchEditor({
       handicap_pattern: handicapPattern,
       // The tournament link is not re-pickable when editing — keep it as-is.
       tournament_entry_id: editingMatch.tournament_entry_id ?? null,
-      round: isTournamentCell ? round : editingMatch.round ?? null,
+      // Round follows the picker only if the user touched it this edit —
+      // otherwise the match keeps its stored value (incl. "no round").
+      round: isTournamentCell
+        ? roundTouched
+          ? round
+          : editingMatch.round ?? null
+        : editingMatch.round ?? null,
     });
     if (ok) resetForm();
   };
@@ -432,6 +448,15 @@ export default function MatchEditor({
             <select
               className="pb-select tour-entry-pick"
               value={entryIdx}
+              // Locked while editing: saveEdit keeps the match's stored
+              // entry link, so re-picking here would prefill the form
+              // (discipline/partner/event) without moving the link.
+              disabled={!!editingMatch}
+              title={
+                editingMatch
+                  ? "The tournament link can't be changed while editing"
+                  : undefined
+              }
               onChange={(e) => setEntryIdx(Number(e.target.value))}
             >
               {tournamentCtx.map((c, i) => (
@@ -451,7 +476,10 @@ export default function MatchEditor({
           <select
             className="pb-select"
             value={round}
-            onChange={(e) => setRound(e.target.value as TournamentRound)}
+            onChange={(e) => {
+              setRound(e.target.value as TournamentRound);
+              setRoundTouched(true);
+            }}
           >
             {ROUND_OPTIONS.map(([k, lbl]) => (
               <option key={k} value={k}>
@@ -502,7 +530,12 @@ export default function MatchEditor({
                 )}
                 <button
                   className="icon-btn danger"
-                  onClick={() => onDelete(m.id)}
+                  onClick={() => {
+                    // Deleting the row currently loaded into the form would
+                    // strand a phantom edit whose Save can only 404.
+                    if (editingMatch?.id === m.id) resetForm();
+                    onDelete(m.id);
+                  }}
                   aria-label="Delete match"
                 >
                   ✕

@@ -44,8 +44,9 @@ model; it falls back to `qwen3:14b` if not pulled — see
     (entering a tournament's results retires its card — played history lives
     in the Profile tab).
   - Analysis panel under the grid: comparison chart + ELO curve on the SAME
-    day axis, stat cards with click-through to the exact matches behind each
-    number; Excel/CSV export.
+    day axis, day/minute/racket-time summary cards; Excel/CSV export. (Match
+    win-rate stats live in the Profile tab, where every KPI tile clicks
+    through to the exact matches behind it.)
 - **🧠 Coach** — a strict Vietnamese head coach backed by a local LLM. Reads
   ONLY database facts (volume, matches with opponent context, ELO trend,
   physical load, day notes, real-life coach's advice, upcoming tournaments).
@@ -55,7 +56,8 @@ model; it falls back to `qwen3:14b` if not pulled — see
   an auto-written notebook.
 - **🪪 Profile** — my dynamic ELO (the only dynamic rating: anchor + replay)
   with the since-anchor curve + per-match ELO table, win rates and
-  head-to-head per opponent, training snapshots over a selectable range, and
+  head-to-head per opponent, training snapshots — all over a YouTube-style
+  range picker (rolling last-N-days / Lifetime / year / month / custom), and
   the Tournament Record (played tournaments: result reached, W-L, every
   match — all derived from the grid).
 - **💪 Training Center** — knee-safe (grade-1 osteoarthritis) physical

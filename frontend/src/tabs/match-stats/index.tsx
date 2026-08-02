@@ -6,8 +6,9 @@ import {
   DISCIPLINE_LABEL,
   DISCIPLINE_SHORT,
 } from "../../shared/disciplines";
-import { ROUND_SHORT } from "../../shared/matches";
+import { hdcLabel, ROUND_SHORT } from "../../shared/matches";
 import type { TournamentRound } from "../../shared/matches";
+import type { ResultFilter } from "../../shared/types";
 import { chartUnitFor } from "../../shared/period";
 import RangePicker, { resolvePreset } from "./components/RangePicker";
 import type { RangePreset } from "./components/RangePicker";
@@ -48,7 +49,7 @@ export default function MatchStats() {
   // W-L / Win rate tiles), the same list filtered to pips opponents, or the
   // new-opponents table. One panel at a time.
   const [panel, setPanel] = useState<false | "matches" | "pips" | "new">(false);
-  const [resFilter, setResFilter] = useState<"all" | "W" | "L">("all");
+  const [resFilter, setResFilter] = useState<ResultFilter>("all");
 
   // Earliest tracked data: opens the Lifetime range + bounds the picker's
   // year/month lists.
@@ -65,9 +66,12 @@ export default function MatchStats() {
   const unit =
     chartUnitFor("custom", "line", range.fromIso, range.toIso) ?? "day";
 
+  // No `unit` here: the response's trend buckets (the only unit-dependent
+  // piece) stopped being rendered with the "Results & form" chart — the
+  // endpoint skips computing them, so unit changes don't refetch stats.
   const { data, error, loading } = useLoad<MatchStatsResponse>(
-    () => matchStatsApi.get(range.fromIso, range.toIso, discipline, category, unit),
-    [range.fromIso, range.toIso, discipline, category, unit]
+    () => matchStatsApi.get(range.fromIso, range.toIso, discipline, category),
+    [range.fromIso, range.toIso, discipline, category]
   );
 
   // Reset the head-to-head pick when the dataset changes (an effect, not a
@@ -76,7 +80,7 @@ export default function MatchStats() {
     setSelOpp("");
     setPanel(false);
     setResFilter("all");
-  }, [range.fromIso, range.toIso, discipline, category, unit]);
+  }, [range.fromIso, range.toIso, discipline, category]);
 
   // ELO over time — global, so it deliberately ignores the two filters.
   const { data: elo } = useLoad<RatingBreakdown>(
@@ -138,10 +142,6 @@ export default function MatchStats() {
       round: string | null;
       oppIds: number[];
     }
-    const hdcText = (handicap: number, pattern?: string | null) =>
-      handicap === 0
-        ? null
-        : `${handicap > 0 ? "give" : "receive"} ${pattern ?? Math.abs(handicap)}`;
     const rows: Row[] = [];
     for (const r of data.singles_h2h) {
       for (const m of r.matches) {
@@ -153,7 +153,7 @@ export default function MatchStats() {
           result: m.result,
           vs: r.name,
           withPartner: null,
-          hdc: hdcText(m.handicap, m.handicap_pattern),
+          hdc: hdcLabel(m.handicap, m.handicap_pattern),
           event: m.event_name,
           round: m.round ?? null,
           oppIds: [r.opponent_id],
@@ -170,7 +170,7 @@ export default function MatchStats() {
           result: m.result,
           vs: [r.opp1_name, r.opp2_name].filter(Boolean).join(" & "),
           withPartner: r.partner_name,
-          hdc: hdcText(m.handicap, m.handicap_pattern),
+          hdc: hdcLabel(m.handicap, m.handicap_pattern),
           event: m.event_name,
           round: m.round ?? null,
           oppIds: [r.opp1_id, ...(r.opp2_id != null ? [r.opp2_id] : [])],
@@ -327,14 +327,14 @@ export default function MatchStats() {
       {/* Match-list drill-down (Matches / W-L / Win rate / vs-pips tiles) —
           same area and presentation as the new-opponents table below. */}
       {hasMatches && (panel === "matches" || panel === "pips") && (
-        <section className="stats-card newopp-card">
+        <section className="stats-card">
           <h3>
             {panel === "pips"
               ? "🏓 Matches vs pips in this range"
               : "📋 Matches in this range"}
           </h3>
           <div className="stats-filters">
-            <Seg<"all" | "W" | "L">
+            <Seg<ResultFilter>
               options={[
                 ["all", "All"],
                 ["W", "Wins"],
@@ -397,7 +397,7 @@ export default function MatchStats() {
       {/* "New opponents" drill-down: who they are, when first met, and the
           record so far — click a row to open their full head-to-head below. */}
       {hasMatches && panel === "new" && newOpps.length > 0 && (
-        <section className="stats-card newopp-card">
+        <section className="stats-card">
           <h3>🆕 New opponents (singles) in this range</h3>
           <table className="newopp-table">
             <thead>

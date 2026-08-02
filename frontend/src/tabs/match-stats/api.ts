@@ -10,16 +10,17 @@ import type {
 } from "./types";
 
 export const matchStatsApi = {
+  // No unit param: it only shaped the trend buckets, which the tab stopped
+  // rendering (chart removed 2026-08-01) and the endpoint stopped computing.
   get: (
     fromIso: string,
     toIso: string,
     discipline: DisciplineFilter,
-    category: CategoryFilter,
-    unit: "month" | "week" | "day"
+    category: CategoryFilter
   ) =>
     api.get<MatchStatsResponse>(
       `/tracker/match-stats?from=${fromIso}&to=${toIso}` +
-        `&discipline=${discipline}&category=${category}&unit=${unit}`
+        `&discipline=${discipline}&category=${category}`
     ),
 
   // ELO over time — GLOBAL (the rating ignores the discipline/category filters).

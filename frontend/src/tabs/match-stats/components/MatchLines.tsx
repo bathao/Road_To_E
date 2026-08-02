@@ -1,4 +1,5 @@
-import { ROUND_SHORT } from "../../../shared/matches";
+import { dmyDate } from "../../../shared/dates";
+import { hdcLabel, ROUND_SHORT } from "../../../shared/matches";
 import type { TournamentRound } from "../../../shared/matches";
 import type { MatchLine } from "../types";
 
@@ -10,21 +11,14 @@ export default function MatchLines({ rows }: { rows: MatchLine[] }) {
   return (
     <ol className="match-lines">
       {rows.map((m, i) => {
-        // Non-uniform ratios show the per-set sequence ("2-0-2").
-        const amount = m.handicap_pattern ?? String(Math.abs(m.handicap));
-        const hc =
-          m.handicap > 0
-            ? `gave ${amount} handicap`
-            : m.handicap < 0
-            ? `got ${amount} handicap`
-            : null;
+        const hc = hdcLabel(m.handicap, m.handicap_pattern);
         return (
           <li className="match-line" key={i}>
             <span className={`res res-${m.result}`}>{m.result}</span>
             <span className="ml-score">
               {m.my_sets}-{m.opp_sets}
             </span>
-            <span className="ml-date">{m.date}</span>
+            <span className="ml-date">{dmyDate(m.date)}</span>
             {hc && <span className="ml-hc">{hc}</span>}
             {m.round && ROUND_SHORT[m.round as TournamentRound] && (
               <span className="ml-event">

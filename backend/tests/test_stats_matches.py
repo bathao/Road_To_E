@@ -1,8 +1,8 @@
 """build_stats' summary buckets (overall / singles / doubles / vs_pips).
 
-These numbers feed the Daily Tracker summary cards and the coach bundle.
-(The per-card match drill-down GET /stats/matches was removed 2026-08-02
-with the Daily Tracker win-rate cards — the Profile tab owns match stats.)
+These numbers feed the coach bundle (verdict/recap grounding). The GUI no
+longer renders them — the Daily Tracker win-rate cards and their drill-down
+GET /stats/matches were removed 2026-08-02; the Profile tab owns match stats.
 """
 import datetime as dt
 

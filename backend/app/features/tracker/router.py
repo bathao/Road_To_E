@@ -441,8 +441,14 @@ def match_stats(
     unit: str = Query("month", pattern="^(month|week|day)$"),
     db: Session = Depends(get_db),
 ):
-    """Match analytics over named-opponent matches only (the Profile tab)."""
-    return service.build_match_stats(db, date_from, date_to, discipline, category, unit)
+    """Match analytics over named-opponent matches only (the Profile tab).
+
+    with_trend=False: the tab stopped rendering the trend buckets when its
+    "Results & form" chart was removed (2026-08-01) — only the coach bundle
+    (in-process) still reads them."""
+    return service.build_match_stats(
+        db, date_from, date_to, discipline, category, unit, with_trend=False
+    )
 
 
 # ---------------------------------------------------------------- export

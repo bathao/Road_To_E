@@ -3,6 +3,7 @@ import { headCoachApi } from "../api";
 import { useLoad, useMutate } from "../../../shared/useApi";
 import Seg from "../../../shared/ui/Seg";
 import { prettyDate } from "../../../shared/dates";
+import { fmtDelta, pct } from "../../../shared/format";
 import { fmtTime } from "../fmt";
 import type { Recap, RecapPeriod, RecapPeriodStats, RecapsOut } from "../types";
 
@@ -10,11 +11,6 @@ const WINDOW_LABEL: Record<RecapPeriod, string> = {
   week: "Last 7 days",
   month: "Last 30 days",
 };
-
-function fmtEloDelta(d: number) {
-  const v = Math.round(d * 10) / 10;
-  return `${v > 0 ? "+" : ""}${v}`;
-}
 
 // One code-computed number, with the previous window's value underneath.
 function Stat({
@@ -49,7 +45,7 @@ function Stat({
 }
 
 function matchesText(s: RecapPeriodStats) {
-  const wr = s.win_rate != null ? ` · ${Math.round(s.win_rate * 100)}%` : "";
+  const wr = s.win_rate != null ? ` · ${pct(s.win_rate)}` : "";
   return `${s.matches_played} (${s.matches_wins}W–${s.matches_losses}L${wr})`;
 }
 
@@ -102,13 +98,13 @@ function StatsRow({ recap }: { recap: Recap }) {
         label="ELO"
         value={
           cur.elo_end != null
-            ? `${fmtEloDelta(cur.elo_delta)} → ${cur.elo_end}`
+            ? `${fmtDelta(cur.elo_delta)} → ${cur.elo_end}`
             : "pre-anchor"
         }
         prev={
           prev
             ? prev.elo_end != null
-              ? `${fmtEloDelta(prev.elo_delta)} → ${prev.elo_end}`
+              ? `${fmtDelta(prev.elo_delta)} → ${prev.elo_end}`
               : "pre-anchor"
             : undefined
         }

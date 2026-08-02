@@ -282,14 +282,6 @@ body {
   color: var(--muted);
 }
 
-.stat-line .win {
-  color: #2e7d32;
-}
-
-.stat-line .loss {
-  color: var(--danger);
-}
-
 /* Line / area trend chart */
 
 .linechart {

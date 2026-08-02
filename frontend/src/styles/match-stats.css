@@ -76,7 +76,7 @@
   color: var(--muted);
 }
 
-/* The "New opponents" KPI expands into a drill-down list. */
+/* Clickable KPI tiles — every tile expands a drill-down below the row. */
 .kpi-btn { cursor: pointer; }
 
 .kpi-btn:hover { border-color: var(--accent); }
@@ -338,12 +338,13 @@
   font-weight: 700;
 }
 
+/* Same W/L colors as the h2h .res-W/.res-L chips — one green per tab. */
 .elo-td-res.win {
-  color: #5fa83c;
+  color: #2e7d32;
 }
 
 .elo-td-res.loss {
-  color: #d64545;
+  color: var(--danger);
 }
 
 .elo-td-delta {

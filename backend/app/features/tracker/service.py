@@ -1193,24 +1193,19 @@ def _finalize_match_stats(s: dict) -> schemas.MatchStats:
     return schemas.MatchStats(**s, win_rate=win_rate(s["wins"], s["losses"]))
 
 
-def _in_stats_bucket(m: Match, bucket: str) -> bool:
-    """Whether a match belongs to one of build_stats' summary buckets.
+def _is_vs_pips(m: Match) -> bool:
+    """Either listed opponent plays pimpled rubber (covers doubles).
 
-    The SAME predicate backs build_stats (coach bundle numbers) and the
-    Profile tab's vs_pips KPI, so the two can never disagree."""
+    The SAME predicate backs build_stats' vs_pips bucket (coach bundle
+    numbers) and the Profile tab's vs_pips KPI, so the two can never
+    disagree. (Was the multi-bucket _in_stats_bucket until the Daily Tracker
+    win-rate cards + their drill-down endpoint were removed 2026-08-02.)"""
     if m.is_nonplaying:
         return False
-    if bucket == "overall":
-        return True
-    if bucket == "vs_pips":
-        # Either listed opponent plays pimpled rubber (covers doubles).
-        return bool(
-            (m.opponent and m.opponent.plays_pips)
-            or (m.opponent2 and m.opponent2.plays_pips)
-        )
-    if bucket == "singles":
-        return m.discipline not in ("doubles", "one_v_two", "two_v_one")
-    return m.discipline == bucket
+    return bool(
+        (m.opponent and m.opponent.plays_pips)
+        or (m.opponent2 and m.opponent2.plays_pips)
+    )
 
 
 # SQL ordering for "newest first" — order_index then id break same-day ties.
@@ -1304,7 +1299,7 @@ def build_stats(db: Session, date_from: dt.date, date_to: dt.date) -> schemas.St
         bucket = by_discipline.get(m.discipline, singles)
         _tally(overall, m)
         _tally(bucket, m)
-        if _in_stats_bucket(m, "vs_pips"):
+        if _is_vs_pips(m):
             _tally(vs_pips, m)
 
     # Day-level counts.
@@ -1518,7 +1513,12 @@ def count_new_opponents(db: Session, date_from: dt.date, date_to: dt.date) -> in
     the history — team formats dropped from the stat, user rule 2026-08-02).
     The "before" check still spans the FULL history including team matches —
     someone first met in doubles is not new when later playing them in
-    singles. No tab floor, no filters."""
+    singles. No tab floor, no filters.
+
+    KEEP IN SYNC with build_match_stats' is_new (the met_in_singles path in
+    _h2h_accumulate) — the same rule implemented in-memory; the definition
+    changed 3 times in 2 days, and a future change must touch both.
+    test_match_stats cross-asserts the two."""
     seen_before = _opponent_ids_in(db, None, date_from - dt.timedelta(days=1))
     faced_singles: set[int] = set()
     rows = (
@@ -1573,9 +1573,9 @@ def _h2h_accumulate(matches: list[Match], my_now: int) -> _H2HAcc:
 
     for m in matches:
         _tally(overall, m)
-        # Same predicate as the Daily Tracker's "vs pips" card, so the two
-        # tabs' numbers can never drift apart.
-        if _in_stats_bucket(m, "vs_pips"):
+        # Same predicate as build_stats' bucket (the coach's numbers), so
+        # the Profile KPI and the coach can never drift apart.
+        if _is_vs_pips(m):
             _tally(vs_pips, m)
 
         # Dropdown list: count every opponent appearance (opp1 + opp2).
@@ -1750,6 +1750,7 @@ def build_match_stats(
     unit: str = "month",
     replay: rating.ReplayResult | None = None,
     form_seed: bool = True,
+    with_trend: bool = True,
 ) -> schemas.MatchStatsResponse:
     """Stats over *named-opponent* matches only (opponent_id set, playing).
 
@@ -1760,7 +1761,10 @@ def build_match_stats(
 
     The trend buckets carry the rolling form; seeding it issues one extra
     pre-range query (`_prior_form_results`) — callers that ignore `form`
-    (the coach bundle) pass `form_seed=False` to skip it.
+    (the coach bundle) pass `form_seed=False` to skip it. The Profile tab
+    stopped rendering the trend entirely (its chart was removed 2026-08-01),
+    so the HTTP route passes `with_trend=False` and only the coach bundle
+    (which reads `.trend` in-process) still computes the buckets.
     """
     # Clamp to the floor — this tab only covers matches from June 2026 on.
     date_from = max(date_from, MATCH_STATS_FLOOR)
@@ -1780,7 +1784,8 @@ def build_match_stats(
     # filters) — first met in doubles means not new when first playing them
     # in singles, and team-only meetings don't count at all (user rule
     # 2026-08-02). The in-range side follows the tab's filters, like every
-    # other number on the tab.
+    # other number on the tab. KEEP IN SYNC with count_new_opponents (the
+    # recap path — same rule in SQL); test_match_stats cross-asserts them.
     seen_before = _opponent_ids_in(db, None, date_from - dt.timedelta(days=1))
     for oid, brief in acc.opp_brief.items():
         met_in_singles = brief.pop("met_in_singles")
@@ -1837,7 +1842,9 @@ def build_match_stats(
             _prior_form_results(db, date_from, discipline, category)
             if form_seed
             else None,
-        ),
+        )
+        if with_trend
+        else [],
     )
 
 

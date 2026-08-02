@@ -70,19 +70,6 @@ export interface DoublesRecord {
   matches: MatchLine[];
 }
 
-export interface MatchTrendBucket {
-  key: string;
-  label: string;
-  date_from: string;
-  date_to: string;
-  matches: number;
-  wins: number;
-  losses: number;
-  win_rate: number | null;
-  // Rolling form at the bucket's end: win rate of the last 10 decided
-  // matches (null until enough matches have been played).
-  form: number | null;
-}
 
 // My ELO over time (shared shapes with the Daily Tracker's Analysis panel).
 export type { RatingBreakdown, RatingMover } from "../daily-tracker/types";
@@ -126,7 +113,9 @@ export interface MatchStatsResponse {
   opponents: OpponentBrief[];
   singles_h2h: OpponentRecord[];
   doubles_h2h: DoublesRecord[];
-  trend: MatchTrendBucket[];
+  // `trend` (rolling-form buckets) is deliberately not mirrored: the HTTP
+  // route returns it empty (with_trend=False) since the "Results & form"
+  // chart was removed — only the coach bundle reads it, in-process.
 }
 
 // ------------------------- Tournament Record (read-only history, rangeless)

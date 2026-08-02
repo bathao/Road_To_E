@@ -1,6 +1,6 @@
 // Training discipline over the page's selected range: days trained, total
 // time and the per-category minutes list. (Moved from the retired Profile
-// tab 2026-07-30 — it now follows the tab's PeriodControl.)
+// tab 2026-07-30 — it now follows the tab's range picker.)
 import { fmtMinutes } from "../../../shared/format";
 import type { TrackerStats } from "../types";
 

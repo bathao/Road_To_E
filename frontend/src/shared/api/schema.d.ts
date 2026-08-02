@@ -551,6 +551,10 @@ export interface paths {
         /**
          * Match Stats
          * @description Match analytics over named-opponent matches only (the Profile tab).
+         *
+         *     with_trend=False: the tab stopped rendering the trend buckets when its
+         *     "Results & form" chart was removed (2026-08-01) — only the coach bundle
+         *     (in-process) still reads them.
          */
         get: operations["match_stats_api_tracker_match_stats_get"];
         put?: never;
@@ -1674,7 +1678,11 @@ export interface components {
              */
             alternatives: components["schemas"]["ItemAlt"][];
         };
-        /** LastDateResponse */
+        /**
+         * LastDateResponse
+         * @description A single data-boundary day — serves BOTH GET /last-date (most recent
+         *     day with any data) and GET /first-date (earliest). None = no data yet.
+         */
         LastDateResponse: {
             /** Date */
             date: string | null;
@@ -1954,7 +1962,10 @@ export interface components {
             singles_h2h: components["schemas"]["OpponentRecord"][];
             /** Doubles H2H */
             doubles_h2h: components["schemas"]["DoublesRecord"][];
-            /** Trend */
+            /**
+             * Trend
+             * @default []
+             */
             trend: components["schemas"]["MatchTrendBucket"][];
         };
         /** MatchTrendBucket */

@@ -143,7 +143,7 @@ export default function RangePicker({
   return (
     <div className="period-control">
       <select
-        className="pb-select range-picker-select"
+        className="pb-select"
         value={preset}
         onChange={(e) => onPreset(e.target.value)}
       >

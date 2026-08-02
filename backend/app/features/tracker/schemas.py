@@ -255,7 +255,9 @@ class EventOut(BaseModel):
 
 
 class LastDateResponse(BaseModel):
-    date: dt.date | None  # most recent day with any data; None if empty
+    """A single data-boundary day — serves BOTH GET /last-date (most recent
+    day with any data) and GET /first-date (earliest). None = no data yet."""
+    date: dt.date | None
 
 
 class LastHandicapResponse(BaseModel):
@@ -488,7 +490,9 @@ class MatchStatsResponse(BaseModel):
     opponents: list[OpponentBrief]  # for the head-to-head dropdown
     singles_h2h: list[OpponentRecord]
     doubles_h2h: list[DoublesRecord]
-    trend: list[MatchTrendBucket]
+    # Rolling-form trend buckets — consumed only by the coach bundle
+    # in-process; the HTTP route skips computing them (with_trend=False).
+    trend: list[MatchTrendBucket] = []
 
 
 class WeekResponse(BaseModel):

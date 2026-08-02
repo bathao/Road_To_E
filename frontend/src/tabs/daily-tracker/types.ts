@@ -194,6 +194,10 @@ export interface StatsResponse {
   racket_minutes_total: number;
   racket_minutes_training: number;
   racket_minutes_matches: number;
+  // Match buckets below are mirrored for completeness but the FE no longer
+  // reads them (the Daily Tracker win-rate cards were removed 2026-08-02) —
+  // they feed the coach bundle in-process; Profile match stats come from
+  // /tracker/match-stats instead.
   overall: MatchStats;
   singles: MatchStats;
   doubles: MatchStats;

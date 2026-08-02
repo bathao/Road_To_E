@@ -21,7 +21,7 @@ export interface CategoryMinutes {
 /** Result of a single match. */
 export type MatchResult = "W" | "L" | "T";
 
-/** W/L filter choice on the match drill-down modals. */
+/** W/L filter choice on match drill-down lists (Database modal, Profile). */
 export type ResultFilter = "all" | "W" | "L";
 
 /** W/L/T of a match derived from its set counts. */
