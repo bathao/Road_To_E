@@ -1,6 +1,50 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-08-02, latest) — big UX batch committed `1a46eca`
+## Current status (2026-08-02, latest) — project-wide review committed `c73df23`
+
+> **Review + cleanup after the day's feature batch (user request "review lại
+> toàn bộ project"; two parallel review agents, findings verified then
+> applied; committed `c73df23`, needs start.bat restart):**
+>   - **4 real bugs fixed, all in the new MatchEditor edit-in-place mode:**
+>     (1) deleting the row being edited stranded a phantom edit whose Save
+>     could only 404 — delete now exits edit mode first; (2) a stored score
+>     outside validScores() (e.g. an imported 1-1 tie) could never be
+>     re-saved — the original score is now always accepted; (3) the
+>     tournament-entry picker stayed live during edit (prefilled the form
+>     while saveEdit pins the stored link) — disabled while editing;
+>     (4) editing a round-less tournament match silently stamped the
+>     picker's leftover round — round writes only if touched that edit
+>     (new roundTouched flag).
+>   - **Waste cut:** /tracker/match-stats no longer computes the trend
+>     buckets (their chart died 2026-08-01; only the coach reads them
+>     in-process) — build_match_stats gained `with_trend`, the route passes
+>     False, the FE stopped sending/refetching on `unit`, MatchTrendBucket
+>     left the FE mirror. `_in_stats_bucket` collapsed to `_is_vs_pips`
+>     (the other buckets' callers died with the drill-down endpoint).
+>   - **Dedup:** `hdcLabel()` ("give 2-0-2"/"receive 4") extracted to
+>     shared/matches.ts — was 4 copies, one drifted ("gave/got");
+>     CoachRecaps now uses shared fmtDelta/pct; shared ResultFilter reused
+>     by the Profile drill-down seg.
+>   - **UI consistency:** h2h MatchLines dates ISO → dd/mm/yyyy; one W/L
+>     color pair per tab (.elo-td-res now matches .res-W/.res-L).
+>   - **Hygiene:** orphaned `.stat-line .win/.loss` CSS + 2 inert
+>     classNames removed; stale comments/docs fixed (README Daily
+>     Tracker/Profile bullets, PeriodControl/StatMatchesModal references);
+>     KEEP-IN-SYNC cross-refs on the TWO new-opponents implementations
+>     (SQL vs in-memory — rule changed 3× in 2 days, classic drift pair,
+>     cross-asserted in tests); StatsResponse FE mirror notes its match
+>     buckets are coach-only now.
+>   - **Tests +2 (107 total):** PUT /matches CELL-MOVE appends order_index
+>     after the target cell's rows (the edit-in-place backend path — was
+>     uncovered; a regression here silently scrambles cell order) and
+>     first-date/last-date endpoints.
+>   - Declined deliberately: merging the two new-opponents implementations
+>     (different paths, cross-checked by tests), moving MatchRowList out of
+>     daily-tracker (churn, no coupling win), "Lifetime" label vs the
+>     2026-06-01 MATCH_STATS_FLOOR (harmless by design).
+>   - Verified: 107/107 pytest, gen:api + tsc + vite build clean.
+
+## Earlier same day (2026-08-02) — big UX batch committed `1a46eca`
 
 > **Six user-driven changes in one day (all built same day, committed
 > `1a46eca` + daily DB data; needs start.bat restart):**
