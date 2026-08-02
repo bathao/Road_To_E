@@ -1,6 +1,67 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-08-01, latest) — "New opponents" stat (committed 5bfad2b)
+## Current status (2026-08-02, latest) — big UX batch committed `1a46eca`
+
+> **Six user-driven changes in one day (all built same day, committed
+> `1a46eca` + daily DB data; needs start.bat restart):**
+>   - **Match edit-in-place (Daily Tracker):** ✏️ on a saved match row loads
+>     it back into the MatchEditor form (discipline/players/handicap incl.
+>     pattern reverse-mapping/event/round); score buttons then SELECT
+>     (current score pre-highlighted) and 💾 Save PUTs — the common "fix the
+>     handicap, keep the score" edit is one click. Cancel/save returns to add
+>     mode with tournament prefill re-applied. Last-handicap suggestion is
+>     suppressed while editing (it would overwrite the loaded values);
+>     opponent points chips enriched via searchPlayers (match rows don't
+>     carry points). Backend PUT /matches existed already; note +
+>     tournament link carried through untouched. Travel/Rest rows get no ✏️.
+>   - **"New opponents" is now SINGLES-only (two same-day iterations):**
+>     user first asked for a singles/team split (both-buckets rule: met in
+>     both formats in range → counted in both), then cut the team bucket
+>     entirely — final rule: new = played SINGLES vs me in the range AND
+>     never faced before it in ANY format (team-only meetings don't count;
+>     met in doubles before the range → never new later). is_new /
+>     count_new_opponents / RecapPeriodStats.new_opponents all follow;
+>     RECAP_SYSTEM_PROMPT goal is now "cọ xát ĐÁNH ĐƠN với nhiều ĐỐI THỦ
+>     MỚI"; snapshot line labeled "(đánh ĐƠN)". Real data 01/07→02/08: 14.
+>     Drill-down table sorts newest-first (user request, same day).
+>   - **Profile range picker rebuilt YouTube-Studio style (plan OK'd):**
+>     PeriodControl (Week/Month/Year + arrows) replaced by ONE dropdown —
+>     rolling Last 7/28/90/365 days (ending today, "có tính liên tục"),
+>     Lifetime (new GET /tracker/first-date = earliest_data_date), year
+>     entries, last ≤12 months, Custom. Default: Last 28 days. Year/month
+>     ranges clamp to today (no empty future buckets); chart unit derives
+>     from span (≥120d → month). New components/RangePicker.tsx +
+>     resolvePreset; Daily Tracker keeps PeriodControl (deliberately NOT
+>     unified — the dropped-ideas rule stands).
+>   - **"Win rate vs pips 🏓" KPI (Profile):** MatchStatsResponse gains
+>     vs_pips (MatchStats) tallied with the SAME _in_stats_bucket predicate
+>     as build_stats, but following the tab's filters. Tile shows % + W-L;
+>     reads the live plays_pips flag (user asked whether pips edits
+>     recompute history — they do, by design; ELO never uses pips).
+>   - **Every KPI tile is now a drill-down (like New opponents):** Matches /
+>     W-L / Win rate open one shared "Matches in this range" table below the
+>     KPI row (flattened CLIENT-side from the singles_h2h + doubles_h2h
+>     records already in the response — tile numbers and list can't drift);
+>     vs-pips tile opens the same table filtered to pips opponents
+>     (OpponentBrief gains plays_pips for this); All/Wins/Losses seg inside.
+>     One panel at a time; resets on range/filter change.
+>   - **Daily Tracker win-rate cards REMOVED (user: "nó có bên Profile
+>     rồi"):** the Singles/Doubles/All matches/vs Pips cards left the
+>     Analysis section; days/minutes/racket-time/coach-package cards stay.
+>     Dead code purged with them: MatchCard.tsx, StatMatchesModal.tsx,
+>     trackerApi.statsMatches, GET /tracker/stats/matches +
+>     list_stats_matches (predicate kept — build_stats/coach still use it);
+>     test_stats_matches.py rewritten against build_stats buckets directly.
+>   - **Data fix (one-off, not committed as code):** Tiến Lợi CLB NTN Q7 was
+>     entered at 800 that morning, real points 850 — the two 2026-08-02
+>     match snapshots (doubles L 2-3, singles W 3-0) re-frozen at 850 via a
+>     scratchpad script; deltas −8.9→−8.5 / +9.3→+10.9, rating 948.2→950.2.
+>     Snapshots do NOT follow Database point edits by design — if this
+>     recurs, consider a small "re-snapshot" GUI affordance.
+>   - Verified: 105/105 pytest (new vs_pips bucket test; new-opponents test
+>     rewritten for the singles-only rule), gen:api + tsc + vite build clean.
+
+## Earlier (2026-08-01) — "New opponents" stat (committed 5bfad2b)
 
 > **New-opponents stat (user goal 2026-08-01 — "cọ xát thi đấu với nhiều
 > người mới": count opponents faced in a range whom I had never faced

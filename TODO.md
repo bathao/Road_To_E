@@ -41,10 +41,14 @@ scannable. Last full sync: 2026-07-29.
 - [ ] First real Recap run (Coach tab → Recaps → Generate; rolling last
   7/30 days ending at the button press) → check the Vietnamese output
   quality and that the stats row + prev-window diffs read sane.
-- [ ] "New opponents" stat (2026-08-01, sparring-goal metric) — GUI verified
-  by the user same day (tile + drill-down with points, after a backend
-  restart); still open: whether the recap coach actually references the
-  number on the first real run.
+- [ ] "New opponents" stat (2026-08-01; redefined 2026-08-02 to SINGLES-only
+  — team-only meetings don't count) — GUI verified by the user; still open:
+  whether the recap coach actually references the number on the first real
+  run.
+- [ ] Match snapshots don't follow Database point edits (by design). One
+  mis-entered player fixed by hand 2026-08-02 (Tiến Lợi 800→850, scratchpad
+  script). If this keeps happening, add a small "re-freeze points on this
+  match" affordance instead of hand-editing.
 
 - [ ] First tournament entered via the Daily Tracker → check the coach
   bundle's "đánh giải" split and the t=1.5 delta look sane.
