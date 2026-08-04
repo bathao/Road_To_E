@@ -55,6 +55,11 @@ _RECENT_NOTES = 12
 _MIN_SAMPLE_MATCHES = 5
 # Most-played singles head-to-heads fed to the verdict prompt.
 _VERDICT_H2H = 8
+# Per-opponent progression: recent matches (oldest → newest) per h2h line, so
+# the model can compare new vs old results at the SAME handicap ratio.
+_H2H_PROGRESSION = 6
+# Biggest per-opponent ELO drains/sources (each side) fed to the prompts.
+_ELO_OPP_TOP = 4
 
 # Relative levels are derived from POINTS vs the athlete's dynamic ELO
 # (hand-picked labels retired 2026-07-27); "unrated" = no points entered yet.
@@ -79,6 +84,87 @@ def _ms(m) -> dict:
 def _dm(iso: str) -> str:
     """"2026-07-21" → "21/07" — compact date in the prompt's weekly ELO lines."""
     return f"{iso[8:10]}/{iso[5:7]}"
+
+
+_WEEKDAY_VI = ("Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật")
+
+
+def _day_label_vi(d: dt.date) -> str:
+    """"Thứ 6 15/08" — the exact PlanDay.day label the model must copy."""
+    return f"{_WEEKDAY_VI[d.weekday()]} {d.day:02d}/{d.month:02d}"
+
+
+def _week_ahead_lines(tournaments: list[dict], today: dt.date) -> str:
+    """The next-7-days scaffold for the week plan: one line per day carrying
+    the EXACT label the model copies into PlanDay.day, annotated with any
+    registered tournament running that day — code does all the calendar math
+    (the model used to invent dates when told only 'còn N ngày')."""
+    lines = []
+    for i in range(7):
+        day = today + dt.timedelta(days=i)
+        events = []
+        for t in tournaments:
+            start = dt.date.fromisoformat(t["start_date"])
+            end_iso = t.get("end_date")
+            end = dt.date.fromisoformat(end_iso) if end_iso else start
+            if start <= day <= end:
+                total = (end - start).days + 1
+                # Most real names already start with "Giải …" — don't stutter.
+                name = t["name"]
+                tag = name if name.lower().startswith("giải") else f"giải {name}"
+                if total > 1:
+                    tag += f" — ngày {(day - start).days + 1}/{total}"
+                events.append(tag)
+        note = "; ".join(events) or "(không có giải)"
+        suffix = " (HÔM NAY)" if i == 0 else ""
+        lines.append(f"  - {_day_label_vi(day)}{suffix}: {note}")
+    return "\n".join(lines)
+
+
+def _hdc_vi(handicap: int, pattern: str | None) -> str:
+    """Compact handicap tag for one h2h match line. Sign convention follows
+    Match.handicap: +N = the player GIVES N/set, -N = receives."""
+    if not handicap:
+        return "đồng"
+    spec = pattern or str(abs(handicap))
+    return f"chấp {spec}" if handicap > 0 else f"được chấp {spec}"
+
+
+def _h2h_progression(lines, limit: int = _H2H_PROGRESSION) -> str:
+    """"05/07 L 0-3 (được chấp 2) → 03/08 L 2-3 (được chấp 2)" — one
+    opponent's recent matches oldest → newest (W/L/T like the rest of the
+    context), each with its handicap, so the model can compare new vs old
+    results at the same ratio. OpponentRecord.matches arrives most-recent
+    FIRST (the GUI's order) — take the newest `limit`, then flip."""
+    return " → ".join(
+        f"{_dm(ml.date.isoformat())} {ml.result} {ml.my_sets}-{ml.opp_sets} "
+        f"({_hdc_vi(ml.handicap, ml.handicap_pattern)})"
+        for ml in reversed(lines[:limit])
+    )
+
+
+def _elo_opp_split(rows: list[dict]) -> dict:
+    """Top ELO sources (net > 0) and drains (net < 0), biggest first.
+    `rows` comes from tracker_service.elo_by_opponent (sorted net desc)."""
+    return {
+        "gains": [r for r in rows if r["net"] > 0][:_ELO_OPP_TOP],
+        "drains": [r for r in reversed(rows) if r["net"] < 0][:_ELO_OPP_TOP],
+    }
+
+
+def _elo_opp_lines(d: dict) -> str:
+    """Render the per-opponent ELO split for either bundle's context block."""
+    eo = d.get("elo_by_opponent") or {}
+
+    def _fmt(r: dict) -> str:
+        return f"{r['name']} {'+' if r['net'] > 0 else ''}{r['net']} ({r['matches']} trận)"
+
+    gains = " · ".join(_fmt(r) for r in eo.get("gains", [])) or "(chưa có)"
+    drains = " · ".join(_fmt(r) for r in eo.get("drains", [])) or "(chưa có)"
+    return (
+        f"  - Nguồn ELO (lấy điểm nhiều nhất từ): {gains}\n"
+        f"  - Ngốn ELO (mất điểm nhiều nhất vì): {drains}"
+    )
 
 
 def _session_note_dict(n: SessionNote, with_kind: bool = False) -> dict:
@@ -238,9 +324,17 @@ def _match_detail(
                 "losses": r.losses,
                 "win_rate": r.win_rate,
                 "last": f"{r.last_result or ''} {r.last_date.isoformat() if r.last_date else ''}".strip(),
+                # Oldest → newest, each with its handicap — the prompt's
+                # progression rule compares results at the SAME ratio.
+                "recent": _h2h_progression(r.matches),
             }
             for r in top_h2h
         ],
+        # Who the ELO is being lost to / won from over the same window —
+        # the prompt turns this into kèo-selection strategy.
+        "elo_by_opponent": _elo_opp_split(
+            tracker_service.elo_by_opponent(db, detail_from, today, replay=rep)
+        ),
     }
 
 
@@ -376,6 +470,11 @@ def _bundle_to_text(b: schemas.SourceSummary) -> str:
         f"  - {r['name']} ({_LEVEL_VI.get(r['level'], r['level'])}): "
         f"{r.get('played', 0)} trận (T{r.get('wins', 0)}/B{r.get('losses', 0)})"
         f"{'; gần nhất: ' + r['last'] if r.get('last') else ''}"
+        + (
+            f"\n    diễn biến (cũ → mới): {r['recent']}"
+            if r.get("recent")
+            else ""
+        )
         for r in d.get("top_h2h", [])
     ) or "  (chưa có)"
 
@@ -441,7 +540,9 @@ def _bundle_to_text(b: schemas.SourceSummary) -> str:
         f"đánh độ nhẹ {_wr(d.get('official', {}))} · "
         f"đánh giải (tournament) {_wr(d.get('tournament', {}))}\n"
         f"Xu hướng theo tháng:\n{trend_lines}\n"
-        f"Đối đầu nhiều nhất (head-to-head, đơn):\n{h2h_lines}\n\n"
+        f"Đối đầu nhiều nhất (head-to-head, đơn):\n{h2h_lines}\n"
+        f"ELO THEO ĐỐI THỦ trong cửa sổ (net; trận đôi/đồng đội tính cho mọi "
+        f"đối thủ có mặt):\n{_elo_opp_lines(d)}\n\n"
         f"=== THỂ LỰC (Training Center) ===\n"
         f"Cấp độ: {t.get('level')}; tổng buổi đã xong: {t.get('total_sessions_done')}; "
         f"7 ngày: {t.get('sessions_last_7d')} buổi; 30 ngày: {t.get('sessions_last_30d')} buổi; "
@@ -451,6 +552,9 @@ def _bundle_to_text(b: schemas.SourceSummary) -> str:
         f"Khối lượng theo nhóm cơ: {muscle}\n\n"
         f"=== GIẢI ĐẤU SẮP TỚI (học trò đã đăng ký) ===\n"
         f"{tour_lines}\n\n"
+        f"=== 7 NGÀY TỚI (khung kế hoạch tuần — 'day' phải dùng NGUYÊN VĂN "
+        f"nhãn ngày dưới đây) ===\n"
+        f"{_week_ahead_lines(b.tournaments, dt.date.today())}\n\n"
         f"=== HLV TRỰC TIẾP ĐANG DẶN (học trò ghi lại; chưa hoàn thành — cần tập tiếp) ===\n"
         f"{advice_lines}\n\n"
         f"=== RECAP CÁC BUỔI TẬP VỚI HLV TRỰC TIẾP (mới nhất trước) ===\n"
@@ -529,9 +633,13 @@ def _call_model(context_text: str, player_name: str, model: str | None = None) -
         "singles_matches_per_week: chỉ trận đơn; doubles_matches_per_week: chỉ "
         "trận đôi; matches_vs_pips_per_week: chỉ trận gặp đối thủ đánh gai.\n"
         "  Không quy được về các metric trên thì metric=\"\" và value=0.\n"
-        "- week_plan: kế hoạch 1 tuần, mỗi ngày có focus + detail (gắn với tập thể lực "
-        "và loại trận cần đánh; nhớ giới hạn an toàn đầu gối); 'day' dùng tên thứ "
-        "tiếng Việt (Thứ 2 … Chủ nhật).\n"
+        "- week_plan: kế hoạch cho ĐÚNG 7 NGÀY TỚI theo mục '7 NGÀY TỚI' trong "
+        "dữ liệu — đúng 7 mục, đúng thứ tự; 'day' phải COPY NGUYÊN VĂN nhãn "
+        "ngày đã cấp (ví dụ 'Thứ 6 15/08'), KHÔNG tự bịa thứ/ngày khác. Ngày "
+        "nào được ghi có giải thì focus/detail phải phục vụ đúng giải đó (thi "
+        "đấu, hoặc giảm khối lượng 1-2 ngày sát giải); KHÔNG nhắc tới ngày hay "
+        "giải không có trong dữ liệu. Mỗi ngày có focus + detail gắn với tập "
+        "thể lực và loại trận cần đánh; nhớ giới hạn an toàn đầu gối.\n"
         "- watch_items: cảnh báo (dữ liệu mỏng/cũ, an toàn, điều cần theo dõi)."
     )
     return _ollama_chat(
@@ -958,9 +1066,16 @@ def gather_recap_bundle(
                 "played": r.played,
                 "wins": r.wins,
                 "losses": r.losses,
+                # In-period matches oldest → newest with handicap — the
+                # progression rule compares results at the SAME ratio.
+                "recent": _h2h_progression(r.matches),
             }
             for r in top_h2h
         ],
+        # Who the period's ELO went to / came from (kèo-selection input).
+        "elo_by_opponent": _elo_opp_split(
+            tracker_service.elo_by_opponent(db, start, end, replay=rep)
+        ),
         "session_notes": session_notes,
         "day_notes": day_notes,
         "coach_notes": _coach_note_dicts(db),
@@ -1043,6 +1158,11 @@ def _recap_bundle_to_text(b: dict) -> str:
     h2h_lines = "\n".join(
         f"  - {p['name']} ({_LEVEL_VI.get(p['level'], p['level'])}): "
         f"{p['played']} trận (T{p['wins']}/B{p['losses']})"
+        + (
+            f"\n    diễn biến (cũ → mới): {p['recent']}"
+            if p.get("recent")
+            else ""
+        )
         for p in b.get("top_h2h", [])
     ) or "  (không có trận đơn có tên đối thủ trong kỳ)"
 
@@ -1078,7 +1198,9 @@ def _recap_bundle_to_text(b: dict) -> str:
         f"đánh độ nhẹ {_wr(k.get('official', {}))} · "
         f"đánh giải (tournament) {_wr(k.get('tournament', {}))}\n"
         f"{elo_lines}"
-        f"Đối đầu nhiều nhất trong kỳ (đơn):\n{h2h_lines}\n\n"
+        f"Đối đầu nhiều nhất trong kỳ (đơn):\n{h2h_lines}\n"
+        f"ELO THEO ĐỐI THỦ trong kỳ (net; trận đôi/đồng đội tính cho mọi đối "
+        f"thủ có mặt):\n{_elo_opp_lines(b)}\n\n"
         f"=== HLV TRỰC TIẾP TRONG KỲ (lời dặn / bài tập / recap học trò ghi lại) ===\n"
         f"{sn_lines}\n\n"
         f"=== GHI CHÚ HẰNG NGÀY CỦA HỌC TRÒ TRONG KỲ ===\n"

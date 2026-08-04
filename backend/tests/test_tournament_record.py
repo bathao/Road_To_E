@@ -19,12 +19,14 @@ PLAYED = TODAY - dt.timedelta(days=10)  # a finished tournament
 UPCOMING = TODAY + dt.timedelta(days=10)
 
 
-def _tournament(db, *, name="BBTV Open", start=PLAYED, discipline="singles"):
+def _tournament(db, *, name="BBTV Open", start=PLAYED, end=None,
+                discipline="singles"):
     resp = t_service.create_tournament(
         db,
         t_schemas.TournamentIn(
             name=name,
             start_date=start,
+            end_date=end,
             entries=[t_schemas.EntryIn(discipline=discipline)],
         ),
     )
@@ -92,6 +94,53 @@ def test_same_day_tournament_shows_immediately(db):
     assert listed.played is True
     # ...and the coach's upcoming view drops it (results are in).
     assert t_service.upcoming_for_coach(db) == []
+
+
+def test_multi_day_tournament_survives_day_one_results(db):
+    """Multi-day rule (user 2026-08-04): day-1 results must NOT retire the
+    card — the strip and the coach keep tracking day 2. A match dated on the
+    LAST day retires it. (Single-day behaviour is unchanged — covered by
+    test_same_day_tournament_shows_immediately.)"""
+    cat = category_id(db, "tournament_match")
+    day1, day2 = TODAY, TODAY + dt.timedelta(days=1)
+    _, entry = _tournament(db, name="Two Day Cup", start=day1, end=day2)
+
+    # Day-1 results (group + 1/16) → still upcoming everywhere.
+    _add_match(db, cat, entry, round="group", my=3, opp=0, date=day1)
+    _add_match(db, cat, entry, round="r16", my=3, opp=1, date=day1, order=1)
+    assert t_service.list_tournaments(db).tournaments[0].played is False
+    assert t_service.build_record(db).tournaments == []
+    assert len(t_service.upcoming_for_coach(db)) == 1
+
+    # A match on the last day → retires: record picks it up, coach drops it.
+    _add_match(db, cat, entry, round="r8", my=1, opp=3, date=day2, order=2)
+    assert t_service.list_tournaments(db).tournaments[0].played is True
+    assert [t.name for t in t_service.build_record(db).tournaments] == ["Two Day Cup"]
+    assert t_service.upcoming_for_coach(db) == []
+
+
+def test_multi_day_knocked_out_day_one_retires_after_end(db):
+    """Knocked out on day 1 of a multi-day event (no last-day matches): the
+    card stays upcoming through the event's remaining days — the event is
+    still running — and retires once the last day has passed."""
+    cat = category_id(db, "tournament_match")
+
+    # Still running: started yesterday, ends TODAY, only day-1 results.
+    _, entry = _tournament(db, name="Running Cup",
+                           start=TODAY - dt.timedelta(days=1), end=TODAY)
+    _add_match(db, cat, entry, round="group", my=0, opp=3,
+               date=TODAY - dt.timedelta(days=1))
+    assert t_service.list_tournaments(db).tournaments[0].played is False
+
+    # Same shape but the event ended yesterday → retired by the date alone.
+    _, entry2 = _tournament(db, name="Finished Cup",
+                            start=TODAY - dt.timedelta(days=2),
+                            end=TODAY - dt.timedelta(days=1))
+    _add_match(db, cat, entry2, round="group", my=0, opp=3,
+               date=TODAY - dt.timedelta(days=2), order=1)
+    by_name = {t.name: t for t in t_service.list_tournaments(db).tournaments}
+    assert by_name["Finished Cup"].played is True
+    assert by_name["Running Cup"].played is False
 
 
 def test_record_entry_aggregates_and_matches(db):

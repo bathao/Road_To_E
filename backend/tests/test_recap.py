@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import json
 
 from app.features.head_coach import service as hc_service
 from app.features.head_coach.models import HeadCoachRecap
@@ -170,6 +171,48 @@ def test_run_recap_job_fills_row_and_stats(db, monkeypatch):
     assert rec.stats.previous is not None
     assert rec.stats.previous.minutes_total == 999
     assert rec.stats.previous.new_opponents == 1
+
+
+def test_recap_bundle_h2h_progression_and_elo_by_opponent(db, monkeypatch):
+    """Repeated-opponent progression + per-opponent ELO (user 2026-08-04):
+    each top-h2h line carries the in-period match sequence (oldest → newest,
+    with the handicap) so the model can compare new vs old results at the
+    SAME ratio, and the bundle names who the period's ELO went to."""
+    monkeypatch.setattr(hc_service, "_call_recap_model", _fake_recap)
+    monkeypatch.setattr(hc_service, "resolve_model", lambda: "test-model")
+    anna = Player(name="Anna", points=950)
+    db.add(anna)
+    db.commit()
+    official = category_id(db, "official_match")
+    # Same opponent, same received handicap: 0-3 then 2-3 — closer while
+    # still losing = the progression the prompt must credit.
+    db.add_all([
+        Match(date=dt.date(2026, 7, 29), category_id=official, my_sets=0,
+              opp_sets=3, opponent_id=anna.id, handicap=-2),
+        Match(date=TODAY, category_id=official, my_sets=2, opp_sets=3,
+              opponent_id=anna.id, handicap=-2),
+    ])
+    db.commit()
+
+    out = hc_service.start_recap(db, "week", today=TODAY)
+    hc_service.run_recap_job(out.id, db)
+    row = db.query(HeadCoachRecap).first()
+    assert row.status == "done"
+
+    bundle = json.loads(row.sources_json)
+    h2h = bundle["top_h2h"][0]
+    assert h2h["name"] == "Anna"
+    assert h2h["recent"] == (
+        "29/07 L 0-3 (được chấp 2) → 01/08 L 2-3 (được chấp 2)"
+    )
+    eo = bundle["elo_by_opponent"]
+    assert eo["gains"] == []  # two losses: Anna only drains
+    assert eo["drains"][0]["name"] == "Anna"
+    assert eo["drains"][0]["matches"] == 2 and eo["drains"][0]["net"] < 0
+
+    text = hc_service._recap_bundle_to_text(bundle)
+    assert "diễn biến (cũ → mới)" in text
+    assert "ELO THEO ĐỐI THỦ" in text and "mất điểm nhiều nhất vì" in text
 
 
 def test_run_recap_job_no_previous_before_first_data(db, monkeypatch):

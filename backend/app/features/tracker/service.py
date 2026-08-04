@@ -2017,6 +2017,53 @@ def build_rating_breakdown(
     )
 
 
+def elo_by_opponent(
+    db: Session,
+    date_from: dt.date,
+    date_to: dt.date,
+    replay: rating.ReplayResult | None = None,
+) -> list[dict]:
+    """Net counted-ELO change per NAMED opponent over the window — who the
+    points are being lost to / won from (the Head Coach's strategy input).
+
+    Each counted match's delta is attributed to EVERY named opponent in it
+    (a doubles loss "costs" against both players — honest as "matches with X
+    present"); placement bonuses have no opponent and are skipped. Returns
+    [{name, matches, net}] sorted biggest net gain first."""
+    _final, steps = replay or rating.replay(db)
+    in_range = [
+        s for s in steps
+        if s.match_id is not None and date_from <= s.date <= date_to
+    ]
+    if not in_range:
+        return []
+    # Same batch-load trick as build_rating_breakdown's movers: one
+    # date-window query instead of an unbounded IN(id...) list.
+    match_by_id: dict[int, Match] = {
+        m.id: m
+        for m in _playing_matches(db).filter(
+            Match.date >= date_from, Match.date <= date_to
+        )
+    }
+    acc: dict[str, dict] = {}
+    for s in in_range:
+        m = match_by_id.get(s.match_id)
+        if m is None:
+            continue
+        for opp in (m.opponent, m.opponent2):
+            if opp is None:
+                continue
+            a = acc.setdefault(
+                opp.name, {"name": opp.name, "matches": 0, "net": 0.0}
+            )
+            a["matches"] += 1
+            a["net"] += s.delta
+    out = sorted(acc.values(), key=lambda a: -a["net"])
+    for a in out:
+        a["net"] = round(a["net"], 1)
+    return out
+
+
 # ---------------------------------------------------------------- export
 
 _RATING_HEX = {"green": "FF63BE7B", "yellow": "FFFFEB84", "red": "FFE06666"}

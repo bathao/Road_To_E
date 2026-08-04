@@ -34,6 +34,12 @@ scannable. Last full sync: 2026-07-29.
 
 ## Watch list (not actionable yet)
 
+- [ ] **SGPP 15–16 Aug needs its End date set** (card currently has
+  end_date NULL → the multi-day played rule built 2026-08-04 treats it as
+  single-day). User: Edit the card → End date 16/08/2026. Then day-1
+  results won't retire it. First real 2-day event = the live test of the
+  new rule.
+
 - [ ] Homyland2 (2026-08-01) now shows in the Profile Tournament Record
   (smoke-verified: Doubles · Stopped at 1/8 · 2W-2L, 4 matches + ELO) →
   user to eyeball the card/detail in the GUI once.
@@ -41,6 +47,13 @@ scannable. Last full sync: 2026-07-29.
 - [ ] First real Recap run (Coach tab → Recaps → Generate; rolling last
   7/30 days ending at the button press) → check the Vietnamese output
   quality and that the stats row + prev-window diffs read sane.
+- [ ] First verdict/recap AFTER the 2026-08-04 prompt enhancements → check
+  the coach actually (a) credits same-handicap progression (Tuấn gỗ: three
+  0-3 losses then 2-3 at the same "được chấp 4" is the live test case),
+  (b) names the ELO drains/sources with kèo strategy, without drifting into
+  in-match tactics (still banned), and (c) the week plan covers the next 7
+  days with verbatim date labels and puts Phú Thọ/Friendship prep on the
+  right days (no invented dates).
 - [ ] "New opponents" stat (2026-08-01; redefined 2026-08-02 to SINGLES-only
   — team-only meetings don't count) — GUI verified by the user; still open:
   whether the recap coach actually references the number on the first real

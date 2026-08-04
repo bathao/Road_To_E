@@ -105,7 +105,9 @@ const HANDICAP_PATTERNS = [
 ];
 
 // Dropdown-driven match entry. Pick discipline + format + the player(s) + an
-// optional handicap, then tap a final score. Plus event autocomplete & Travel/Rest.
+// optional handicap, then tap a final score. Plus event autocomplete.
+// (Travel/Rest quick buttons removed 2026-08-04 — old non-playing rows still
+// render in the list and can be deleted, there's just no way to add new ones.)
 // ✏️ on a saved match loads it back into the same form for editing — score
 // buttons then SELECT instead of save, and 💾 Save commits via PUT.
 export default function MatchEditor({
@@ -424,10 +426,6 @@ export default function MatchEditor({
     setOpponent2(null);
   };
 
-  const addNonPlaying = (label: string) => {
-    onAdd({ is_nonplaying: true, nonplaying_label: label });
-  };
-
   return (
     <div className="editor">
       <p className="editor-sub">{category.label}</p>
@@ -704,7 +702,7 @@ export default function MatchEditor({
         </div>
       </div>
 
-      {editingMatch ? (
+      {editingMatch && (
         /* Edit mode: explicit save (the common edit keeps the score as-is) */
         <div className="quick-row">
           <button
@@ -717,16 +715,6 @@ export default function MatchEditor({
           </button>
           <button className="btn" onClick={resetForm}>
             Cancel
-          </button>
-        </div>
-      ) : (
-        /* Non-playing quick buttons */
-        <div className="quick-row">
-          <button className="btn" onClick={() => addNonPlaying("Travel")}>
-            ✈️ Travel
-          </button>
-          <button className="btn" onClick={() => addNonPlaying("Rest")}>
-            😴 Rest
           </button>
         </div>
       )}

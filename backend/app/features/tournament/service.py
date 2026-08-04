@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import datetime as dt
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
 
 from app.features.tournament import schemas
@@ -69,22 +70,37 @@ def _to_out(
     )
 
 
-def _linked_entry_ids(db: Session) -> set[int]:
-    """Entry ids that already have at least one Daily Tracker match linked."""
+def _last_linked_dates(db: Session) -> dict[int, dt.date]:
+    """Per entry: the LATEST linked Daily Tracker match date (entries with
+    no linked matches are absent)."""
     return {
-        eid
-        for (eid,) in db.query(Match.tournament_entry_id)
+        eid: last
+        for eid, last in db.query(
+            Match.tournament_entry_id, func.max(Match.date)
+        )
         .filter(Match.tournament_entry_id.isnot(None))
-        .distinct()
+        .group_by(Match.tournament_entry_id)
         .all()
     }
 
 
-def _is_played(t: Tournament, today: dt.date, linked: set[int]) -> bool:
-    """Ended before today OR results already entered — entering a same-day
-    tournament's results retires it immediately (user 2026-08-01)."""
-    return (t.end_date or t.start_date) < today or any(
-        e.id in linked for e in t.entries
+def _is_played(
+    t: Tournament, today: dt.date, last_linked: dict[int, dt.date]
+) -> bool:
+    """Past the tournament's LAST day, or results entered FOR that last day.
+
+    Single-day events keep the 2026-08-01 rule: entering results retires the
+    card immediately (the one day IS the last day). Multi-day events (user
+    2026-08-04, e.g. SGPP 15–16 Aug): day-1 results must NOT retire the card
+    — the strip and the coach keep tracking day 2; a match dated on/after
+    the last day does, and getting knocked out early simply lets the card
+    retire the morning after end_date."""
+    last_day = t.end_date or t.start_date
+    if last_day < today:
+        return True
+    return any(
+        (last := last_linked.get(e.id)) is not None and last >= last_day
+        for e in t.entries
     )
 
 
@@ -98,13 +114,13 @@ def _load_split(
         .options(selectinload(Tournament.entries).selectinload(TournamentEntry.members))
         .all()
     )
-    linked = _linked_entry_ids(db)
+    last_linked = _last_linked_dates(db)
     upcoming = sorted(
-        (t for t in rows if not _is_played(t, today, linked)),
+        (t for t in rows if not _is_played(t, today, last_linked)),
         key=lambda t: t.start_date,
     )
     played = sorted(
-        (t for t in rows if _is_played(t, today, linked)),
+        (t for t in rows if _is_played(t, today, last_linked)),
         key=lambda t: t.start_date,
         reverse=True,
     )
@@ -314,6 +330,9 @@ def upcoming_for_coach(
             {
                 "name": t.name,
                 "start_date": t.start_date.isoformat(),
+                # None = single-day; the coach's 7-day scaffold maps each
+                # running day ("ngày 1/2") from this range.
+                "end_date": t.end_date.isoformat() if t.end_date else None,
                 "days_left": days_left,  # 0 = today; negative = running now
                 "location": t.location or "",
                 "level_limit": t.level_limit or "",

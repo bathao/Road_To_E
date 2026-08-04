@@ -387,6 +387,42 @@ def test_rating_breakdown_buckets_and_movers(db):
     assert b.movers[0].opponent_name == "Manh"
 
 
+def test_elo_by_opponent_attribution(db):
+    """Per-opponent net ELO (the Head Coach's kèo-strategy input): each
+    counted match's delta goes to EVERY named opponent in it — a doubles
+    loss "costs" against both — and the list sorts biggest gain first."""
+    off = category_id(db, "official_match")
+    equal = Player(name="Ngang", points=950)
+    partner = Player(name="DongDoi", points=950)
+    side = Player(name="Phu", points=950)
+    db.add_all([equal, partner, side])
+    db.commit()
+    d1, d2 = dt.date(2026, 7, 28), dt.date(2026, 7, 30)
+    db.add_all([
+        _match(off, equal.id, date=d1),  # singles sweep win: +7.5 to Ngang
+        # Doubles sweep loss vs Ngang + Phu: one negative delta, attributed
+        # to BOTH opponents (the partner is mine — never listed).
+        _match(off, equal.id, discipline="doubles", opponent2_id=side.id,
+               partner_id=partner.id, my=0, opp_sets=3, date=d2),
+    ])
+    db.commit()
+
+    rows = service.elo_by_opponent(db, dt.date(2026, 7, 26), dt.date(2026, 7, 31))
+    by = {r["name"]: r for r in rows}
+    assert set(by) == {"Ngang", "Phu"}  # my partner is not an opponent
+    assert by["Phu"]["matches"] == 1 and by["Phu"]["net"] < 0
+    assert by["Ngang"]["matches"] == 2
+    # Ngang's singles win offsets his share of the doubles loss.
+    assert by["Ngang"]["net"] > by["Phu"]["net"]
+    assert rows[0]["name"] == "Ngang"  # sorted biggest net gain first
+
+    # Window filtering: only the singles day → the doubles loss disappears.
+    rows = service.elo_by_opponent(db, d1, d1)
+    assert [r["name"] for r in rows] == ["Ngang"]
+    assert rows[0]["net"] == 7.5
+    assert service.elo_by_opponent(db, dt.date(2026, 6, 1), dt.date(2026, 6, 2)) == []
+
+
 def test_manual_edit_becomes_new_anchor(db):
     off = category_id(db, "official_match")
     equal = Player(name="Ngang", points=950)

@@ -59,10 +59,12 @@ class TournamentOut(BaseModel):
     end_date: dt.date | None = None
     level_limit: str | None = None
     note: str | None = None
-    # Ended before today OR results already entered (linked matches exist) —
-    # entering a same-day tournament's results retires it immediately: the
-    # Daily Tracker moves it to "Played" and the Profile record picks it up
-    # (user 2026-08-01). The GUI groups on this flag, not on dates.
+    # Past the LAST day OR results entered for that last day — entering a
+    # same-day tournament's results retires it immediately (user 2026-08-01);
+    # a multi-day event survives earlier days' results so the strip/coach
+    # keep tracking the remaining days (user 2026-08-04). The Daily Tracker
+    # moves retired cards to the Profile record. The GUI groups on this
+    # flag, not on dates.
     played: bool = False
     entries: list[EntryOut] = []
 

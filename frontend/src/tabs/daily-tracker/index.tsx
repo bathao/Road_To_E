@@ -63,8 +63,9 @@ export default function DailyTracker() {
 
   // Tournaments: one load shared by the strip (top) and the section (bottom);
   // section mutations push the fresh list back via setTournaments. Grid
-  // mutations refetch it (afterMutate): entering a tournament's results
-  // flips its derived `played` flag, retiring the card immediately.
+  // mutations refetch it (afterMutate): entering results for a tournament's
+  // LAST day flips its derived `played` flag, retiring the card (multi-day
+  // events survive earlier days' results — 2026-08-04).
   const { data: tournData, setData: setTournaments, reload: reloadTournaments } =
     useLoad<TournamentsResponse>(() => tournamentApi.list(), []);
   const tournaments = tournData?.tournaments ?? [];
