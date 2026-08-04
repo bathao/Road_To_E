@@ -1,5 +1,92 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
+## Current status (2026-08-04, latest) — today batch committed `9bce1d8` (multi-day tournaments + 4 coach upgrades + Travel/Rest cut)
+
+> **Week plan fix (user 2026-08-04: plan "ko ăn nhập gì tới lịch Tournament",
+> wants the NEXT 7 DAYS instead of Thứ 2–Chủ nhật). Backend-only:**
+>   - Root cause: PlanDay.day was just weekday names and the model had to do
+>     calendar math from "còn N ngày" → it invented dates ("giải 8/9",
+>     "Friendship ngày mai").
+>   - Fix: the verdict context gains a "=== 7 NGÀY TỚI ===" scaffold — one
+>     pre-labelled line per day starting TODAY ("Thứ 7 08/08: Giải … CLB Phú
+>     Thọ 2026"; multi-day events get "— ngày 1/2"), computed by
+>     `_week_ahead_lines` from the registered tournaments
+>     (upcoming_for_coach now also carries end_date). Prompt + user_text now
+>     demand exactly 7 items COPYING those labels verbatim, tournament days
+>     must serve that tournament, and NO dates/events outside the data.
+>   - GUI renders `day` verbatim → no FE change; PlanDay schema unchanged;
+>     old verdicts unaffected. Real-DB smoke: Phú Thọ lands on Thứ 7 08/08,
+>     Friendship on Chủ nhật 09/08. Tests +1 (113 total).
+>
+> **Travel/Rest entry buttons removed (user 2026-08-04):** the MatchEditor's
+> non-playing quick buttons are gone — one editor serves all 3 match rows
+> (practice/official/tournament), so one cut covers them all. Old saved
+> Travel/Rest rows still render in the day list and stay deletable (no data
+> touched); `addNonPlaying` deleted, backend is_nonplaying support untouched.
+> FE-only, build clean.
+>
+> **ELO — singles first (user 2026-08-04: "cải thiện ELO thì ưu tiên phân
+> tích đơn hơn đôi. Đôi tôi ko control được"):** all three prompts (verdict,
+> recap, chat) gained a rule — singles is what the player fully controls;
+> doubles/team results depend on the partner, so never conclude
+> lên/xuống-trình from doubles, weigh doubles ELO losses (incl. in the
+> ELO-by-opponent table) lighter than singles ones, and ELO-improvement
+> plans revolve around SINGLES kèo. Prompt-only, no code/data change.
+
+> **Coach prompt enhancement (user 2026-08-04: "so kết quả gần đây vs cũ với
+> cùng tỉ lệ chấp; ai làm mất/được nhiều ELO nhất + chiến lược"). Both tabs
+> (Verdict/chat + Recaps). Needs start.bat restart:**
+>   - **Data (the model can only reason over what the bundle carries):**
+>     (1) every top-h2h line in BOTH bundles now carries `recent` — the last
+>     6 matches vs that opponent oldest → newest, each as
+>     "dd/mm W|L sets (đồng | chấp X | được chấp X)"; pattern renders
+>     verbatim ("được chấp 2-0-2"). NOTE: OpponentRecord.matches arrives
+>     most-recent-FIRST (GUI order) — `_h2h_progression` takes `[:6]` then
+>     reverses (first version read `[-6:]` and rendered backwards, caught by
+>     tests). (2) new `tracker_service.elo_by_opponent(db, from, to,
+>     replay)` — net counted-ELO per named opponent; each match's delta is
+>     attributed to EVERY named opponent in it (doubles loss costs against
+>     both); reuses the shared replay, batch-loads matches like movers.
+>     `_elo_opp_split` keeps top 4 gains + top 4 drains per bundle.
+>   - **Context blocks:** h2h lines get a "diễn biến (cũ → mới): …"
+>     sub-line; new "ELO THEO ĐỐI THỦ" section (Nguồn ELO / Ngốn ELO lines)
+>     in both the verdict and recap texts.
+>   - **Prompts:** SYSTEM_PROMPT + RECAP_SYSTEM_PROMPT gained 2 rules each:
+>     compare old-vs-new results ONLY at the same handicap (0-3 → 2-3 same
+>     chấp = progress, must be credited even while losing; heavier losses =
+>     regression, say it straight; changed ratio → read the kèo direction,
+>     don't compare scores) + name the biggest ELO drains/sources and give
+>     KÈO-SELECTION strategy (targeted rematches, renegotiate bad ratios,
+>     keep profitable kèo) — explicitly NOT in-match tactics (still banned).
+>   - No schema/API/GUI change (match_detail is a free dict; old snapshots
+>     unaffected — bundles freeze at generate time). No FE regen needed.
+>   - **Tests +3 (112 total):** elo_by_opponent attribution/sorting/window
+>     (test_rating), verdict + recap bundle progression strings & drains
+>     (real-DB smoke: Tuấn gỗ line shows exactly the user's example — three
+>     0-3 losses then 2-3 at the same "được chấp 4").
+
+## Previous status (2026-08-04) — multi-day tournament rule BUILT (in `9bce1d8`)
+
+> **Multi-day "played" rule (design OK'd + built 2026-08-04, driver: SGPP
+> 15–16 Aug — group + 1/16 day 1, later rounds day 2). Needs
+> start.bat restart:**
+>   - **Rule:** played = past the tournament's LAST day OR a linked match
+>     dated ON/AFTER that last day. `_linked_entry_ids` → `_last_linked_dates`
+>     (per-entry MAX match date). Single-day behaviour unchanged (same-day
+>     results still retire immediately, rule 2026-08-01); a 2-day event now
+>     survives day-1 results — strip + coach keep tracking day 2; knocked
+>     out day 1 → retires the morning after end_date.
+>   - **Countdown chip:** while the event runs, multi-day cards show
+>     "TODAY · day 1/2" / "day 2/2" (start-based text read wrong from day 2).
+>   - Everything else already worked (end_date model + form, card range
+>     display, gold grid highlight + editor banner + per-match Round across
+>     days, Record aggregation). No migration, no API shape change.
+>   - **USER ACTION NEEDED:** the real SGPP card has end_date NULL — Edit it
+>     and set End date 16/08/2026, or the new rule sees it as single-day.
+>   - Tests +2 (109 total): 2-day survives day-1 results / retires on a
+>     last-day match / knocked-out-early retires only after end passes;
+>     single-day flip test untouched and green. Build clean.
+
 ## Current status (2026-08-02, latest) — project-wide review committed `c73df23`
 
 > **Review + cleanup after the day's feature batch (user request "review lại
