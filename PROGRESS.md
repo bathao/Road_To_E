@@ -1,6 +1,62 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-08-04, latest) — today batch committed `9bce1d8` (multi-day tournaments + 4 coach upgrades + Travel/Rest cut)
+## Current status (2026-08-07, latest) — today batch committed `256b105` (points-edit intent + Overall racket-time rule)
+
+> **Points-intent on player edits (user request 2026-08-07, plan critiqued +
+> OK'd; built same day, committed `256b105` together with the racket-time
+> Overall rule below + daily DB data 05–07/08, needs start.bat restart):** the user
+> proposed a second "Current Points" column (new points apply only from entry
+> date; editing the OLD points column = typo fix → recalculate history).
+> Pushed back: the per-match snapshots (`*_points_snap`) already give
+> "new points from now on" with ONE column — what was missing was only the
+> correction path (the Tiến Lợi 850 case, fixed by script 2026-08-02).
+> Agreed design: one Points column + ask INTENT when editing.
+>   - **Backend:** `PlayerIn.points_intent: "progression" | "correction"`
+>     (default progression = old behavior, all existing callers unaffected).
+>     Correction: `_refreeze_player_snapshots` overwrites that player's
+>     snapshot in ALL their matches (all 3 slots; other players' snapshots
+>     untouched) — ELO self-recalculates since the replay reads snapshots.
+>     `PlayerOut.resnapped_matches` echoes the count. No migration.
+>   - **FE (Database tab):** editing points of a rated player WITH match
+>     history opens a popover — "📈 Level change (counts from now on)" vs
+>     "✏️ Fix wrong entry (recalculate all N matches)"; ✕/Escape reverts the
+>     draft. No history (or first-ever rating) → saves directly, no popover;
+>     the pips toggle never asks. New db-intent-* CSS.
+>   - **Known edge (flagged in plan, user accepted):** snapshots freeze at
+>     match ENTRY time — backdating matches after a progression bump gives
+>     them the NEW points. If it ever bites, add a dated points log.
+>   - Tests +3 (119 total): correction re-freezes all 3 slots + leaves other
+>     players' snapshots + moves the replayed ELO; progression keeps
+>     snapshots (resnapped null) and future matches freeze the new value;
+>     correction with no matches = plain update (count 0). gen:api + build
+>     clean.
+
+## Previous status (2026-08-07) — Overall color = racket-time rule (in `256b105`)
+
+> **Status check 2026-08-07:** the racket-time Overall batch below (service.py
+> + test_overall_colors.py) was re-verified today (116/116 then) and went into
+> `256b105` with the points-intent feature above.
+
+## Previous status (2026-08-04) — Overall color = racket-time rule (built)
+
+> **Overall row recolored (user proposal 2026-08-04, sharpened after
+> critique; backend-only, needs start.bat restart):**
+>   - New rule: GREEN = racket time ≥ 60p that day (coach+partner minutes +
+>     sets × 5p — the Racket Time row's number; ≥ not >, so a standard 1h
+>     coach session stays green — real day 30/06 was the boundary case).
+>     YELLOW = anything logged under the bar (short racket day, physical,
+>     serve practice, legacy Travel/Rest rows). RED = tracked past day with
+>     nothing. Semantics: grid = QUANTITY, ELO = quality.
+>   - Old rule was volume-blind (15p of drills = green; a 5-match sparring
+>     evening could never be green). On 45 real days: 15G/14Y/16R →
+>     18G/11Y/16R — 4 match-only sparring days (70–130p) got their green.
+>   - `OVERALL_GREEN_RACKET_MINUTES = 60`; color_group no longer drives
+>     Overall (still drives row tinting/export). Doubles minutes count in
+>     full — user accepted keeping the habit metric simple (quality is
+>     ELO's job). Travel days will paint red going forward (buttons gone) —
+>     user accepted. test_overall_colors rewritten (+3 tests, 116 total).
+
+## Previous status (2026-08-04) — today batch committed `9bce1d8` (multi-day tournaments + 4 coach upgrades + Travel/Rest cut)
 
 > **Week plan fix (user 2026-08-04: plan "ko ăn nhập gì tới lịch Tournament",
 > wants the NEXT 7 DAYS instead of Thứ 2–Chủ nhật). Backend-only:**
