@@ -72,6 +72,13 @@ class PlayerIn(BaseModel):
     # Points. None = leave unchanged on update (e.g. the picker's pips
     # toggle), "unrated" on create.
     points: int | None = Field(default=None, ge=0, le=3000)
+    # What a points change MEANS (user rule 2026-08-07). "progression" = the
+    # player levelled up/down for real: old matches keep their at-match-time
+    # snapshots, only matches entered from now on freeze the new value.
+    # "correction" = the old value was a typo, so every existing snapshot of
+    # this player is wrong too — re-freeze them all (ELO replays from
+    # snapshots, so history recalculates on the next read).
+    points_intent: Literal["progression", "correction"] = "progression"
 
     @field_validator("name")
     @classmethod
@@ -90,6 +97,9 @@ class PlayerOut(BaseModel):
     note: str | None = None
     plays_pips: bool = False
     points: int | None = None
+    # Set only by a "correction" points update: how many matches had this
+    # player's snapshot re-frozen (the GUI reports "N matches recalculated").
+    resnapped_matches: int | None = None
 
 
 class PlayerDbRow(PlayerOut):

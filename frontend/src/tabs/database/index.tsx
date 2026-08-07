@@ -19,8 +19,12 @@ function RankChip({ points }: { points: number | null }) {
   return <span className={`db-rank db-rank-${rank}`}>{rank}</span>;
 }
 
+type PointsIntent = "progression" | "correction";
+
 // One row: points edited locally, saved on blur/Enter (only when changed).
 // Save feedback: ✓ fades out on success, red input border on failure.
+// A points change on a player with match history first asks WHAT changed —
+// level change (history keeps its snapshots) vs wrong entry (re-freeze all).
 function PlayerRow({
   p,
   busy,
@@ -30,12 +34,19 @@ function PlayerRow({
 }: {
   p: PlayerDbRow;
   busy: boolean;
-  onSave: (p: PlayerDbRow, points: number | null, playsPips: boolean) => Promise<boolean>;
+  onSave: (
+    p: PlayerDbRow,
+    points: number | null,
+    playsPips: boolean,
+    intent?: PointsIntent
+  ) => Promise<boolean>;
   onRename: (p: PlayerDbRow, name: string) => Promise<boolean>;
   onOpenMatches: (p: PlayerDbRow, role: RoleFilter) => void;
 }) {
   const [draft, setDraft] = useState(p.points === null ? "" : String(p.points));
   const [flash, setFlash] = useState<"saved" | "failed" | null>(null);
+  // Pending points value waiting for the intent choice (null = no popover).
+  const [confirm, setConfirm] = useState<number | null>(null);
   const flashTimer = useRef<number | undefined>(undefined);
   // null = not editing the name; Escape cancels via skipBlurSave so the
   // input's blur (fired by the state change) doesn't save anyway.
@@ -45,8 +56,13 @@ function PlayerRow({
   const dirty = parsed !== p.points;
   const valid = parsed === null || (!Number.isNaN(parsed) && parsed >= 0 && parsed <= 3000);
 
-  const doSave = async (points: number | null, playsPips: boolean) => {
-    const ok = await onSave(p, points, playsPips);
+  const doSave = async (
+    points: number | null,
+    playsPips: boolean,
+    intent?: PointsIntent
+  ) => {
+    const ok = await onSave(p, points, playsPips, intent);
+    setConfirm(null);
     window.clearTimeout(flashTimer.current);
     setFlash(ok ? "saved" : "failed");
     if (ok) flashTimer.current = window.setTimeout(() => setFlash(null), 1500);
@@ -54,7 +70,18 @@ function PlayerRow({
 
   const save = () => {
     if (!dirty || !valid || parsed === null) return; // clearing isn't supported
+    // With match history the two meanings of a points change write different
+    // history — ask which one this is. No history → both are the same save.
+    if (p.points !== null && p.matches_vs + p.matches_with > 0) {
+      setConfirm(parsed);
+      return;
+    }
     void doSave(parsed, p.plays_pips);
+  };
+
+  const cancelConfirm = () => {
+    setConfirm(null);
+    setDraft(p.points === null ? "" : String(p.points)); // back to stored
   };
 
   const saveName = async () => {
@@ -125,13 +152,49 @@ function PlayerRow({
           value={draft}
           onChange={(e) => {
             setDraft(e.target.value);
+            setConfirm(null); // value moved on — the pending question is stale
             if (flash === "failed") setFlash(null);
           }}
           onBlur={save}
           onKeyDown={(e) => {
             if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+            if (e.key === "Escape") cancelConfirm();
           }}
         />
+        {confirm !== null && (
+          <div className="db-intent-pop">
+            <div className="db-intent-head">
+              {p.points} → {confirm}: what changed?
+              <button
+                className="db-intent-cancel"
+                title="Keep the old points"
+                onClick={cancelConfirm}
+              >
+                ✕
+              </button>
+            </div>
+            <button
+              className="db-intent-btn"
+              disabled={busy}
+              onClick={() => void doSave(confirm, p.plays_pips, "progression")}
+            >
+              📈 Level change
+              <span className="db-intent-sub">
+                counts from now on — past matches keep {p.points}
+              </span>
+            </button>
+            <button
+              className="db-intent-btn"
+              disabled={busy}
+              onClick={() => void doSave(confirm, p.plays_pips, "correction")}
+            >
+              ✏️ Fix wrong entry
+              <span className="db-intent-sub">
+                recalculate all {p.matches_vs + p.matches_with} matches with them
+              </span>
+            </button>
+          </div>
+        )}
         {dirty && valid && parsed !== null && (
           <span className="db-dirty" title="Not saved — leave the field or press Enter to save">
             ●
@@ -260,7 +323,8 @@ export default function DatabaseTab() {
   const saveRow = async (
     p: PlayerDbRow,
     points: number | null,
-    playsPips: boolean
+    playsPips: boolean,
+    intent?: PointsIntent
   ): Promise<boolean> => {
     const out = await run(() =>
       databaseApi.updatePlayer(p.id, {
@@ -269,6 +333,7 @@ export default function DatabaseTab() {
         note: p.note ?? null,
         plays_pips: playsPips,
         points,
+        points_intent: intent,
       })
     );
     if (out === undefined || !data) return false;

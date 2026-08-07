@@ -474,11 +474,43 @@ def update_player(
     p.plays_pips = payload.plays_pips
     # None = caller doesn't manage points (e.g. the picker's pips toggle) —
     # never wipe a rating the user set in the Database tab.
+    resnapped: int | None = None
     if payload.points is not None:
         p.points = payload.points
+        if payload.points_intent == "correction":
+            resnapped = _refreeze_player_snapshots(db, player_id, payload.points)
     db.commit()
     db.refresh(p)
-    return player_to_out(p)
+    out = player_to_out(p)
+    out.resnapped_matches = resnapped
+    return out
+
+
+def _refreeze_player_snapshots(db: Session, player_id: int, points: int) -> int:
+    """Correction path: the stored points were a TYPO, so every at-match-time
+    snapshot of this player is wrong too — overwrite them all with the fixed
+    value. ELO needs no explicit recalculation (the replay reads snapshots on
+    every request). Only this player's slots are touched; the other players'
+    snapshots in the same matches stay frozen. Returns the match count."""
+    matches = (
+        db.query(Match)
+        .filter(
+            or_(
+                Match.opponent_id == player_id,
+                Match.opponent2_id == player_id,
+                Match.partner_id == player_id,
+            )
+        )
+        .all()
+    )
+    for m in matches:
+        if m.opponent_id == player_id:
+            m.opp_points_snap = points
+        if m.opponent2_id == player_id:
+            m.opp2_points_snap = points
+        if m.partner_id == player_id:
+            m.partner_points_snap = points
+    return len(matches)
 
 
 def list_players_db(db: Session) -> schemas.PlayersDbResponse:
@@ -595,6 +627,12 @@ def latest_data_date(db: Session) -> dt.date | None:
     return max(dates) if dates else None
 
 
+# Overall row's green bar: a real racket-time day (user rule 2026-08-04:
+# "xanh = đang đi đúng hướng tới E"). >= so a standard 1h coach session stays
+# green; 60p of match play = 12 sets ≈ 4 BO5 matches.
+OVERALL_GREEN_RACKET_MINUTES = 60
+
+
 def compute_overall_colors(
     categories: list[Category],
     activities: list[Activity],
@@ -606,31 +644,38 @@ def compute_overall_colors(
 ) -> dict[str, str]:
     """Auto-generate the 'Overall' color per day (no manual rating).
 
-    - green: any of the green-group rows (Train with Coach / Backhand with
-      Partner / Serve) has duration data that day.
-    - yellow: otherwise, any of the remaining rows (Physical Training, Practice
-      Match, Official Match) has data that day.
+    User rule 2026-08-04 — the grid measures QUANTITY, quality is ELO's job:
+    - green: total racket time that day >= 60 minutes (coach + partner
+      training plus match play from sets × 5p — the same number as the
+      Racket Time row). The old rule (green = any minutes on a green-group
+      row) was volume-blind: 15p of drills was green while a 5-match
+      sparring evening could never be — backwards for the road-to-E goal.
+    - yellow: something logged but under the bar — a short racket day, a
+      physical day, any other duration row (serve practice is deliberate
+      but not racket time), or any match row (a legacy Travel/Rest entry is
+      data, not "nothing").
     - red: a past day (>= the first tracked day, < today) with no data at all.
     - (absent): no data, and the day is today, in the future, or before tracking
       began.
 
     Returns {iso_date: 'green' | 'yellow' | 'red'}.
     """
-    green_ids = {c.id for c in categories if c.color_group == "green"}
+    r_train, r_play = racket_minutes_by_day(categories, activities, matches)
 
     green_days: set[str] = set()
     other_days: set[str] = set(physical_dates or set())
 
-    for a in activities:
-        if (a.duration_minutes or 0) <= 0:
-            continue
-        iso = a.date.isoformat()
-        if a.category_id in green_ids:
+    for iso in set(r_train) | set(r_play):
+        total = r_train.get(iso, 0) + r_play.get(iso, 0)
+        if total >= OVERALL_GREEN_RACKET_MINUTES:
             green_days.add(iso)
         else:
             other_days.add(iso)
 
-    # Any match entry (including Travel/Rest) counts as activity for the day.
+    # Anything else logged still marks the day as "not nothing".
+    for a in activities:
+        if (a.duration_minutes or 0) > 0:
+            other_days.add(a.date.isoformat())
     for m in matches:
         other_days.add(m.date.isoformat())
 

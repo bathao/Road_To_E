@@ -2250,6 +2250,8 @@ export interface components {
             plays_pips: boolean;
             /** Points */
             points?: number | null;
+            /** Resnapped Matches */
+            resnapped_matches?: number | null;
             /**
              * Matches Vs
              * @default 0
@@ -2276,6 +2278,12 @@ export interface components {
             plays_pips: boolean;
             /** Points */
             points?: number | null;
+            /**
+             * Points Intent
+             * @default progression
+             * @enum {string}
+             */
+            points_intent: "progression" | "correction";
         };
         /** PlayerOut */
         PlayerOut: {
@@ -2294,6 +2302,8 @@ export interface components {
             plays_pips: boolean;
             /** Points */
             points?: number | null;
+            /** Resnapped Matches */
+            resnapped_matches?: number | null;
         };
         /** PlayersDbResponse */
         PlayersDbResponse: {

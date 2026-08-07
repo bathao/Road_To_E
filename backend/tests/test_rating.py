@@ -326,6 +326,84 @@ def test_match_api_writes_snapshots(client, db):
     assert db.get(Match, m.id).opp_points_snap == 1200
 
 
+def _put_player(client, p, points, intent=None):
+    body = {"name": p.name, "plays_pips": False, "points": points}
+    if intent is not None:
+        body["points_intent"] = intent
+    return client.put(f"/api/tracker/players/{p.id}", json=body)
+
+
+def test_points_correction_refreezes_all_slots(client, db):
+    """User rule 2026-08-07: a points edit flagged "correction" means the old
+    value was a typo — every existing snapshot of that player is re-frozen
+    (any slot), other players' snapshots stay, and the replay recalculates."""
+    off = category_id(db, "official_match")
+    vinh = Player(name="Vinh", points=1200)
+    ban = Player(name="Ban", points=1000)
+    doi = Player(name="Doi", points=1100)
+    db.add_all([vinh, ban, doi])
+    db.commit()
+
+    m1 = _match(off, vinh.id, my=3, opp_sets=0)  # vinh as opponent
+    m2 = _match(off, doi.id, discipline="doubles", opponent2_id=vinh.id,
+                partner_id=ban.id, order_index=1)  # vinh as opponent2
+    m3 = _match(off, doi.id, discipline="doubles", opponent2_id=ban.id,
+                partner_id=vinh.id, order_index=2)  # vinh as my partner
+    for m in (m1, m2, m3):
+        service.snapshot_match_points(db, m)
+        db.add(m)
+    db.commit()
+    before = service.compute_my_rating(db).current
+
+    r = _put_player(client, vinh, 1000, intent="correction")
+    assert r.status_code == 200
+    assert r.json()["resnapped_matches"] == 3
+    db.expire_all()
+    assert db.get(Match, m1.id).opp_points_snap == 1000
+    assert db.get(Match, m2.id).opp2_points_snap == 1000
+    assert db.get(Match, m3.id).partner_points_snap == 1000
+    # The OTHER players' snapshots in the same matches stay frozen.
+    assert db.get(Match, m2.id).opp_points_snap == 1100
+    assert db.get(Match, m2.id).partner_points_snap == 1000
+    # ELO recalculates on the next read (beating a weaker Vinh pays less).
+    assert service.compute_my_rating(db).current < before
+
+
+def test_points_progression_keeps_snapshots(client, db):
+    """Default intent = progression (the player levelled up for real): old
+    snapshots untouched, only future matches freeze the new value."""
+    off = category_id(db, "official_match")
+    vinh = Player(name="Vinh", points=1200)
+    db.add(vinh)
+    db.commit()
+    m = _match(off, vinh.id, my=3, opp_sets=0)
+    service.snapshot_match_points(db, m)
+    db.add(m)
+    db.commit()
+    before = service.compute_my_rating(db).current
+
+    r = _put_player(client, vinh, 1400)  # intent omitted → progression
+    assert r.status_code == 200
+    assert r.json()["resnapped_matches"] is None
+    db.expire_all()
+    assert db.get(Match, m.id).opp_points_snap == 1200
+    assert service.compute_my_rating(db).current == before
+    # A match entered from now on freezes the new value.
+    m2 = _match(off, vinh.id, my=3, opp_sets=1, order_index=1)
+    service.snapshot_match_points(db, m2)
+    assert m2.opp_points_snap == 1400
+
+
+def test_points_correction_without_matches_is_a_plain_update(client, db):
+    vinh = Player(name="Vinh", points=1200)
+    db.add(vinh)
+    db.commit()
+    r = _put_player(client, vinh, 1000, intent="correction")
+    assert r.status_code == 200
+    assert r.json()["resnapped_matches"] == 0
+    assert r.json()["points"] == 1000
+
+
 def test_week_elo_annotation(db):
     # (The /my-rating/history daily-curve endpoint was retired 2026-07-28 in
     # favour of build_rating_breakdown — covered by its own test below.)

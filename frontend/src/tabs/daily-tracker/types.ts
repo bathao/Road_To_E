@@ -53,6 +53,11 @@ export interface PlayerIn {
   note?: string | null;
   plays_pips?: boolean;
   points?: number | null; // omitted/null on update = leave unchanged
+  // What a points change means (default progression): "progression" = real
+  // level change, applies to matches entered from now on; "correction" =
+  // the old value was a typo — every stored snapshot of this player is
+  // re-frozen and ELO history recalculates.
+  points_intent?: "progression" | "correction";
 }
 
 export interface Match {

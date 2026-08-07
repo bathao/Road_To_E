@@ -162,6 +162,74 @@
   border-color: #dc2626;
 }
 
+/* Points-intent popover: a changed value on a player with match history asks
+   "level change or wrong entry?" before saving (the two write different
+   history). Anchored to the points cell. */
+.db-points {
+  position: relative;
+}
+
+.db-intent-pop {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% - 6px);
+  left: 8px;
+  min-width: 250px;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.db-intent-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.db-intent-cancel {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 12px;
+  padding: 2px 4px;
+}
+
+.db-intent-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 6px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.db-intent-btn:hover {
+  border-color: #6366f1;
+  background: #f5f6ff;
+}
+
+.db-intent-sub {
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
 @keyframes db-fade-out {
   0%,
   55% {
