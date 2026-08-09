@@ -19,3 +19,13 @@ export function pointsLabel(points: number | null | undefined): string {
   if (points == null) return "—";
   return `${points} (${rankOf(points)})`;
 }
+
+/** Parse a hand-typed points input (Database tab rows/add form, the picker's
+ * add-player form — one rule for all): empty = unranked (null, valid),
+ * otherwise an integer in [0, 3000]. */
+export function parsePoints(s: string): { value: number | null; valid: boolean } {
+  const t = s.trim();
+  if (t === "") return { value: null, valid: true };
+  const n = Number(t);
+  return { value: n, valid: !Number.isNaN(n) && n >= 0 && n <= 3000 };
+}

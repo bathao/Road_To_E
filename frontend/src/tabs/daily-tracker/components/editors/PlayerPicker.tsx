@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { Player } from "../../types";
 import { trackerApi } from "../../api";
-import { rankOf } from "../../../../shared/rank";
+import { fold } from "../../../../shared/fold";
+import { parsePoints, rankOf } from "../../../../shared/rank";
 
 // Points + real rank ("1550 · D") — replaced the retired relative label
 // chips (Trên/Ngang/Dưới) on 2026-07-27.
@@ -71,10 +72,7 @@ export default function PlayerPicker({
     setNewPips(false);
   };
 
-  const parsedPoints = newPoints.trim() === "" ? null : Number(newPoints);
-  const pointsValid =
-    parsedPoints === null ||
-    (!Number.isNaN(parsedPoints) && parsedPoints >= 0 && parsedPoints <= 3000);
+  const { value: parsedPoints, valid: pointsValid } = parsePoints(newPoints);
 
   const addNew = async () => {
     const name = query.trim();
@@ -156,9 +154,10 @@ export default function PlayerPicker({
     );
   }
 
-  const exactExists = results.some(
-    (r) => r.name.toLowerCase() === query.trim().toLowerCase()
-  );
+  // Fold-compare (diacritic-insensitive) like every other name match: a
+  // query that differs from an existing player only by accents should show
+  // them, not offer "+ Add" a near-duplicate.
+  const exactExists = results.some((r) => fold(r.name) === fold(query.trim()));
 
   return (
     <div className="player-row">

@@ -281,6 +281,11 @@ export interface TournamentEntry {
   teammate_names?: string[]; // resolved, same order as ids
   team_members?: string | null; // optional team name / note
   division?: string | null; // "hạng E", "U40"…
+  // Deepest DECIDED round of the linked matches + whether it was won —
+  // derived server-side, feeds the MatchEditor's auto-advancing Round
+  // default (works across the days of a multi-day event).
+  latest_round?: string | null;
+  latest_round_won?: boolean | null;
 }
 
 export interface Tournament {
@@ -299,6 +304,9 @@ export interface Tournament {
 }
 
 export interface TournamentEntryIn {
+  // Existing entry's id when editing (null/omitted = create new) — the
+  // backend reconciles by id so matches linked to the entry stay linked.
+  id?: number | null;
   discipline: TournamentDiscipline;
   partner_id?: number | null;
   teammate_ids?: number[];

@@ -32,9 +32,11 @@ def _entry_out(
     players: dict[int, str],
     placements: _Placements,
     warnings: dict[int, str],
+    reached: dict[int, tuple[str, bool]],
 ) -> schemas.EntryOut:
     teammate_ids = [m.player_id for m in e.members]
     placement = placements.get(e.id, (None,))[0]
+    latest = reached.get(e.id)
     return schemas.EntryOut(
         id=e.id,
         discipline=e.discipline,
@@ -47,6 +49,8 @@ def _entry_out(
         final_placement=placement,
         bonus_points=placement_bonus(e.discipline, placement) or None,
         data_warning=warnings.get(e.id),
+        latest_round=latest[0] if latest else None,
+        latest_round_won=latest[1] if latest else None,
     )
 
 
@@ -55,6 +59,7 @@ def _to_out(
     players: dict[int, str],
     placements: _Placements,
     warnings: dict[int, str],
+    reached: dict[int, tuple[str, bool]],
     played: bool,
 ) -> schemas.TournamentOut:
     return schemas.TournamentOut(
@@ -66,7 +71,10 @@ def _to_out(
         level_limit=t.level_limit,
         note=t.note,
         played=played,
-        entries=[_entry_out(e, players, placements, warnings) for e in t.entries],
+        entries=[
+            _entry_out(e, players, placements, warnings, reached)
+            for e in t.entries
+        ],
     )
 
 
@@ -148,13 +156,14 @@ def list_tournaments(db: Session, today: dt.date | None = None) -> schemas.Tourn
     players = _player_names(db, upcoming + played)
     placements = derive_placements(db)
     warnings = derive_warnings(db)
+    reached = derive_round_reached(db)
     return schemas.TournamentsResponse(
         tournaments=[
-            _to_out(t, players, placements, warnings, played=False)
+            _to_out(t, players, placements, warnings, reached, played=False)
             for t in upcoming
         ]
         + [
-            _to_out(t, players, placements, warnings, played=True)
+            _to_out(t, players, placements, warnings, reached, played=True)
             for t in played
         ]
     )
@@ -173,21 +182,35 @@ def _apply(t: Tournament, payload: schemas.TournamentIn) -> None:
     )
     t.level_limit = (payload.level_limit or "").strip() or None
     t.note = (payload.note or "").strip() or None
-    t.entries = [
-        TournamentEntry(
-            discipline=e.discipline,
-            partner_id=e.partner_id if e.discipline == "doubles" else None,
-            team_members=(e.team_members or "").strip() or None
-            if e.discipline == "team"
-            else None,
-            division=(e.division or "").strip() or None,
-            members=[
-                TournamentEntryMember(player_id=pid)
-                for pid in (e.teammate_ids if e.discipline == "team" else [])
-            ],
+    # Entries reconcile IN PLACE by id. Matches reference entries via
+    # tournament_entry_id (an ALTER-added column — the live DB has no FK on
+    # it), so the old wholesale replacement silently orphaned every linked
+    # match on ANY edit: tournament label, rounds, derived placement and its
+    # ELO bonus all vanished. Entries missing from the payload are still
+    # dropped (explicit removal in the form) via delete-orphan.
+    existing = {e.id: e for e in t.entries}
+    kept: list[TournamentEntry] = []
+    for e_in in payload.entries:
+        e = existing.pop(e_in.id, None) if e_in.id else None
+        if e is None:
+            e = TournamentEntry()
+        e.discipline = e_in.discipline
+        e.partner_id = e_in.partner_id if e_in.discipline == "doubles" else None
+        e.team_members = (
+            (e_in.team_members or "").strip() or None
+            if e_in.discipline == "team"
+            else None
         )
-        for e in payload.entries
-    ]
+        # The GUI form doesn't manage division — None leaves a stored value
+        # alone (the old code wiped it on every edit).
+        if e_in.division is not None:
+            e.division = e_in.division.strip() or None
+        e.members = [
+            TournamentEntryMember(player_id=pid)
+            for pid in (e_in.teammate_ids if e_in.discipline == "team" else [])
+        ]
+        kept.append(e)
+    t.entries = kept
 
 
 def create_tournament(db: Session, payload: schemas.TournamentIn) -> schemas.TournamentsResponse:
@@ -223,9 +246,11 @@ def build_record(db: Session, today: dt.date | None = None) -> schemas.Tournamen
     entry got + its W-L record + every entered match, all derived from the
     Daily Tracker matches linked via tournament_entry_id. Nothing stored.
 
-    "Played" = ended before today OR any match already linked — the same
-    rule the Daily Tracker filters on: entering a same-day tournament's
-    results moves it here immediately, not tomorrow (user 2026-08-01)."""
+    "Played" = past the tournament's LAST day, or a linked match dated
+    on/after that last day (_is_played, multi-day rule 2026-08-04) — the
+    same split the Daily Tracker cards use: a single-day tournament moves
+    here the moment its results go in; a multi-day one survives day-1
+    results and moves after its final day's."""
     today = today or dt.date.today()
     _, past = _load_split(db, today)
     if not past:
@@ -275,7 +300,7 @@ def build_record(db: Session, today: dt.date | None = None) -> schemas.Tournamen
         decided = [m for m in ms if m.my_sets != m.opp_sets]
         rnd, won = reached.get(e.id, (None, False))
         return schemas.RecordEntry(
-            entry=_entry_out(e, players, placements, warnings),
+            entry=_entry_out(e, players, placements, warnings, reached),
             round_reached=rnd,
             reached_won=won,
             wins=sum(1 for m in decided if m.my_sets > m.opp_sets),

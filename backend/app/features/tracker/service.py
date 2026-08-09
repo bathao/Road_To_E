@@ -4,6 +4,7 @@ from __future__ import annotations
 import csv
 import datetime as dt
 import io
+import unicodedata
 from collections import deque
 from typing import NamedTuple
 
@@ -32,7 +33,6 @@ from app.features.tracker.models import (
     PhysicalCheck,
     Player,
     SessionNote,
-    Setting,
 )
 from app.features.training import service as training_service
 
@@ -389,12 +389,63 @@ def player_to_out(p: Player) -> schemas.PlayerOut:
     )
 
 
-def list_players(db: Session, q: str = "") -> list[schemas.PlayerOut]:
-    query = db.query(Player)
-    if q:
-        query = query.filter(Player.name.ilike(f"%{q}%"))
-    rows = query.order_by(Player.name).limit(50).all()
-    return [player_to_out(p) for p in rows]
+def _fold(s: str) -> str:
+    """Diacritic-insensitive key for name matching: NFD-strip the accents,
+    lowercase, đ→d — "tuan" finds "Tuấn", "pham" finds "Phạm"."""
+    s = unicodedata.normalize("NFD", (s or "").lower())
+    return "".join(c for c in s if not unicodedata.combining(c)).replace("đ", "d")
+
+
+# "Regulars" window for the picker ranking: how far back a training partner
+# still counts as current (they rotate as the user changes clubs/groups).
+_PICKER_RECENT_DAYS = 90
+
+
+def list_players(
+    db: Session, q: str = "", today: dt.date | None = None
+) -> list[schemas.PlayerOut]:
+    """Player search behind the match-editor pickers (user rules 2026-08-09).
+
+    Matching is diacritic-insensitive and token-AND in any order ("go tuan"
+    finds "Tuấn gỗ") — done in Python, the pool is ~100 rows. Ranking: names
+    whose words START with every typed token first, then substring matches;
+    within a tier the people I play MOST come first (appearances in MY
+    matches in the last 90 days, then all-time — opponent AND partner slots
+    both count: likely rematches and likely repeat partners alike). An empty
+    query returns the current regulars on top — pick without typing."""
+    today = today or dt.date.today()
+    recent_floor = today - dt.timedelta(days=_PICKER_RECENT_DAYS)
+    recent: dict[int, int] = {}
+    total: dict[int, int] = {}
+    rows = (
+        db.query(Match.date, Match.opponent_id, Match.opponent2_id, Match.partner_id)
+        .filter(Match.is_nonplaying == False)  # noqa: E712
+        .all()
+    )
+    for date, *slots in rows:
+        for pid in slots:
+            if pid is None:
+                continue
+            total[pid] = total.get(pid, 0) + 1
+            if date >= recent_floor:
+                recent[pid] = recent.get(pid, 0) + 1
+
+    tokens = _fold(q).split()
+
+    def _rank(p: Player) -> tuple[int, int, int, str] | None:
+        """None = no match; else the sort key (lower sorts first)."""
+        folded = _fold(p.name)
+        if any(t not in folded for t in tokens):
+            return None
+        words = folded.split()
+        prefix = all(any(w.startswith(t) for w in words) for t in tokens)
+        return (0 if prefix else 1, -recent.get(p.id, 0), -total.get(p.id, 0), folded)
+
+    ranked = [
+        (key, p) for p in db.query(Player).all() if (key := _rank(p)) is not None
+    ]
+    ranked.sort(key=lambda kp: kp[0])
+    return [player_to_out(p) for _, p in ranked[:50]]
 
 
 # Rank bands (H=0, then G..A per 200 points) — mirrors frontend shared/rank.ts.
@@ -434,7 +485,14 @@ def create_or_get_player(db: Session, payload: schemas.PlayerIn) -> schemas.Play
     analytics derive the relative level from points instead. New rows get the
     column default; the field is still accepted so old clients don't break."""
     name = (payload.name or "").strip()
-    existing = db.query(Player).filter(Player.name == name).first()
+    # Case-insensitive match, in Python: SQL `==` created duplicate people
+    # ("ANNA" next to "Anna"), and SQLite lower() folds ASCII only ("Đức" vs
+    # "đức" slipped through). NOT diacritic-folded on purpose — Tuấn and
+    # Tuân are different names. Same rule as the rename guard below.
+    existing = next(
+        (p for p in db.query(Player).all() if (p.name or "").lower() == name.lower()),
+        None,
+    )
     if existing is None:
         existing = Player(
             name=name,
@@ -461,16 +519,25 @@ def update_player(
     # "same person twice" situation needs a merge feature, not a rename).
     new_name = (payload.name or "").strip()
     if new_name and new_name.lower() != (p.name or "").lower():
-        clash = (
-            db.query(Player)
-            .filter(func.lower(Player.name) == new_name.lower(), Player.id != player_id)
-            .first()
+        # Python-side lower(): SQLite func.lower folds ASCII only, so a
+        # rename to "đức" wasn't caught when "Đức" existed.
+        clash = next(
+            (
+                x
+                for x in db.query(Player).all()
+                if x.id != player_id and (x.name or "").lower() == new_name.lower()
+            ),
+            None,
         )
         if clash is not None:
             raise ValueError(f'A player named "{clash.name}" already exists.')
     p.name = new_name or p.name
     # payload.level is ignored — the column is frozen legacy (see above).
-    p.note = payload.note
+    # None = caller doesn't manage the note (the picker's pips toggle sends a
+    # placeholder player without one before its enrich lands — review find
+    # 2026-08-09: it silently ERASED stored notes). Same guard as points.
+    if payload.note is not None:
+        p.note = payload.note
     p.plays_pips = payload.plays_pips
     # None = caller doesn't manage points (e.g. the picker's pips toggle) —
     # never wipe a rating the user set in the Database tab.
@@ -1796,6 +1863,7 @@ def build_match_stats(
     replay: rating.ReplayResult | None = None,
     form_seed: bool = True,
     with_trend: bool = True,
+    overall_only: bool = False,
 ) -> schemas.MatchStatsResponse:
     """Stats over *named-opponent* matches only (opponent_id set, playing).
 
@@ -1823,6 +1891,25 @@ def build_match_stats(
     my_now = round((replay or rating.replay(db))[0])
 
     acc = _h2h_accumulate(matches, my_now)
+
+    # The coach bundle's per-KIND calls (practice/official/tournament, in the
+    # verdict AND every chat message) read `.overall`/`.vs_pips` only — skip
+    # the new-opponents full-history scan, the h2h/opponent list building and
+    # the trend buckets for them (review find 2026-08-09). Same accumulator,
+    # so the numbers can't drift from the full path.
+    if overall_only:
+        return schemas.MatchStatsResponse(
+            date_from=date_from,
+            date_to=date_to,
+            discipline=discipline,
+            category=category,
+            unit=unit,
+            overall=_finalize_match_stats(acc.overall),
+            vs_pips=_finalize_match_stats(acc.vs_pips),
+            opponents=[],
+            singles_h2h=[],
+            doubles_h2h=[],
+        )
 
     # "New" = played SINGLES vs me in range AND never faced before the range
     # starts, in ANY match (full history, both opponent slots, ignoring the

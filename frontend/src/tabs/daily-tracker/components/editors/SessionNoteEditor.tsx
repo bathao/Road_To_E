@@ -38,7 +38,9 @@ export default function SessionNoteEditor({
   };
 
   const add = async () => {
-    if (!text.trim()) return;
+    // busy guard: the Add BUTTON is disabled while saving but the input's
+    // Enter handler isn't — a quick double Enter double-posted the note.
+    if (busy || !text.trim()) return;
     const ok = await run(() =>
       trackerApi.createSessionNote({
         date: dateIso,

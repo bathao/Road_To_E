@@ -36,6 +36,22 @@ export const ROUND_SHORT: Record<TournamentRound, string> = {
   f: "F",
 };
 
+// The knockout ladder. Group → first knockout round stays a MANUAL pick
+// (the app can't know the bracket size), and winning the Final has nowhere
+// further to go — both map to themselves via the ?? fallback.
+const NEXT_ROUND: Partial<Record<TournamentRound, TournamentRound>> = {
+  r64: "r32",
+  r32: "r16",
+  r16: "r8",
+  r8: "qf",
+  qf: "sf",
+  sf: "f",
+};
+
+export function nextRound(r: TournamentRound): TournamentRound {
+  return NEXT_ROUND[r] ?? r;
+}
+
 // "give 2-0-2" / "receive 4" — one handicap phrasing for every list row
 // (MatchEditor, MatchRowList, Profile drill-down, h2h MatchLines). Non-uniform
 // ratios show the per-set sequence; null = no handicap.

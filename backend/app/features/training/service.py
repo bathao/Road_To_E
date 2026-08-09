@@ -474,6 +474,10 @@ def physical_day_map(
             TrainingSession.done_on >= date_from,
             TrainingSession.done_on <= date_to,
         )
+        # Two sessions completed the same day: the LAST iterated row wins the
+        # dict slot below — order by id so the newest deterministically does,
+        # matching session_on_date's `id desc` pick (was unordered).
+        .order_by(TrainingSession.id)
         .all()
     )
     out: dict[str, dict] = {}

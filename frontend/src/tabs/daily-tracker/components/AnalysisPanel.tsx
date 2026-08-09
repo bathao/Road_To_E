@@ -142,7 +142,12 @@ export default function AnalysisPanel({
     [reloadSignal]
   );
   const packages = pkgData?.packages ?? [];
-  const { run: runPkg, busy: pkgBusy, error: pkgError } = useMutate();
+  const {
+    run: runPkg,
+    busy: pkgBusy,
+    error: pkgError,
+    clearError: clearPkgError,
+  } = useMutate();
 
   // Renew flow: the card's button flags session size+1 as the new package's
   // start; the response already carries the recomputed package list.
@@ -162,7 +167,13 @@ export default function AnalysisPanel({
         <span className="analysis-range">{label}</span>
       </div>
 
-      {error && <div className="error-banner">⚠ {error}</div>}
+      {/* click-to-dismiss like every other error-banner (a failed package
+          start otherwise stuck around until the next successful mutation) */}
+      {error && (
+        <div className="error-banner" onClick={clearPkgError}>
+          ⚠ {error}
+        </div>
+      )}
 
       {stats && (
         <>

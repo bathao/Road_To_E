@@ -24,7 +24,17 @@ function ExerciseCard({
     <div
       className={`tc-ex${item.done ? " tc-ex-done" : ""}${item.skipped ? " tc-ex-skipped" : ""}`}
     >
-      <ExerciseImage gif={item.gif} alt={item.name_vi} className="tc-ex-thumb" />
+      {/* key: "Swap exercise" replaces the exercise on the SAME item id —
+          without a remount the fallback index carries over and the new
+          exercise can show the old one's pose SVG (same bug WorkoutPlayer
+          fixed with key={step.gif}; exercise_key is unique even without a
+          real GIF). */}
+      <ExerciseImage
+        key={item.exercise_key}
+        gif={item.gif}
+        alt={item.name_vi}
+        className="tc-ex-thumb"
+      />
       <div className="tc-ex-body">
         <div className="tc-ex-head">
           <span className="tc-ex-name">{item.name_vi}</span>

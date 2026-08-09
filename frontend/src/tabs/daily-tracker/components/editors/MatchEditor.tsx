@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   Category,
   Discipline,
@@ -11,10 +11,16 @@ import type {
 } from "../../types";
 import { trackerApi } from "../../api";
 import { validScores } from "../../scores";
+import { fmtDelta } from "../../../../shared/format";
 import PlayerPicker from "./PlayerPicker";
 import { levelShort } from "../../../../shared/levels";
 import { DISCIPLINES, DISCIPLINE_SHORT } from "../../../../shared/disciplines";
-import { hdcLabel, ROUND_LABEL, ROUND_SHORT } from "../../../../shared/matches";
+import {
+  hdcLabel,
+  nextRound,
+  ROUND_LABEL,
+  ROUND_SHORT,
+} from "../../../../shared/matches";
 import type { TournamentRound } from "../../../../shared/matches";
 import { resultOf } from "../../../../shared/types";
 
@@ -30,6 +36,43 @@ export interface TournamentCtx {
 }
 
 const ROUND_OPTIONS = Object.entries(ROUND_LABEL) as [TournamentRound, string][];
+// Ladder order for the depth comparison below (insertion order of the map).
+const ROUND_KEYS = Object.keys(ROUND_LABEL) as TournamentRound[];
+
+// Auto-advancing Round default (user 2026-08-09): after a knockout WIN the
+// picker pre-selects the NEXT round; a loss means knocked out, so it stays
+// put; group results never advance (bracket size unknown — the first
+// knockout round is picked by hand). Entry-linked cells read the ENTRY's
+// deepest decided round from the server (so day 2 of a multi-day event
+// continues where day 1 ended); unlinked cells (back-filling an old event)
+// derive the same rule from the cell's own matches.
+function defaultRound(ctx: TournamentCtx | null, ms: Match[]): TournamentRound {
+  let latest: TournamentRound | null = null;
+  let won = false;
+  if (ctx) {
+    if (ctx.entry.latest_round) {
+      latest = ctx.entry.latest_round as TournamentRound;
+      won = ctx.entry.latest_round_won ?? false;
+    }
+  } else {
+    let best: Match | null = null;
+    let bestDepth = -1;
+    for (const m of ms) {
+      if (m.is_nonplaying || m.my_sets === m.opp_sets) continue; // undecided
+      const depth = ROUND_KEYS.indexOf((m.round ?? "group") as TournamentRound);
+      if (depth >= bestDepth) {
+        best = m; // ties → the later match wins (cell order = entry order)
+        bestDepth = depth;
+      }
+    }
+    if (best) {
+      latest = (best.round ?? "group") as TournamentRound;
+      won = best.my_sets > best.opp_sets;
+    }
+  }
+  if (!latest || latest === "group") return "group";
+  return won ? nextRound(latest) : latest;
+}
 
 // "Singles hạng E · BBTV Open" — how one entry shows in the picker.
 function ctxLabel(c: TournamentCtx): string {
@@ -70,11 +113,12 @@ const ELO_SKIP_LABEL: Record<string, string> = {
 
 function EloChip({ m }: { m: Match }) {
   if (m.elo_delta != null) {
-    const up = m.elo_delta >= 0;
     return (
-      <span className={`elo-chip ${up ? "elo-up" : "elo-down"}`} title="ELO change after this match">
-        {up ? "+" : ""}
-        {m.elo_delta.toFixed(1)}
+      <span
+        className={`elo-chip ${m.elo_delta >= 0 ? "elo-up" : "elo-down"}`}
+        title="ELO change after this match"
+      >
+        {fmtDelta(m.elo_delta)}
       </span>
     );
   }
@@ -145,20 +189,29 @@ export default function MatchEditor({
   const isTournamentCell = category.key === "tournament_match";
   const [entryIdx, setEntryIdx] = useState(0);
   const selCtx = tournamentCtx[entryIdx] ?? null;
-  // Default round = the round of the cell's latest match — mid-knockout the
-  // picker follows along; first match of the day starts at Group.
-  const [round, setRound] = useState<TournamentRound>(() => {
-    const last = [...matches].reverse().find((m) => m.round);
-    return (last?.round as TournamentRound) ?? "group";
-  });
+  // Default round = auto-advance from the deepest decided round (win → next
+  // round pre-picked, loss → stays). Re-derived after every save/delete and
+  // on entry switch — see the effect below (never while editing a match).
+  const [round, setRound] = useState<TournamentRound>(() =>
+    defaultRound(selCtx, matches)
+  );
 
   // Applying the picked entry: doubles registrations lock the discipline and
   // pre-fill the registered partner (still editable per match — the pair can
   // change on the day); the tournament name pre-fills the Event box.
   // Also re-applied after an edit ends, so the add form comes back pre-filled.
+  // The ref remembers what the prefill wrote: switching to another entry
+  // must replace ITS OWN leftover but never a user-typed name (review find
+  // 2026-08-09: two overlapping tournaments → matches saved for B still
+  // carried A's event name).
+  const prefilledEvent = useRef<string | null>(null);
   const applyEntryPrefill = () => {
     if (!selCtx) return;
-    setEventName((cur) => (cur.trim() ? cur : selCtx.tournament.name));
+    setEventName((cur) => {
+      if (cur.trim() && cur !== prefilledEvent.current) return cur; // user's
+      prefilledEvent.current = selCtx.tournament.name;
+      return selCtx.tournament.name;
+    });
     if (selCtx.entry.discipline === "doubles") {
       setDiscipline("doubles");
       if (selCtx.entry.partner_id) {
@@ -195,6 +248,28 @@ export default function MatchEditor({
   // saved without a round must not silently inherit the picker's leftover
   // value on save.
   const [roundTouched, setRoundTouched] = useState(false);
+
+  // Re-derive the Round default when a save/delete lands (matches change,
+  // and afterMutate's tournament refetch updates entry.latest_round) or the
+  // picked entry changes: win 1/32 → the picker jumps to 1/16 by itself.
+  // Guarded while editing — beginEdit owns the picker there. Deps are a
+  // CONTENT signature, not array identity (the parent rebuilds both props
+  // every render) — an unsaved manual pick survives unrelated re-renders.
+  const matchesKey = matches
+    .map((m) => `${m.id}:${m.my_sets}-${m.opp_sets}:${m.round ?? ""}`)
+    .join("|");
+  useEffect(() => {
+    if (editingMatch) return;
+    setRound(defaultRound(selCtx, matches));
+    setRoundTouched(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    editingMatch,
+    selCtx?.entry.id,
+    selCtx?.entry.latest_round,
+    selCtx?.entry.latest_round_won,
+    matchesKey,
+  ]);
 
   // Signed handicap + optional per-set pattern → the three form fields.
   // Shared by the last-handicap prefill and by loading a match for edit.
@@ -338,7 +413,10 @@ export default function MatchEditor({
         : null
     );
     applyHandicap(m.handicap, m.handicap_pattern);
-    if (m.round) setRound(m.round as TournamentRound);
+    // Round-less match: show "Group" (null renders as group stage everywhere)
+    // instead of the add-form's auto-advance leftover — an untouched save
+    // keeps null, so the picker must not display e.g. "1/8" it won't write.
+    setRound((m.round as TournamentRound) ?? "group");
     enrich(m.opponent_id, m.opponent_name, setOpponent);
     enrich(m.opponent2_id, m.opponent2_name, setOpponent2);
     enrich(m.partner_id, m.partner_name, setPartner);

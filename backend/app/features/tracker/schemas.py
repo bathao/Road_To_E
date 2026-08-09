@@ -4,7 +4,7 @@ from __future__ import annotations
 import datetime as dt
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class CategoryOut(BaseModel):
@@ -202,8 +202,10 @@ class MatchIn(BaseModel):
     is_nonplaying: bool = False
     nonplaying_label: str | None = None  # Travel | Rest
     note: str | None = None
-    # None = "append after the cell's existing matches" (an explicit 0 means
-    # "insert first" and must not be treated as unset).
+    # Create-only hint: None = append after the cell's existing matches; an
+    # explicit value is stored AS-IS (no shifting of existing rows). Updates
+    # ignore it — a match keeps its index unless it moves cells (then it
+    # appends). The GUI never sends it; tests use it to pin an order.
     order_index: int | None = None
     # Who played (player ids). Handicap signed: +N = I give N, -N = I receive.
     opponent_id: int | None = None
@@ -216,6 +218,18 @@ class MatchIn(BaseModel):
     # to + the round played. Both None on ordinary matches.
     tournament_entry_id: int | None = None
     round: Literal["group", "r64", "r32", "r16", "r8", "qf", "sf", "f"] | None = None
+
+    @model_validator(mode="after")
+    def _pattern_needs_signed_handicap(self) -> "MatchIn":
+        # A pattern with handicap=0 has no direction: the replay would treat
+        # the match as even and every split/label would bucket it "đồng" —
+        # the GUI always derives a signed handicap, so only a raw API call
+        # can produce this. Reject instead of storing an inconsistent row.
+        if self.handicap == 0 and (self.handicap_pattern or "").strip():
+            raise ValueError(
+                "handicap_pattern requires a signed (non-zero) handicap"
+            )
+        return self
 
 
 class MatchOut(BaseModel):
@@ -326,7 +340,7 @@ class SessionNoteUpdate(BaseModel):
 class SessionNoteOut(BaseModel):
     id: int
     date: dt.date
-    kind: str  # advice | recap
+    kind: str  # advice | drill | recap
     tags: list[str]
     text: str
     is_done: bool

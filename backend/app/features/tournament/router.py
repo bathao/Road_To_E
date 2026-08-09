@@ -18,10 +18,11 @@ def list_tournaments(db: Session = Depends(get_db)):
 
 @router.get("/record", response_model=schemas.TournamentRecordResponse)
 def get_record(db: Session = Depends(get_db)):
-    """Read-only history of PLAYED tournaments for the Profile tab (ended,
-    or with matches already entered — a same-day tournament shows up as soon
-    as its results go in): how far each entry got, its W-L record, and the
-    entered matches behind it — all derived, nothing stored."""
+    """Read-only history of PLAYED tournaments for the Profile tab (past the
+    LAST day, or a linked match dated on/after it — a single-day tournament
+    shows up as soon as its results go in; a multi-day one after its final
+    day's): how far each entry got, its W-L record, and the entered matches
+    behind it — all derived, nothing stored."""
     return service.build_record(db)
 
 

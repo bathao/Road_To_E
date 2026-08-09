@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLoad } from "../../../shared/useApi";
 import { dmyDate, prettyDate } from "../../../shared/dates";
+import { fmtDelta } from "../../../shared/format";
 import { ROUND_LABEL, matchupOf } from "../../../shared/matches";
 import type { TournamentRound } from "../../../shared/matches";
 import { PLACEMENT_LABEL, entryLabel } from "../../../shared/tournaments";
@@ -56,9 +57,10 @@ function MatchTable({ rec }: { rec: RecordEntry }) {
               {m.elo_delta == null ? (
                 "—"
               ) : (
-                <span className={m.elo_delta >= 0 ? "trec-w" : "trec-l"}>
-                  {m.elo_delta > 0 ? "+" : ""}
-                  {m.elo_delta}
+                <span
+                  className={`elo-chip ${m.elo_delta >= 0 ? "elo-up" : "elo-down"}`}
+                >
+                  {fmtDelta(m.elo_delta)}
                 </span>
               )}
             </td>

@@ -815,7 +815,7 @@ export interface paths {
          *
          *     Returns immediately with status=`generating`; poll GET /status until it is
          *     `done` (then refetch /assessment) or `error` (error_msg explains, e.g.
-         *     Ollama not running).
+         *     Ollama not running). 409 while one is already running.
          */
         post: operations["generate_api_head_coach_generate_post"];
         delete?: never;
@@ -1027,10 +1027,11 @@ export interface paths {
         };
         /**
          * Get Record
-         * @description Read-only history of PLAYED tournaments for the Profile tab (ended,
-         *     or with matches already entered — a same-day tournament shows up as soon
-         *     as its results go in): how far each entry got, its W-L record, and the
-         *     entered matches behind it — all derived, nothing stored.
+         * @description Read-only history of PLAYED tournaments for the Profile tab (past the
+         *     LAST day, or a linked match dated on/after it — a single-day tournament
+         *     shows up as soon as its results go in; a multi-day one after its final
+         *     day's): how far each entry got, its W-L record, and the entered matches
+         *     behind it — all derived, nothing stored.
          */
         get: operations["get_record_api_tournaments_record_get"];
         put?: never;
@@ -1555,6 +1556,8 @@ export interface components {
         };
         /** EntryIn */
         EntryIn: {
+            /** Id */
+            id?: number | null;
             /** Discipline */
             discipline: string;
             /** Partner Id */
@@ -1599,6 +1602,10 @@ export interface components {
             bonus_points?: number | null;
             /** Data Warning */
             data_warning?: string | null;
+            /** Latest Round */
+            latest_round?: string | null;
+            /** Latest Round Won */
+            latest_round_won?: boolean | null;
         };
         /** EventOut */
         EventOut: {

@@ -22,8 +22,11 @@ def generate(background: BackgroundTasks, db: Session = Depends(get_db)):
 
     Returns immediately with status=`generating`; poll GET /status until it is
     `done` (then refetch /assessment) or `error` (error_msg explains, e.g.
-    Ollama not running)."""
-    out = service.start_generate(db)
+    Ollama not running). 409 while one is already running."""
+    try:
+        out = service.start_generate(db)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
     background.add_task(service.run_generate_job, out.id)
     return out
 

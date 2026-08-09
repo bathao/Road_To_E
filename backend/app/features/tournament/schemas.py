@@ -9,6 +9,11 @@ DISCIPLINES = ("singles", "doubles", "team")
 
 
 class EntryIn(BaseModel):
+    # Id of the EXISTING entry when editing (None = create new). Daily
+    # Tracker matches reference entries by id, so updates must reconcile in
+    # place — recreating entries on every PUT orphaned all linked matches
+    # (tournament label, rounds, placement bonus — review find 2026-08-09).
+    id: int | None = None
     discipline: str  # singles | doubles | team
     partner_id: int | None = None  # doubles only
     teammate_ids: list[int] = []  # team only (players from the shared pool)
@@ -49,6 +54,11 @@ class EntryOut(BaseModel):
     # Data-gap warning: deepest entered knockout round was WON but the next
     # round is missing → the user forgot to enter matches.
     data_warning: str | None = None
+    # Deepest DECIDED round so far + whether that match was won (None = no
+    # decided matches yet). Feeds the MatchEditor's auto-advancing Round
+    # default: won a knockout round → next round pre-picked, across days.
+    latest_round: str | None = None
+    latest_round_won: bool | None = None
 
 
 class TournamentOut(BaseModel):

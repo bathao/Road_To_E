@@ -28,6 +28,7 @@ const OPEN = "Open";
 // One entry row while editing (partner kept as {id, name} — enough for the
 // payload and the pill; PlayerPicker supplies a full Player on change).
 interface EntryDraft {
+  id: number | null; // existing entry's id (null = new) — keeps match links
   discipline: TournamentDiscipline;
   partner: { id: number; name: string } | null;
   teammates: { id: number; name: string }[]; // team roster from the pool
@@ -54,7 +55,9 @@ const EMPTY_DRAFT: Draft = {
   levels: [],
   open: false,
   note: "",
-  entries: [{ discipline: "singles", partner: null, teammates: [], team_members: "" }],
+  entries: [
+    { id: null, discipline: "singles", partner: null, teammates: [], team_members: "" },
+  ],
 };
 
 function toDraft(t: Tournament): Draft {
@@ -69,6 +72,7 @@ function toDraft(t: Tournament): Draft {
     open,
     note: t.note ?? "",
     entries: t.entries.map((e) => ({
+      id: e.id,
       discipline: e.discipline,
       partner:
         e.partner_id && e.partner_name
@@ -85,6 +89,7 @@ function toDraft(t: Tournament): Draft {
 
 function toPayload(d: Draft): TournamentIn {
   const entries: TournamentEntryIn[] = d.entries.map((e) => ({
+    id: e.id,
     discipline: e.discipline,
     partner_id: e.discipline === "doubles" ? e.partner?.id ?? null : null,
     teammate_ids: e.discipline === "team" ? e.teammates.map((p) => p.id) : [],
@@ -306,7 +311,13 @@ function TournamentForm({
               ...d,
               entries: [
                 ...d.entries,
-                { discipline: "singles", partner: null, teammates: [], team_members: "" },
+                {
+                  id: null,
+                  discipline: "singles",
+                  partner: null,
+                  teammates: [],
+                  team_members: "",
+                },
               ],
             })
           }

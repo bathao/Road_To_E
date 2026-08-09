@@ -279,17 +279,18 @@ def _match_detail(
     opponents float up via win_rate)."""
     detail_from = today - dt.timedelta(days=_MATCH_DETAIL_DAYS)
     # form_seed=False: the bundle's trend reads W/L/win_rate only — skip the
-    # rolling-form seed query (×4 here, one per kind).
-    def _stats(category: str):
+    # rolling-form seed query. The three per-kind calls read `.overall` only
+    # → overall_only skips their h2h/new-opponents/trend work entirely.
+    def _stats(category: str, overall_only: bool = False):
         return tracker_service.build_match_stats(
             db, detail_from, today, "all", category, "month",
-            replay=rep, form_seed=False,
+            replay=rep, form_seed=False, overall_only=overall_only,
         )
 
     detail = _stats("all")
-    practice = _stats("practice")
-    official = _stats("official")
-    tournament = _stats("tournament")
+    practice = _stats("practice", overall_only=True)
+    official = _stats("official", overall_only=True)
+    tournament = _stats("tournament", overall_only=True)
     top_h2h = sorted(detail.singles_h2h, key=lambda r: -r.played)[:_VERDICT_H2H]
     return {
         "window": f"{detail.date_from.isoformat()} → {detail.date_to.isoformat()}",
@@ -703,7 +704,18 @@ def recover_stuck_jobs(db: Session) -> None:
 def start_generate(db: Session) -> schemas.AssessmentOut:
     """Create a `generating` placeholder row; the heavy work (gather + local
     LLM, up to minutes) runs in run_generate_job on a background task. The
-    UI polls GET /status until the status leaves `generating`."""
+    UI polls GET /status until the status leaves `generating`.
+
+    Refuses while one is already running (same guard as chat/recap — review
+    find 2026-08-09: a double click spawned two concurrent Ollama calls and
+    the older row stayed `generating` invisibly)."""
+    running = (
+        db.query(HeadCoachAssessment)
+        .filter(HeadCoachAssessment.status == "generating")
+        .first()
+    )
+    if running is not None:
+        raise ValueError("Đang tạo nhận định — chờ xong rồi bấm lại.")
     row = HeadCoachAssessment(model=HEAD_COACH_MODEL, status="generating")
     db.add(row)
     db.commit()
@@ -1003,9 +1015,11 @@ def gather_recap_bundle(
     )
 
     def _kind(category: str) -> dict:
+        # `.overall` only → overall_only skips the h2h/new-opponents work.
         return _ms(
             tracker_service.build_match_stats(
-                db, start, end, "all", category, "week", replay=rep, form_seed=False
+                db, start, end, "all", category, "week",
+                replay=rep, form_seed=False, overall_only=True,
             ).overall
         )
 

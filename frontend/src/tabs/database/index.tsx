@@ -5,7 +5,8 @@
 // only in the DB now — hidden from this tab, superseded by points.
 import { useMemo, useRef, useState } from "react";
 import { useLoad, useMutate } from "../../shared/useApi";
-import { rankOf } from "../../shared/rank";
+import { fold } from "../../shared/fold";
+import { parsePoints, rankOf } from "../../shared/rank";
 import SortableTh, { toggleSort } from "../../shared/ui/SortableTh";
 import type { Sort } from "../../shared/ui/SortableTh";
 import { databaseApi } from "./api";
@@ -52,9 +53,8 @@ function PlayerRow({
   // input's blur (fired by the state change) doesn't save anyway.
   const [nameDraft, setNameDraft] = useState<string | null>(null);
   const skipBlurSave = useRef(false);
-  const parsed = draft.trim() === "" ? null : Number(draft);
+  const { value: parsed, valid } = parsePoints(draft);
   const dirty = parsed !== p.points;
-  const valid = parsed === null || (!Number.isNaN(parsed) && parsed >= 0 && parsed <= 3000);
 
   const doSave = async (
     points: number | null,
@@ -288,9 +288,10 @@ export default function DatabaseTab() {
 
   const players = data?.players ?? [];
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    // Diacritic-insensitive, same as the match-editor picker search.
+    const q = fold(query.trim());
     const list = q
-      ? players.filter((p) => p.name.toLowerCase().includes(q))
+      ? players.filter((p) => fold(p.name).includes(q))
       : players;
     if (!sort) return list;
     const { key, dir } = sort;
@@ -346,13 +347,8 @@ export default function DatabaseTab() {
     return true;
   };
 
-  const addPointsParsed = addPoints.trim() === "" ? null : Number(addPoints);
-  const addValid =
-    addName.trim() !== "" &&
-    (addPointsParsed === null ||
-      (!Number.isNaN(addPointsParsed) &&
-        addPointsParsed >= 0 &&
-        addPointsParsed <= 3000));
+  const { value: addPointsParsed, valid: addPointsValid } = parsePoints(addPoints);
+  const addValid = addName.trim() !== "" && addPointsValid;
 
   const addPlayer = async () => {
     if (!addValid) return;
@@ -447,7 +443,7 @@ export default function DatabaseTab() {
             min={0}
             max={3000}
             className="pb-input db-add-points"
-            placeholder="Points (empty = unrated)"
+            placeholder="Points (empty = unranked)"
             value={addPoints}
             onChange={(e) => setAddPoints(e.target.value)}
             onKeyDown={(e) => {
