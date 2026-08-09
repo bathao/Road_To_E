@@ -1,6 +1,128 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-08-07, latest) — today batch committed `256b105` (points-edit intent + Overall racket-time rule)
+## Current status (2026-08-09, latest) — today batch committed `c234a8d` (round auto-advance + picker search + project review)
+
+> **Whole-project review (user request 2026-08-09; two parallel review
+> agents — backend & frontend — every finding re-verified on the real code
+> before applying; committed `c234a8d` together with the two features below
+> + daily DB data 08–09/08, needs start.bat restart):**
+>   - **SEVERE bug fixed — editing a tournament orphaned every linked match:**
+>     PUT /tournaments/{id} rebuilt ALL entries with new ids (EntryIn had no
+>     id; `_apply` did wholesale replace). Matches reference entries via the
+>     ALTER-added `tournament_entry_id` (real DB has NO FK on it — verified:
+>     17 linked matches across 4 entries), so ANY edit — rename, fix a note,
+>     set SGPP's end_date (the exact action PROGRESS was instructing!) —
+>     silently killed labels, rounds, derived placements and ELO bonuses.
+>     Fixed: EntryIn.id + in-place reconcile (update by id / create new /
+>     delete missing); FE Draft/payload carry entry ids; division no longer
+>     wiped (the form never managed it). Regression test added.
+>   - **Backend bugs fixed:** picker pips-toggle could ERASE a player note
+>     (placeholder player before enrich → note=None; now None = leave, like
+>     points); duplicate players via exact-match create ("ANNA" next to
+>     "Anna") + rename guard's SQLite ASCII-only lower() — both now Python
+>     .lower() over the pool (NOT fold: Tuấn ≠ Tuân); handicap=0 + pattern
+>     combo rejected in MatchIn (replayed as "even" silently, API-only path);
+>     POST /head-coach/generate gained the same in-flight 409 guard as
+>     chat/recap (double click = two concurrent Ollama calls);
+>     physical_day_map unordered query → order_by(id), newest wins like
+>     session_on_date.
+>   - **Coach bundle waste cut:** build_match_stats gained `overall_only` —
+>     the per-kind calls (practice/official/tournament ×3 in the verdict AND
+>     every chat message; ×3 in recaps) read `.overall` only but computed
+>     full h2h lists + the new-opponents full-history scan each time. Same
+>     accumulator, so numbers can't drift.
+>   - **FE bugs fixed:** switching tournament entries kept the PREVIOUS
+>     tournament's Event prefill (matches saved for B carried A's event name
+>     — prefill now tracked in a ref, only its own leftover is replaced);
+>     SessionCard's ExerciseImage now keyed by exercise_key (swap on the same
+>     item id kept the old fallback state → wrong image; same bug
+>     WorkoutPlayer had already fixed); editing a round-less tournament match
+>     showed the auto-advance leftover round while saving null (picker now
+>     shows Group = the null fallback everywhere); Enter could double-post a
+>     session note (busy guard, Add button was guarded but the key handler
+>     wasn't); Analysis panel error banner is click-to-dismiss like the rest.
+>   - **FE consistency:** EloChip (MatchEditor) + Tournament Record deltas
+>     now use shared fmtDelta + elo-up/elo-down (were hand-rolled, "+0.0" on
+>     zero, record table had no decimals); parsePoints() extracted to
+>     shared/rank.ts (was 3 copies of the 0–3000/empty=null parse);
+>     PlayerPicker's "+ Add" exact-name check fold-compares (offering to add
+>     a diacritic-near-duplicate); "empty = unrated" placeholder → unranked.
+>   - **Declined deliberately:** merging the 3 error-banner styles (load
+>     errors legitimately persist; per-tab themes are on purpose — only the
+>     two truly-stuck banners were fixed); implementing order_index
+>     insert-shift (no consumer — comment corrected to create-only append
+>     hint instead); schema.d.ts "dead file" finding was a false positive
+>     (README documents it as the drift-check artifact for the hand-written
+>     type mirrors).
+>   - **Docs/hygiene:** stale "played" docstrings (build_record + GET
+>     /record) updated to the 2026-08-04 multi-day rule; dead `Setting`
+>     import dropped; SessionNoteOut.kind comment now lists drill.
+>   - Tests 124 total (+1 tournament-edit regression). Verified: 124/124
+>     pytest, gen:api + tsc + vite build clean.
+
+## Previous status (2026-08-09) — picker search: regulars first + no-diacritic matching (in `c234a8d`)
+
+> **Player-picker search rebuilt (user request 2026-08-09, plan OK'd, built
+> same day; in `c234a8d`):** the match editors'
+> Opponent/Partner pickers no longer list alphabetically or require exact
+> diacritics.
+>   - **Ranking:** most-played first — appearances in MY matches in the last
+>     90 days (`_PICKER_RECENT_DAYS`, current regulars rotate as clubs
+>     change), tie-break all-time, then name. Opponent AND partner slots both
+>     count (user: likely rematches and likely repeat partners alike);
+>     Travel/Rest rows don't. An EMPTY query now returns the regulars on top
+>     — open the dropdown and click, no typing (was: first 50 alphabetical).
+>   - **Matching:** diacritic-insensitive token-AND in any order, in Python
+>     (pool ~100 rows; the SQL ILIKE died): `_fold` = NFD-strip + lower +
+>     đ→d, so "tuan" finds "Tuấn", "go tuan" finds "Tuấn gỗ". Word-PREFIX
+>     matches rank above mid-word substring hits, above frequency. No
+>     Levenshtein typo-tolerance (deliberate — unpredictable results).
+>   - **API shape unchanged** (GET /tracker/players?q=) — no gen:api, no
+>     picker FE change. Same-day cleanup request ("refactory... đảm bảo
+>     feature mới gọn"): FE `shared/fold.ts` (KEEP-IN-SYNC mirror of
+>     `_fold`) now also folds the Database tab's search box — the two
+>     name-searches behave identically; declined merging the picker tally
+>     with list_players_db's vs/with counts (different semantics: role-split
+>     badges vs windowed combined ranking).
+>   - Tests +3 (123 total, test_player_search.py): no-diacritic + token
+>     order + query folding; prefix-tier beats play count; empty query ranks
+>     recent regulars first (partner slot counts, nonplaying doesn't, 90-day
+>     window beats all-time). Real-DB smoke: empty q → Lợi Phạm on top;
+>     "tuan" → 4 Tuấn variants; "loi pham" works. pytest + build clean.
+
+## Previous status (2026-08-09) — Round picker auto-advances after knockout wins (in `c234a8d`)
+
+> **Auto-advancing Round default (user request 2026-08-09, plan OK'd, built
+> same day; in `c234a8d`):** entering tournament
+> matches no longer needs a manual Round pick per match — win a knockout
+> round and the picker pre-selects the NEXT one (1/32 → 1/16 → … → F).
+>   - **Rule:** based on the entry's deepest DECIDED round: knockout W →
+>     next round; knockout L → stays (knocked out; further entries are
+>     corrections); group W/L → stays Group (bracket size unknown, the
+>     switch to the first knockout round remains a MANUAL pick — user spec
+>     "trừ vòng bảng"); F won → stays F. Always just a default, overridable.
+>   - **Backend:** EntryOut gains derived `latest_round` + `latest_round_won`
+>     straight from the existing `derive_round_reached` (already computed
+>     for the Record; `_entry_out`/`_to_out` thread it, list_tournaments
+>     calls it). No migration, nothing stored.
+>   - **FE:** `nextRound()` ladder in shared/matches.ts; MatchEditor's round
+>     default reads the SELECTED entry's latest_round (fixes two old gaps:
+>     the default ignored which entry you were entering, and day 2 of a
+>     multi-day event fell back to Group because day-1 matches aren't in the
+>     day-2 cell — SGPP 15–16/08 is the driver); unlinked tournament cells
+>     (back-filling old events) apply the same rule from the cell's own
+>     matches. A `useEffect` re-derives after every save/delete (afterMutate
+>     refetches tournaments, so the picker jumps mid-session) and on entry
+>     switch; guarded during edit mode; deps use a CONTENT signature of the
+>     matches (parent rebuilds the arrays every render — identity deps would
+>     stomp an unsaved manual pick).
+>   - Tests +1 (120 total): no matches → None; group W stays; day-1 r16 W →
+>     advance visible to day 2; r8 L terminal. Real-DB smoke: Friendship
+>     doubles = r16/lost (picker stays 1/16 ✓), Homyland2 = r8/lost, SGPP =
+>     None → Group. gen:api + tsc + build clean.
+>   - DB also carries new daily data 08–09/08 (uncommitted as usual).
+
+## Previous status (2026-08-07) — today batch committed `256b105` (points-edit intent + Overall racket-time rule)
 
 > **Points-intent on player edits (user request 2026-08-07, plan critiqued +
 > OK'd; built same day, committed `256b105` together with the racket-time
