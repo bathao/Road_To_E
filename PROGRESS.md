@@ -1,6 +1,6 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-08-15, latest) — NEW TAB "Singles Tactics" (Chiến Thuật): per-opponent scouting + AI game plans (built, uncommitted)
+## Current status (2026-08-15, latest) — NEW TAB "Singles Tactics" (Chiến Thuật): per-opponent scouting + AI game plans (committed `6d8531d`)
 
 > **Singles Tactics tab (user request 2026-08-15, plan + charts OK'd; two
 > same-day follow-ups: tile "Latest kèo" → "Latest handicap" (GUI must be
