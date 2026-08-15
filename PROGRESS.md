@@ -1,6 +1,6 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-08-15, latest) — Coach roster: pick Minh Thới / Phi Vũ per session (built, uncommitted)
+## Current status (2026-08-15, latest) — Coach roster: pick Minh Thới / Phi Vũ per session (committed `4adfeb3`)
 
 > **Coach picker (user request 2026-08-15, plan OK'd, built same day; needs
 > start.bat restart):** the package coach is Minh Thới, Phi Vũ is paid per
@@ -42,12 +42,12 @@
 >     untouched, PUT coach stamping incl. ★-strip and non-coach category);
 >     137 total. pytest + gen:api + tsc + vite build clean.
 
-## Previous status (2026-08-15, earlier same day) — project-wide review: 6 bugs fixed + cleanup (built, uncommitted)
+## Previous status (2026-08-15, earlier same day) — project-wide review: 6 bugs fixed + cleanup (in `4adfeb3`)
 
 > **Whole-project review (user request 2026-08-15 "review toàn bộ source
 > code, clean up refactory"; two parallel review agents — backend &
 > frontend — every finding re-verified on the real code before applying;
-> uncommitted, needs start.bat restart):**
+> needs start.bat restart):**
 >   - **FE bugs fixed:** (1) SEVERE — TournamentForm kept its draft when the
 >     edit target changed (cards stay clickable under the open form): Edit
 >     card A then Edit card B silently saved A's name/dates/entries OVER B —
@@ -103,7 +103,7 @@
 >     never offer warmup/cooldown moves. pytest 134/134 + gen:api (activities
 >     DELETE left schema.d.ts) + tsc + vite build clean.
 
-## Previous status (2026-08-15, earlier same day) — "☠ Knocked out" button for tournament entries (built, uncommitted)
+## Previous status (2026-08-15, earlier same day) — "☠ Knocked out" button for tournament entries (in `4adfeb3`)
 
 > **Knocked-out flag (user request 2026-08-15, plan OK'd, built same day;
 > driver: SGPP day 1 — lost both team group matches, eliminated, but a
@@ -164,7 +164,7 @@
 > has end_date 16/08/2026 set, so the card survives day-1 results and the
 > Record picks it up only after the event ends.
 
-## Previous status (2026-08-13) — second-coach sessions excluded from the 10-session block (built, uncommitted)
+## Previous status (2026-08-13) — second-coach sessions excluded from the 10-session block (in `4adfeb3`, note rule superseded there by the coach roster)
 
 > **Second-coach rule (user 2026-08-13, plan OK'd, built same day; needs
 > start.bat restart):** the user now trains with TWO coaches — a
