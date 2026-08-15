@@ -411,6 +411,30 @@
   color: var(--muted);
 }
 
+/* Inline "add a new coach" form under the Coach picker (DurationEditor). */
+.coach-add-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.coach-add-row .pb-input {
+  flex: 1;
+  min-width: 160px;
+}
+
+.coach-add-pkg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
 /* segmented controls */
 
 .seg-row {
@@ -798,6 +822,28 @@
   background: #f3f4f6;
   font-size: 0.82rem;
   white-space: nowrap;
+}
+
+/* Knocked-out entry: grey strike state. On the card it's a BUTTON (click =
+   un-mark), so reset the button chrome back to chip looks. */
+.tour-chip-out {
+  background: #e5e7eb;
+  color: #6b7280;
+  text-decoration: line-through;
+  font-family: inherit;
+}
+button.tour-chip-out {
+  cursor: pointer;
+}
+button.tour-chip-out:hover {
+  border-color: #9ca3af;
+  text-decoration: none;
+}
+
+/* "☠ Knocked out" action in the editor's tournament banner. */
+.tour-out-btn {
+  font-size: 0.82rem;
+  padding: 2px 10px;
 }
 
 /* Tournament-row cells on days a tournament runs: "matches go HERE". */

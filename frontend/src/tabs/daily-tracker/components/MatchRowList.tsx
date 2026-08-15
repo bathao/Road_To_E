@@ -6,7 +6,7 @@ import { useMemo } from "react";
 import { useLoad } from "../../../shared/useApi";
 import { prettyDate } from "../../../shared/dates";
 import { DISCIPLINE_SHORT } from "../../../shared/disciplines";
-import { fmtDelta } from "../../../shared/format";
+import EloDeltaChip from "../../../shared/ui/EloDeltaChip";
 import { hdcLabel, matchupOf, ROUND_SHORT } from "../../../shared/matches";
 import { resultOf } from "../../../shared/types";
 import { trackerApi } from "../api";
@@ -54,12 +54,10 @@ export default function MatchRowList({ matches }: { matches: Match[] }) {
             <span className="smm-meta">{kindOf(m.category_id)}</span>
             {m.event_name && <span className="smm-meta">{m.event_name}</span>}
             {m.elo_delta != null && (
-              <span
-                className={`elo-chip ${m.elo_delta >= 0 ? "elo-up" : "elo-down"}`}
+              <EloDeltaChip
+                delta={m.elo_delta}
                 title="ELO change after this match"
-              >
-                {fmtDelta(m.elo_delta)}
-              </span>
+              />
             )}
           </li>
         );

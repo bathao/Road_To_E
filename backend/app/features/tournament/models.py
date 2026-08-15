@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import datetime as dt
 
-from sqlalchemy import Date, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Date, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.base import Base
@@ -55,6 +55,16 @@ class TournamentEntry(Base):
     # entered matches' rounds (rating.derive_placements): reach the final →
     # champion/runner-up by its result, lose the SF → shared 3rd, lose the
     # QF → quarterfinal (singles-only tier). User decision 2026-07-31.
+    #
+    # Knocked out mid-event (user button 2026-08-15): a group-stage exit
+    # cannot be derived from results (a group loss isn't terminal), so the
+    # user marks the entry done. Gates the grid highlight + the editor's
+    # tournament mode; every entry marked = the event is over for the player
+    # → _is_played retires the card to the Profile record immediately (user
+    # follow-up same day), like entering a final result does.
+    eliminated: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
 
     tournament: Mapped[Tournament] = relationship(back_populates="entries")
     members: Mapped[list["TournamentEntryMember"]] = relationship(

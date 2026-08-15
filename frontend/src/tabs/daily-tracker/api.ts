@@ -4,6 +4,7 @@ import type {
   Activity,
   BreakdownResponse,
   Category,
+  Coach,
   CoachPackagesResponse,
   EventOut,
   Match,
@@ -42,6 +43,15 @@ export const trackerApi = {
     api.get<{ allowed: boolean }>(
       `/tracker/coach-package-start-allowed?date=${dateIso}`
     ),
+
+  // Coach roster for the session editor's picker (oldest first).
+  getCoaches: () => api.get<Coach[]>("/tracker/coaches"),
+
+  createCoach: (name: string, countsPackage: boolean) =>
+    api.post<Coach>("/tracker/coaches", {
+      name,
+      counts_package: countsPackage,
+    }),
 
   upsertActivity: (payload: ActivityIn) =>
     api.put<Activity | null>("/tracker/activities", payload),
@@ -132,4 +142,9 @@ export const tournamentApi = {
   update: (id: number, payload: TournamentIn) =>
     api.put<TournamentsResponse>(`/tournaments/${id}`, payload),
   remove: (id: number) => api.del<TournamentsResponse>(`/tournaments/${id}`),
+  // Knocked-out toggle for one entry (false = un-mark a mis-click).
+  setEliminated: (entryId: number, eliminated: boolean) =>
+    api.patch<TournamentsResponse>(`/tournaments/entries/${entryId}`, {
+      eliminated,
+    }),
 };

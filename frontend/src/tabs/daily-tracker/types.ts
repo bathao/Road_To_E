@@ -30,6 +30,17 @@ export interface Activity {
   duration_minutes: number;
   note: string | null;
   is_package_start: boolean; // first session of a coaching package
+  // Which coach the session was with (train_with_coach rows only; the name
+  // is resolved from GET /tracker/coaches). null = legacy/default coach.
+  coach_id?: number | null;
+}
+
+// A real-life coach (Minh Thới, Phi Vũ, …). counts_package: sessions consume
+// the 10-session block; false = paid per session, never on the block.
+export interface Coach {
+  id: number;
+  name: string;
+  counts_package: boolean;
 }
 
 // Skill level of a player relative to me (canonical definition in shared/).
@@ -90,10 +101,10 @@ export interface Match {
   // Per-set sequence for non-uniform ratios ("2-0-2"); null = uniform.
   handicap_pattern?: string | null;
   // Tournament link: the registered entry the match belongs to + the round
-  // played; null on ordinary matches. tournament_name resolved for display.
+  // played; null on ordinary matches. (The API also echoes tournament_name;
+  // nothing here reads it — the editor labels via tournamentCtx instead.)
   tournament_entry_id?: number | null;
   round?: TournamentRound | null;
-  tournament_name?: string | null;
   // ELO annotation (week view): ±Δ this match moved MY rating, or why it
   // doesn't count ("counted" | "nonplaying" | "before_anchor" |
   // "no_opponent" | "no_result" | "unrated").
@@ -263,6 +274,9 @@ export interface ActivityIn {
   duration_minutes: number;
   note?: string | null;
   is_package_start?: boolean;
+  // train_with_coach rows only; omitted = backend keeps the stored coach
+  // (or defaults a new row to the package coach).
+  coach_id?: number | null;
 }
 
 // ---- tournaments (scheduling commitments; match results stay in the grid) ----
@@ -286,6 +300,9 @@ export interface TournamentEntry {
   // default (works across the days of a multi-day event).
   latest_round?: string | null;
   latest_round_won?: boolean | null;
+  // Knocked out mid-event (user button): the grid highlight / editor
+  // tournament mode skip this entry on the event's remaining days.
+  eliminated?: boolean;
 }
 
 export interface Tournament {
@@ -347,6 +364,9 @@ export interface CoachPackage {
 export interface CoachPackagesResponse {
   size: number;
   packages: CoachPackage[];
+  // Pay-per-session coaches' session counts since the current block opened
+  // — excluded from the block, surfaced per coach on the card.
+  non_package: { coach_name: string; sessions: number }[];
 }
 
 export interface MatchIn {

@@ -97,7 +97,8 @@ export default function DailyTracker() {
   const saveDuration = async (
     minutes: number,
     note: string,
-    isPackageStart: boolean
+    isPackageStart: boolean,
+    coachId: number | null
   ) => {
     if (!editing) return;
     const ok = await run(() =>
@@ -107,6 +108,7 @@ export default function DailyTracker() {
         duration_minutes: minutes,
         note: note || null,
         is_package_start: isPackageStart,
+        coach_id: coachId,
       })
     );
     if (ok === undefined) return; // failed → keep the editor open
@@ -304,6 +306,8 @@ export default function DailyTracker() {
               // Tournament context: the registered entries of tournaments
               // running on this cell's date (tournament row only) — the
               // editor shows the banner / entry pick / round picker from it.
+              // Knocked-out entries are over: no banner/prefill for them on
+              // any remaining day (un-mark via the card chip to get it back).
               tournamentCtx={
                 editing.category.key === "tournament_match"
                   ? tournaments
@@ -313,13 +317,21 @@ export default function DailyTracker() {
                           editing.dateIso <= (t.end_date ?? t.start_date)
                       )
                       .flatMap((t) =>
-                        t.entries.map((entry) => ({ tournament: t, entry }))
+                        t.entries
+                          .filter((entry) => !entry.eliminated)
+                          .map((entry) => ({ tournament: t, entry }))
                       )
                   : []
               }
               onAdd={addMatch}
               onUpdate={updateMatch}
               onDelete={deleteMatch}
+              onEliminate={async (entryId) => {
+                const out = await run(() =>
+                  tournamentApi.setEliminated(entryId, true)
+                );
+                if (out !== undefined) setTournaments(out);
+              }}
             />
           )}
           {editing.category.type === "checklist" && (

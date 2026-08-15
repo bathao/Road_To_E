@@ -127,13 +127,17 @@ export default function WeekGrid({
                   !isPhysicalMirror &&
                   !lockedSessionNote;
                 // Tournament-row cell on a day a tournament runs: highlight
-                // it so the user knows this is where its matches go.
+                // it so the user knows this is where its matches go. Fully
+                // knocked-out tournaments stop hinting — there's nothing
+                // left to enter on their remaining days.
                 const tourToday =
                   cat.key === "tournament_match"
                     ? tournaments.find(
                         (t) =>
                           t.start_date <= iso &&
-                          iso <= (t.end_date ?? t.start_date)
+                          iso <= (t.end_date ?? t.start_date) &&
+                          (t.entries.length === 0 ||
+                            t.entries.some((e) => !e.eliminated))
                       )
                     : undefined;
                 const classes = ["cell", `type-${cat.type}`];

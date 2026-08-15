@@ -10,7 +10,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.core.sqlite_migrate import add_missing_columns
-from app.features.tracker.models import Activity, Category, Match
+from app.features.tracker.models import Activity, Category, Coach, Match
 
 log = logging.getLogger(__name__)
 
@@ -36,16 +36,67 @@ _MATCH_COLUMNS = {
     "tournament_entry_id": "INTEGER",
     "round": "VARCHAR",
 }
+_ACTIVITY_COLUMNS = {
+    # Which coach a train_with_coach session was with (2026-08-15). ALTER
+    # can't attach a FK — tolerated; NULL reads as the default package coach.
+    "coach_id": "INTEGER",
+}
+
+# First-run coach roster (user 2026-08-15): Minh Thới sells the 10-session
+# package, Phi Vũ is paid per session. More coaches are added from the GUI.
+_DEFAULT_COACHES = (("Minh Thới", True), ("Phi Vũ", False))
 
 
 def migrate(db: Session) -> None:
     """Idempotent column migrations for tables that predate a new field."""
     changed = add_missing_columns(db, "tracker_player", _PLAYER_COLUMNS)
     changed = add_missing_columns(db, "tracker_match", _MATCH_COLUMNS) or changed
+    changed = add_missing_columns(db, "tracker_activity", _ACTIVITY_COLUMNS) or changed
     changed = _ensure_activity_unique_index(db) or changed
     changed = _rebuild_match_player_fks(db) or changed
+    changed = _seed_coaches_and_backfill(db) or changed
     if changed:
         db.commit()
+
+
+def _seed_coaches_and_backfill(db: Session) -> bool:
+    """First run: create the two known coaches, then stamp coach_id on every
+    legacy Train-with-Coach session — sessions whose note folds to a
+    per-session coach's name (the retired 2026-08-13 note rule) get that
+    coach, everything else the package coach. Notes are never modified.
+    Idempotent: only rows with coach_id NULL are touched."""
+    from app.features.tracker.service import _fold  # local: avoid import cycle
+
+    changed = False
+    if db.query(Coach).count() == 0:
+        for name, counts in _DEFAULT_COACHES:
+            db.add(Coach(name=name, counts_package=counts))
+        db.flush()
+        changed = True
+
+    coach_cat = db.query(Category).filter(Category.key == "train_with_coach").first()
+    if coach_cat is None:
+        return changed
+    orphans = (
+        db.query(Activity)
+        .filter(Activity.category_id == coach_cat.id, Activity.coach_id.is_(None))
+        .all()
+    )
+    if not orphans:
+        return changed
+
+    coaches = db.query(Coach).all()
+    default = next((c for c in coaches if c.counts_package), None)
+    per_session = [c for c in coaches if not c.counts_package]
+    if default is None:
+        log.warning("coach backfill skipped: no package coach exists")
+        return changed
+    for a in orphans:
+        folded = _fold(a.note or "")
+        hit = next((c for c in per_session if _fold(c.name) in folded), None)
+        a.coach_id = (hit or default).id
+    log.info("coach backfill: stamped %s legacy sessions", len(orphans))
+    return True
 
 
 def _rebuild_match_player_fks(db: Session) -> bool:

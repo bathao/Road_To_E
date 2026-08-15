@@ -6,7 +6,7 @@ export interface Score {
   opp: number;
 }
 
-export function setsToWin(bestOf: number): number {
+function setsToWin(bestOf: number): number {
   return Math.floor(bestOf / 2) + 1; // BO3->2, BO5->3, BO7->4
 }
 

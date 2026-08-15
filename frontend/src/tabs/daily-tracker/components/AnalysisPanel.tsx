@@ -12,7 +12,8 @@ import ActivityChart from "../../../shared/ui/ActivityChart";
 import type { ActivityPoint } from "../../../shared/ui/ActivityChart";
 import EloCurve from "../../../shared/ui/EloCurve";
 import CoachPackageCard from "./CoachPackageCard";
-import { fmtDelta, fmtMinutes } from "../../../shared/format";
+import { fmtMinutes } from "../../../shared/format";
+import EloDeltaChip from "../../../shared/ui/EloDeltaChip";
 
 const UNIT_TITLE: Record<Unit, string> = {
   month: "by month",
@@ -69,12 +70,12 @@ function EloBlock({
         >
           {elo.rating_end}
         </span>
-        <span
-          className={`elo-chip ${elo.total_delta >= 0 ? "elo-up" : "elo-down"}`}
+        <EloDeltaChip
+          delta={elo.total_delta}
           title="Net Δ in the visible range (ELO-counted matches)"
         >
-          {fmtDelta(elo.total_delta)} · {elo.counted} matches
-        </span>
+          {" "}· {elo.counted} matches
+        </EloDeltaChip>
         {elo.rating_start !== null && elo.rating_start !== elo.rating_end && (
           <span className="elo-endnote">from {elo.rating_start}</span>
         )}
@@ -264,6 +265,7 @@ export default function AnalysisPanel({
                   packages.find((p) => p.is_current) ??
                   packages[packages.length - 1]
                 }
+                nonPackage={pkgData?.non_package ?? []}
                 onStartNext={startNextPackage}
                 busy={pkgBusy}
               />

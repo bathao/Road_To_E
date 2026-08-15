@@ -11,7 +11,7 @@ import type {
 } from "../../types";
 import { trackerApi } from "../../api";
 import { validScores } from "../../scores";
-import { fmtDelta } from "../../../../shared/format";
+import EloDeltaChip from "../../../../shared/ui/EloDeltaChip";
 import PlayerPicker from "./PlayerPicker";
 import { levelShort } from "../../../../shared/levels";
 import { DISCIPLINES, DISCIPLINE_SHORT } from "../../../../shared/disciplines";
@@ -74,7 +74,7 @@ function defaultRound(ctx: TournamentCtx | null, ms: Match[]): TournamentRound {
   return won ? nextRound(latest) : latest;
 }
 
-// "Singles hạng E · BBTV Open" — how one entry shows in the picker.
+// "BBTV Open · Singles hạng E" — how one entry shows in the picker.
 function ctxLabel(c: TournamentCtx): string {
   const disc = c.entry.discipline[0].toUpperCase() + c.entry.discipline.slice(1);
   return `${c.tournament.name} · ${disc}${c.entry.division ? ` ${c.entry.division}` : ""}`;
@@ -114,12 +114,7 @@ const ELO_SKIP_LABEL: Record<string, string> = {
 function EloChip({ m }: { m: Match }) {
   if (m.elo_delta != null) {
     return (
-      <span
-        className={`elo-chip ${m.elo_delta >= 0 ? "elo-up" : "elo-down"}`}
-        title="ELO change after this match"
-      >
-        {fmtDelta(m.elo_delta)}
-      </span>
+      <EloDeltaChip delta={m.elo_delta} title="ELO change after this match" />
     );
   }
   const label = m.elo_status ? ELO_SKIP_LABEL[m.elo_status] : undefined;
@@ -161,6 +156,7 @@ export default function MatchEditor({
   onAdd,
   onUpdate,
   onDelete,
+  onEliminate,
 }: {
   category: Category;
   matches: Match[];
@@ -173,6 +169,12 @@ export default function MatchEditor({
     payload: Omit<MatchIn, "date" | "category_id">
   ) => Promise<boolean>;
   onDelete: (id: number) => void;
+  // Mark the selected entry knocked out — the banner disappears (the entry
+  // leaves tournamentCtx) and the event's remaining days stop collecting
+  // matches for it. Once EVERY entry is out the tournament retires straight
+  // to the Profile record (undo via the card's ☠ chip only exists while
+  // another entry keeps the card alive).
+  onEliminate?: (entryId: number) => void;
 }) {
   const [discipline, setDiscipline] = useState<Discipline>("singles");
   const [bestOf, setBestOf] = useState(5);
@@ -188,7 +190,14 @@ export default function MatchEditor({
   // banner/entry pick/partner prefill need an actual tournament that day.
   const isTournamentCell = category.key === "tournament_match";
   const [entryIdx, setEntryIdx] = useState(0);
-  const selCtx = tournamentCtx[entryIdx] ?? null;
+  // Clamp instead of ?? null: eliminating the selected entry shrinks the
+  // list (knocked-out entries leave tournamentCtx) — a remaining entry
+  // should take over the banner rather than it vanishing on a stale index.
+  // The <select> renders the SAME clamped index, or it would sit blank
+  // (controlled value pointing at a removed option) while the banner shows
+  // the clamped entry.
+  const selIdx = Math.min(entryIdx, Math.max(tournamentCtx.length - 1, 0));
+  const selCtx = tournamentCtx.length > 0 ? tournamentCtx[selIdx] : null;
   // Default round = auto-advance from the deepest decided round (win → next
   // round pre-picked, loss → stays). Re-derived after every save/delete and
   // on entry switch — see the effect below (never while editing a match).
@@ -228,6 +237,14 @@ export default function MatchEditor({
     // Team entries: ties mix singles + doubles — leave the choice manual.
   };
   useEffect(() => {
+    if (!selCtx) {
+      // The entry left the ctx (just knocked out): its own Event prefill
+      // must not linger and silently label unlinked matches — a user-typed
+      // name stays. Never while editing (the form holds the match's data).
+      if (!editingMatch)
+        setEventName((cur) => (cur === prefilledEvent.current ? "" : cur));
+      return;
+    }
     applyEntryPrefill();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selCtx?.entry.id]);
@@ -520,10 +537,29 @@ export default function MatchEditor({
               🤝 with {selCtx.entry.partner_name}
             </span>
           )}
+          {onEliminate && !editingMatch && (
+            <button
+              className="btn tour-out-btn"
+              title="Knocked out of this event — no more matches to enter; once every entry is out, the tournament moves to the Profile record with its result"
+              onClick={() => {
+                if (
+                  window.confirm(
+                    `Mark "${ctxLabel(selCtx)}" as knocked out?\n` +
+                      "No more matches will be collected for it, and once " +
+                      "every entry is out the tournament moves to the " +
+                      "Profile tab's Tournament Record."
+                  )
+                )
+                  onEliminate(selCtx.entry.id);
+              }}
+            >
+              ☠ Knocked out
+            </button>
+          )}
           {tournamentCtx.length > 1 && (
             <select
               className="pb-select tour-entry-pick"
-              value={entryIdx}
+              value={selIdx}
               // Locked while editing: saveEdit keeps the match's stored
               // entry link, so re-picking here would prefill the form
               // (discipline/partner/event) without moving the link.

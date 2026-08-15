@@ -47,8 +47,11 @@ export default function TournamentStrip({
               </span>
             )}
             {t.entries.map((e) => (
-              <span key={e.id} className="tour-chip">
-                {entryLabel(e)}
+              <span
+                key={e.id}
+                className={`tour-chip${e.eliminated ? " tour-chip-out" : ""}`}
+              >
+                {e.eliminated ? `☠ ${entryLabel(e)}` : entryLabel(e)}
               </span>
             ))}
             {i === shown.length - 1 && (hidden > 0 || expanded) && (

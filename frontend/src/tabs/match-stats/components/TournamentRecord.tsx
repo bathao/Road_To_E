@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLoad } from "../../../shared/useApi";
 import { dmyDate, prettyDate } from "../../../shared/dates";
-import { fmtDelta } from "../../../shared/format";
+import EloDeltaChip from "../../../shared/ui/EloDeltaChip";
 import { ROUND_LABEL, matchupOf } from "../../../shared/matches";
 import type { TournamentRound } from "../../../shared/matches";
 import { PLACEMENT_LABEL, entryLabel } from "../../../shared/tournaments";
@@ -57,11 +57,7 @@ function MatchTable({ rec }: { rec: RecordEntry }) {
               {m.elo_delta == null ? (
                 "—"
               ) : (
-                <span
-                  className={`elo-chip ${m.elo_delta >= 0 ? "elo-up" : "elo-down"}`}
-                >
-                  {fmtDelta(m.elo_delta)}
-                </span>
+                <EloDeltaChip delta={m.elo_delta} />
               )}
             </td>
           </tr>

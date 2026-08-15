@@ -27,6 +27,7 @@ from app.features.tracker.rating import (  # noqa: F401
 from app.features.tracker.models import (
     Activity,
     Category,
+    Coach,
     DayNote,
     Event,
     Match,
@@ -82,6 +83,13 @@ _NOTE_SNIPPET_LEN = 22
 # Coaching packages: a block of N sessions; ★ marks the first session of a block.
 COACH_PACKAGE_SIZE = 10
 PACKAGE_MARK = "★"
+# Coaches (user 2026-08-15): every Train-with-Coach session is stamped with
+# the coach it was with (Activity.coach_id, picked in the session editor).
+# Coaches with counts_package=False (Phi Vũ — paid per session) never consume
+# the 10-session block; everything else about the session still counts
+# (racket time, Overall color, Coach & Recap gating, coach bundle). Replaces
+# the 2026-08-13 note-based rule ("phi vu" fold-matched in the note) —
+# seed.migrate backfilled legacy rows from the notes once.
 
 # ------------------------------------------------------------- racket time
 # "Racket Time" = total time with the racket in hand per day: the coach +
@@ -708,6 +716,7 @@ def compute_overall_colors(
     all_days: list[dt.date] | None = None,
     today: dt.date | None = None,
     earliest: dt.date | None = None,
+    racket: tuple[dict[str, int], dict[str, int]] | None = None,
 ) -> dict[str, str]:
     """Auto-generate the 'Overall' color per day (no manual rating).
 
@@ -727,7 +736,9 @@ def compute_overall_colors(
 
     Returns {iso_date: 'green' | 'yellow' | 'red'}.
     """
-    r_train, r_play = racket_minutes_by_day(categories, activities, matches)
+    # `racket` = precomputed racket_minutes_by_day maps — the grid renderer
+    # already builds them for the Racket Time row, so it passes them in.
+    r_train, r_play = racket or racket_minutes_by_day(categories, activities, matches)
 
     green_days: set[str] = set()
     other_days: set[str] = set(physical_dates or set())
@@ -880,8 +891,15 @@ def _grid_cells(
     colors: dict[tuple[int, str], str] = {}
 
     # Duration cells (sum minutes per category/day) + note/★ suffixes.
+    # Pay-per-session coach sessions get the coach's name in the cell — the
+    # exception worth seeing (the package coach is the unlabeled norm).
+    per_session_names = {
+        c.id: c.name
+        for c in db.query(Coach).filter(Coach.counts_package.is_(False))
+    }
     mins: dict[tuple[int, str], int] = {}
     cell_notes: dict[tuple[int, str], str] = {}  # per-cell activity note
+    coach_labels: dict[tuple[int, str], str] = {}  # per-session coach name
     starts: set[tuple[int, str]] = set()  # cells whose day starts a package
     for a in activities:
         if a.category_id not in duration_ids:
@@ -890,12 +908,20 @@ def _grid_cells(
         mins[key] = mins.get(key, 0) + (a.duration_minutes or 0)
         if a.note:
             cell_notes[key] = a.note
+        if a.coach_id in per_session_names:
+            coach_labels[key] = per_session_names[a.coach_id]
         if a.is_package_start:
             starts.add(key)
     for key, m in mins.items():
         cell = format_duration(m)
+        if key in coach_labels:
+            cell = f"{cell} · {coach_labels[key]}"
         if key in cell_notes:
-            cell = f"{cell} ({cell_notes[key]})".strip()
+            # Legacy per-session days carried the coach's name as the NOTE
+            # (the retired 2026-08-13 rule) — with the label in place, a
+            # name-only note would just stutter ("· Phi Vũ (Phi Vũ)").
+            if _fold(cell_notes[key]) != _fold(coach_labels.get(key, "")):
+                cell = f"{cell} ({cell_notes[key]})".strip()
         if key in starts:  # first session of a new 10-session coaching package
             cell = f"{cell} {PACKAGE_MARK}".strip()
         text[key] = cell
@@ -924,10 +950,11 @@ def _grid_cells(
             if info["is_yellow"]:
                 colors[(physical.id, iso)] = "yellow"
 
-    # Racket Time cells: auto-computed (coach + partner + 5 min per match set).
+    # Racket Time cells: auto-computed (coach + partner + 5 min per match
+    # set). The maps also feed the Overall coloring below — computed once.
+    r_training, r_playing = racket_minutes_by_day(categories, activities, matches)
     racket = cat_by_key.get("racket_time")
     if racket is not None:
-        r_training, r_playing = racket_minutes_by_day(categories, activities, matches)
         for iso in set(r_training) | set(r_playing):
             total = r_training.get(iso, 0) + r_playing.get(iso, 0)
             text[(racket.id, iso)] = format_duration(total)
@@ -957,6 +984,7 @@ def _grid_cells(
         all_days=days,
         today=dt.date.today(),
         earliest=earliest_data_date(db),
+        racket=(r_training, r_playing),
     )
     return text, colors, overall_colors
 
@@ -1121,7 +1149,8 @@ def list_active_advice(db: Session) -> list[SessionNote]:
 
 def _coach_sessions(db: Session) -> list[Activity]:
     """Every Train-with-Coach session with real duration, in date order —
-    the single query behind all package computations."""
+    the single query behind all package computations. Includes second-coach
+    sessions; package math filters them via _counts_toward_package."""
     coach = db.query(Category).filter(Category.key == "train_with_coach").first()
     if coach is None:
         return []
@@ -1133,13 +1162,64 @@ def _coach_sessions(db: Session) -> list[Activity]:
     )
 
 
+def list_coaches(db: Session) -> list[Coach]:
+    """All coaches, oldest first (the seeded package coach leads)."""
+    return db.query(Coach).order_by(Coach.id).all()
+
+
+def create_coach(db: Session, payload: schemas.CoachIn) -> Coach:
+    """Add a coach from the session editor. Fold-compares the name so
+    "phi vu" can't sit next to "Phi Vũ" (same dedupe rule as players)."""
+    name = payload.name.strip()
+    for c in db.query(Coach).all():
+        if _fold(c.name) == _fold(name):
+            raise ValueError(f'Coach "{c.name}" already exists.')
+    c = Coach(name=name, counts_package=payload.counts_package)
+    db.add(c)
+    db.commit()
+    db.refresh(c)
+    return c
+
+
+def default_coach_id(db: Session) -> int | None:
+    """The coach a new session gets when the caller names none: the oldest
+    package coach (Minh Thới on the real DB)."""
+    row = (
+        db.query(Coach.id)
+        .filter(Coach.counts_package.is_(True))
+        .order_by(Coach.id)
+        .first()
+    )
+    return row[0] if row else None
+
+
+def _non_package_coach_ids(db: Session) -> set[int]:
+    """Ids of pay-per-session coaches — their sessions never touch the block."""
+    return {
+        cid
+        for (cid,) in db.query(Coach.id).filter(Coach.counts_package.is_(False))
+    }
+
+
+def _counts_toward_package(a: Activity, non_package_ids: set[int]) -> bool:
+    """False for pay-per-session coaches' sessions; their is_package_start
+    flag is ignored too — ★ on such a day is a no-op. coach_id None (legacy
+    row the backfill missed) counts: the default coach is the package one."""
+    return a.coach_id not in non_package_ids
+
+
 def compute_coach_packages(db: Session) -> schemas.CoachPackagesResponse:
     """Group Train-with-Coach sessions into packages of COACH_PACKAGE_SIZE.
 
     A package opens on each session flagged is_package_start; the earliest
     session implicitly opens package #1 (covers data older than any marker).
+    Pay-per-session coaches' sessions are skipped entirely; their per-coach
+    counts since the current block opened are surfaced so a mis-assigned
+    session stays visible on the card.
     """
-    sessions = _coach_sessions(db)
+    all_sessions = _coach_sessions(db)
+    non_pkg_ids = _non_package_coach_ids(db)
+    sessions = [a for a in all_sessions if _counts_toward_package(a, non_pkg_ids)]
     size = COACH_PACKAGE_SIZE
     packages: list[schemas.CoachPackage] = []
     for i, a in enumerate(sessions):
@@ -1180,7 +1260,30 @@ def compute_coach_packages(db: Session) -> schemas.CoachPackagesResponse:
     if packages:
         packages[-1].is_current = True
 
-    return schemas.CoachPackagesResponse(size=size, packages=packages)
+    # Pay-per-session counts since the current block opened (earlier ones are
+    # history the card doesn't need to re-litigate). No block yet (every
+    # session so far is per-session) → count them all: a mis-assigned first
+    # session must still be visible on the card. Grouped per coach — most
+    # sessions first, then name.
+    floor = packages[-1].start_date if packages else None
+    by_coach: dict[int | None, int] = {}
+    for a in all_sessions:
+        if _counts_toward_package(a, non_pkg_ids):
+            continue
+        if floor is not None and a.date < floor:
+            continue
+        by_coach[a.coach_id] = by_coach.get(a.coach_id, 0) + 1
+    names = dict(db.query(Coach.id, Coach.name).all())
+    non_package = [
+        schemas.NonPackageCount(coach_name=names.get(cid, "?"), sessions=n)
+        for cid, n in sorted(
+            by_coach.items(), key=lambda kv: (-kv[1], names.get(kv[0], ""))
+        )
+    ]
+
+    return schemas.CoachPackagesResponse(
+        size=size, packages=packages, non_package=non_package
+    )
 
 
 def start_next_coach_package(db: Session) -> schemas.CoachPackagesResponse:
@@ -1190,7 +1293,10 @@ def start_next_coach_package(db: Session) -> schemas.CoachPackagesResponse:
     Equivalent to opening that day's coach cell and ticking the ★ box — this
     just finds the right day automatically (always session 11, so sessions
     12+ stay in the NEW package, never inflate the old one)."""
-    sessions = _coach_sessions(db)
+    non_pkg_ids = _non_package_coach_ids(db)
+    sessions = [
+        a for a in _coach_sessions(db) if _counts_toward_package(a, non_pkg_ids)
+    ]
     # Current block = everything from the last flagged start (or session #1).
     start_idx = 0
     for i, a in enumerate(sessions):
@@ -1216,7 +1322,14 @@ def coach_package_start_allowed(db: Session, date: dt.date) -> bool:
     of a block are NOT allowed. Works for a date that has no session yet
     (e.g. logging the 11th session for the first time).
     """
-    sessions = _coach_sessions(db)
+    all_sessions = _coach_sessions(db)
+    non_pkg_ids = _non_package_coach_ids(db)
+    # A pay-per-session coach's day can never open a package: compute ignores
+    # its ★ entirely, so offering the checkbox would invite a silent no-op.
+    own = [a for a in all_sessions if a.date == date]
+    if own and not any(_counts_toward_package(a, non_pkg_ids) for a in own):
+        return False
+    sessions = [a for a in all_sessions if _counts_toward_package(a, non_pkg_ids)]
     if not sessions:
         return True  # the very first session can always open package #1
 

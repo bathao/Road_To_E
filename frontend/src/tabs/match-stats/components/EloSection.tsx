@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { shortDate } from "../../../shared/dates";
 import { DISCIPLINE_LABEL } from "../../../shared/disciplines";
 import { fmtDelta } from "../../../shared/format";
+import EloDeltaChip from "../../../shared/ui/EloDeltaChip";
 import { resultOf } from "../../../shared/types";
 import EloCurve from "../../../shared/ui/EloCurve";
 import SortableTh, { toggleSort } from "../../../shared/ui/SortableTh";
@@ -35,12 +36,12 @@ export function EloCurveCard({
         >
           {elo.rating_end}
         </span>
-        <span
-          className={`elo-chip ${elo.total_delta >= 0 ? "elo-up" : "elo-down"}`}
+        <EloDeltaChip
+          delta={elo.total_delta}
           title="net Δ in the range being viewed"
         >
-          {fmtDelta(elo.total_delta)} · {elo.counted} matches
-        </span>
+          {" "}· {elo.counted} matches
+        </EloDeltaChip>
       </div>
       <p className="elo-note">
         {elo.rating_start !== null && elo.rating_start !== elo.rating_end

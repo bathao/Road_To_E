@@ -96,9 +96,11 @@ _ROUND_NAME = {
 }
 
 
-def _deepest_decided(db: Session) -> dict[int, Match]:
+def deepest_decided(db: Session) -> dict[int, Match]:
     """entry_id → last DECIDED match (has a result) of the deepest entered
-    round, for every entry with linked matches."""
+    round, for every entry with linked matches. The three derive_* readers
+    below accept this dict precomputed — the tournament list/record call all
+    three per request, and each used to re-run this full scan."""
     matches = (
         db.query(Match)
         .filter(
@@ -121,11 +123,13 @@ def _deepest_decided(db: Session) -> dict[int, Match]:
     return out
 
 
-def derive_placements(db: Session) -> dict[int, tuple[str, dt.date]]:
+def derive_placements(
+    db: Session, deepest: dict[int, Match] | None = None
+) -> dict[int, tuple[str, dt.date]]:
     """entry_id → (placement, date of the deciding match) for every linked
     entry whose entered matches already decide a placement."""
     out: dict[int, tuple[str, dt.date]] = {}
-    for entry_id, last in _deepest_decided(db).items():
+    for entry_id, last in (deepest if deepest is not None else deepest_decided(db)).items():
         deepest = _ROUND_DEPTH.get(last.round or "group", 0)
         won = last.my_sets > last.opp_sets
         if deepest == _ROUND_DEPTH["f"]:
@@ -140,24 +144,28 @@ def derive_placements(db: Session) -> dict[int, tuple[str, dt.date]]:
     return out
 
 
-def derive_round_reached(db: Session) -> dict[int, tuple[str, bool]]:
+def derive_round_reached(
+    db: Session, deepest: dict[int, Match] | None = None
+) -> dict[int, tuple[str, bool]]:
     """entry_id → (deepest DECIDED round key, won that match?) for every
     entry with linked matches — the "how far did I get" fact behind the
     Tournament Record section (Profile tab). Matches saved without a round
     count as group stage, same fallback as the placement derivation."""
     return {
         entry_id: (last.round or "group", last.my_sets > last.opp_sets)
-        for entry_id, last in _deepest_decided(db).items()
+        for entry_id, last in (deepest if deepest is not None else deepest_decided(db)).items()
     }
 
 
-def derive_warnings(db: Session) -> dict[int, str]:
+def derive_warnings(
+    db: Session, deepest: dict[int, Match] | None = None
+) -> dict[int, str]:
     """entry_id → data-gap warning: the deepest entered knockout round was
     WON but the next round has no decided match. Tournaments are entered
     after the fact, so a won round with nothing after it means the user
     forgot matches — surface it instead of silently paying no bonus."""
     out: dict[int, str] = {}
-    for entry_id, last in _deepest_decided(db).items():
+    for entry_id, last in (deepest if deepest is not None else deepest_decided(db)).items():
         rnd = last.round or "group"
         nxt = _NEXT_ROUND.get(rnd)
         if nxt and last.my_sets > last.opp_sets:

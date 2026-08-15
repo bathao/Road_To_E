@@ -9,7 +9,7 @@
 //   visible error instead of a silent unhandled rejection.
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export function errMsg(e: unknown): string {
+function errMsg(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 

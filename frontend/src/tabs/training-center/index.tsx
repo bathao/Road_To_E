@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLoad, useMutate } from "../../shared/useApi";
 import { trainingApi } from "./api";
 import DayGrid from "./components/DayGrid";
@@ -62,10 +62,17 @@ export default function TrainingCenter() {
   // Only the live (editable) open session can be played/edited.
   const editable = !!detail && !readOnly;
 
+  // Guards level/tile navigation against out-of-order responses: rapid
+  // clicks fire overlapping fetches, and without the counter the SLOWEST
+  // one would apply last, leaving the view on a level/day the user already
+  // navigated away from.
+  const navSeq = useRef(0);
+
   const switchLevel = async (level: string) => {
     if (!today) return;
+    const seq = ++navSeq.current;
     const p = await run(() => trainingApi.getProgram(level));
-    if (p === undefined) return;
+    if (p === undefined || seq !== navSeq.current) return;
     setProgram(p);
     setViewLevel(level);
     if (level === today.level) {
@@ -76,7 +83,7 @@ export default function TrainingCenter() {
     const lastDone = [...p.tiles].reverse().find((t) => t.status === "done");
     if (lastDone) {
       const s = await run(() => trainingApi.getSession(level, lastDone.day_index));
-      if (s === undefined) return;
+      if (s === undefined || seq !== navSeq.current) return;
       setDetail(s);
       setReadOnly(true);
     }
@@ -84,6 +91,7 @@ export default function TrainingCenter() {
 
   const pickTile = async (tile: DayTile) => {
     if (!program || !today) return;
+    const seq = ++navSeq.current; // also invalidates in-flight navigations
     if (
       isCurrentLevelView &&
       (tile.status === "unlocked" || tile.day_index === today.day_index)
@@ -93,7 +101,7 @@ export default function TrainingCenter() {
       return;
     }
     const s = await run(() => trainingApi.getSession(program.level, tile.day_index));
-    if (s === undefined) return;
+    if (s === undefined || seq !== navSeq.current) return;
     setDetail(s);
     setReadOnly(true);
   };

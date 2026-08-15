@@ -14,6 +14,7 @@ from app.features.tournament.models import (
 )
 from app.features.tracker.models import Match, Player
 from app.features.tracker.rating import (
+    deepest_decided,
     derive_placements,
     derive_round_reached,
     derive_warnings,
@@ -51,6 +52,7 @@ def _entry_out(
         data_warning=warnings.get(e.id),
         latest_round=latest[0] if latest else None,
         latest_round_won=latest[1] if latest else None,
+        eliminated=e.eliminated,
     )
 
 
@@ -101,10 +103,19 @@ def _is_played(
     card immediately (the one day IS the last day). Multi-day events (user
     2026-08-04, e.g. SGPP 15–16 Aug): day-1 results must NOT retire the card
     — the strip and the coach keep tracking day 2; a match dated on/after
-    the last day does, and getting knocked out early simply lets the card
-    retire the morning after end_date."""
+    the last day does. Getting KNOCKED OUT of every entry retires it on the
+    spot (user 2026-08-15): the event is over for the player — the result
+    goes to the Profile record and the coach stops planning around it."""
     last_day = t.end_date or t.start_date
     if last_day < today:
+        return True
+    # Not before the event starts: the ☠ button only exists on running days,
+    # but a stray API mark must not retire a FUTURE tournament off the board.
+    if (
+        t.start_date <= today
+        and t.entries
+        and all(e.eliminated for e in t.entries)
+    ):
         return True
     return any(
         (last := last_linked.get(e.id)) is not None and last >= last_day
@@ -154,9 +165,11 @@ def list_tournaments(db: Session, today: dt.date | None = None) -> schemas.Tourn
     today = today or dt.date.today()
     upcoming, played = _load_split(db, today)
     players = _player_names(db, upcoming + played)
-    placements = derive_placements(db)
-    warnings = derive_warnings(db)
-    reached = derive_round_reached(db)
+    # One linked-matches scan feeds all three derivations.
+    deepest = deepest_decided(db)
+    placements = derive_placements(db, deepest)
+    warnings = derive_warnings(db, deepest)
+    reached = derive_round_reached(db, deepest)
     return schemas.TournamentsResponse(
         tournaments=[
             _to_out(t, players, placements, warnings, reached, played=False)
@@ -232,6 +245,20 @@ def update_tournament(
     return list_tournaments(db)
 
 
+def set_entry_eliminated(
+    db: Session, entry_id: int, eliminated: bool
+) -> schemas.TournamentsResponse:
+    """Knocked-out toggle. Deliberately NOT part of the tournament form's
+    entry reconcile — it's a one-click state flip from the match editor /
+    card chip, and the form must never silently clear it."""
+    e = db.get(TournamentEntry, entry_id)
+    if e is None:
+        raise LookupError("Entry not found")
+    e.eliminated = eliminated
+    db.commit()
+    return list_tournaments(db)
+
+
 def delete_tournament(db: Session, tournament_id: int) -> schemas.TournamentsResponse:
     t = db.get(Tournament, tournament_id)
     if t is not None:
@@ -257,9 +284,10 @@ def build_record(db: Session, today: dt.date | None = None) -> schemas.Tournamen
         return schemas.TournamentRecordResponse()
 
     players = _player_names(db, past)
-    placements = derive_placements(db)
-    warnings = derive_warnings(db)
-    reached = derive_round_reached(db)
+    deepest = deepest_decided(db)
+    placements = derive_placements(db, deepest)
+    warnings = derive_warnings(db, deepest)
+    reached = derive_round_reached(db, deepest)
 
     entry_ids = [e.id for t in past for e in t.entries]
     matches = (
@@ -350,6 +378,8 @@ def upcoming_for_coach(
                     label += f" ({' — '.join(parts)})"
             if e.division:
                 label += f" — {e.division}"
+            if e.eliminated:
+                label += " — ĐÃ BỊ LOẠI"
             entries.append(label)
         out.append(
             {

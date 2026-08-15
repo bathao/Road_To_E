@@ -2,8 +2,9 @@
 
 Programs are static (program.py); this module materialises the player's progress
 through them: it opens the next session on demand, records ticks and completions,
-and advances/unlocks levels. Sessions are created lazily — a tc_session row only
-appears once its "Day" tile has been opened.
+and advances/unlocks levels. Sessions are created lazily — the current
+session's tc_session row appears on the first read that needs it (today view,
+level overview/report, coach bundle), never for future days.
 """
 from __future__ import annotations
 

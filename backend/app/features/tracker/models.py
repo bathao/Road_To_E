@@ -23,6 +23,24 @@ class Category(Base):
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
 
+class Coach(Base):
+    """A real-life coach the user trains with (user 2026-08-15).
+
+    ``counts_package``: True = sessions consume the 10-session block
+    (Minh Thới); False = paid per session (Phi Vũ) — excluded from all
+    package math. Replaces the note-based NON_PACKAGE_COACH_NOTES rule
+    (2026-08-13): seed.migrate backfills Activity.coach_id from the notes
+    once, then the flag on this table is the single source. New coaches are
+    added from the session editor; there is no delete (would orphan the
+    sessions pointing at them)."""
+
+    __tablename__ = "tracker_coach"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String, unique=True, index=True)
+    counts_package: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
 class Activity(Base):
     """A duration-type entry for a given day and category.
 
@@ -43,6 +61,11 @@ class Activity(Base):
     # Marks the first session of a new coaching package (10-session block).
     # Only meaningful for the 'train_with_coach' category.
     is_package_start: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Which coach the session was with — 'train_with_coach' rows only
+    # (ALTER-added, so no DB-level FK; NULL on non-coach categories and
+    # treated as the default package coach on legacy rows the backfill
+    # missed). Drives the package math via Coach.counts_package.
+    coach_id: Mapped[int | None] = mapped_column(Integer, default=None)
 
 
 class Event(Base):

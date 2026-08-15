@@ -43,8 +43,10 @@ class TrainingState(Base):
 class TrainingSession(Base):
     """One session = one "Day" tile in a level's program.
 
-    Materialised lazily: a row exists once the tile has been opened. Status
-    moves unlocked -> done; we never re-lock a completed session.
+    Materialised lazily: the CURRENT session's row appears on the first read
+    that needs it (open_session runs from plain GETs — today view, level
+    overview/report, the coach bundle). Status moves unlocked -> done; we
+    never re-lock a completed session.
     """
 
     __tablename__ = "tc_session"

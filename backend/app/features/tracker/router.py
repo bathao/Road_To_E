@@ -7,10 +7,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
-from app.features.tracker import rating, schemas, service
+from app.features.tracker import schemas, service
 from app.features.tracker.models import (
     Activity,
     Category,
+    Coach,
     DayNote,
     Event,
     Match,
@@ -98,6 +99,21 @@ def coach_package_start_allowed(
     )
 
 
+# ---------------------------------------------------------------- coaches
+@router.get("/coaches", response_model=list[schemas.CoachOut])
+def list_coaches(db: Session = Depends(get_db)):
+    """All coaches, oldest first — feeds the session editor's picker."""
+    return service.list_coaches(db)
+
+
+@router.post("/coaches", response_model=schemas.CoachOut)
+def create_coach(payload: schemas.CoachIn, db: Session = Depends(get_db)):
+    try:
+        return service.create_coach(db, payload)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 # ---------------------------------------------------------------- activities
 @router.put("/activities", response_model=schemas.ActivityOut | None)
 def upsert_activity(payload: schemas.ActivityIn, db: Session = Depends(get_db)):
@@ -114,9 +130,31 @@ def upsert_activity(payload: schemas.ActivityIn, db: Session = Depends(get_db)):
     for extra in rows[1:]:
         db.delete(extra)
     existing = rows[0] if rows else None
+
+    # The coach stamp is a train_with_coach concern only. Payload names a
+    # coach -> validate and use it; payload omits it -> keep the stored one
+    # (legacy callers), defaulting to the package coach on brand-new rows.
+    category = db.get(Category, payload.category_id)
+    coach_id: int | None = None
+    if category is not None and category.key == "train_with_coach":
+        if payload.coach_id is not None:
+            if db.get(Coach, payload.coach_id) is None:
+                raise HTTPException(status_code=400, detail="Unknown coach")
+            coach_id = payload.coach_id
+        else:
+            coach_id = (
+                existing.coach_id if existing else None
+            ) or service.default_coach_id(db)
+
     # A package can only start on a real session: a ★ on a 0-minute row would
-    # show in the grid while being invisible to the package math.
+    # show in the grid while being invisible to the package math. A pay-per-
+    # session coach's ★ is equally invisible — strip it instead of storing a
+    # mark the package math ignores.
     star = payload.is_package_start and payload.duration_minutes > 0
+    if star and coach_id is not None:
+        coach = db.get(Coach, coach_id)
+        if coach is not None and not coach.counts_package:
+            star = False
     if payload.duration_minutes <= 0 and not payload.note and not star:
         if existing:
             db.delete(existing)
@@ -126,6 +164,7 @@ def upsert_activity(payload: schemas.ActivityIn, db: Session = Depends(get_db)):
         existing.duration_minutes = payload.duration_minutes
         existing.note = payload.note
         existing.is_package_start = star
+        existing.coach_id = coach_id
     else:
         existing = Activity(
             date=payload.date,
@@ -133,20 +172,12 @@ def upsert_activity(payload: schemas.ActivityIn, db: Session = Depends(get_db)):
             duration_minutes=payload.duration_minutes,
             note=payload.note,
             is_package_start=star,
+            coach_id=coach_id,
         )
         db.add(existing)
     db.commit()
     db.refresh(existing)
     return existing
-
-
-@router.delete("/activities/{activity_id}", status_code=204)
-def delete_activity(activity_id: int, db: Session = Depends(get_db)):
-    obj = db.get(Activity, activity_id)
-    if obj:
-        db.delete(obj)
-        db.commit()
-    return Response(status_code=204)
 
 
 # ---------------------------------------------------------------- matches

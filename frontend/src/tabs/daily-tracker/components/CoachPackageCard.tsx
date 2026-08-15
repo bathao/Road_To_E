@@ -18,10 +18,14 @@ function pkgStatusText(p: CoachPackage): string {
 
 export default function CoachPackageCard({
   current,
+  nonPackage,
   onStartNext,
   busy,
 }: {
   current: CoachPackage;
+  // Pay-per-session coaches' sessions since this block opened — not
+  // counted; shown per coach so a mis-assigned session is visible.
+  nonPackage: { coach_name: string; sessions: number }[];
   // Renew action: mark session size+1 as the new package's start.
   onStartNext: () => void;
   busy: boolean;
@@ -35,6 +39,12 @@ export default function CoachPackageCard({
       </div>
       <div className="stat-sub">started {prettyDate(current.start_date)}</div>
       <div className="pkg-status">{pkgStatusText(current)}</div>
+      {nonPackage.map((c) => (
+        <div key={c.coach_name} className="stat-sub">
+          {c.sessions} session{c.sessions === 1 ? "" : "s"} ({c.coach_name})
+          pay-per-session
+        </div>
+      ))}
       {current.status === "over" && (
         <button className="btn primary" onClick={onStartNext} disabled={busy}>
           ★ Start new package from session {current.size + 1}

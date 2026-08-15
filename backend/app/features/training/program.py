@@ -898,6 +898,9 @@ def alternatives_for(key: str, exclude: set[str]) -> list[Exercise]:
     out = [
         e for e in _EX
         if e.day_type == ex.day_type and e.key != key and e.key not in exclude
-        and e.key not in WARMUP_KEYS
+        # Warmup/cooldown moves aren't tracked work — the cooldown stretches
+        # share day_type "balance", so without this they'd crowd the top of
+        # a balance-day substitution list.
+        and e.key not in WARMUP_KEYS and e.key not in COOLDOWN_KEYS
     ]
     return out[:3]

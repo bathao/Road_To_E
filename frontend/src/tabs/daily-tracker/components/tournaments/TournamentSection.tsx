@@ -28,12 +28,26 @@ const OPEN = "Open";
 // One entry row while editing (partner kept as {id, name} — enough for the
 // payload and the pill; PlayerPicker supplies a full Player on change).
 interface EntryDraft {
+  // Stable React key for the row. Rows are removable — index keys would
+  // hand row i+1's PlayerPicker state (half-typed search, add-form) to row
+  // i after a deletion. Existing entries key by id; new rows get a counter.
+  key: string;
   id: number | null; // existing entry's id (null = new) — keeps match links
   discipline: TournamentDiscipline;
   partner: { id: number; name: string } | null;
   teammates: { id: number; name: string }[]; // team roster from the pool
   team_members: string; // optional team name / note
 }
+
+let nextDraftKey = 0;
+const newEntryDraft = (): EntryDraft => ({
+  key: `new-${nextDraftKey++}`,
+  id: null,
+  discipline: "singles",
+  partner: null,
+  teammates: [],
+  team_members: "",
+});
 
 interface Draft {
   name: string;
@@ -55,9 +69,7 @@ const EMPTY_DRAFT: Draft = {
   levels: [],
   open: false,
   note: "",
-  entries: [
-    { id: null, discipline: "singles", partner: null, teammates: [], team_members: "" },
-  ],
+  entries: [newEntryDraft()],
 };
 
 function toDraft(t: Tournament): Draft {
@@ -72,6 +84,7 @@ function toDraft(t: Tournament): Draft {
     open,
     note: t.note ?? "",
     entries: t.entries.map((e) => ({
+      key: `e${e.id}`,
       id: e.id,
       discipline: e.discipline,
       partner:
@@ -296,7 +309,7 @@ function TournamentForm({
         <div className="tour-entries-head">Registered events:</div>
         {d.entries.map((e, i) => (
           <EntryRow
-            key={i}
+            key={e.key}
             entry={e}
             onChange={(x) => setEntry(i, x)}
             onRemove={() =>
@@ -307,19 +320,7 @@ function TournamentForm({
         <button
           className="btn"
           onClick={() =>
-            setD({
-              ...d,
-              entries: [
-                ...d.entries,
-                {
-                  id: null,
-                  discipline: "singles",
-                  partner: null,
-                  teammates: [],
-                  team_members: "",
-                },
-              ],
-            })
+            setD({ ...d, entries: [...d.entries, newEntryDraft()] })
           }
         >
           ＋ Add event
@@ -350,13 +351,18 @@ function TournamentCard({
   t,
   onEdit,
   onDelete,
+  onEliminate,
 }: {
   t: Tournament;
   onEdit: () => void;
   onDelete: () => void;
+  // Knocked-out toggle (the ☠ chip un-marks; marking happens in the match
+  // editor's tournament banner).
+  onEliminate: (entryId: number, eliminated: boolean) => void;
 }) {
-  // Only upcoming cards render here — entering results retires a card to
-  // the Profile Tournament Record, so result/warning chips never apply.
+  // Only upcoming cards render here — entering results (or marking every
+  // entry knocked out) retires a card to the Profile Tournament Record, so
+  // result/warning chips never apply and at least one entry is alive.
   const urgent = daysUntil(t) <= 7;
   return (
     <div className={`tour-card${urgent ? " urgent" : ""}`}>
@@ -373,11 +379,22 @@ function TournamentCard({
         {t.level_limit && (
           <span className="tour-chip tour-chip-limit">Level: {t.level_limit}</span>
         )}
-        {t.entries.map((e) => (
-          <span key={e.id} className="tour-chip">
-            {entryLabel(e)}
-          </span>
-        ))}
+        {t.entries.map((e) =>
+          e.eliminated ? (
+            <button
+              key={e.id}
+              className="tour-chip tour-chip-out"
+              title="Knocked out — no more matches collected for this event. Click to un-mark."
+              onClick={() => onEliminate(e.id, false)}
+            >
+              ☠ {entryLabel(e)} — out
+            </button>
+          ) : (
+            <span key={e.id} className="tour-chip">
+              {entryLabel(e)}
+            </span>
+          )
+        )}
       </div>
       {t.note && <div className="tour-card-note">📝 {t.note}</div>}
       <div className="tour-card-actions">
@@ -429,6 +446,11 @@ export default function TournamentSection({
     if (out !== undefined) onData(out);
   };
 
+  const setEliminated = async (entryId: number, eliminated: boolean) => {
+    const out = await run(() => tournamentApi.setEliminated(entryId, eliminated));
+    if (out !== undefined) onData(out);
+  };
+
   return (
     <section className="tour-section">
       <div className="tour-head">
@@ -452,6 +474,11 @@ export default function TournamentSection({
 
       {editing !== null && (
         <TournamentForm
+          // Remount per target: the form seeds its draft from `initial` via
+          // useState, and the cards' Edit buttons stay clickable while it's
+          // open — without the key, switching targets kept the PREVIOUS
+          // draft and save() wrote it over the newly picked tournament.
+          key={editing === "new" ? "new" : editing.id}
           initial={editing === "new" ? EMPTY_DRAFT : toDraft(editing)}
           busy={busy}
           onSave={save}
@@ -472,6 +499,7 @@ export default function TournamentSection({
             t={t}
             onEdit={() => setEditing(t)}
             onDelete={() => remove(t.id)}
+            onEliminate={setEliminated}
           />
         ))}
       </div>

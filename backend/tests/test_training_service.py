@@ -83,6 +83,18 @@ def test_substitute_item_accepts_offered_alt_rejects_arbitrary(db):
     assert other.exercise_key != "plank"
 
 
+def test_alternatives_never_offer_warmup_or_cooldown_moves():
+    """Warmup/cooldown moves aren't tracked work. The cooldown stretches
+    share day_type "balance", so without the exclusion they crowded the top
+    of every balance-day substitution list (review 2026-08-15)."""
+    banned = set(program.WARMUP_KEYS) | set(program.COOLDOWN_KEYS)
+    for key, ex in program.EXERCISES.items():
+        if key in banned:
+            continue
+        offered = {a.key for a in program.alternatives_for(key, set())}
+        assert not offered & banned, f"{key} offered {offered & banned}"
+
+
 # ---------------------------------------------------------------- report
 def test_report_counts_sessions_and_muscle_volume(db):
     # Session 1 (foundation day 1): tick two items, complete today.

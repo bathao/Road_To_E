@@ -41,6 +41,19 @@ def update_tournament(
         raise HTTPException(status_code=404, detail="Tournament not found")
 
 
+@router.patch("/entries/{entry_id}", response_model=schemas.TournamentsResponse)
+def set_entry_eliminated(
+    entry_id: int, payload: schemas.EntryEliminatedIn, db: Session = Depends(get_db)
+):
+    """Knocked-out toggle for one entry (group-stage exits can't be derived
+    from results, so the user marks them). Returns the fresh full list like
+    every other tournament mutation."""
+    try:
+        return service.set_entry_eliminated(db, entry_id, payload.eliminated)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="Entry not found")
+
+
 @router.delete("/{tournament_id}", response_model=schemas.TournamentsResponse)
 def delete_tournament(tournament_id: int, db: Session = Depends(get_db)):
     """Returns the remaining list (NOT 204 — a 204 body reads as `undefined`

@@ -140,6 +140,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tracker/coaches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Coaches
+         * @description All coaches, oldest first — feeds the session editor's picker.
+         */
+        get: operations["list_coaches_api_tracker_coaches_get"];
+        put?: never;
+        /** Create Coach */
+        post: operations["create_coach_api_tracker_coaches_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tracker/activities": {
         parameters: {
             query?: never;
@@ -155,23 +176,6 @@ export interface paths {
         put: operations["upsert_activity_api_tracker_activities_put"];
         post?: never;
         delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/tracker/activities/{activity_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Delete Activity */
-        delete: operations["delete_activity_api_tracker_activities__activity_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1064,6 +1068,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tournaments/entries/{entry_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Set Entry Eliminated
+         * @description Knocked-out toggle for one entry (group-stage exits can't be derived
+         *     from results, so the user marks them). Returns the fresh full list like
+         *     every other tournament mutation.
+         */
+        patch: operations["set_entry_eliminated_api_tournaments_entries__entry_id__patch"];
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -1124,6 +1150,8 @@ export interface components {
              * @default false
              */
             is_package_start: boolean;
+            /** Coach Id */
+            coach_id?: number | null;
         };
         /**
          * ActivityOut
@@ -1149,6 +1177,8 @@ export interface components {
              * @default false
              */
             is_package_start: boolean;
+            /** Coach Id */
+            coach_id?: number | null;
         };
         /** AssessmentOut */
         AssessmentOut: {
@@ -1340,6 +1370,25 @@ export interface components {
             /** Text */
             text: string;
         };
+        /** CoachIn */
+        CoachIn: {
+            /** Name */
+            name: string;
+            /**
+             * Counts Package
+             * @default true
+             */
+            counts_package: boolean;
+        };
+        /** CoachOut */
+        CoachOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Counts Package */
+            counts_package: boolean;
+        };
         /** CoachPackage */
         CoachPackage: {
             /** Number */
@@ -1373,6 +1422,11 @@ export interface components {
             size: number;
             /** Packages */
             packages: components["schemas"]["CoachPackage"][];
+            /**
+             * Non Package
+             * @default []
+             */
+            non_package: components["schemas"]["NonPackageCount"][];
         };
         /** CoachStartAllowedResponse */
         CoachStartAllowedResponse: {
@@ -1554,6 +1608,14 @@ export interface components {
              */
             matches: components["schemas"]["MatchLine"][];
         };
+        /**
+         * EntryEliminatedIn
+         * @description PATCH body for the knocked-out toggle (false = un-mark a mis-click).
+         */
+        EntryEliminatedIn: {
+            /** Eliminated */
+            eliminated: boolean;
+        };
         /** EntryIn */
         EntryIn: {
             /** Id */
@@ -1606,6 +1668,11 @@ export interface components {
             latest_round?: string | null;
             /** Latest Round Won */
             latest_round_won?: boolean | null;
+            /**
+             * Eliminated
+             * @default false
+             */
+            eliminated: boolean;
         };
         /** EventOut */
         EventOut: {
@@ -2074,6 +2141,17 @@ export interface components {
             anchor_date: string;
             /** Counted Matches */
             counted_matches: number;
+        };
+        /**
+         * NonPackageCount
+         * @description Pay-per-session sessions of one coach since the current block opened
+         *     (all-time when no block exists yet).
+         */
+        NonPackageCount: {
+            /** Coach Name */
+            coach_name: string;
+            /** Sessions */
+            sessions: number;
         };
         /** NoteIn */
         NoteIn: {
@@ -3285,6 +3363,59 @@ export interface operations {
             };
         };
     };
+    list_coaches_api_tracker_coaches_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoachOut"][];
+                };
+            };
+        };
+    };
+    create_coach_api_tracker_coaches_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CoachIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoachOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     upsert_activity_api_tracker_activities_put: {
         parameters: {
             query?: never;
@@ -3306,35 +3437,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ActivityOut"] | null;
                 };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_activity_api_tracker_activities__activity_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                activity_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -4820,6 +4922,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TournamentsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_entry_eliminated_api_tournaments_entries__entry_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entry_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EntryEliminatedIn"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

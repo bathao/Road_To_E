@@ -1,6 +1,198 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-08-09, latest) — today batch committed `c234a8d` (round auto-advance + picker search + project review)
+## Current status (2026-08-15, latest) — Coach roster: pick Minh Thới / Phi Vũ per session (built, uncommitted)
+
+> **Coach picker (user request 2026-08-15, plan OK'd, built same day; needs
+> start.bat restart):** the package coach is Minh Thới, Phi Vũ is paid per
+> session, and more coaches may come — so Train-with-Coach sessions now pick
+> WHICH coach, replacing the fragile note-based "phi vu" rule (2026-08-13).
+>   - **Data:** NEW table `tracker_coach` (id, name, `counts_package`) —
+>     zero migration; `tracker_activity.coach_id` ALTER-added (no FK, like
+>     the other ALTER columns). Seed creates Minh Thới (package) + Phi Vũ
+>     (per-session) once, then BACKFILLS legacy coach sessions: note folds
+>     to a per-session coach's name → that coach, else Minh Thới; notes
+>     themselves untouched; idempotent (only coach_id NULL rows). The old
+>     `NON_PACKAGE_COACH_NOTES` constant is retired — package math reads
+>     `Coach.counts_package` (coach_id NULL counts as the package coach).
+>   - **API:** GET/POST /tracker/coaches (create fold-dedupes names like
+>     players — "phi vu" next to "Phi Vũ" → 400; NO delete: would orphan
+>     sessions). ActivityIn/Out gain coach_id; PUT /activities validates the
+>     coach, defaults NEW coach rows to the package coach when omitted,
+>     keeps the stored coach on edits, and STRIPS ★ when the coach is
+>     per-session (a mark the package math ignores must not be stored).
+>     CoachPackagesResponse.non_package_sessions (int, uncommitted) reshaped
+>     → `non_package: [{coach_name, sessions}]` per coach.
+>   - **GUI (DurationEditor, coach cells only):** "Coach" seg — Minh Thới |
+>     Phi Vũ | ＋ (inline add: name + "Sells 10-session packages" checkbox,
+>     default per-session). Stored coach preselected on edit, package coach
+>     on new. Picking a per-session coach HIDES the ★ row. Package card
+>     lists per-coach pay-per-session counts ("2 sessions (Phi Vũ)
+>     pay-per-session"). Grid/export cell shows "2h · Phi Vũ" for
+>     per-session coaches only (the package coach is the unlabeled norm);
+>     a legacy name-only note is suppressed to avoid "· Phi Vũ (Phi Vũ)".
+>   - **Kept simple (deliberate):** ONE global 10-session block over all
+>     counts_package coaches (only Minh Thới exists — revisit if a second
+>     package coach ever appears); no per-session money tracker for Phi Vũ
+>     (flagged 2026-08-13, still waiting for a need).
+>   - **Real-DB smoke (copy):** backfill stamps 43 sessions → Minh Thới, 2 →
+>     Phi Vũ (11+13/08); packages 5, current 7/10 used; non_package
+>     [Phi Vũ×2]; ★ blocked on Phi Vũ days; cells "2 hour · Phi Vũ".
+>   - Tests: test_coach_packages.py rewritten coach-based (+3: roster
+>     create/dedupe/default, seed backfill incl. idempotence + note
+>     untouched, PUT coach stamping incl. ★-strip and non-coach category);
+>     137 total. pytest + gen:api + tsc + vite build clean.
+
+## Previous status (2026-08-15, earlier same day) — project-wide review: 6 bugs fixed + cleanup (built, uncommitted)
+
+> **Whole-project review (user request 2026-08-15 "review toàn bộ source
+> code, clean up refactory"; two parallel review agents — backend &
+> frontend — every finding re-verified on the real code before applying;
+> uncommitted, needs start.bat restart):**
+>   - **FE bugs fixed:** (1) SEVERE — TournamentForm kept its draft when the
+>     edit target changed (cards stay clickable under the open form): Edit
+>     card A then Edit card B silently saved A's name/dates/entries OVER B —
+>     form now remounts via `key={editing.id}`. (2) The eliminated feature's
+>     entry `<select>` rendered the stale unclamped index after the selected
+>     entry was knocked out (blank select vs banner disagreeing) — renders
+>     the clamped `selIdx` now. (3) Training Center level/tile navigation
+>     had no stale-response guard: rapid clicks let the SLOWEST fetch win —
+>     `navSeq` ref drops out-of-order responses. (4) Tournament-form entry
+>     rows were keyed by index: deleting row i handed row i+1's PlayerPicker
+>     state (half-typed search) to row i — stable `EntryDraft.key` now.
+>   - **BE bugs fixed:** (5) `coach_package_start_allowed` said allowed on a
+>     Phi Vũ day (position 11) although compute IGNORES a second-coach ★ —
+>     inviting a silent no-op mark; such days now return False (real-DB
+>     smoke: 11+13/08 → False, packages/counter unchanged). (6) `alternatives_for`
+>     offered the cooldown stretches (day_type "balance") as strength-work
+>     substitutes on balance days — COOLDOWN_KEYS excluded like WARMUP_KEYS.
+>   - **Hardening:** all-sessions-Phi-Vũ edge now surfaces the counter with
+>     no package open (old `if packages:` guard hid the mis-note case it was
+>     built for); a stray API mark can no longer retire a FUTURE tournament
+>     (`_is_played` elimination clause now requires start_date <= today —
+>     the ☠ button itself only exists on running days).
+>   - **Waste cut:** the tournament list/record ran `_deepest_decided`'s
+>     full linked-matches scan 3× per request (placements/warnings/reached,
+>     and every mutation returns the list) — now `deepest_decided(db)` runs
+>     once and the three derive_* accept it precomputed; `_grid_cells`
+>     computed racket_minutes_by_day twice per render (Racket row + Overall
+>     colors) — computed once, passed into compute_overall_colors.
+>   - **Dead code removed:** `DELETE /tracker/activities/{id}` endpoint
+>     (zero FE/test consumers — cells delete via the PUT-empty upsert);
+>     unused `rating` import in the tracker router; `PeriodControl.modes`
+>     prop (no caller, comment referenced the retired Profile arrangement);
+>     FE `Match.tournament_name` mirror field (nothing reads it — the editor
+>     labels via tournamentCtx); needless exports errMsg/setsToWin.
+>   - **Dedup:** the ±ELO pill was 5 hand-rolled copies (MatchEditor,
+>     MatchRowList, AnalysisPanel, EloSection, TournamentRecord) → new
+>     shared/ui/EloDeltaChip.tsx (classes already shared in base.css);
+>     MatchEditor's EloChip wraps it for the skip-label case.
+>   - **Declined deliberately:** merging the 4 head-coach 3s-polling loops
+>     into a usePoll hook (each tick body differs — status check vs data +
+>     callback vs reload vs keep-last-snapshot; the hook would only save the
+>     setInterval boilerplate) and a shared scaffold for the 3 background-job
+>     wrappers (per-job specifics — directive sanitizing, stats pair, chat
+>     re-query — outweigh ~40 saved lines). `resnapped_matches` kept: tests
+>     pin it as the service contract (comment fixed — it claimed the GUI
+>     renders it).
+>   - **Stale comments fixed:** Modal "used by Tactical Playbook" (tab long
+>     gone), ctxLabel example order, training "row exists once its Day tile
+>     has been opened" (open_session runs from plain GETs), resnapped_matches.
+>   - Tests +4 (134 total): Phi Vũ day ★ not allowed / counted 11th still
+>     allowed; all-Phi-Vũ counter with zero packages; future tournament
+>     survives a stray eliminated mark (retires once running); alternatives
+>     never offer warmup/cooldown moves. pytest 134/134 + gen:api (activities
+>     DELETE left schema.d.ts) + tsc + vite build clean.
+
+## Previous status (2026-08-15, earlier same day) — "☠ Knocked out" button for tournament entries (built, uncommitted)
+
+> **Knocked-out flag (user request 2026-08-15, plan OK'd, built same day;
+> driver: SGPP day 1 — lost both team group matches, eliminated, but a
+> group exit can't be DERIVED from results (a group loss isn't terminal),
+> so the strip/coach kept planning day 2. Needs start.bat restart):**
+>   - **Data:** `tournament_entry.eliminated` bool (ALTER-add via new
+>     `_ENTRY_COLUMNS`, no migration; the form's entry reconcile never
+>     touches it). Per-ENTRY: doubles can be out while singles lives.
+>   - **API:** `PATCH /api/tournaments/entries/{id} {eliminated}` —
+>     toggleable (mis-click undo), returns the fresh list like every other
+>     tournament mutation; EntryOut echoes `eliminated`.
+>   - **Mark:** "☠ Knocked out" button in the MatchEditor's tournament
+>     banner (window.confirm, hidden while editing). The entry then leaves
+>     tournamentCtx on ALL days → banner/prefill/entry-pick gone, no more
+>     matches collected (normal sparring matches in the cell stay possible
+>     — deliberately NOT hard-blocked). Its Event prefill is cleared when
+>     the banner vanishes (a user-typed name stays). entryIdx now CLAMPS
+>     instead of `?? null` — with 2 entries, eliminating the selected one
+>     hands the banner to the survivor instead of vanishing.
+>   - **All entries out = tournament OVER (user follow-up same day —
+>     first build kept the ☠ card in upcoming until end_date for a GUI
+>     undo; user rejected on first contact: "xóa luôn khỏi next
+>     tournament, cập nhật result vào tab Profile như mọi sự kiện
+>     trước"):** `_is_played` gains the clause → the card retires to the
+>     Profile record IMMEDIATELY, mid-event (record derives the honest
+>     "Group stage" result), the coach's upcoming list + 7-day scaffold
+>     drop it on the spot (remaining days plan normal training), grid
+>     gold highlight + 🏆 hint gone. Fully-out tournaments therefore have
+>     NO GUI undo (same trade-off as every played tournament — un-mark
+>     exists only via the API); the confirm dialog says where the card
+>     goes.
+>   - **Partial elimination (multi-entry tournaments):** the card stays
+>     for the surviving entries; the dead entry's chip becomes a grey
+>     strike "☠ … — out" BUTTON → un-mark (the only GUI undo path), and
+>     its coach label carries "— ĐÃ BỊ LOẠI".
+>   - Declined: auto-marking on knockout losses (corrections would
+>     mis-fire; one manual button covers every round).
+>   - Tests +5 (130 total, test_tournament_eliminated.py): toggle + 404,
+>     PATCH shape, fully-out retires immediately (record TODAY, coach
+>     drops it, un-mark returns it while running), partial keeps the
+>     tournament live + per-entry label, form edit keeps the mark.
+>     Real-DB smoke (SGPP, entry TMSKY): mark → played TRUE mid-event,
+>     record group 0-2 today, week scaffold clean. NOTE: the real DB
+>     already carries eliminated=1 on the SGPP entry — the user clicked
+>     the button live before the same-day redesign; next restart the card
+>     drops to the Record by itself. pytest + gen:api + tsc + vite build
+>     clean.
+
+## Previous status (2026-08-15, earlier same day) — status check: Phi Vũ batch re-verified, SGPP day 1 data in
+
+> **Status check 2026-08-15:** no code change today. The second-coach
+> (Phi Vũ) exclusion batch below (2026-08-13) is still uncommitted and was
+> re-verified — 125/125 pytest + tsc/vite build clean. The DB additionally
+> carries new daily data 14–15/08 (uncommitted as usual): 4 sparring
+> matches 14/08 and the first 2 SGPP GROUP matches on 15/08 (day 1 of the
+> 2-day event — the multi-day "played" rule from `9bce1d8` is now live on
+> real data). The 2026-08-04 USER ACTION item is resolved: the SGPP card
+> has end_date 16/08/2026 set, so the card survives day-1 results and the
+> Record picks it up only after the event ends.
+
+## Previous status (2026-08-13) — second-coach sessions excluded from the 10-session block (built, uncommitted)
+
+> **Second-coach rule (user 2026-08-13, plan OK'd, built same day; needs
+> start.bat restart):** the user now trains with TWO coaches — a
+> Train-with-Coach session noted "Phi Vũ" is with the second coach, paid per
+> session, and must NOT consume the 10-session package.
+>   - **Rule:** note fold-matched against `NON_PACKAGE_COACH_NOTES = ("phi
+>     vu",)` (reuses `_fold` — "Phi Vũ"/"phi vu"/"PHI VU" all match; a third
+>     coach or renamed note = edit that constant). Deliberately note-based,
+>     no new UI/column — the note already shows in the grid cell.
+>   - **Scope:** ONLY package math changes (`_counts_toward_package` filters
+>     compute/start-next/★-allowed; ★ on a Phi Vũ day is an ignored no-op).
+>     Everything else still counts the session in full — racket time,
+>     Overall green, Coach & Recap gating, coach bundle — it's a real
+>     coaching session, it just isn't on the block.
+>   - **Card:** `CoachPackagesResponse.non_package_sessions` (Phi Vũ
+>     sessions since the current block opened) → CoachPackageCard line
+>     "2 sessions (Phi Vũ) not counted", so a mis-noted session is visible
+>     instead of silently miscounted. No migration.
+>   - **Real-DB effect:** block #5 (opened 22/07) read 8/10 with the two
+>     Phi Vũ sessions (11+13/08) wrongly counted — now 6/10, remaining 4,
+>     non_package_sessions=2 (smoke-verified).
+>   - **Not built (flagged):** no per-session money/block tracker for Phi
+>     Vũ — user to ask if ever needed.
+>   - Tests 125 total (+1: exclusion in any spelling, normal notes still
+>     count, ignored ★, renew skips Phi Vũ days, counter resets on new
+>     block, position math). pytest + gen:api + tsc + vite build clean.
+
+## Previous status (2026-08-09) — today batch committed `c234a8d` (round auto-advance + picker search + project review)
 
 > **Whole-project review (user request 2026-08-09; two parallel review
 > agents — backend & frontend — every finding re-verified on the real code
@@ -265,7 +457,7 @@
 >     last-day match / knocked-out-early retires only after end passes;
 >     single-day flip test untouched and green. Build clean.
 
-## Current status (2026-08-02, latest) — project-wide review committed `c73df23`
+## Previous status (2026-08-02) — project-wide review committed `c73df23`
 
 > **Review + cleanup after the day's feature batch (user request "review lại
 > toàn bộ project"; two parallel review agents, findings verified then

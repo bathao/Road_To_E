@@ -2,7 +2,8 @@ import { useEffect } from "react";
 import type { ReactNode } from "react";
 
 // Lightweight centered modal with a backdrop. Esc / backdrop click closes it.
-// Shared across tabs (used by Daily Tracker and Tactical Playbook).
+// Shared across tabs (Daily Tracker editors, Database player matches,
+// Training Center feedback).
 export default function Modal({
   title,
   onClose,

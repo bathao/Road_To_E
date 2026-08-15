@@ -24,6 +24,10 @@ class ActivityIn(BaseModel):
     duration_minutes: int = Field(ge=0, le=24 * 60)  # one calendar day max
     note: str | None = None
     is_package_start: bool = False  # first session of a coaching package
+    # Which coach the session was with — train_with_coach rows only (other
+    # categories force it to NULL). None on a coach row = keep the stored
+    # value (legacy callers), never a way to clear it.
+    coach_id: int | None = None
 
 
 class ActivityOut(BaseModel):
@@ -37,6 +41,30 @@ class ActivityOut(BaseModel):
     duration_minutes: int
     note: str | None = None
     is_package_start: bool = False
+    # The FE resolves the name from its own GET /coaches list.
+    coach_id: int | None = None
+
+
+# ---------- Coaches (real-life trainers) ----------
+class CoachIn(BaseModel):
+    name: str
+    # True = sessions consume the 10-session block; False = paid per session.
+    counts_package: bool = True
+
+    @field_validator("name")
+    @classmethod
+    def _name_not_blank(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Coach name cannot be empty.")
+        return v
+
+
+class CoachOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str
+    counts_package: bool
 
 
 # ---------- Coach packages (10-session blocks) ----------
@@ -52,9 +80,21 @@ class CoachPackage(BaseModel):
     status: str  # ok | low | done | over
 
 
+class NonPackageCount(BaseModel):
+    """Pay-per-session sessions of one coach since the current block opened
+    (all-time when no block exists yet)."""
+
+    coach_name: str
+    sessions: int
+
+
 class CoachPackagesResponse(BaseModel):
     size: int
     packages: list[CoachPackage]
+    # Per-session coaches' session counts — they never consume the block;
+    # shown on the card so a mis-assigned session is visible instead of
+    # silently miscounted.
+    non_package: list[NonPackageCount] = []
 
 
 class CoachStartAllowedResponse(BaseModel):
@@ -98,7 +138,9 @@ class PlayerOut(BaseModel):
     plays_pips: bool = False
     points: int | None = None
     # Set only by a "correction" points update: how many matches had this
-    # player's snapshot re-frozen (the GUI reports "N matches recalculated").
+    # player's snapshot re-frozen. The GUI shows its own predicted count in
+    # the intent popover BEFORE saving; this echo is the service-level
+    # contract the tests pin (test_rating), not something the GUI renders.
     resnapped_matches: int | None = None
 
 

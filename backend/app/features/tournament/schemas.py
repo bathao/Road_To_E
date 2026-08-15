@@ -59,6 +59,16 @@ class EntryOut(BaseModel):
     # default: won a knockout round → next round pre-picked, across days.
     latest_round: str | None = None
     latest_round_won: bool | None = None
+    # Knocked out mid-event (user button): no more matches to enter for this
+    # entry — the grid highlight / editor tournament mode skip it; every
+    # entry marked retires the whole tournament to the Profile record.
+    eliminated: bool = False
+
+
+class EntryEliminatedIn(BaseModel):
+    """PATCH body for the knocked-out toggle (false = un-mark a mis-click)."""
+
+    eliminated: bool
 
 
 class TournamentOut(BaseModel):
