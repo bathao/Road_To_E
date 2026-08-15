@@ -1090,6 +1090,153 @@ export interface paths {
         patch: operations["set_entry_eliminated_api_tournaments_entries__entry_id__patch"];
         trace?: never;
     };
+    "/api/tactics/opponents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Opponents
+         * @description Everyone the user has played against, most matches first — the picker.
+         *     (H2H match detail reuses GET /api/tracker/players/{id}/matches.)
+         */
+        get: operations["list_opponents_api_tactics_opponents_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tactics/facts/{player_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Facts
+         * @description Both scouting lists for one matchup: facts about ME (global) + about
+         *     this opponent.
+         */
+        get: operations["get_facts_api_tactics_facts__player_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tactics/facts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Fact */
+        post: operations["add_fact_api_tactics_facts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tactics/facts/{fact_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Fact */
+        put: operations["update_fact_api_tactics_facts__fact_id__put"];
+        post?: never;
+        /** Delete Fact */
+        delete: operations["delete_fact_api_tactics_facts__fact_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tactics/interview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Interview
+         * @description The coach reads everything known about this matchup and asks ONLY for
+         *     what's missing (max 5 questions). Synchronous — the local LLM call takes
+         *     a moment; the button shows a spinner.
+         */
+        post: operations["interview_api_tactics_interview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tactics/interview/answers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save Answers
+         * @description Answered questions become scouting facts ('me' answers are global —
+         *     never re-asked). Blank answers are skipped. Returns the refreshed lists.
+         */
+        post: operations["save_answers_api_tactics_interview_answers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tactics/plan/{player_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Plan
+         * @description The newest plan for this opponent (poll while status=`generating`);
+         *     status=`empty` when none was ever generated.
+         */
+        get: operations["get_plan_api_tactics_plan__player_id__get"];
+        put?: never;
+        /**
+         * Generate Plan
+         * @description Start generating a game plan on a background task (slow: local LLM).
+         *     Returns status=`generating`; poll GET /plan/{player_id}. 409 while one
+         *     is already running for this opponent.
+         */
+        post: operations["generate_plan_api_tactics_plan__player_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -1179,6 +1326,34 @@ export interface components {
             is_package_start: boolean;
             /** Coach Id */
             coach_id?: number | null;
+        };
+        /** AnswerIn */
+        AnswerIn: {
+            /**
+             * Subject
+             * @enum {string}
+             */
+            subject: "me" | "opponent";
+            /**
+             * Kind
+             * @default note
+             * @enum {string}
+             */
+            kind: "strength" | "weakness" | "style" | "note";
+            /** Question */
+            question: string;
+            /** Answer */
+            answer: string;
+        };
+        /** AnswersIn */
+        AnswersIn: {
+            /** Player Id */
+            player_id: number;
+            /**
+             * Items
+             * @default []
+             */
+            items: components["schemas"]["AnswerIn"][];
         };
         /** AssessmentOut */
         AssessmentOut: {
@@ -1681,6 +1856,57 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** FactIn */
+        FactIn: {
+            /** Player Id */
+            player_id?: number | null;
+            /**
+             * Kind
+             * @default note
+             * @enum {string}
+             */
+            kind: "strength" | "weakness" | "style" | "note";
+            /** Text */
+            text: string;
+        };
+        /** FactOut */
+        FactOut: {
+            /** Id */
+            id: number;
+            /** Player Id */
+            player_id?: number | null;
+            /** Kind */
+            kind: string;
+            /** Text */
+            text: string;
+            /** Source */
+            source: string;
+            /** Created At */
+            created_at?: string | null;
+        };
+        /** FactUpdate */
+        FactUpdate: {
+            /** Kind */
+            kind?: ("strength" | "weakness" | "style" | "note") | null;
+            /** Text */
+            text?: string | null;
+        };
+        /**
+         * FactsOut
+         * @description The two scouting lists the tab shows side by side.
+         */
+        FactsOut: {
+            /**
+             * Me
+             * @default []
+             */
+            me: components["schemas"]["FactOut"][];
+            /**
+             * Opponent
+             * @default []
+             */
+            opponent: components["schemas"]["FactOut"][];
+        };
         /**
          * GenerateStatusOut
          * @description State of the most recent generation attempt (polled by the GUI).
@@ -1700,6 +1926,37 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** InterviewIn */
+        InterviewIn: {
+            /** Player Id */
+            player_id: number;
+        };
+        /** InterviewOut */
+        InterviewOut: {
+            /** Model */
+            model: string;
+            /**
+             * Questions
+             * @default []
+             */
+            questions: components["schemas"]["InterviewQuestion"][];
+        };
+        /** InterviewQuestion */
+        InterviewQuestion: {
+            /**
+             * Subject
+             * @enum {string}
+             */
+            subject: "me" | "opponent";
+            /**
+             * Kind
+             * @default note
+             * @enum {string}
+             */
+            kind: "strength" | "weakness" | "style" | "note";
+            /** Question */
+            question: string;
         };
         /** ItemAlt */
         ItemAlt: {
@@ -2180,6 +2437,14 @@ export interface components {
              */
             notes: components["schemas"]["NoteOut"][];
         };
+        /** OkOut */
+        OkOut: {
+            /**
+             * Ok
+             * @default true
+             */
+            ok: boolean;
+        };
         /**
          * OllamaModelPs
          * @description One model currently loaded by Ollama (GPU/VRAM occupancy).
@@ -2231,6 +2496,40 @@ export interface components {
              * @default false
              */
             is_new: boolean;
+        };
+        /**
+         * OpponentOut
+         * @description One person the user has actually PLAYED AGAINST (any opposing slot).
+         */
+        OpponentOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Points */
+            points?: number | null;
+            /**
+             * Plays Pips
+             * @default false
+             */
+            plays_pips: boolean;
+            /**
+             * Matches Vs
+             * @default 0
+             */
+            matches_vs: number;
+            /**
+             * Wins
+             * @default 0
+             */
+            wins: number;
+            /**
+             * Losses
+             * @default 0
+             */
+            losses: number;
+            /** Last Vs */
+            last_vs?: string | null;
         };
         /** OpponentRecord */
         OpponentRecord: {
@@ -2313,6 +2612,68 @@ export interface components {
              * @default
              */
             detail: string;
+        };
+        /** PlanOut */
+        PlanOut: {
+            /**
+             * Id
+             * @default 0
+             */
+            id: number;
+            /** Created At */
+            created_at?: string | null;
+            /**
+             * Player Id
+             * @default 0
+             */
+            player_id: number;
+            /**
+             * Model
+             * @default
+             */
+            model: string;
+            /**
+             * Status
+             * @default empty
+             */
+            status: string;
+            /** Error Msg */
+            error_msg?: string | null;
+            /**
+             * Headline
+             * @default
+             */
+            headline: string;
+            /**
+             * Overall
+             * @default
+             */
+            overall: string;
+            /**
+             * Serve Receive
+             * @default []
+             */
+            serve_receive: string[];
+            /**
+             * Rally
+             * @default []
+             */
+            rally: string[];
+            /**
+             * Avoid
+             * @default []
+             */
+            avoid: string[];
+            /**
+             * Mental
+             * @default []
+             */
+            mental: string[];
+            /**
+             * Data Gaps
+             * @default []
+             */
+            data_gaps: string[];
         };
         /**
          * PlayerDbRow
@@ -4965,6 +5326,284 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TournamentsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_opponents_api_tactics_opponents_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpponentOut"][];
+                };
+            };
+        };
+    };
+    get_facts_api_tactics_facts__player_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                player_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FactsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_fact_api_tactics_facts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FactIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FactOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_fact_api_tactics_facts__fact_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                fact_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FactUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FactOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_fact_api_tactics_facts__fact_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                fact_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    interview_api_tactics_interview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InterviewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_answers_api_tactics_interview_answers_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnswersIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FactsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_plan_api_tactics_plan__player_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                player_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_plan_api_tactics_plan__player_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                player_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanOut"];
                 };
             };
             /** @description Validation Error */

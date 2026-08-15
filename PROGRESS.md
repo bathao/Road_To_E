@@ -1,6 +1,97 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-08-15, latest) — Coach roster: pick Minh Thới / Phi Vũ per session (committed `4adfeb3`)
+## Current status (2026-08-15, latest) — NEW TAB "Singles Tactics" (Chiến Thuật): per-opponent scouting + AI game plans (built, uncommitted)
+
+> **Singles Tactics tab (user request 2026-08-15, plan + charts OK'd; two
+> same-day follow-ups: tile "Latest kèo" → "Latest handicap" (GUI must be
+> English) and SINGLES ONLY — doubles/1v2/2v1 excluded from the picker, the
+> H2H, the charts and the prompts, tab renamed accordingly; needs start.bat
+> restart):** pick an opponent → head-to-head → scouting facts → coach
+> interview → generated game plan to beat exactly that person. The 2026-07
+> "Tactical Playbook" tab is unrelated (its retired playbook_tactic table
+> stays untouched; new tables are tactic_fact / tactic_plan). Real-DB
+> singles-only counts: 49 opponents (was 110 with doubles), top Trần Quang
+> Vinh 14 trận đơn 5W-9L.
+>   - **Backend `tactics` feature** (new tables → zero migration; wired in
+>     registry):
+>     - `tactic_fact`: player_id NULL = about ME — the never-re-ask store
+>       (user requirement: own strengths/weaknesses are asked ONCE, reused
+>       for every opponent); else about that opponent. kind strength/
+>       weakness/style/note, source user/interview.
+>     - `tactic_plan`: one row per generation, same generating→done|error +
+>       polling + startup-recovery contract as the coach verdict.
+>     - Endpoints: GET /tactics/opponents (people actually PLAYED AGAINST,
+>       opposing slots only — partners excluded; most matches first), facts
+>       GET per matchup (me + opponent lists) + POST/PUT/DELETE, POST
+>       /interview (SYNC structured-output call — max 5 questions), POST
+>       /interview/answers (answers become "Q — A" facts verbatim; 'me'
+>       answers global; blanks skipped), GET/POST /plan/{player_id} (409
+>       in-flight guard per opponent). H2H detail deliberately reuses
+>       GET /tracker/players/{id}/matches — no new endpoint.
+>     - Prompts (tactics/prompt.py): same persona (anh/tôi, strict) via
+>       reused head_coach plumbing (_ollama_chat/resolve_model/_hdc_vi/
+>       coach notebook). Interview prompt: cấm hỏi lại facts đã lưu. Plan
+>       prompt: kèo-aware reading (compare same-handicap only, MẪU NHỎ
+>       rule), sections serve_receive/rally/avoid/mental + data_gaps (what
+>       the coach still lacks → feeds the next interview round). Context
+>       block: opponent points/pips/note, my ELO, full h2h (per-kèo W-L
+>       summary + last 30 lines old→new), both fact files, coach notebook.
+>   - **FE tab** (registry: 🎯 "Singles Tactics"; styles/tactics.css):
+>     opponent `<select>` ("name · N matches (W–L)"), H2H section = 4 stat
+>     tiles (record, win rate, streak, latest kèo) + 2 charts + collapsible
+>     MatchRowList (reused). Scouting = two FactsPanel columns (me = global
+>     with "never re-asks" hint; opponent) with add/inline-edit/delete +
+>     kind chips; 🎤 Interview button (sync spinner) → question form →
+>     answers saved as facts. PlanSection polls 3s while generating,
+>     renders headline/overall/4 cards + data-gaps callout, Regenerate.
+>   - **Charts (dataviz-checked, small-sample honest):** MarginTimeline —
+>     one thin rounded bar per decided match old→new, y = set margin ±3,
+>     W up green / L down red (app W/L status colors, not a new palette),
+>     dashed marker + label at each kèo change (scores only compare within
+>     one kèo), per-bar <title> tooltip; HandicapBars — div-based W/L
+>     counts per kèo, counts written out (no % on tiny n), first-seen
+>     order. Both hide under 3 decided matches; single-kèo history skips
+>     the bars (tiles already say it). No pie, no dual axis, no ELO curve
+>     (Profile owns it).
+>   - **Deliberate scope cuts:** no second chat (Head Coach tab has THE
+>     chat); me-facts not yet injected into the weekly verdict bundle
+>     (phase 2 if wanted); interview is a sync call (small output — no job
+>     row); no coach-notebook writes from this tab.
+>   - Tests +8 (145 total, test_tactics.py): opponents list singles-only
+>     (doubles + partner-only excluded, sort), h2h context excludes
+>     non-singles, facts CRUD + split + blank guards, answers→facts (me
+>     global + cross-opponent visible, blanks skipped), context builder
+>     (h2h counts, per-kèo, facts, never-re-ask line), interview parse/
+>     cap/malformed-drop (mocked LLM), plan job lifecycle (empty→
+>     generating→done, 409, empty-output→error, sources frozen),
+>     stuck-plan recovery. Real-DB smoke after the singles-only rework:
+>     49 opponents (was 110 with doubles), top Trần Quang Vinh 14 trận
+>     đơn 5W-9L, context correct. LIVE LLM calls not smoke-tested (needs
+>     Ollama up) — user tests in-app. gen:api + tsc + vite build clean.
+>   - **Same-day follow-ups (user requests 2026-08-15):**
+>     - **H2H time-range picker**: the Profile tab's RangePicker (Last
+>       7/28/90/365 days, Lifetime, years, months, Custom) reused verbatim
+>       in the Head-to-head header; tiles, both charts and the match list
+>       all filter to the range ("X of Y singles matches in range").
+>       Default = Lifetime (NOT Profile's last28 — small rivalries would
+>       open on empty tiles); preset sticks across opponent switches.
+>     - **Tab order**: Daily Tracker → Profile → Coach → Singles Tactics
+>       → Training Center → Database → Motivation.
+>     - **Post-tab cleanup pass**: MarginTimeline kèo-change labels now
+>       lay out greedily on two staggered rows (adjacent kèo switches
+>       overprinted — visible in user screenshot; a label that fits
+>       neither row keeps the dashed line + tooltip and skips the text);
+>       streak loop simplified (invariant hoisted); unused KIND_LABEL
+>       export dropped; two stale "any opposing slot" docstrings fixed
+>       to singles-only. tac-kind-* CSS confirmed used (dynamic class).
+>     - **Data fix (user: "làm j có receive 1 với Nguyễn Văn Trung")**:
+>       match id 255 (2026-07-22, loss 1-3 vs Nguyễn Văn Trung) had
+>       handicap -1/pattern NULL → rendered "receive 1"; fixed to even
+>       via PUT on the live API. Kèo groups now even 6 / 2-0-2 ×2 /
+>       0-2-0 ×1. No ELO impact (match predates the 2026-07-27 anchor,
+>       elo_status before_anchor; rating unchanged 961, 84 counted).
+
+## Previous status (2026-08-15, earlier same day) — Coach roster: pick Minh Thới / Phi Vũ per session (committed `4adfeb3`)
 
 > **Coach picker (user request 2026-08-15, plan OK'd, built same day; needs
 > start.bat restart):** the package coach is Minh Thới, Phi Vũ is paid per

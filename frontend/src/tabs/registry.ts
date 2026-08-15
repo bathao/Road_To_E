@@ -5,6 +5,7 @@ import ComingSoon from "./ComingSoon";
 import DailyTracker from "./daily-tracker";
 import DatabaseTab from "./database";
 import MatchStats from "./match-stats";
+import Tactics from "./tactics";
 import TrainingCenter from "./training-center";
 import HeadCoach from "./head-coach";
 
@@ -25,13 +26,6 @@ export const TABS: TabDef[] = [
     enabled: true,
   },
   {
-    id: "head-coach",
-    label: "Coach",
-    icon: "🧠",
-    component: HeadCoach,
-    enabled: true,
-  },
-  {
     // The old standalone Profile tab was merged in here 2026-07-30: general
     // info on top, match stats in the middle, training cards at the bottom.
     // The folder keeps its match-stats name; only the label/icon changed.
@@ -39,6 +33,22 @@ export const TABS: TabDef[] = [
     label: "Profile",
     icon: "🪪",
     component: MatchStats,
+    enabled: true,
+  },
+  {
+    id: "head-coach",
+    label: "Coach",
+    icon: "🧠",
+    component: HeadCoach,
+    enabled: true,
+  },
+  {
+    // "Chiến Thuật" — per-opponent SINGLES scouting + AI game plans
+    // (2026-08-15; doubles/1v2/2v1 deliberately out of scope).
+    id: "tactics",
+    label: "Singles Tactics",
+    icon: "🎯",
+    component: Tactics,
     enabled: true,
   },
   {
