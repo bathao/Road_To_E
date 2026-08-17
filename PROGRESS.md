@@ -1,6 +1,6 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-08-17, latest) — Tactics "My analysis": post-match reflections feed the plan loop (committed `84138da`, with the intake batch + kèo fix)
+## Current status (2026-08-17, latest) — Tactics "My analysis": post-match reflections feed the plan loop (committed `84138da`; same-day batch 2 `3f05f30`)
 
 > **Reflections (user request 2026-08-17, plan OK'd; needs start.bat
 > restart; driver: first LIVE plan ran today — vs Nguyễn Văn Trung,
@@ -47,8 +47,7 @@
 >     handicap; '2-0-2' ≠ '2', much lighter; never shorten, never merge
 >     results across chains) and the plan prompt a KÈO CHUỖI rule (quote
 >     the full chain verbatim). Asserted in tests (149 still, context test
->     now builds a 2-0-2 group and checks it stays verbatim). UNCOMMITTED
->     (after `84138da`) — commit on the user's word as usual.
+>     now builds a 2-0-2 group and checks it stays verbatim). In `3f05f30`.
 >   - **Same-day feature — coach auto-files me-facts from analysis notes
 >     (user 2026-08-17: "coach tự đọc, tự phân tích, lọc ra, lưu lại thành
 >     thông tin chung" — explicitly wants AUTO-save, overriding the
@@ -66,12 +65,12 @@
 >     extraction saves/dedupes/drops blanks, prompt carries the note + the
 >     existing me-file, nothing lands opponent-side, LLM failure leaves
 >     note + me-file intact. pytest 150/150 + gen:api + tsc + vite build
->     clean. Still UNCOMMITTED together with fix #2.
+>     clean. In `3f05f30`.
 >   - **Same-day tweak — H2H default range = Last 28 days (user
 >     2026-08-17, supersedes the 2026-08-15 Lifetime default):** recent
 >     form matters most for tactics. One-line preset change; the picker
 >     still remembers whatever the user switches to across opponents.
->     Build clean. UNCOMMITTED with the rest.
+>     Build clean. In `3f05f30`.
 >   - **Same-day fix #3 — interview subject mis-tagged (user caught it:
 >     "điểm yếu tâm lý CỦA ANH..." and a serve question answered "TÔI giao
 >     bóng kém" were tagged 'opponent' → answers filed into Văn Trung's
@@ -86,7 +85,7 @@
 >     "About me ↔ <opponent>" toggle (model's tag preselected, click to
 >     correct before saving) — the human answering is the last line of
 >     defense against a 9B mislabel. Prompt rules pinned in tests
->     (150/150), tsc + vite build clean. UNCOMMITTED with the rest.
+>     (150/150), tsc + vite build clean. In `3f05f30`.
 >   - **Same-day feature — points-capped tournaments (user 2026-08-17,
 >     plan OK'd: besides rank letters there are "giải 1100/1200/1300
 >     điểm", Open = no limit at all):** `tournament.points_limit` INTEGER
@@ -98,8 +97,7 @@
 >     strip show a "≤ 1300 pts" chip next to the Level chip; the coach's
 >     tournament line appends "Giới hạn điểm: ≤1300 điểm BBTV." Tests +1
 >     (151 total): roundtrip/clear/coexist + coach view + schema guard.
->     pytest 151/151 + gen:api + tsc + vite build clean. UNCOMMITTED with
->     the rest.
+>     pytest 151/151 + gen:api + tsc + vite build clean. In `3f05f30`.
 >     - Follow-up (user: "ko tạo nội dung OPEN được — OPEN là không giới
 >       hạn điểm, ai đánh cũng được"): the points row now carries its own
 >       Open chip — the Open class belongs to the points-tier ladder
