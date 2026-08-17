@@ -32,7 +32,28 @@ class TacticFact(Base):
     # strength | weakness | style | note
     kind: Mapped[str] = mapped_column(String, default="note")
     text: Mapped[str] = mapped_column(Text)
-    source: Mapped[str] = mapped_column(String, default="user")  # user | interview
+    source: Mapped[str] = mapped_column(String, default="user")  # user | interview | intake
+    # Canonical intake-question slot ('grip', 'style', …). NULL = free-form
+    # fact. One row per (player_id, key): the intake form upserts, and the
+    # GUI shows an intake question only while its key has no row — that is
+    # the "ask once, only fill what's missing" contract (user 2026-08-17).
+    key: Mapped[str | None] = mapped_column(String, default=None, index=True)
+
+
+class TacticReflection(Base):
+    """The student's own post-match read on ONE opponent (2026-08-17).
+    Deliberately separate from facts: a fact is a settled one-line
+    conclusion, a reflection is dated free-form SUBJECTIVE analysis the
+    coach must cross-check against the H2H data (and newer reflections
+    override older ones). The iterate loop: write a reflection →
+    regenerate the plan → answer its data_gaps → repeat."""
+
+    __tablename__ = "tactic_reflection"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow, index=True)
+    player_id: Mapped[int] = mapped_column(Integer, index=True)
+    text: Mapped[str] = mapped_column(Text)
 
 
 class TacticPlan(Base):

@@ -29,6 +29,9 @@ class FactIn(BaseModel):
     player_id: int | None = None
     kind: FactKind = "note"
     text: str = Field(min_length=1, max_length=2000)
+    # Canonical intake slot ('grip', 'style', …). When set, the POST upserts
+    # on (player_id, key) — answering an intake question twice edits the row.
+    key: str | None = Field(default=None, max_length=40)
 
     @field_validator("text")
     @classmethod
@@ -51,6 +54,7 @@ class FactOut(BaseModel):
     kind: str
     text: str
     source: str
+    key: str | None = None
     created_at: dt.datetime | None = None
 
 
@@ -65,6 +69,35 @@ class OkOut(BaseModel):
     # Deletes return this instead of 204: an empty body reads as `undefined`
     # in the FE api client, which is also useMutate's failure sentinel.
     ok: bool = True
+
+
+# ------------------------------------------------------------------ reflections
+class ReflectionIn(BaseModel):
+    """One post-match analysis note by the student about one opponent —
+    free-form and subjective (the prompts cross-check it against the data)."""
+
+    player_id: int
+    text: str = Field(min_length=1, max_length=8000)
+
+    @field_validator("text")
+    @classmethod
+    def _text_not_blank(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Reflection text cannot be empty.")
+        return v
+
+
+class ReflectionUpdate(BaseModel):
+    text: str = Field(min_length=1, max_length=8000)
+
+
+class ReflectionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    player_id: int
+    text: str
+    created_at: dt.datetime | None = None
 
 
 # ------------------------------------------------------------------- interview

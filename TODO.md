@@ -63,6 +63,13 @@ scannable. Last full sync: 2026-07-29.
   script). If this keeps happening, add a small "re-freeze points on this
   match" affordance instead of hand-editing.
 
+- [x] First LIVE run of the Singles Tactics tab — DONE 2026-08-17 (plan vs
+  Nguyễn Văn Trung: placement scheme, kèo-aware mental keys and data_gaps
+  all sane; screenshot-verified).
+- [ ] First plan generated AFTER a "My analysis" reflection (2026-08-17) →
+  check the coach actually synthesizes the note and calls out any
+  reflection-vs-data contradiction in 'overall'.
+
 - [ ] First tournament entered via the Daily Tracker → check the coach
   bundle's "đánh giải" split and the t=1.5 delta look sane.
 - [ ] First real Coach & Recap entries (advice + ticking done) → check the

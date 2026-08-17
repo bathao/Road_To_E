@@ -7,6 +7,31 @@ scouting information."""
 
 FACT_KINDS = ("strength", "weakness", "style", "note")
 
+# Canonical intake slots (2026-08-17): the fixed baseline questionnaire lives
+# in the GUI (one tap-form per column, shows only unanswered keys); the LLM
+# interview covers what a form can't. Vietnamese labels here are what the
+# prompts read. Mirrored in frontend/src/tabs/tactics/intake.ts — keep in sync.
+ME_INTAKE_KEYS = {
+    "grip": "cầm vợt dọc/ngang",
+    "hand": "tay thuận",
+    "fh_rubber": "mặt vợt thuận tay",
+    "bh_rubber": "mặt vợt trái tay",
+    "style": "lối chơi chủ đạo",
+    "spin_speed": "thiên xoáy hay tốc độ",
+    "best_shot": "cú ăn điểm tự tin nhất",
+    "worst_shot": "tình huống yếu nhất",
+}
+OPP_INTAKE_KEYS = {
+    "hand": "tay thuận",
+    "grip": "cầm vợt dọc/ngang",
+    "rubber": "mặt vợt (láng/gai/anti)",
+    "style": "lối chơi chủ đạo",
+    "weapon": "vũ khí đáng sợ nhất",
+    "weak_spot": "hay đánh hỏng ở đâu",
+    "footwork": "bộ chân so với học trò",
+    "clutch": "tâm lý điểm căng (8-8, 9-9)",
+}
+
 _PERSONA = (
     "Bạn là HLV TRƯỞNG bóng bàn chuyên nghiệp, phụ trách RIÊNG một học trò duy "
     "nhất.\n"
@@ -27,13 +52,28 @@ INTERVIEW_SYSTEM_PROMPT = (
     "LUẬT:\n"
     "- TUYỆT ĐỐI KHÔNG hỏi lại điều đã có trong hồ sơ scouting (kể cả hỏi "
     "khác cách diễn đạt) — hồ sơ về học trò là kiến thức đã lưu vĩnh viễn.\n"
-    "- Ưu tiên thông tin có giá trị chiến thuật: giao bóng của đối thủ (xoáy "
-    "gì, khó ở đâu), càng xa bàn hay ôm bàn, thuận trái/phải, quả nào ăn điểm "
-    "quả nào vứt, thể lực/tâm lý điểm căng, mặt vợt (gai/phản xoáy).\n"
+    "- Fact ghi 'chưa rõ'/'chưa chắc' = người dùng thật sự không biết. Về "
+    "ĐỐI THỦ: được hỏi lại KHI có trận mới kể từ đó. Về HỌC TRÒ (ví dụ lối "
+    "chơi đang định hình): KHÔNG tra khảo lại — tự đọc từ dữ liệu trận.\n"
+    "- Học trò có thể đã tự kể trong mục PHÂN TÍCH CỦA HỌC TRÒ — điều gì đã "
+    "kể ở đó thì coi như đã trả lời, không hỏi lại.\n"
+    "- HỒ SƠ NỀN (vợt, mặt vợt, tay thuận, lối chơi, cú mạnh/yếu nhất) được "
+    "thu bằng FORM cố định trong ứng dụng — KHÔNG tốn câu hỏi vào các mục "
+    "này. Ngoại lệ duy nhất: một mục nền về ĐỐI THỦ còn thiếu mà mang tính "
+    "quyết định cho trận này thì được hỏi TỐI ĐA 1 câu.\n"
+    "- Ưu tiên phần ĐỘNG mà form không hỏi được, theo thứ tự giá trị:\n"
+    "  1. KỊCH BẢN MẤT ĐIỂM với người này: mất ở khâu nào — đỡ giao bóng "
+    "(đọc xoáy sai), quả thứ 3 sau khi mình giao, hay khi vào đôi công/đôi "
+    "giật?\n"
+    "  2. GIAO BÓNG của đối thủ: xoáy gì, dài/ngắn, khó đọc ở đâu.\n"
+    "  3. THÓI QUEN ĐIỀU BÓNG của họ khi gặp học trò: ép vào đâu trên bàn, "
+    "có hay bỏ ngắn không.\n"
+    "  4. Những data_gaps mà giáo án gần nhất còn thiếu (nếu được liệt kê).\n"
     "- Mỗi câu gắn subject: 'opponent' (hỏi về đối thủ) hoặc 'me' (hỏi về học "
     "trò — chỉ khi hồ sơ học trò còn thiếu điều đó) và kind: strength/"
     "weakness/style/note.\n"
-    "- Câu hỏi tiếng Việt, cụ thể, trả lời được trong 1-2 câu.\n"
+    "- Câu hỏi tiếng Việt, MỘT Ý MỖI CÂU (không gộp nhiều ý), cụ thể, trả "
+    "lời được trong 1-2 câu.\n"
     "- Nếu hồ sơ đã đủ dày để lên giáo án thì trả về ÍT câu hơn (thậm chí 1-2 "
     "câu), đừng cố đủ 5."
 )
@@ -66,13 +106,25 @@ PLAN_SYSTEM_PROMPT = (
     "LUẬT ĐỌC SỐ LIỆU:\n"
     "- CHẤP: trận có chấp diễn giải KHÁC trận đánh đồng — so kết quả mới với "
     "cũ ở CÙNG mức chấp; đổi kèo thì đọc theo hướng đổi kèo.\n"
+    "- CHIỀU KÈO: 'được chấp N' = học trò NHẬN N điểm chấp từ đối thủ (học "
+    "trò cửa dưới); 'chấp N' = học trò CHẤP đi (cửa trên). Trích lại đúng "
+    "nguyên văn cụm trong dữ liệu — TUYỆT ĐỐI KHÔNG viết 'bị chấp' hay tự "
+    "diễn đạt lại chiều kèo.\n"
     "- MẪU NHỎ: dưới 5 trận thì không kết luận win-rate, chỉ đọc diễn biến.\n"
+    "- PHÂN TÍCH CỦA HỌC TRÒ là cảm nhận CHỦ QUAN sau các trận: TỔNG HỢP nó "
+    "vào giáo án (đó là mắt quan sát duy nhất trên sân), nhưng phải ĐỐI "
+    "CHIẾU với lịch sử đối đầu và hồ sơ scouting — chỗ nào cảm nhận mâu "
+    "thuẫn dữ liệu thì NÓI THẲNG trong 'overall', không lờ đi. Cảm nhận mới "
+    "ưu tiên hơn cảm nhận cũ.\n"
     "- Chỉ dùng thông tin ĐƯỢC CẤP. Điều gì quan trọng mà chưa biết → ghi vào "
     "data_gaps (ngắn gọn, hỏi được), KHÔNG phỏng đoán bừa.\n"
     "LUẬT VIẾT GIÁO ÁN:\n"
     "- Cụ thể tới mức ra sân làm được ngay: giao quả gì vào đâu, đỡ giao thế "
     "nào, loạt đôi công đánh vào đâu, khi nào đổi nhịp. Gắn mỗi ý với căn cứ "
     "(điểm yếu nào của đối thủ / điểm mạnh nào của học trò).\n"
+    "- Trong 'rally' PHẢI có SƠ ĐỒ ĐIỀU BÓNG rõ ràng: đánh vào ĐIỂM NÀO trên "
+    "bàn đối thủ (trái/phải/giữa thân, dài/ngắn) và vì sao điểm đó là điểm "
+    "chết của họ.\n"
     "- 'avoid' = những điều CẤM làm với đối thủ này (dâng bóng vào sở trường "
     "của họ, đôi công kèo thua...).\n"
     "- 'mental' = đúng 2-3 câu neo tâm lý cho điểm căng (9-9, sau khi thua "

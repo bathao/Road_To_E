@@ -1,6 +1,131 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-08-15, latest) — NEW TAB "Singles Tactics" (Chiến Thuật): per-opponent scouting + AI game plans (committed `6d8531d`)
+## Current status (2026-08-17, latest) — Tactics "My analysis": post-match reflections feed the plan loop (built)
+
+> **Reflections (user request 2026-08-17, plan OK'd; needs start.bat
+> restart; driver: first LIVE plan ran today — vs Nguyễn Văn Trung,
+> screenshot-verified, placement scheme + data_gaps all working — and the
+> user wanted a place for their OWN read of the matches, coach
+> synthesizes, regenerate, repeat):** new per-opponent notes the coach
+> must treat as SUBJECTIVE input — deliberately NOT facts (facts = settled
+> one-line conclusions; reflections = dated free-form analysis, newest
+> overrides oldest).
+>   - **Data:** NEW table `tactic_reflection` (id, player_id, created_at,
+>     text ≤8000) — create_all, zero migration. Full CRUD under
+>     /api/tactics/reflections (list newest-first, POST 404s on unknown
+>     player, PUT blank-guards, DELETE).
+>   - **Prompt (shared context → both interview & plan see it):** new
+>     section "PHÂN TÍCH CỦA HỌC TRÒ SAU CÁC TRẬN VỚI X (mới nhất trước —
+>     CHỦ QUAN, phải đối chiếu với dữ liệu)" with [date] lines. Plan rule:
+>     synthesize it (the student is the only eye on the table) BUT
+>     cross-check vs h2h + scouting — contradictions must be called out in
+>     'overall', never glossed; newer beats older. Interview rule: what's
+>     told in reflections counts as answered — no re-asking.
+>   - **FE:** section "📝 My analysis" between Scouting and Game plan:
+>     textarea + Add note, dated list (newest first) with inline edit /
+>     delete. Full loop now: play → write reflection → Regenerate →
+>     coach answers + data_gaps → 🎤 Interview or more notes → repeat.
+>   - Tests +2 (149 total): reflections CRUD (newest-first, per-opponent
+>     isolation, blank/404 guards) and context/prompt wiring (section +
+>     empty placeholder, newest-first order, cross-check rule in plan
+>     prompt, no-re-ask rule in interview prompt). pytest 149/149 +
+>     gen:api + tsc + vite build clean.
+>   - **Same-day fix — kèo direction misread (user caught it in the live
+>     plan: "thắng được ngay cả khi BỊ chấp" where the data said 'được
+>     chấp' = receiving):** the model rephrased the handicap direction and
+>     flipped it. Context now carries a CHÚ GIẢI KÈO legend under the H2H
+>     header ('được chấp N' = opponent spots the STUDENT N points, cửa
+>     dưới; 'chấp N' = the student spots; 'đồng' = even — use these exact
+>     phrases) and the plan prompt gets a CHIỀU KÈO rule: quote the data's
+>     wording verbatim, 'bị chấp' is BANNED. Asserted in tests (149 still).
+
+## Previous status (2026-08-17, earlier same day) — Tactics structured intake: fixed baseline forms + narrowed LLM interview (built)
+
+> **Structured intake rework (user request 2026-08-17, plan OK'd; needs
+> start.bat restart):** the user brought a 4-group scouting-question
+> framework (self / opponent / h2h history / physique & mental); the
+> critique pass cut what the DB already knows (h2h scores, kèo — never ask
+> the user what the machine has) and what a form does better than an LLM.
+> Result: FIXED intake forms collect the stable baseline ONCE; the LLM
+> interview keeps its 5-question cap but only for the dynamic stuff.
+> Me-questions are asked exactly once ever — the card only ever shows
+> still-missing items (explicit user requirement).
+>   - **Data:** `tactic_fact.key` VARCHAR ALTER-added (nullable; canonical
+>     intake slot like 'grip'; free-form facts stay key-less). New source
+>     value `intake` (📋 icon next to 🎤). POST /tactics/facts with a key
+>     UPSERTS on (player_id, key) — re-answering edits in place, no dupes;
+>     me vs opponent vs other-opponent same-key rows never collide.
+>   - **Catalogs (BE prompt.py ME_INTAKE_KEYS/OPP_INTAKE_KEYS ↔ FE
+>     intake.ts — mirrored, keep in sync):** me = grip, hand, FH/BH rubber,
+>     style, spin-or-speed (tap chips) + best shot, weakest situation
+>     (text). Opponent = hand, grip, rubber, style, footwork-vs-mine,
+>     clutch at 8-8/9-9 (chips) + scariest weapon, where they miss (text).
+>     Chips show English (GUI rule); the stored fact text carries a
+>     Vietnamese gloss for the model ("Grip: Shakehand (vợt ngang)").
+>   - **FE:** IntakeCard ("📋 Profile questions", N/M answered) renders
+>     only missing keys inside each FactsPanel column; chips save on tap,
+>     text saves on Enter/＋; card gone at M/M; deleting an intake fact
+>     brings that one question back. FactsPanel gained an `intake` slot.
+>   - **Interview narrowed (prompt):** baseline is form territory — the LLM
+>     must NOT spend questions on it (exception: max 1 match-deciding
+>     opponent-baseline item). Priority list: (1) loss scenario — which
+>     phase (receive / 3rd ball / rally), (2) their serve (spin, length,
+>     what's unreadable), (3) their placement habits vs me, (4) data_gaps
+>     from the latest done plan (NEW: fed into the interview user-text
+>     along with the still-missing form slots). One idea per question.
+>   - **Plan prompt:** rally section now must contain an explicit placement
+>     scheme (sơ đồ điều bóng — where on their table and why it's the dead
+>     spot).
+>   - Tests +2 (147 total): keyed upsert (id-stable edit, no cross-talk
+>     me/rival/other, free-form still appends) and interview extras
+>     (missing lists shrink as slots fill; plan data_gaps ride the next
+>     interview; no-gaps block absent without a plan). pytest 147/147 +
+>     gen:api + tsc + vite build clean. Real-DB smoke ON A COPY: ALTER adds
+>     `key`, upsert works, extras render vs Trần Quang Vinh (top rival,
+>     14 trận 5W-9L). LIVE LLM runs still untested (needs Ollama up) —
+>     the whole tab's first live test is still pending, now with intake.
+>   - **Same-day follow-up — "Not sure…" answers (user 2026-08-17: own
+>     style/spin-or-speed still forming, can't answer; opponents may be
+>     under-observed; user mis-picked a style and wanted it gone — turned
+>     out already deleted in the GUI, nothing to remove):** `unsure` items
+>     (me: style, spin-or-speed; opponent: every chip question — own
+>     equipment stays definite, you know your racket) get a muted
+>     "Not sure…" chip → the choices re-offer as "Leaning: ≈X" plus
+>     "No idea". Saves "Label: leaning X — not sure yet (hơi thiên …, chưa
+>     chắc)" / "Label: not sure yet (chưa rõ)" — the slot fills (the form
+>     must not nag someone who genuinely doesn't know; card still
+>     disappears) and stays hand-editable like any fact. Interview prompt
+>     rule added: 'chưa rõ' facts about the OPPONENT may be re-asked once
+>     new matches exist; about the STUDENT never re-interrogated — the
+>     coach reads style from match data instead. Build + 147 tests clean
+>     (no BE logic change — texts are FE-composed, prompt line is static).
+
+## Previous status (2026-08-16) — status check: SGPP over (knocked out day 1), first real Recap generated
+
+> **Status check 2026-08-16:** no code change today — everything through the
+> Singles Tactics tab is committed (`6d8531d`, PROGRESS `7f9c1d3`); the only
+> working-tree change is the DB (user data, uncommitted as usual). What the
+> DB shows since the commit:
+>   - **SGPP (15–16/08, team "TMSKY") is over after day 1:** the 2 group
+>     doubles matches are in (0-3 vs Nhuệ Minh + Trung; 2-3 at kèo 0-2-0 vs
+>     Minh Triết Gia Định + Thiên Ân Gia Định), entry marked ☠ eliminated —
+>     the card should now sit in the Profile Tournament Record as a group-
+>     stage exit (first live run of the ☠-retires-immediately rule). 3 new
+>     players added, all with points (Nhuệ Minh 1150, Minh Triết Gia Định
+>     1100, Thiên Ân Gia Định 1000). Next up: BBTV Open Lần 3, 22–23/08.
+>   - **Server restarted on the new code:** `tactic_fact`/`tactic_plan`
+>     tables exist (both still empty — the Singles Tactics live LLM flow
+>     has NOT been exercised yet; user test still pending) and
+>     `tracker_coach` is seeded (Minh Thới + Phi Vũ).
+>   - **First real Recap run happened** (watch-list item since 2026-08-04):
+>     recap #9, week 2026-08-10→16, qwen3.5:9b, status done, generated
+>     16/08 12:24 — headline reads sane ("ELO +17.1 nhưng khối lượng thi
+>     đấu giảm sâu, thiếu đối thủ mới"). A fresh verdict (#17, same day
+>     12:21, done) is also in, plus coach chat 4→10 messages, notebook
+>     5→10 notes, and 1 new Training Center session (21 total). User to
+>     eyeball recap/verdict quality per the TODO watch list.
+
+## Previous status (2026-08-15) — NEW TAB "Singles Tactics" (Chiến Thuật): per-opponent scouting + AI game plans (committed `6d8531d`)
 
 > **Singles Tactics tab (user request 2026-08-15, plan + charts OK'd; two
 > same-day follow-ups: tile "Latest kèo" → "Latest handicap" (GUI must be

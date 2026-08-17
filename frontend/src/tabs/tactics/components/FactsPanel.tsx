@@ -1,7 +1,8 @@
 // One scouting column (About me / About the opponent): kind-tagged facts
 // with add / inline-edit / delete. The "me" column is global knowledge —
-// the coach reads it for every opponent and never re-asks it.
-import { useState } from "react";
+// the coach reads it for every opponent and never re-asks it. `intake`
+// hosts the column's fixed baseline questionnaire (unanswered items only).
+import { useState, type ReactNode } from "react";
 import type { Fact, FactKind } from "../types";
 
 const KIND_LABEL: Record<FactKind, string> = {
@@ -17,6 +18,7 @@ export default function FactsPanel({
   hint,
   facts,
   busy,
+  intake,
   onAdd,
   onEdit,
   onDelete,
@@ -25,6 +27,7 @@ export default function FactsPanel({
   hint?: string;
   facts: Fact[];
   busy: boolean;
+  intake?: ReactNode;
   onAdd: (kind: FactKind, text: string) => Promise<boolean>;
   onEdit: (id: number, text: string) => Promise<boolean>;
   onDelete: (id: number) => void;
@@ -47,6 +50,7 @@ export default function FactsPanel({
     <div className="tac-facts-col">
       <h3>{title}</h3>
       {hint && <p className="tac-hint">{hint}</p>}
+      {intake}
       <ul className="tac-fact-list">
         {facts.length === 0 && <li className="tac-empty">Nothing yet.</li>}
         {facts.map((f) => (
@@ -76,9 +80,19 @@ export default function FactsPanel({
               </span>
             ) : (
               <>
-                <span className="tac-fact-text" title={f.source === "interview" ? "From an interview answer" : undefined}>
+                <span
+                  className="tac-fact-text"
+                  title={
+                    f.source === "interview"
+                      ? "From an interview answer"
+                      : f.source === "intake"
+                        ? "From the profile questions"
+                        : undefined
+                  }
+                >
                   {f.text}
                   {f.source === "interview" && <span className="tac-src"> 🎤</span>}
+                  {f.source === "intake" && <span className="tac-src"> 📋</span>}
                 </span>
                 <span className="tac-fact-btns">
                   <button

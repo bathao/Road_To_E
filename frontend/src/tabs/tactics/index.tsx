@@ -15,8 +15,11 @@ import RangePicker, {
   type RangePreset,
 } from "../match-stats/components/RangePicker";
 import { tacticsApi } from "./api";
+import { ME_INTAKE, OPP_INTAKE, type IntakeItem } from "./intake";
 import FactsPanel from "./components/FactsPanel";
 import HandicapBars from "./components/HandicapBars";
+import IntakeCard from "./components/IntakeCard";
+import ReflectionsSection from "./components/ReflectionsSection";
 import MarginTimeline from "./components/MarginTimeline";
 import PlanSection from "./components/PlanSection";
 import type {
@@ -24,6 +27,7 @@ import type {
   FactKind,
   FactsOut,
   InterviewQuestion,
+  Reflection,
   TacticPlan,
 } from "./types";
 
@@ -43,6 +47,9 @@ export default function Tactics() {
     () => (selId ? tacticsApi.getFacts(selId) : Promise.resolve(null)),
     [selId]
   );
+  const { data: reflections, setData: setReflections } = useLoad<
+    Reflection[] | null
+  >(() => (selId ? tacticsApi.getReflections(selId) : Promise.resolve(null)), [selId]);
   const { data: plan, setData: setPlan, reload: reloadPlan } = useLoad<
     TacticPlan | null
   >(() => (selId ? tacticsApi.getPlan(selId) : Promise.resolve(null)), [selId]);
@@ -116,6 +123,14 @@ export default function Tactics() {
     await refreshFacts();
     return true;
   };
+  // Intake answers are keyed facts — the backend upserts on (player_id, key),
+  // so the question disappears from the card once its fact exists.
+  const answerIntake = (playerId: number | null) => async (item: IntakeItem, text: string) => {
+    const out = await run(() => tacticsApi.addFact(playerId, item.kind, text, item.key));
+    if (out === undefined) return false;
+    await refreshFacts();
+    return true;
+  };
   const editFact = async (id: number, text: string) => {
     const out = await run(() => tacticsApi.updateFact(id, text));
     if (out === undefined) return false;
@@ -125,6 +140,30 @@ export default function Tactics() {
   const deleteFact = async (id: number) => {
     const out = await run(() => tacticsApi.deleteFact(id));
     if (out !== undefined) await refreshFacts();
+  };
+
+  // ---- reflections (refresh via one GET, same pattern as facts) ----
+  const refreshReflections = async () => {
+    if (!selId) return;
+    const out = await run(() => tacticsApi.getReflections(selId));
+    if (out !== undefined) setReflections(out);
+  };
+  const addReflection = async (text: string) => {
+    if (!selId) return false;
+    const out = await run(() => tacticsApi.addReflection(selId, text));
+    if (out === undefined) return false;
+    await refreshReflections();
+    return true;
+  };
+  const editReflection = async (id: number, text: string) => {
+    const out = await run(() => tacticsApi.updateReflection(id, text));
+    if (out === undefined) return false;
+    await refreshReflections();
+    return true;
+  };
+  const deleteReflection = async (id: number) => {
+    const out = await run(() => tacticsApi.deleteReflection(id));
+    if (out !== undefined) await refreshReflections();
   };
 
   // ---- interview ----
@@ -312,6 +351,14 @@ export default function Tactics() {
                 hint="Saved once, remembered forever — the coach never re-asks these."
                 facts={facts?.me ?? []}
                 busy={busy}
+                intake={
+                  <IntakeCard
+                    items={ME_INTAKE}
+                    facts={facts?.me ?? []}
+                    busy={busy}
+                    onAnswer={answerIntake(null)}
+                  />
+                }
                 onAdd={addFact(null)}
                 onEdit={editFact}
                 onDelete={deleteFact}
@@ -320,12 +367,29 @@ export default function Tactics() {
                 title={`About ${selected.name}`}
                 facts={facts?.opponent ?? []}
                 busy={busy}
+                intake={
+                  <IntakeCard
+                    items={OPP_INTAKE}
+                    facts={facts?.opponent ?? []}
+                    busy={busy}
+                    onAnswer={answerIntake(selected.id)}
+                  />
+                }
                 onAdd={addFact(selected.id)}
                 onEdit={editFact}
                 onDelete={deleteFact}
               />
             </div>
           </section>
+
+          <ReflectionsSection
+            opponentName={selected.name}
+            reflections={reflections ?? []}
+            busy={busy}
+            onAdd={addReflection}
+            onEdit={editReflection}
+            onDelete={deleteReflection}
+          />
 
           <PlanSection
             plan={plan ?? null}

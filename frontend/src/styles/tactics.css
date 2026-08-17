@@ -218,6 +218,80 @@
   flex: 1;
 }
 
+/* ---- baseline intake card (only unanswered questions show) ---- */
+.tac-intake {
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+}
+
+.tac-intake-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.tac-intake-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tac-intake-count {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.tac-intake-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 3px 0;
+  font-size: 13px;
+}
+
+.tac-intake-label {
+  min-width: 110px;
+  color: var(--muted);
+}
+
+.tac-intake-choices {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.tac-chip {
+  padding: 1px 10px;
+  font-size: 12px;
+  border-radius: 999px;
+}
+
+.tac-chip-muted {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.tac-intake-leaning {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.tac-intake-text {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+  min-width: 200px;
+}
+
+.tac-intake-text .pb-input {
+  flex: 1;
+  font-size: 13px;
+}
+
 /* Kind chips — status-style tags, same hue family as the app's W/L. */
 .tac-kind {
   padding: 0 8px;
@@ -278,6 +352,60 @@
   display: flex;
   gap: 8px;
   margin-top: 8px;
+}
+
+/* ---- my analysis (post-match reflections) ---- */
+.tac-reflect-add {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.tac-reflect-input {
+  flex: 1;
+  resize: vertical;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.tac-reflect-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tac-reflect {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--border);
+  font-size: 14px;
+}
+
+.tac-reflect-date {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.tac-reflect-text {
+  flex: 1;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.tac-reflect-edit {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+}
+
+.tac-reflect-btns {
+  white-space: nowrap;
 }
 
 /* ---- game plan ---- */

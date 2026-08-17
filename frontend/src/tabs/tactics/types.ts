@@ -23,12 +23,25 @@ export interface Fact {
   player_id: number | null;
   kind: FactKind;
   text: string;
-  source: string; // user | interview
+  source: string; // user | interview | intake
+  // Canonical intake slot ('grip', 'style', …); null = free-form fact. The
+  // intake card shows a question only while its key has no fact.
+  key: string | null;
 }
 
 export interface FactsOut {
   me: Fact[];
   opponent: Fact[];
+}
+
+// One post-match analysis note by the user about one opponent — free-form
+// and subjective; the coach cross-checks it against the H2H data. Newest
+// first everywhere (recent impressions override older ones).
+export interface Reflection {
+  id: number;
+  player_id: number;
+  text: string;
+  created_at: string | null;
 }
 
 export interface InterviewQuestion {

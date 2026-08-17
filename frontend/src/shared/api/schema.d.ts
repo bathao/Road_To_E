@@ -1099,8 +1099,8 @@ export interface paths {
         };
         /**
          * List Opponents
-         * @description Everyone the user has played against, most matches first — the picker.
-         *     (H2H match detail reuses GET /api/tracker/players/{id}/matches.)
+         * @description Everyone the user has played against in SINGLES, most matches first —
+         *     the picker. (H2H detail reuses GET /api/tracker/players/{id}/matches.)
          */
         get: operations["list_opponents_api_tactics_opponents_get"];
         put?: never;
@@ -1162,6 +1162,62 @@ export interface paths {
         post?: never;
         /** Delete Fact */
         delete: operations["delete_fact_api_tactics_facts__fact_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tactics/reflections/{player_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Reflections
+         * @description The student's own post-match analysis notes on this opponent, newest
+         *     first. Subjective by design — the prompts cross-check them.
+         */
+        get: operations["list_reflections_api_tactics_reflections__player_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tactics/reflections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Reflection */
+        post: operations["add_reflection_api_tactics_reflections_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tactics/reflections/{reflection_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Reflection */
+        put: operations["update_reflection_api_tactics_reflections__reflection_id__put"];
+        post?: never;
+        /** Delete Reflection */
+        delete: operations["delete_reflection_api_tactics_reflections__reflection_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1868,6 +1924,8 @@ export interface components {
             kind: "strength" | "weakness" | "style" | "note";
             /** Text */
             text: string;
+            /** Key */
+            key?: string | null;
         };
         /** FactOut */
         FactOut: {
@@ -1881,6 +1939,8 @@ export interface components {
             text: string;
             /** Source */
             source: string;
+            /** Key */
+            key?: string | null;
             /** Created At */
             created_at?: string | null;
         };
@@ -2499,7 +2559,7 @@ export interface components {
         };
         /**
          * OpponentOut
-         * @description One person the user has actually PLAYED AGAINST (any opposing slot).
+         * @description One person the user has actually PLAYED AGAINST in singles.
          */
         OpponentOut: {
             /** Id */
@@ -3099,6 +3159,33 @@ export interface components {
              * @default []
              */
             entries: components["schemas"]["RecordEntry"][];
+        };
+        /**
+         * ReflectionIn
+         * @description One post-match analysis note by the student about one opponent —
+         *     free-form and subjective (the prompts cross-check it against the data).
+         */
+        ReflectionIn: {
+            /** Player Id */
+            player_id: number;
+            /** Text */
+            text: string;
+        };
+        /** ReflectionOut */
+        ReflectionOut: {
+            /** Id */
+            id: number;
+            /** Player Id */
+            player_id: number;
+            /** Text */
+            text: string;
+            /** Created At */
+            created_at?: string | null;
+        };
+        /** ReflectionUpdate */
+        ReflectionUpdate: {
+            /** Text */
+            text: string;
         };
         /** ReportOut */
         ReportOut: {
@@ -5464,6 +5551,136 @@ export interface operations {
             header?: never;
             path: {
                 fact_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_reflections_api_tactics_reflections__player_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                player_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReflectionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_reflection_api_tactics_reflections_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReflectionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReflectionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_reflection_api_tactics_reflections__reflection_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reflection_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReflectionUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReflectionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_reflection_api_tactics_reflections__reflection_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reflection_id: number;
             };
             cookie?: never;
         };

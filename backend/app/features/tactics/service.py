@@ -20,10 +20,12 @@ from app.features.head_coach.service import (
     resolve_model,
 )
 from app.features.tactics import schemas
-from app.features.tactics.models import TacticFact, TacticPlan
+from app.features.tactics.models import TacticFact, TacticPlan, TacticReflection
 from app.features.tactics.prompt import (
     INTERVIEW_RESPONSE_SCHEMA,
     INTERVIEW_SYSTEM_PROMPT,
+    ME_INTAKE_KEYS,
+    OPP_INTAKE_KEYS,
     PLAN_RESPONSE_SCHEMA,
     PLAN_SYSTEM_PROMPT,
 )
@@ -110,11 +112,32 @@ def list_facts(db: Session, player_id: int) -> schemas.FactsOut:
 def add_fact(
     db: Session, payload: schemas.FactIn, source: str = "user"
 ) -> TacticFact:
+    """Free-form facts append; keyed (intake) facts upsert on (player_id,
+    key) — re-answering an intake question edits the row instead of piling
+    up duplicates."""
+    if payload.key is not None:
+        row = (
+            db.query(TacticFact)
+            .filter(
+                TacticFact.player_id.is_(None)
+                if payload.player_id is None
+                else TacticFact.player_id == payload.player_id,
+                TacticFact.key == payload.key,
+            )
+            .first()
+        )
+        if row is not None:
+            row.kind = payload.kind
+            row.text = payload.text
+            db.commit()
+            db.refresh(row)
+            return row
     row = TacticFact(
         player_id=payload.player_id,
         kind=payload.kind,
         text=payload.text,
-        source=source,
+        source="intake" if payload.key is not None else source,
+        key=payload.key,
     )
     db.add(row)
     db.commit()
@@ -161,6 +184,51 @@ def save_answers(db: Session, payload: schemas.AnswersIn) -> schemas.FactsOut:
         )
     db.commit()
     return list_facts(db, payload.player_id)
+
+
+# ------------------------------------------------------------------ reflections
+def list_reflections(db: Session, player_id: int) -> list[schemas.ReflectionOut]:
+    """Newest first — recent impressions override older ones, in the GUI and
+    in the prompt alike."""
+    rows = (
+        db.query(TacticReflection)
+        .filter(TacticReflection.player_id == player_id)
+        .order_by(TacticReflection.id.desc())
+        .all()
+    )
+    return [schemas.ReflectionOut.model_validate(r) for r in rows]
+
+
+def add_reflection(db: Session, payload: schemas.ReflectionIn) -> TacticReflection:
+    if db.get(Player, payload.player_id) is None:
+        raise LookupError("Player not found")
+    row = TacticReflection(player_id=payload.player_id, text=payload.text)
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def update_reflection(
+    db: Session, reflection_id: int, payload: schemas.ReflectionUpdate
+) -> TacticReflection:
+    row = db.get(TacticReflection, reflection_id)
+    if row is None:
+        raise LookupError("Reflection not found")
+    text = payload.text.strip()
+    if not text:
+        raise ValueError("Reflection text cannot be empty.")
+    row.text = text
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def delete_reflection(db: Session, reflection_id: int) -> None:
+    row = db.get(TacticReflection, reflection_id)
+    if row is not None:
+        db.delete(row)
+        db.commit()
 
 
 # ------------------------------------------------------------- prompt context
@@ -232,6 +300,11 @@ def build_context(db: Session, player: Player) -> str:
     )
     me_facts = [f for f in facts if f.player_id is None]
     opp_facts = [f for f in facts if f.player_id is not None]
+    reflections = list_reflections(db, player.id)  # newest first
+    reflection_lines = "\n".join(
+        f"  - [{r.created_at.date().isoformat() if r.created_at else '?'}] {r.text}"
+        for r in reflections
+    ) or "  (chưa có)"
     rating = compute_my_rating(db)
     pips = " Đánh GAI (mặt vợt gai)." if player.plays_pips else ""
     note = f" Ghi chú database: {player.note}." if player.note else ""
@@ -245,17 +318,61 @@ def build_context(db: Session, player: Player) -> str:
         f"=== HỌC TRÒ (điểm hiện tại) ===\n"
         f"ELO động: {rating.current} (mốc tĩnh {rating.points}).\n\n"
         f"=== LỊCH SỬ ĐỐI ĐẦU TRẬN ĐƠN (cũ → mới; đôi/1v2/2v1 không tính) ===\n"
+        f"CHÚ GIẢI KÈO — đọc đúng CHIỀU: 'được chấp N' = ĐỐI THỦ chấp HỌC TRÒ "
+        f"N điểm/set (học trò cửa dưới, được cộng điểm trước); 'chấp N' = HỌC "
+        f"TRÒ chấp đối thủ N điểm (học trò cửa trên); 'đồng' = không chấp. Khi "
+        f"viết phải dùng ĐÚNG các cụm này — cấm tự đổi sang 'bị chấp' hay cách "
+        f"nói khác làm đảo chiều kèo.\n"
         f"{_h2h_block(matches)}\n\n"
         f"=== HỒ SƠ SCOUTING VỀ HỌC TRÒ (đã lưu — KHÔNG hỏi lại) ===\n"
         f"{_fact_lines(me_facts)}\n\n"
         f"=== HỒ SƠ SCOUTING VỀ {player.name.upper()} (đã lưu) ===\n"
         f"{_fact_lines(opp_facts)}\n\n"
+        f"=== PHÂN TÍCH CỦA HỌC TRÒ SAU CÁC TRẬN VỚI {player.name.upper()} "
+        f"(mới nhất trước — CHỦ QUAN, phải đối chiếu với dữ liệu) ===\n"
+        f"{reflection_lines}\n\n"
         f"=== SỔ TAY HLV (bối cảnh chung) ===\n"
         f"{coach_notes}\n"
     )
 
 
 # ------------------------------------------------------------------- interview
+def _interview_extras(db: Session, player_id: int) -> str:
+    """Interview-only context: which fixed intake slots are still blank (the
+    FORM collects those — the LLM must not burn questions on them) and the
+    data_gaps the latest finished plan complained about (prime targets)."""
+    keyed = {
+        (f.player_id is None, f.key)
+        for f in db.query(TacticFact)
+        .filter(
+            or_(TacticFact.player_id.is_(None), TacticFact.player_id == player_id),
+            TacticFact.key.isnot(None),
+        )
+        .all()
+    }
+    missing_me = [v for k, v in ME_INTAKE_KEYS.items() if (True, k) not in keyed]
+    missing_opp = [v for k, v in OPP_INTAKE_KEYS.items() if (False, k) not in keyed]
+    last_plan = (
+        db.query(TacticPlan)
+        .filter(TacticPlan.player_id == player_id, TacticPlan.status == "done")
+        .order_by(TacticPlan.id.desc())
+        .first()
+    )
+    gaps = json.loads(last_plan.data_gaps_json) if last_plan else []
+    lines = [
+        "=== MỤC FORM CÒN TRỐNG (form trong app sẽ thu — KHÔNG hỏi, trừ ngoại lệ "
+        "1 câu về đối thủ nếu quyết định trận đấu) ===",
+        f"Về học trò: {', '.join(missing_me) or '(đủ cả)'}.",
+        f"Về đối thủ: {', '.join(missing_opp) or '(đủ cả)'}.",
+    ]
+    if gaps:
+        lines += [
+            "=== GIÁO ÁN GẦN NHẤT CÒN THIẾU (data_gaps — ưu tiên hỏi) ===",
+            *(f"  - {g}" for g in gaps),
+        ]
+    return "\n".join(lines)
+
+
 def run_interview(db: Session, player_id: int) -> schemas.InterviewOut:
     """Synchronous structured-output call: the coach reads everything known
     and asks only for what's missing. Slow-ish (local LLM) but small — the
@@ -266,6 +383,7 @@ def run_interview(db: Session, player_id: int) -> schemas.InterviewOut:
     model = resolve_model()
     user_text = (
         f"{build_context(db, player)}\n"
+        f"{_interview_extras(db, player_id)}\n\n"
         f"Học trò sắp đấu {player.name}. Hãy đặt câu hỏi scouting theo đúng "
         "LUẬT trong system prompt (tối đa 5, không hỏi lại điều đã lưu)."
     )

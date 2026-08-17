@@ -7,6 +7,7 @@ import type {
   FactsOut,
   InterviewOut,
   Opponent,
+  Reflection,
   TacticPlan,
 } from "./types";
 
@@ -20,13 +21,26 @@ export const tacticsApi = {
 
   getFacts: (playerId: number) => api.get<FactsOut>(`/tactics/facts/${playerId}`),
 
-  addFact: (playerId: number | null, kind: FactKind, text: string) =>
-    api.post<Fact>("/tactics/facts", { player_id: playerId, kind, text }),
+  // key set = an intake answer: the backend upserts on (player_id, key).
+  addFact: (playerId: number | null, kind: FactKind, text: string, key?: string) =>
+    api.post<Fact>("/tactics/facts", { player_id: playerId, kind, text, key: key ?? null }),
 
   updateFact: (id: number, text: string) =>
     api.put<Fact>(`/tactics/facts/${id}`, { text }),
 
   deleteFact: (id: number) => api.del<{ ok: boolean }>(`/tactics/facts/${id}`),
+
+  getReflections: (playerId: number) =>
+    api.get<Reflection[]>(`/tactics/reflections/${playerId}`),
+
+  addReflection: (playerId: number, text: string) =>
+    api.post<Reflection>("/tactics/reflections", { player_id: playerId, text }),
+
+  updateReflection: (id: number, text: string) =>
+    api.put<Reflection>(`/tactics/reflections/${id}`, { text }),
+
+  deleteReflection: (id: number) =>
+    api.del<{ ok: boolean }>(`/tactics/reflections/${id}`),
 
   // Synchronous LLM call — slow-ish; the button shows a spinner meanwhile.
   interview: (playerId: number) =>
