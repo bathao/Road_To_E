@@ -71,6 +71,7 @@ def _to_out(
         start_date=t.start_date,
         end_date=t.end_date,
         level_limit=t.level_limit,
+        points_limit=t.points_limit,
         note=t.note,
         played=played,
         entries=[
@@ -194,6 +195,7 @@ def _apply(t: Tournament, payload: schemas.TournamentIn) -> None:
         else None
     )
     t.level_limit = (payload.level_limit or "").strip() or None
+    t.points_limit = payload.points_limit  # schema guards 0 < N < 10000
     t.note = (payload.note or "").strip() or None
     # Entries reconcile IN PLACE by id. Matches reference entries via
     # tournament_entry_id (an ALTER-added column — the live DB has no FK on
@@ -391,6 +393,8 @@ def upcoming_for_coach(
                 "days_left": days_left,  # 0 = today; negative = running now
                 "location": t.location or "",
                 "level_limit": t.level_limit or "",
+                # 0 = no points cap (the coach line skips falsy values).
+                "points_limit": t.points_limit or 0,
                 "entries": entries,
                 "note": t.note or "",
             }

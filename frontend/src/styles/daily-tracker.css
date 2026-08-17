@@ -1033,6 +1033,18 @@ button.tour-chip-out:hover {
   border-color: #f59e0b;
 }
 
+/* Points-cap row in the tournament form (presets + free input). */
+.tour-points-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tour-points-input {
+  width: 110px;
+}
+
 /* (Result / data-gap chips left with the Played cards 2026-08-01 — played
    tournaments now live in the Profile Tournament Record.) */
 

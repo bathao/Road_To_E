@@ -87,12 +87,15 @@ export default function FactsPanel({
                       ? "From an interview answer"
                       : f.source === "intake"
                         ? "From the profile questions"
-                        : undefined
+                        : f.source === "coach"
+                          ? "Filed by the coach from your analysis notes"
+                          : undefined
                   }
                 >
                   {f.text}
                   {f.source === "interview" && <span className="tac-src"> 🎤</span>}
                   {f.source === "intake" && <span className="tac-src"> 📋</span>}
+                  {f.source === "coach" && <span className="tac-src"> 🧠</span>}
                 </span>
                 <span className="tac-fact-btns">
                   <button

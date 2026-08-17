@@ -1197,7 +1197,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Add Reflection */
+        /**
+         * Add Reflection
+         * @description Save the note, then (background, best-effort) let the coach extract
+         *     anything it reveals about the STUDENT into the global me-file.
+         */
         post: operations["add_reflection_api_tactics_reflections_post"];
         delete?: never;
         options?: never;
@@ -3531,6 +3535,8 @@ export interface components {
             end_date?: string | null;
             /** Level Limit */
             level_limit?: string | null;
+            /** Points Limit */
+            points_limit?: number | null;
             /** Note */
             note?: string | null;
             /**
@@ -3556,6 +3562,8 @@ export interface components {
             end_date?: string | null;
             /** Level Limit */
             level_limit?: string | null;
+            /** Points Limit */
+            points_limit?: number | null;
             /** Note */
             note?: string | null;
             /**

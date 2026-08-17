@@ -69,9 +69,15 @@ INTERVIEW_SYSTEM_PROMPT = (
     "  3. THÓI QUEN ĐIỀU BÓNG của họ khi gặp học trò: ép vào đâu trên bàn, "
     "có hay bỏ ngắn không.\n"
     "  4. Những data_gaps mà giáo án gần nhất còn thiếu (nếu được liệt kê).\n"
-    "- Mỗi câu gắn subject: 'opponent' (hỏi về đối thủ) hoặc 'me' (hỏi về học "
-    "trò — chỉ khi hồ sơ học trò còn thiếu điều đó) và kind: strength/"
-    "weakness/style/note.\n"
+    "- SUBJECT phải theo NGƯỜI MÀ CÂU TRẢ LỜI SẼ MÔ TẢ: câu về học trò "
+    "(giao bóng CỦA ANH, tâm lý CỦA ANH, thể lực CỦA ANH...) bắt buộc "
+    "subject='me' (chỉ hỏi khi hồ sơ học trò còn thiếu điều đó); câu về đối "
+    "thủ thì subject='opponent'. Gắn nhãn sai là câu trả lời bị lưu nhầm hồ "
+    "sơ — lỗi nghiêm trọng.\n"
+    "- XƯNG HÔ TRONG CÂU HỎI: gọi học trò là 'anh', gọi đối thủ bằng TÊN "
+    "hoặc 'họ'. TUYỆT ĐỐI không dùng 'tôi' trong câu hỏi (bạn là HLV, bạn "
+    "không thi đấu — 'khi gặp tôi' là sai).\n"
+    "- Mỗi câu gắn kind: strength/weakness/style/note.\n"
     "- Câu hỏi tiếng Việt, MỘT Ý MỖI CÂU (không gộp nhiều ý), cụ thể, trả "
     "lời được trong 1-2 câu.\n"
     "- Nếu hồ sơ đã đủ dày để lên giáo án thì trả về ÍT câu hơn (thậm chí 1-2 "
@@ -97,6 +103,47 @@ INTERVIEW_RESPONSE_SCHEMA = {
     "required": ["questions"],
 }
 
+# After every saved reflection, a background pass reads it and files anything
+# the student revealed about THEMSELVES into the global me-file (user
+# 2026-08-17: "coach tự đọc, tự phân tích, lọc ra, lưu lại thành thông tin
+# chung"). Auto-saved facts carry source='coach' so the GUI marks them and the
+# user can prune.
+EXTRACT_SYSTEM_PROMPT = (
+    _PERSONA
+    + "\nNHIỆM VỤ: đọc MỘT ghi chú phân tích của học trò sau các trận với một "
+    "đối thủ, và LỌC RA những điều ghi chú đó tiết lộ về CHÍNH HỌC TRÒ — "
+    "điểm mạnh/điểm yếu/lối đánh/thói quen CỦA HỌC TRÒ — đáng lưu vào hồ sơ "
+    "dùng chung cho MỌI đối thủ.\n"
+    "LUẬT:\n"
+    "- CHỈ lấy thông tin về học trò và có giá trị LÂU DÀI qua mọi đối thủ "
+    "(kỹ thuật, lối đánh, thể lực, tâm lý bản thân). Điều gắn chặt với đối "
+    "thủ cụ thể của ghi chú ('hắn', 'đối thủ này', kèo trận đó) → KHÔNG lấy.\n"
+    "- KHÔNG lặp lại điều ĐÃ CÓ trong hồ sơ học trò được cấp (kể cả diễn "
+    "đạt khác cách).\n"
+    "- Mỗi mục đúng 1 câu ngắn, bám sát lời học trò (không suy diễn thêm), "
+    "gắn kind strength/weakness/style/note.\n"
+    "- Không chắc chắn thì BỎ. Danh sách RỖNG là kết quả bình thường và "
+    "thường gặp.\n"
+)
+
+EXTRACT_RESPONSE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "facts": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "kind": {"type": "string", "enum": list(FACT_KINDS)},
+                    "text": {"type": "string"},
+                },
+                "required": ["kind", "text"],
+            },
+        },
+    },
+    "required": ["facts"],
+}
+
 PLAN_SYSTEM_PROMPT = (
     _PERSONA
     + "\nNHIỆM VỤ: viết GIÁO ÁN THI ĐẤU TRẬN ĐƠN cụ thể để học trò thắng MỘT "
@@ -110,6 +157,9 @@ PLAN_SYSTEM_PROMPT = (
     "trò cửa dưới); 'chấp N' = học trò CHẤP đi (cửa trên). Trích lại đúng "
     "nguyên văn cụm trong dữ liệu — TUYỆT ĐỐI KHÔNG viết 'bị chấp' hay tự "
     "diễn đạt lại chiều kèo.\n"
+    "- KÈO CHUỖI: mức chấp dạng 'X-Y-Z' (vd '2-0-2' = chấp theo từng set) "
+    "phải giữ NGUYÊN CẢ CHUỖI khi nhắc lại — cấm rút gọn '2-0-2' thành '2'; "
+    "hai kèo khác chuỗi là hai kèo khác nhau, không gộp kết quả.\n"
     "- MẪU NHỎ: dưới 5 trận thì không kết luận win-rate, chỉ đọc diễn biến.\n"
     "- PHÂN TÍCH CỦA HỌC TRÒ là cảm nhận CHỦ QUAN sau các trận: TỔNG HỢP nó "
     "vào giáo án (đó là mắt quan sát duy nhất trên sân), nhưng phải ĐỐI "

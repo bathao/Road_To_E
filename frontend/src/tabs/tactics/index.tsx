@@ -4,7 +4,7 @@
 // for the gaps → a generated Vietnamese game plan to beat exactly that
 // person. SINGLES ONLY throughout — doubles/1v2/2v1 don't inform personal
 // tactics (user 2026-08-15); the backend filters the same way.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLoad, useMutate } from "../../shared/useApi";
 import { hdcLabel } from "../../shared/matches";
 import { startOfMonth, toIso } from "../../shared/dates";
@@ -26,6 +26,7 @@ import type {
   AnswerIn,
   FactKind,
   FactsOut,
+  FactSubject,
   InterviewQuestion,
   Reflection,
   TacticPlan,
@@ -61,6 +62,17 @@ export default function Tactics() {
     return () => clearInterval(timer);
   }, [plan?.status, reloadPlan]);
 
+  // When a plan lands, re-pull the facts: the coach's background extraction
+  // (🧠 me-facts from analysis notes) has usually finished by then too.
+  const prevPlanStatus = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (prevPlanStatus.current === "generating" && plan?.status === "done") {
+      void refreshFacts();
+    }
+    prevPlanStatus.current = plan?.status;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- status edge only
+  }, [plan?.status]);
+
   // H2H = SINGLES matches against this person (the endpoint returns every
   // match in any slot/discipline). API order is newest first.
   const vsAll = useMemo(
@@ -75,10 +87,11 @@ export default function Tactics() {
   );
 
   // Time-range filter, same picker as the Profile tab (user 2026-08-15).
-  // Default = Lifetime: many rivalries are only a handful of matches, a
-  // 28-day default would open on empty tiles. The preset sticks across
-  // opponent switches so ranges compare like-for-like.
-  const [preset, setPreset] = useState<RangePreset>("lifetime");
+  // Default = Last 28 days (user 2026-08-17, supersedes the Lifetime
+  // default: recent form matters most for tactics; sparse rivalries just
+  // show fewer matches). The preset sticks across opponent switches so
+  // ranges compare like-for-like.
+  const [preset, setPreset] = useState<RangePreset>("last28");
   const [customFrom, setCustomFrom] = useState<string>(() =>
     toIso(startOfMonth(new Date()))
   );
@@ -169,6 +182,11 @@ export default function Tactics() {
   // ---- interview ----
   const [questions, setQuestions] = useState<InterviewQuestion[] | null>(null);
   const [answers, setAnswers] = useState<Record<number, string>>({});
+  // Per-question save-target override: the model has mis-tagged subjects
+  // (an about-ME question tagged 'opponent' filed the answer into the wrong
+  // scouting column, user 2026-08-17) — the toggle makes the target visible
+  // and correctable before saving.
+  const [subjects, setSubjects] = useState<Record<number, FactSubject>>({});
   const [asking, setAsking] = useState(false);
   const ask = async () => {
     if (!selId) return;
@@ -178,6 +196,7 @@ export default function Tactics() {
       if (out !== undefined) {
         setQuestions(out.questions);
         setAnswers({});
+        setSubjects({});
       }
     } finally {
       setAsking(false);
@@ -186,7 +205,11 @@ export default function Tactics() {
   const saveAnswers = async () => {
     if (!selId || !questions) return;
     const items: AnswerIn[] = questions
-      .map((q, i) => ({ ...q, answer: (answers[i] ?? "").trim() }))
+      .map((q, i) => ({
+        ...q,
+        subject: subjects[i] ?? q.subject,
+        answer: (answers[i] ?? "").trim(),
+      }))
       .filter((q) => q.answer);
     if (items.length === 0) {
       setQuestions(null);
@@ -317,8 +340,17 @@ export default function Tactics() {
                 {questions.map((q, i) => (
                   <div key={i} className="tac-question">
                     <label>
-                      <span className={`tac-kind tac-kind-${q.kind}`}>
-                        {q.subject === "me" ? "About me" : selected.name}
+                      <span className="tac-subj-toggle" title="Where this answer will be filed — click to correct">
+                        {(["me", "opponent"] as FactSubject[]).map((s) => (
+                          <button
+                            key={s}
+                            type="button"
+                            className={`btn tac-chip${(subjects[i] ?? q.subject) === s ? " tac-chip-on" : ""}`}
+                            onClick={() => setSubjects((m) => ({ ...m, [i]: s }))}
+                          >
+                            {s === "me" ? "About me" : selected.name}
+                          </button>
+                        ))}
                       </span>
                       {q.question}
                     </label>
@@ -348,7 +380,7 @@ export default function Tactics() {
             <div className="tac-facts">
               <FactsPanel
                 title="About me (all opponents)"
-                hint="Saved once, remembered forever — the coach never re-asks these."
+                hint="Saved once, remembered forever — the coach never re-asks these. It also files anything about you it spots in your analysis notes (🧠)."
                 facts={facts?.me ?? []}
                 busy={busy}
                 intake={

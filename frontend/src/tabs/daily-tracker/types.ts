@@ -312,6 +312,7 @@ export interface Tournament {
   start_date: string;
   end_date?: string | null; // null = single-day
   level_limit?: string | null; // allowed ranks, free text ("E F G"…)
+  points_limit?: number | null; // points-capped tournaments (≤N points)
   note?: string | null;
   // Ended before today OR results already entered — the strip + section
   // filter played tournaments OUT on this flag (history lives in the
@@ -337,6 +338,7 @@ export interface TournamentIn {
   start_date: string;
   end_date?: string | null;
   level_limit?: string | null;
+  points_limit?: number | null;
   note?: string | null;
   entries: TournamentEntryIn[];
 }

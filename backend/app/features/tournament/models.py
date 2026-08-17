@@ -23,6 +23,9 @@ class Tournament(Base):
     # Which ranks may enter, free text — formats vary per organizer:
     # "E F G", "F G H I", "tổng 3 người ≥ 21 chấm"…
     level_limit: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Points-capped tournaments ("giải 1300 điểm", user 2026-08-17): max BBTV
+    # points allowed to enter. None = no points cap (rank-limited or open).
+    points_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     entries: Mapped[list["TournamentEntry"]] = relationship(

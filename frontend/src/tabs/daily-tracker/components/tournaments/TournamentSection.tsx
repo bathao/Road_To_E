@@ -57,6 +57,9 @@ interface Draft {
   // Rank limit: selected ranks, or explicit Open, or neither (unspecified).
   levels: string[];
   open: boolean;
+  // Points-capped tournaments ("giải 1300 điểm"): max points allowed, as
+  // typed ("" = no cap). Kept separate from the rank letters on purpose.
+  points: string;
   note: string;
   entries: EntryDraft[];
 }
@@ -68,9 +71,13 @@ const EMPTY_DRAFT: Draft = {
   end_date: "",
   levels: [],
   open: false,
+  points: "",
   note: "",
   entries: [newEntryDraft()],
 };
+
+// One-tap presets for the common points caps; any other value types fine.
+const POINTS_PRESETS = [1100, 1200, 1300];
 
 function toDraft(t: Tournament): Draft {
   const raw = (t.level_limit ?? "").trim();
@@ -82,6 +89,7 @@ function toDraft(t: Tournament): Draft {
     end_date: t.end_date ?? "",
     levels: open ? [] : raw.split(/\s+/).filter((r) => RANKS.includes(r as never)),
     open,
+    points: t.points_limit ? String(t.points_limit) : "",
     note: t.note ?? "",
     entries: t.entries.map((e) => ({
       key: `e${e.id}`,
@@ -110,12 +118,15 @@ function toPayload(d: Draft): TournamentIn {
   }));
   // Normalize A→I regardless of click order; Open wins over any selection.
   const levels = RANKS.filter((r) => d.levels.includes(r)).join(" ");
+  const points = Number(d.points);
   return {
     name: d.name.trim(),
     location: d.location.trim() || null,
     start_date: d.start_date,
     end_date: d.end_date || null,
     level_limit: d.open ? OPEN : levels || null,
+    // Open = no limit at all — it clears the points cap too.
+    points_limit: !d.open && Number.isInteger(points) && points > 0 ? points : null,
     note: d.note.trim() || null,
     entries,
   };
@@ -280,8 +291,8 @@ function TournamentForm({
         <div className="seg tour-levels">
           <button
             className={`seg-btn${d.open ? " active" : ""}`}
-            title="Open tournament — no level limit"
-            onClick={() => setD({ ...d, open: !d.open, levels: [] })}
+            title="Open tournament — no limit at all (clears ranks and points)"
+            onClick={() => setD({ ...d, open: !d.open, levels: [], points: "" })}
           >
             {OPEN}
           </button>
@@ -302,6 +313,45 @@ function TournamentForm({
               {r}
             </button>
           ))}
+        </div>
+        <div className="tour-entries-head">
+          Points limit (for points-capped tournaments, e.g. "giải 1300"; Open
+          = no cap, anyone can play):
+        </div>
+        <div className="tour-points-row">
+          <div className="seg">
+            <button
+              className={`seg-btn${d.open ? " active" : ""}`}
+              title="Open class — no points cap, anyone can play"
+              onClick={() => setD({ ...d, open: !d.open, levels: [], points: "" })}
+            >
+              {OPEN}
+            </button>
+            {POINTS_PRESETS.map((p) => (
+              <button
+                key={p}
+                className={`seg-btn${d.points === String(p) ? " active" : ""}`}
+                onClick={() =>
+                  setD({
+                    ...d,
+                    open: false,
+                    points: d.points === String(p) ? "" : String(p),
+                  })
+                }
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+          <input
+            type="number"
+            className="pb-input tour-points-input"
+            placeholder="Other…"
+            min={1}
+            step={50}
+            value={d.points}
+            onChange={(e) => setD({ ...d, open: false, points: e.target.value })}
+          />
         </div>
       </div>
 
@@ -378,6 +428,9 @@ function TournamentCard({
       <div className="tour-card-chips">
         {t.level_limit && (
           <span className="tour-chip tour-chip-limit">Level: {t.level_limit}</span>
+        )}
+        {!!t.points_limit && (
+          <span className="tour-chip tour-chip-limit">≤ {t.points_limit} pts</span>
         )}
         {t.entries.map((e) =>
           e.eliminated ? (

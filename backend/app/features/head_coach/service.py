@@ -488,6 +488,8 @@ def _bundle_to_text(b: schemas.SourceSummary) -> str:
         )
         loc = f" tại {t['location']}" if t.get("location") else ""
         limit = f" Giới hạn trình: {t['level_limit']}." if t.get("level_limit") else ""
+        if t.get("points_limit"):
+            limit += f" Giới hạn điểm: ≤{t['points_limit']} điểm BBTV."
         entries = "; ".join(t.get("entries", [])) or "chưa ghi nội dung"
         note = f" Ghi chú: {t['note']}" if t.get("note") else ""
         return f"  - {t.get('name')}{loc}: {when}.{limit} Nội dung: {entries}.{note}"

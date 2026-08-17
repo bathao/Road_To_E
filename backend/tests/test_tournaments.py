@@ -80,6 +80,38 @@ def test_crud_ordering_and_partner_resolution(db):
         service.update_tournament(db, 9999, _payload("x", TODAY))
 
 
+def test_points_limit_roundtrip_and_coach_line(db):
+    """Points-capped tournaments ("giải 1300 điểm", 2026-08-17): the cap
+    stores/echoes/clears independently of the rank letters and rides the
+    coach's tournament line."""
+    resp = service.create_tournament(
+        db, _payload("Giải 1300", TODAY + dt.timedelta(days=5), points_limit=1300)
+    )
+    t = resp.tournaments[0]
+    assert (t.points_limit, t.level_limit) == (1300, None)
+
+    # Coach view carries the cap (and the prompt line renders it).
+    up = service.upcoming_for_coach(db, today=TODAY, horizon_days=90)
+    assert up[0]["points_limit"] == 1300
+
+    # Both limits may coexist; clearing works via None.
+    service.update_tournament(
+        db, t.id,
+        _payload("Giải 1300", TODAY + dt.timedelta(days=5),
+                 level_limit="F G", points_limit=1250),
+    )
+    t = service.list_tournaments(db, today=TODAY).tournaments[0]
+    assert (t.points_limit, t.level_limit) == (1250, "F G")
+    service.update_tournament(
+        db, t.id, _payload("Giải 1300", TODAY + dt.timedelta(days=5))
+    )
+    assert service.list_tournaments(db, today=TODAY).tournaments[0].points_limit is None
+
+    # Schema guards nonsense caps.
+    with pytest.raises(ValueError):
+        schemas.TournamentIn(name="x", start_date=TODAY, points_limit=0)
+
+
 def test_upcoming_for_coach_labels_and_horizon(db):
     binh = Player(name="Bình", level="equal")
     db.add(binh)

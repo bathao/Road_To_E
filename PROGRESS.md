@@ -38,6 +38,75 @@
 >     dưới; 'chấp N' = the student spots; 'đồng' = even — use these exact
 >     phrases) and the plan prompt gets a CHIỀU KÈO rule: quote the data's
 >     wording verbatim, 'bị chấp' is BANNED. Asserted in tests (149 still).
+>   - **Same-day fix #2 — pattern kèo shortened (user caught the next live
+>     plan claiming "thắng duy nhất 1 trận khi 'được chấp 2'" — the real
+>     lone win, 3-0 on 27/07, was at 'được chấp 2-0-2'; 'được chấp 2' is
+>     the kèo of TODAY's two losses 1-3/2-3, uncommitted data):** the
+>     model collapsed the per-set chain into its first digit, merging two
+>     different kèo. Legend gains a KÈO DẠNG CHUỖI block ('X-Y-Z' = per-SET
+>     handicap; '2-0-2' ≠ '2', much lighter; never shorten, never merge
+>     results across chains) and the plan prompt a KÈO CHUỖI rule (quote
+>     the full chain verbatim). Asserted in tests (149 still, context test
+>     now builds a 2-0-2 group and checks it stays verbatim). UNCOMMITTED
+>     (after `84138da`) — commit on the user's word as usual.
+>   - **Same-day feature — coach auto-files me-facts from analysis notes
+>     (user 2026-08-17: "coach tự đọc, tự phân tích, lọc ra, lưu lại thành
+>     thông tin chung" — explicitly wants AUTO-save, overriding the
+>     suggested one-tap review):** every saved reflection triggers a
+>     background best-effort pass (EXTRACT prompt, temp 0.2): read the ONE
+>     note + the current me-file → return only NEW, durable, student-only
+>     facts (opponent-specific stuff banned; empty list is normal). Saved
+>     as player_id NULL, source='coach' (🧠 icon + tooltip; user prunes in
+>     the About-me column like any fact). Code-level guards since the 9B
+>     model already misquoted data twice today: writes can only land on the
+>     me side, case-folded exact-dup skip, cap 5/note, ANY failure logs and
+>     no-ops (the note itself is already committed). FE refreshes the facts
+>     columns when a plan finishes generating (extraction is usually done
+>     by then); About-me hint mentions the 🧠 flow. Tests +1 (150 total):
+>     extraction saves/dedupes/drops blanks, prompt carries the note + the
+>     existing me-file, nothing lands opponent-side, LLM failure leaves
+>     note + me-file intact. pytest 150/150 + gen:api + tsc + vite build
+>     clean. Still UNCOMMITTED together with fix #2.
+>   - **Same-day tweak — H2H default range = Last 28 days (user
+>     2026-08-17, supersedes the 2026-08-15 Lifetime default):** recent
+>     form matters most for tactics. One-line preset change; the picker
+>     still remembers whatever the user switches to across opponents.
+>     Build clean. UNCOMMITTED with the rest.
+>   - **Same-day fix #3 — interview subject mis-tagged (user caught it:
+>     "điểm yếu tâm lý CỦA ANH..." and a serve question answered "TÔI giao
+>     bóng kém" were tagged 'opponent' → answers filed into Văn Trung's
+>     column; one question even said "khi gặp tôi" — the coach doesn't
+>     play):** (1) DATA: facts 15 (serve, re-kinded weakness) + 17 (clutch
+>     mentality) moved to the me-file by hand; fact 16 (Trung pushes long,
+>     both wings) was correctly opponent-side and stays. (2) PROMPT:
+>     subject follows whoever the ANSWER describes ('của anh' questions ⇒
+>     'me'; mislabeling = answer lands in the wrong file — serious), and
+>     questions address the student as 'anh' / the opponent by name or
+>     'họ', 'tôi' banned. (3) GUI: each interview question now carries an
+>     "About me ↔ <opponent>" toggle (model's tag preselected, click to
+>     correct before saving) — the human answering is the last line of
+>     defense against a 9B mislabel. Prompt rules pinned in tests
+>     (150/150), tsc + vite build clean. UNCOMMITTED with the rest.
+>   - **Same-day feature — points-capped tournaments (user 2026-08-17,
+>     plan OK'd: besides rank letters there are "giải 1100/1200/1300
+>     điểm", Open = no limit at all):** `tournament.points_limit` INTEGER
+>     ALTER-added (separate from the free-text rank string on purpose);
+>     schema guards 0 < N < 10000. Form gains a "Points limit" row under
+>     the rank chips — presets 1100/1200/1300 (toggle) + free number
+>     input; picking Open clears ranks AND points, entering points unsets
+>     Open (both limits may coexist otherwise — not hard-blocked). Card +
+>     strip show a "≤ 1300 pts" chip next to the Level chip; the coach's
+>     tournament line appends "Giới hạn điểm: ≤1300 điểm BBTV." Tests +1
+>     (151 total): roundtrip/clear/coexist + coach view + schema guard.
+>     pytest 151/151 + gen:api + tsc + vite build clean. UNCOMMITTED with
+>     the rest.
+>     - Follow-up (user: "ko tạo nội dung OPEN được — OPEN là không giới
+>       hạn điểm, ai đánh cũng được"): the points row now carries its own
+>       Open chip — the Open class belongs to the points-tier ladder
+>       (1100 → 1200 → 1300 → Open) in the user's mental model, not just
+>       to the rank letters. Same shared state as the rank-row Open
+>       (both highlight together; stored as level_limit "Open" as
+>       always). Build clean.
 
 ## Previous status (2026-08-17, earlier same day) — Tactics structured intake: fixed baseline forms + narrowed LLM interview (in `84138da`)
 

@@ -3,9 +3,11 @@ from sqlalchemy.orm import Session
 
 from app.core.sqlite_migrate import add_missing_columns
 
-# level_limit shipped after the table did (2026-07-25, same day).
+# level_limit shipped after the table did (2026-07-25, same day);
+# points_limit = points-capped tournaments (2026-08-17).
 _TOURNAMENT_COLUMNS = {
     "level_limit": "VARCHAR",
+    "points_limit": "INTEGER",
 }
 _ENTRY_COLUMNS = {
     # Knocked out mid-event (user button 2026-08-15). Existing entries

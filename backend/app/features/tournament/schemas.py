@@ -34,6 +34,8 @@ class TournamentIn(BaseModel):
     start_date: dt.date
     end_date: dt.date | None = None  # None = single-day
     level_limit: str | None = None  # allowed ranks, free text ("E F G"…)
+    # Points-capped tournaments ("giải 1300 điểm"): max points allowed.
+    points_limit: int | None = Field(default=None, gt=0, lt=10000)
     note: str | None = None
     entries: list[EntryIn] = []
 
@@ -78,6 +80,7 @@ class TournamentOut(BaseModel):
     start_date: dt.date
     end_date: dt.date | None = None
     level_limit: str | None = None
+    points_limit: int | None = None
     note: str | None = None
     # Past the LAST day OR results entered for that last day — entering a
     # same-day tournament's results retires it immediately (user 2026-08-01);

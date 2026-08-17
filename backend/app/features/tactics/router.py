@@ -55,11 +55,19 @@ def list_reflections(player_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/reflections", response_model=schemas.ReflectionOut)
-def add_reflection(payload: schemas.ReflectionIn, db: Session = Depends(get_db)):
+def add_reflection(
+    payload: schemas.ReflectionIn,
+    background: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """Save the note, then (background, best-effort) let the coach extract
+    anything it reveals about the STUDENT into the global me-file."""
     try:
-        return service.add_reflection(db, payload)
+        row = service.add_reflection(db, payload)
     except LookupError:
         raise HTTPException(status_code=404, detail="Player not found")
+    background.add_task(service.run_me_extraction_job, row.id)
+    return row
 
 
 @router.put("/reflections/{reflection_id}", response_model=schemas.ReflectionOut)

@@ -275,6 +275,20 @@
   font-style: italic;
 }
 
+/* Interview save-target toggle (About me ↔ opponent). */
+.tac-subj-toggle {
+  display: inline-flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.tac-chip-on {
+  background: rgba(74, 144, 217, 0.16);
+  border-color: #3d78b8;
+  color: #3d78b8;
+  font-weight: 600;
+}
+
 .tac-intake-leaning {
   color: var(--muted);
   font-size: 12px;

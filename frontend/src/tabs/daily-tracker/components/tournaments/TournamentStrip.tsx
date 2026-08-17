@@ -46,6 +46,11 @@ export default function TournamentStrip({
                 Level: {t.level_limit}
               </span>
             )}
+            {!!t.points_limit && (
+              <span className="tour-chip tour-chip-limit">
+                ≤ {t.points_limit} pts
+              </span>
+            )}
             {t.entries.map((e) => (
               <span
                 key={e.id}

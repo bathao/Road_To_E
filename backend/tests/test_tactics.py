@@ -215,6 +215,55 @@ def test_reflections_crud_newest_first(db):
     assert len(service.list_reflections(db, rival.id)) == 1
 
 
+def test_me_extraction_files_global_facts(db, monkeypatch):
+    """After a reflection is saved, the coach's background pass files what it
+    reveals about the STUDENT into the me-file (source='coach'): duplicates
+    vs existing me-facts are skipped, blanks dropped, cap 5 per note, and a
+    dead LLM never hurts the saved note."""
+    rival = _player(db, "Lợi Phạm")
+    service.add_fact(db, schemas.FactIn(player_id=None, kind="strength",
+                                        text="Giật phải tốt"))
+    note = service.add_reflection(db, schemas.ReflectionIn(
+        player_id=rival.id,
+        text="Giao ngắn của tôi rất hiệu quả, nhưng hắn toàn ép trái tôi."))
+
+    seen: dict = {}
+
+    def fake_chat(model, messages, schema, **kw):
+        seen["user"] = messages[1]["content"]
+        return {"facts": [
+            {"kind": "strength", "text": "Giao ngắn hiệu quả"},
+            {"kind": "strength", "text": "giật phải tốt"},  # dup (case-folded)
+            {"kind": "note", "text": "   "},  # blank → dropped
+        ]}
+
+    monkeypatch.setattr(service, "resolve_model", lambda: "test-model")
+    monkeypatch.setattr(service, "_ollama_chat", fake_chat)
+    service.run_me_extraction_job(note.id, db)
+
+    # The prompt saw the existing me-file and the note itself.
+    assert "Giật phải tốt" in seen["user"]
+    assert "Giao ngắn của tôi rất hiệu quả" in seen["user"]
+    me = service.list_facts(db, rival.id).me
+    assert [(f.text, f.source) for f in me] == [
+        ("Giật phải tốt", "user"),
+        ("Giao ngắn hiệu quả", "coach"),
+    ]
+    # Nothing ever lands on the opponent side from extraction.
+    assert all(f.player_id is None for f in me)
+
+    # LLM failure = silent no-op (the note is already saved).
+    def boom(*a, **k):
+        raise RuntimeError("ollama down")
+
+    monkeypatch.setattr(service, "_ollama_chat", boom)
+    note2 = service.add_reflection(db, schemas.ReflectionIn(
+        player_id=rival.id, text="Ghi chú thứ hai."))
+    service.run_me_extraction_job(note2.id, db)
+    assert len(service.list_reflections(db, rival.id)) == 2
+    assert len(service.list_facts(db, rival.id).me) == 2  # unchanged
+
+
 def test_build_context_includes_reflections(db):
     """Reflections ride both prompts as their own CHỦ QUAN section (newest
     first) — and the plan prompt carries the cross-check rule."""
@@ -251,6 +300,17 @@ def test_build_context_includes_h2h_and_facts(db):
     assert "cấm tự đổi sang 'bị chấp'" in ctx
     from app.features.tactics.prompt import PLAN_SYSTEM_PROMPT
     assert "KHÔNG viết 'bị chấp'" in PLAN_SYSTEM_PROMPT
+
+    # Pattern kèo stays a distinct, verbatim group (2026-08-17: a live plan
+    # shortened the lone 'được chấp 2-0-2' win into 'được chấp 2' — a kèo the
+    # student had only LOST at). Legend + plan rule ban the shortening.
+    _match(db, cat, opp=rival.id, my=3, o=0, handicap=-1, pattern="2-0-2",
+           date=D + dt.timedelta(days=8), order=2)
+    ctx = service.build_context(db, db.get(Player, rival.id))
+    assert "được chấp 2-0-2: 1W-0L" in ctx  # own group, not merged into '2'
+    assert "KÈO DẠNG CHUỖI" in ctx
+    assert "không rút gọn chuỗi" in ctx
+    assert "cấm rút gọn '2-0-2' thành '2'" in PLAN_SYSTEM_PROMPT
     assert "THUA 2-3" in ctx
     assert "[Điểm yếu] Trái tay yếu" in ctx
     assert "[Lối đánh] Đánh gai công" in ctx
@@ -272,6 +332,14 @@ def test_interview_parses_and_caps_questions(db, monkeypatch):
     assert [q.question for q in out.questions] == [f"Q{i}?" for i in range(5)]
     with pytest.raises(LookupError):
         service.run_interview(db, 999)
+
+    # Subject-labeling rules (2026-08-17: an about-ME question tagged
+    # 'opponent' filed the answer into the wrong column): subject follows
+    # whoever the ANSWER describes, and the coach never says 'tôi' in a
+    # question (it doesn't play).
+    from app.features.tactics.prompt import INTERVIEW_SYSTEM_PROMPT
+    assert "CÂU TRẢ LỜI SẼ MÔ TẢ" in INTERVIEW_SYSTEM_PROMPT
+    assert "không dùng 'tôi' trong câu hỏi" in INTERVIEW_SYSTEM_PROMPT
 
 
 def test_plan_job_lifecycle(db, monkeypatch):
