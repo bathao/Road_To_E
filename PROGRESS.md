@@ -1,6 +1,6 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-08-17, latest) — Tactics "My analysis": post-match reflections feed the plan loop (built)
+## Current status (2026-08-17, latest) — Tactics "My analysis": post-match reflections feed the plan loop (committed `84138da`, with the intake batch + kèo fix)
 
 > **Reflections (user request 2026-08-17, plan OK'd; needs start.bat
 > restart; driver: first LIVE plan ran today — vs Nguyễn Văn Trung,
@@ -39,7 +39,7 @@
 >     phrases) and the plan prompt gets a CHIỀU KÈO rule: quote the data's
 >     wording verbatim, 'bị chấp' is BANNED. Asserted in tests (149 still).
 
-## Previous status (2026-08-17, earlier same day) — Tactics structured intake: fixed baseline forms + narrowed LLM interview (built)
+## Previous status (2026-08-17, earlier same day) — Tactics structured intake: fixed baseline forms + narrowed LLM interview (in `84138da`)
 
 > **Structured intake rework (user request 2026-08-17, plan OK'd; needs
 > start.bat restart):** the user brought a 4-group scouting-question
