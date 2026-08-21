@@ -158,9 +158,10 @@ SESSION_NOTE_TAG_LABELS = dict(SESSION_NOTE_TAGS)
 SN_KIND_ADVICE = "advice"  # something the coach told me to work on
 SN_KIND_DRILL = "drill"  # one concrete exercise of the session (auto-numbered)
 SN_KIND_RECAP = "recap"  # what the session covered overall
-_SN_KINDS = (SN_KIND_ADVICE, SN_KIND_DRILL, SN_KIND_RECAP)
-_SN_ICON = {SN_KIND_ADVICE: "🧑‍🏫", SN_KIND_DRILL: "🏓", SN_KIND_RECAP: "📋"}
-_SN_EXPORT_PREFIX = {SN_KIND_ADVICE: "Coach", SN_KIND_RECAP: "Recap"}
+# lesson = the player's own takeaway of the day (Journal tab 2026-08-20) —
+# allowed on ANY day (no coach-session gate) and has no done-lifecycle.
+SN_KIND_LESSON = "lesson"
+_SN_KINDS = (SN_KIND_ADVICE, SN_KIND_DRILL, SN_KIND_RECAP, SN_KIND_LESSON)
 
 
 def clean_session_tags(tags: list[str]) -> list[str]:
@@ -179,43 +180,6 @@ def session_note_to_out(n: SessionNote) -> schemas.SessionNoteOut:
         text=n.text,
         is_done=bool(n.is_done),
     )
-
-
-def format_session_note_cell(items: list[SessionNote], *, for_export: bool) -> str:
-    """Coach & Recap cell. Screen: a single item shows as an icon + snippet,
-    several items collapse to per-kind counts ('🧑‍🏫 2 · 📋 1') — full text
-    lives in the editor/tooltip (WeekResponse.session_notes). Export: every
-    item in full, 'Coach:'/'Drill N:'/'Recap:' prefixed (drills numbered in
-    entry order), tags appended in brackets."""
-    if for_export:
-        lines = []
-        drill_no = 0
-        for n in items:
-            tags = [t for t in (n.tags or "").split(",") if t]
-            tag_s = (
-                " [" + ", ".join(SESSION_NOTE_TAG_LABELS.get(t, t) for t in tags) + "]"
-                if tags
-                else ""
-            )
-            if n.kind == SN_KIND_DRILL:
-                drill_no += 1
-                prefix = f"Drill {drill_no}"
-            else:
-                prefix = _SN_EXPORT_PREFIX.get(n.kind, n.kind)
-            lines.append(f"{prefix}: {n.text}{tag_s}")
-        return "\n".join(lines)
-    if len(items) == 1:
-        n = items[0]
-        s = " ".join((n.text or "").split())
-        if len(s) > _NOTE_SNIPPET_LEN:
-            s = s[:_NOTE_SNIPPET_LEN].rstrip() + "…"
-        return f"{_SN_ICON.get(n.kind, '')} {s}".strip()
-    parts = []
-    for kind in _SN_KINDS:
-        count = sum(1 for n in items if n.kind == kind)
-        if count:
-            parts.append(f"{_SN_ICON[kind]} {count}")
-    return " · ".join(parts)
 
 
 # ---------------------------------------------------------------- formatting
@@ -781,8 +745,6 @@ class RangeData(NamedTuple):
     matches: list[Match]  # ordered by order_index
     checks_by_date: dict[str, list[str]]  # iso date -> ticked item keys (legacy)
     notes_by_date: dict[str, str]  # iso date -> day-note text
-    # Coach & Recap items per iso date, in entry (id) order.
-    session_notes_by_date: dict[str, list[SessionNote]]
     # Training Center sessions completed in-range, keyed by done date. From the
     # cutover forward these are the source of the physical-training signal.
     tc_physical: dict[str, dict]
@@ -801,7 +763,14 @@ def _load_range(
     selectinload (avoids N+1 where they're rendered); callers that only count
     matches (stats / breakdown) pass False to skip the extra queries.
     """
-    categories = db.query(Category).order_by(Category.sort_order).all()
+    # session_note-type categories are OUT of the grid since 2026-08-20: the
+    # Coach & Recap row moved to the Journal tab (same store, new surface).
+    categories = (
+        db.query(Category)
+        .filter(Category.type != "session_note")
+        .order_by(Category.sort_order)
+        .all()
+    )
     activities = (
         db.query(Activity)
         .filter(Activity.date >= date_from, Activity.date <= date_to)
@@ -826,37 +795,14 @@ def _load_range(
         .filter(DayNote.date >= date_from, DayNote.date <= date_to)
         .all()
     )
-    session_notes = (
-        db.query(SessionNote)
-        .filter(SessionNote.date >= date_from, SessionNote.date <= date_to)
-        .order_by(SessionNote.id)
-        .all()
-    )
-    session_by_date: dict[str, list[SessionNote]] = {}
-    for n in session_notes:
-        session_by_date.setdefault(n.date.isoformat(), []).append(n)
     return RangeData(
         categories=categories,
         activities=activities,
         matches=matches,
         checks_by_date=physical_checks_by_date(checks),
         notes_by_date={n.date.isoformat(): n.text for n in day_notes},
-        session_notes_by_date=session_by_date,
         tc_physical=training_service.physical_day_map(db, date_from, date_to),
     )
-
-
-def _coach_day_isos(rng: RangeData) -> set[str]:
-    """Days in range with a Train-with-Coach session (>0 min) — the only days
-    the Coach & Recap row accepts new items."""
-    coach = next((c for c in rng.categories if c.key == "train_with_coach"), None)
-    if coach is None:
-        return set()
-    return {
-        a.date.isoformat()
-        for a in rng.activities
-        if a.category_id == coach.id and (a.duration_minutes or 0) > 0
-    }
 
 
 def _physical_dates(rng: RangeData) -> set[str]:
@@ -967,14 +913,6 @@ def _grid_cells(
                 note_text if for_export else note_snippet(note_text)
             )
 
-    # Coach & Recap cells (structured advice/recap items).
-    coach_recap = cat_by_key.get("coach_recap")
-    if coach_recap is not None:
-        for iso, items in rng.session_notes_by_date.items():
-            text[(coach_recap.id, iso)] = format_session_note_cell(
-                items, for_export=for_export
-            )
-
     # Overall: auto-generated colors from the day's data (not a manual rating).
     overall_colors = compute_overall_colors(
         categories,
@@ -1053,11 +991,6 @@ def build_week(
         cells=cells,
         physical_checks=checks_by_date,
         day_notes=notes_by_date,
-        session_notes={
-            iso: [session_note_to_out(n) for n in items]
-            for iso, items in rng.session_notes_by_date.items()
-        },
-        coach_days=sorted(_coach_day_isos(rng)),
         physical_cutover=training_service.get_cutover(db),
     )
 
@@ -1081,13 +1014,14 @@ def has_coach_session(db: Session, d: dt.date) -> bool:
 
 
 def create_session_note(db: Session, payload: schemas.SessionNoteIn) -> SessionNote:
-    """Add a Coach & Recap item. Only allowed on days that actually have a
-    coach session — the row is a record of those sessions, not a second Notes
-    row (self-training recaps belong in Notes)."""
+    """Add a Journal item. Coach items (advice/drill/recap) are only allowed
+    on days that actually have a coach session — they are a record of those
+    sessions. A `lesson` (the player's own takeaway, Journal tab 2026-08-20)
+    is welcome on ANY day."""
     text_ = (payload.text or "").strip()
     if not text_:
         raise ValueError("Text is required")
-    if not has_coach_session(db, payload.date):
+    if payload.kind != SN_KIND_LESSON and not has_coach_session(db, payload.date):
         raise ValueError("No Train with Coach session on this day — log it first")
     n = SessionNote(
         date=payload.date,
@@ -1142,6 +1076,217 @@ def list_active_advice(db: Session) -> list[SessionNote]:
         .order_by(SessionNote.date, SessionNote.id)
         .all()
     )
+
+
+# ---------------------------------------------------------------- journal
+def _journal_coach_names(db: Session, dates: list[dt.date]) -> dict[str, list[str]]:
+    """iso date -> that day's Train-with-Coach coach names (deduped, entry
+    order). coach_id NULL = the package coach (same convention as the package
+    math); no package coach seeded and NULL → the day just shows no name."""
+    if not dates:
+        return {}
+    coach_cat = db.query(Category).filter(Category.key == "train_with_coach").first()
+    if coach_cat is None:
+        return {}
+    names = {c.id: c.name for c in db.query(Coach).all()}
+    package = next(
+        (c.name for c in db.query(Coach).filter(Coach.counts_package.is_(True))
+         .order_by(Coach.id).all()),
+        None,
+    )
+    out: dict[str, list[str]] = {}
+    acts = (
+        db.query(Activity)
+        .filter(
+            Activity.category_id == coach_cat.id,
+            Activity.date.in_(dates),
+            Activity.duration_minutes > 0,
+        )
+        .order_by(Activity.id)
+        .all()
+    )
+    for a in acts:
+        name = names.get(a.coach_id) if a.coach_id else package
+        day = out.setdefault(a.date.isoformat(), [])
+        if name and name not in day:
+            day.append(name)
+    return out
+
+
+def _journal_result_token(m: Match) -> str:
+    """One match's result inside a group label: 'W 3-2', 'L 1-3 (receive 2)'."""
+    if m.my_sets == m.opp_sets:
+        res = f"T {m.my_sets}-{m.opp_sets}"
+    else:
+        res = f"{'W' if m.my_sets > m.opp_sets else 'L'} {m.my_sets}-{m.opp_sets}"
+    if m.handicap:
+        spec = m.handicap_pattern or str(abs(m.handicap))
+        res += f" ({'give' if m.handicap > 0 else 'receive'} {spec})"
+    return res
+
+
+def _group_day_matches(matches: list[Match]) -> list[list[Match]]:
+    """One journal note covers ALL of a day's matches vs the same opponent
+    (user 2026-08-21) — group by opponent(s) + partner, first-played order."""
+    groups: dict[tuple, list[Match]] = {}
+    for m in matches:
+        key = (
+            tuple(sorted(i for i in (m.opponent_id, m.opponent2_id) if i)),
+            m.partner_id,
+        )
+        groups.setdefault(key, []).append(m)
+    return list(groups.values())
+
+
+def _journal_group_out(members: list[Match]) -> schemas.JournalMatchOut:
+    """Group → API shape. `id` is the note-holder: the first noted match if
+    any (so edits round-trip to where the note lives), else the first played.
+    'vs Anh Tuấn — W 3-2, W 3-1 (receive 2)'."""
+    first = members[0]
+    results = ", ".join(_journal_result_token(m) for m in members)
+    opps = " & ".join(p.name for p in (first.opponent, first.opponent2) if p is not None)
+    label = f"vs {opps}" if opps else results
+    if first.partner is not None:
+        label += f" (with {first.partner.name})"
+    if opps:
+        label += f" — {results}"
+    primary = next((m for m in members if m.note), first)
+    return schemas.JournalMatchOut(id=primary.id, label=label, note=primary.note or "")
+
+
+def _journal_day_match_rows(db: Session, dates: list[dt.date]) -> dict[dt.date, list[Match]]:
+    if not dates:
+        return {}
+    rows = (
+        db.query(Match)
+        .filter(Match.is_nonplaying == False, Match.date.in_(dates))  # noqa: E712
+        .options(
+            selectinload(Match.opponent),
+            selectinload(Match.opponent2),
+            selectinload(Match.partner),
+        )
+        .order_by(Match.date, Match.order_index, Match.id)
+        .all()
+    )
+    out: dict[dt.date, list[Match]] = {}
+    for m in rows:
+        out.setdefault(m.date, []).append(m)
+    return out
+
+
+def _journal_matches(
+    db: Session, dates: list[dt.date], noted_only: bool
+) -> dict[dt.date, list[schemas.JournalMatchOut]]:
+    """The Matches area rides tracker_match directly — a match note IS the
+    'lưu ý' about that day's opponent (and the Tactics h2h context reads it).
+    Grouping happens here so the label always shows every result vs the
+    opponent, even when only one of the matches carries the note."""
+    out: dict[dt.date, list[schemas.JournalMatchOut]] = {}
+    for d, ms in _journal_day_match_rows(db, dates).items():
+        for members in _group_day_matches(ms):
+            group = _journal_group_out(members)
+            if noted_only and not group.note:
+                continue
+            out.setdefault(d, []).append(group)
+    return out
+
+
+def set_match_note(db: Session, match_id: int, note: str) -> schemas.JournalMatchOut:
+    """The journal's per-opponent-day note — writes tracker_match.note on the
+    group's note-holder match (blank clears). Returns the GROUP so the
+    composer's state stays aligned with what the day endpoint serves."""
+    m = db.get(Match, match_id)
+    if m is None:
+        raise LookupError(f"match {match_id} not found")
+    m.note = note.strip() or None
+    db.commit()
+    db.refresh(m)
+    for members in _group_day_matches(
+        _journal_day_match_rows(db, [m.date]).get(m.date, [])
+    ):
+        if any(x.id == m.id for x in members):
+            return _journal_group_out(members)
+    return _journal_group_out([m])  # unreachable: m is one of its day's matches
+
+
+def _journal_day_out(
+    db: Session, d: dt.date, items: list[SessionNote],
+    coach_names: dict[str, list[str]] | None = None,
+    matches: list[schemas.JournalMatchOut] | None = None,
+) -> schemas.JournalDayOut:
+    iso = d.isoformat()
+    coaches = (
+        coach_names.get(iso, [])
+        if coach_names is not None
+        else _journal_coach_names(db, [d]).get(iso, [])
+    )
+    return schemas.JournalDayOut(
+        date=d,
+        coaches=coaches,
+        has_coach_session=has_coach_session(db, d),
+        items=[session_note_to_out(n) for n in items],
+        matches=matches or [],
+    )
+
+
+def journal_days(
+    db: Session, limit: int = 30, before: dt.date | None = None
+) -> schemas.JournalDaysOut:
+    """The Journal timeline: days that HAVE entries (session notes OR noted
+    matches), newest first, paginated by `before` (exclusive). Old Coach &
+    Recap items appear as the journal of their day automatically — same
+    store. Timeline days only carry the matches that HAVE notes."""
+    sn_dates = {d for (d,) in db.query(SessionNote.date).distinct().all()}
+    mn_dates = {
+        d
+        for (d,) in db.query(Match.date)
+        .filter(
+            Match.is_nonplaying == False,  # noqa: E712
+            Match.note.isnot(None),
+            Match.note != "",
+        )
+        .distinct()
+        .all()
+    }
+    all_dates = sorted(sn_dates | mn_dates, reverse=True)
+    if before is not None:
+        all_dates = [d for d in all_dates if d < before]
+    has_more = len(all_dates) > limit
+    dates = all_dates[:limit]
+    notes = (
+        db.query(SessionNote)
+        .filter(SessionNote.date.in_(dates))
+        .order_by(SessionNote.id)
+        .all()
+    ) if dates else []
+    by_date: dict[dt.date, list[SessionNote]] = {}
+    for n in notes:
+        by_date.setdefault(n.date, []).append(n)
+    coach_names = _journal_coach_names(db, dates)
+    match_by_date = _journal_matches(db, dates, noted_only=True)
+    return schemas.JournalDaysOut(
+        days=[
+            _journal_day_out(
+                db, d, by_date.get(d, []), coach_names, match_by_date.get(d, [])
+            )
+            for d in dates
+        ],
+        has_more=has_more,
+    )
+
+
+def journal_day(db: Session, d: dt.date) -> schemas.JournalDayOut:
+    """One day for the Journal composer: items (may be empty), the
+    has_coach_session gate flag, and ALL of the day's matches (note or not —
+    the composer offers a note box per match)."""
+    items = (
+        db.query(SessionNote)
+        .filter(SessionNote.date == d)
+        .order_by(SessionNote.id)
+        .all()
+    )
+    matches = _journal_matches(db, [d], noted_only=False).get(d, [])
+    return _journal_day_out(db, d, items, matches=matches)
 
 
 # ---------------------------------------------------------------- coach packages

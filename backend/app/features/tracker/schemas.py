@@ -361,12 +361,13 @@ class DayNoteOut(BaseModel):
     text: str  # the stored note; empty string when cleared
 
 
-# ---------- Session notes (Coach & Recap row) ----------
+# ---------- Session notes (Journal tab; formerly the Coach & Recap row) ----------
 class SessionNoteIn(BaseModel):
     date: dt.date
     # advice = coach's instruction (has a done-lifecycle) · drill = one
-    # exercise of the session (auto-numbered in display) · recap = summary.
-    kind: Literal["advice", "drill", "recap"]
+    # exercise of the session (auto-numbered in display) · recap = summary ·
+    # lesson = the player's own takeaway of the day (any day, no lifecycle).
+    kind: Literal["advice", "drill", "recap", "lesson"]
     tags: list[str] = []  # keys from service.SESSION_NOTE_TAGS (unknown dropped)
     text: str
 
@@ -382,10 +383,41 @@ class SessionNoteUpdate(BaseModel):
 class SessionNoteOut(BaseModel):
     id: int
     date: dt.date
-    kind: str  # advice | drill | recap
+    kind: str  # advice | drill | recap | lesson
     tags: list[str]
     text: str
     is_done: bool
+
+
+# ---------- Journal tab (timeline over the session-note store) ----------
+class JournalMatchOut(BaseModel):
+    """One of the day's matches in the journal's Matches area — a compact
+    English label plus its note (the note writes to tracker_match.note)."""
+
+    id: int
+    label: str  # e.g. "W 3-2 vs Nguyễn Văn Trung · receive 2"
+    note: str = ""
+
+
+class MatchNoteIn(BaseModel):
+    note: str = ""  # blank clears the note
+
+
+class JournalDayOut(BaseModel):
+    date: dt.date
+    # Train-with-Coach coach names that day (empty = no coach session).
+    coaches: list[str] = []
+    # Gates the composer's coach-reminder block (lessons need no session).
+    has_coach_session: bool = False
+    items: list[SessionNoteOut] = []
+    # Composer (journal/day): ALL of the day's matches, note or not.
+    # Timeline (journal/days): only matches that HAVE a note.
+    matches: list[JournalMatchOut] = []
+
+
+class JournalDaysOut(BaseModel):
+    days: list[JournalDayOut] = []  # newest first, only days WITH entries
+    has_more: bool = False
 
 
 class SessionNoteTagOut(BaseModel):
@@ -570,12 +602,6 @@ class WeekResponse(BaseModel):
     cells: dict[str, CellData]  # key = f"{category_id}|{date.isoformat()}"
     physical_checks: dict[str, list[str]]  # iso date -> ticked item keys (legacy)
     day_notes: dict[str, str]  # iso date -> note text
-    # Coach & Recap row: iso date -> that day's items (full text for the
-    # editor/tooltip; the cell only carries the compact rendering).
-    session_notes: dict[str, list[SessionNoteOut]] = {}
-    # Days in range with a Train-with-Coach session (>0 min) — the FE unlocks
-    # empty Coach & Recap cells only on these days.
-    coach_days: list[str] = []
     # From this date forward the Physical row mirrors Training Center (read-only
     # in the grid); before it, the legacy checklist stays editable. None = unset.
     physical_cutover: dt.date | None = None

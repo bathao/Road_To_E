@@ -327,7 +327,37 @@ def upsert_day_note(payload: schemas.DayNoteIn, db: Session = Depends(get_db)):
     return schemas.DayNoteOut(date=payload.date, text=text)
 
 
-# ------------------------------------------------- session notes (Coach & Recap)
+# ------------------------------------------------- session notes (Journal tab)
+@router.get("/journal/days", response_model=schemas.JournalDaysOut)
+def journal_days(
+    limit: int = Query(30, ge=1, le=120),
+    before: dt.date | None = None,
+    db: Session = Depends(get_db),
+):
+    """Journal timeline: days that have entries, newest first. `before`
+    (exclusive) pages further back."""
+    return service.journal_days(db, limit=limit, before=before)
+
+
+@router.get("/journal/day/{date}", response_model=schemas.JournalDayOut)
+def journal_day(date: dt.date, db: Session = Depends(get_db)):
+    """One day for the composer — items, the coach-session gate flag and all
+    of the day's matches (each with its note)."""
+    return service.journal_day(db, date)
+
+
+@router.patch("/matches/{match_id}/note", response_model=schemas.JournalMatchOut)
+def set_match_note(
+    match_id: int, payload: schemas.MatchNoteIn, db: Session = Depends(get_db)
+):
+    """The journal's per-match note (writes tracker_match.note; blank
+    clears). The Tactics h2h context reads these notes."""
+    try:
+        return service.set_match_note(db, match_id, payload.note)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="match not found")
+
+
 @router.get("/session-note-tags", response_model=list[schemas.SessionNoteTagOut])
 def list_session_note_tags():
     return [

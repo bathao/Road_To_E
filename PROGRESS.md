@@ -1,6 +1,208 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-08-17, latest) — Tactics "My analysis": post-match reflections feed the plan loop (committed `84138da`; same-day batch 2 `3f05f30`)
+## Current status (2026-08-21, latest) — NEW TAB "Journal" (📔): daily diary replaces the Coach & Recap row (built + 1.5 days of live-use reworks)
+
+> **NEXT UP (approved 2026-08-21, do right after this commit):** upgrade the
+> journal edit boxes to a minimal hand-rolled contentEditable rich-text area
+> — Ctrl+B/I/U show real bold/italic/underline WHILE TYPING (user: "trong
+> khung edit nó ko hiện in đậm được à?"); serialize back to the same
+> **marker** plain text on save (DB / AI bundle / Tactics unchanged); paste
+> forced to plain text; scope = 3 composer boxes + 2 timeline edit boxes;
+> fallback plan: revert to textarea if Vietnamese IME misbehaves.
+
+> **Journal tab (user request 2026-08-20, plan OK'd + follow-up "bỏ luôn
+> Coach & Recap, recap cũ convert thành nhật ký ngày cũ"; needs start.bat
+> restart):** a daily table-tennis diary — the coach's reminders when a day
+> had a Train-with-Coach session, plus the player's own takeaways any day.
+> KEY DESIGN: no parallel store — the tab is a new writing surface over the
+> SAME `tracker_session_note` table, so every legacy Coach & Recap item
+> "converts" into the journal of its day for free (real-DB smoke on a copy:
+> 5 legacy days render with the right per-session coach names Minh Thới /
+> Phi Vũ).
+>   - **Data:** new session-note kind `lesson` (the player's own takeaway) —
+>     allowed on ANY day (advice/drill/recap keep the coach-day gate), no
+>     done-lifecycle (is_done stays advice-only). Zero migration.
+>   - **Grid:** the Coach & Recap row is GONE — `_load_range` filters
+>     session_note-type categories (grid, export, stats all skip it; the
+>     category row itself survives in the DB, never deleted; fresh DBs no
+>     longer seed it). WeekResponse dropped `session_notes`/`coach_days`;
+>     SessionNoteEditor deleted; its sn-* styles moved to journal.css.
+>   - **API:** GET /tracker/journal/days?limit&before (days WITH entries,
+>     newest first, paginated, per-day coach names — coach_id NULL resolves
+>     to the package coach) + GET /tracker/journal/day/{date} (composer:
+>     items + has_coach_session gate). Item CRUD rides the existing
+>     session-note endpoints untouched.
+>   - **FE tab** (registry: 📔 "Journal", right after Daily Tracker):
+>     "Still working on" checklist on top (active advice, tick = absorbed —
+>     the lifecycle's new home), then the composer (date picker capped at
+>     today; "Coach's reminders" block only when the day has a coach
+>     session — Seg advice/drill/recap + tag chips + quick-add; "💡 My
+>     lessons" textarea always open), then the timeline: one card per day
+>     (date + "session with <coach>", advice ticks, drills numbered, inline
+>     ✏️ edit / ✕ delete), "Load older days…" pagination.
+>   - **Coach AI:** verdict bundle gains "KINH NGHIỆM HỌC TRÒ TỰ RÚT RA
+>     (nhật ký — mới nhất trước; chủ quan, đối chiếu với số liệu)" reading
+>     recent lessons; session_recaps now filter kind IN (drill, recap) so
+>     lessons never masquerade as coach-session material; "HLV TRỰC TIẾP
+>     ĐANG DẶN" (active advice) unchanged. Weekly/monthly recap bundle:
+>     lessons ride the in-period notes with kind label "Bài học tự rút ra",
+>     section renamed "NHẬT KÝ TRONG KỲ".
+>   - Tests: test_session_notes.py reworked (grid/export assertions →
+>     grid-has-no-row + journal timeline/pagination/coach-names + lesson
+>     gating/lifecycle + bundle lessons section); 153 total, pytest clean +
+>     gen:api + tsc + vite build clean. Real-DB smoke ON A COPY only.
+>   - **Same-day redesign (user: "design quá xấu, tham khảo các ứng dụng
+>     viết nhật ký lớn"):** v1 looked like an admin tool. Rebuilt on the
+>     Day One / Journey patterns: centered 760px reading column; composer
+>     as "today's page" (big "Today" + full date, small date picker,
+>     lessons textarea FIRST, coach block only on coach days); "Still
+>     working on" demoted to a slim amber collapsible with a count pill;
+>     timeline grouped under uppercase month labels with a vertical thread,
+>     each day a Day One-style date block (weekday + big day number, accent
+>     ring on today) beside the entry card; items grouped "Session with
+>     <coach>" / "Lessons"; ✏️/✕ only reveal on hover (content is the
+>     hero). sn-* styles retired for jr-*. FE-only, build clean.
+>   - **Title tweak (2026-08-21):** day-card coach group → "Tập với Coach
+>     Phi Vũ" (user-requested Vietnamese, "Coach" before the name out of
+>     respect — deliberate exception to the English-GUI rule); composer
+>     sub → "session with Coach X". Multi-coach days prefix each name.
+>   - **Rework #9 (2026-08-21) — Ctrl+B/I/U formatting in every journal
+>     writing box:** new `tabs/journal/markup.tsx` — `formatHotkeys`
+>     toggles Markdown-style markers around the selection via
+>     setRangeText (**bold**, *italic*, __underline__; empty selection =
+>     caret inside an empty pair; press again to unwrap), `renderMarkup`
+>     renders the markers as <strong>/<em>/<u> (no nesting). Wired into
+>     the composer's coach/match/notes textareas + both timeline edit
+>     boxes; display goes through renderMarkup on draft lines, day-card
+>     items, and match notes. Storage stays plain text with markers — DB,
+>     AI-coach bundle, and Tactics context unchanged (LLM reads markdown
+>     fine). FE-only, build clean.
+>   - **Rework #8 (2026-08-21) — bigger in-place edit box (user: "khung
+>     edit quá nhỏ so với không gian"):** timeline editing switched from a
+>     2-row textarea squeezed beside two icon buttons to a full-card-width
+>     block — textarea min 90px, rows follow the line count (cap 14) plus
+>     CSS field-sizing:content for wrap-aware auto-grow, Cancel / 💾 Save
+>     on their own row below. Applied to both session-note and match-note
+>     edits. FE-only, build clean.
+>   - **Rework #7 (2026-08-21) — "Still working on" checklist dropped
+>     (user: "Bỏ luôn phần design still working on — lưu thành từng ô
+>     nhật ký là được rồi"):** the amber collapsible, the advice tick
+>     checkbox on day cards, and the done-strikethrough are gone — advice
+>     is now plain diary content with a 💬 icon. FE-only: the backend
+>     is_done column, PATCH support, and /session-notes/active endpoint
+>     stay (harmless, tests pin them); api.ts keeps getActiveAdvice as an
+>     unused mirror. Build clean.
+>   - **Rework #6 (2026-08-21) — timeline groups mirror the composer 1:1
+>     (user: "Lưu thành 3 mục ở dưới tương ứng với ở trên"):** naming
+>     unified to Lesson / Matches / Notes on BOTH surfaces — composer
+>     coach block "🧑‍🏫 Lesson — session with X", bottom textarea "📝 Notes
+>     — optional"; day-card groups "🧑‍🏫 Lesson with X" / "🏓 Matches" /
+>     "📝 Notes" (lesson-kind item icon 💡→📝). Display only — the
+>     session-note `lesson` kind and coach kinds are unchanged. FE-only,
+>     build clean.
+>   - **Rework #5 (2026-08-21) — match notes edit on the timeline too
+>     (user: "đều sửa trên timeline được hết, cho nó đồng bộ"):** timeline
+>     match rows gained the same hover-reveal ✏️/✕ as coach items/lessons —
+>     ✏️ opens a 2-row textarea (💾 saves via the note PATCH, Esc cancels),
+>     ✕ clears the note only (the match record stays; the group may then
+>     drop off the timeline). Separate editing state from session notes
+>     (match ids ≠ note ids). FE-only, build clean.
+>   - **DATA-LOSS FIX (2026-08-21) — Save day now includes text still
+>     sitting in the coach box:** the user wrote a long "Coach said" entry
+>     without pressing "＋ Line", pressed Save day → the draft loop only
+>     posted draftLines, then cleared coachText. The entry never reached
+>     the server and was unrecoverable (client state only). Fix:
+>     `pendingCoach` (the trimmed coach box + current kind/tags, only when
+>     the day has a coach session) joins draftLines in both the save loop
+>     and the draftEmpty check, so typing alone flips the footer to "Draft
+>     in progress" and Save day persists it. "＋ Line" is now optional —
+>     just a way to split multiple entries.
+>   - **Rework #4 (2026-08-21) — every writing area supports Enter =
+>     new line (user: "tôi muốn viết nhiều paragraph, nhấn save mới lưu
+>     1 lần"):** the coach-line input and the timeline item-edit box became
+>     textareas (Enter = newline; "＋ Line" adds to the draft, 💾 saves the
+>     edit — Enter no longer triggers either). Match note + day takeaway
+>     were already textareas. Display keeps line breaks (pre-wrap was
+>     already on jr-item-text). FE-only, build clean.
+>   - **Rework #3 (2026-08-21) — Matches area groups by OPPONENT (user:
+>     "Các trận cùng 1 đối thủ thì nên để làm 1 — tôi ghi nhật ký chung
+>     về 1 đối thủ trong 1 ngày"):** grouping happens server-side in
+>     `_journal_matches` — same opponent(s)+partner on one day merge into
+>     ONE JournalMatchOut with a combined label ("vs Anh Tuấn — W 3-2,
+>     W 3-1 (receive 2)"; per-match handicap in parens), `id` = the
+>     note-holder match (first noted, else first played), so the API shape
+>     and FE state logic are unchanged. PATCH still writes one
+>     `tracker_match.note` but returns the GROUP; timeline shows the group
+>     when any member is noted (label still lists every result). FE:
+>     match-note input → 2-row textarea ("one note per opponent of the
+>     day"), DayCard shows label + note on separate lines. Tactics h2h
+>     unchanged (still quotes per-match, i.e. the holder's line carries
+>     the note). Tests 155 (new group test: merge, separate opponents,
+>     PATCH round-trip, timeline label); pytest + tsc + vite build clean.
+>   - **Same-day rework #2 — composer split into TWO areas (user: "1 là
+>     khu vực tập luyện với HLV, 2 là khu vực thi đấu — các lưu ý trong
+>     các trận đấu cụ thể", 2026-08-21):** the Matches area lists ALL of
+>     the chosen day's matches (compact English label "W 3-2 vs X ·
+>     receive 2" built server-side) each with a note input — the note
+>     writes STRAIGHT to `tracker_match.note` (new lightweight PATCH
+>     /tracker/matches/{id}/note, blank clears; no duplicate store) and
+>     rides the day-draft "Save day" like everything else. Days whose
+>     matches carry notes count as journal days (union with session-note
+>     dates); timeline day cards show a "🏓 Matches" group (noted matches
+>     only; composer day returns all). BONUS: the Tactics h2h context now
+>     quotes each match's note ("ghi chú của học trò: …") — per-match
+>     observations feed the per-opponent game plans. The lessons textarea
+>     stays as a slim optional "💡 Day takeaway". Tests +1 (154 total:
+>     labels, patch set/clear/404, noted-day timeline membership, tactics
+>     context quote); pytest + gen:api + tsc + vite build clean.
+>   - **Same-day flow fix (user: "tôi muốn viết trọn vẹn nhật ký 1 ngày
+>     rồi bấm save — hiện bấm Add là nó lưu ngay xuống dưới"):** the
+>     composer is now a LOCAL DRAFT of the whole day — coach lines collect
+>     in a dashed draft list ("＋ Line", Enter = add line, ✕ removes;
+>     nothing persists), the lessons textarea (4 rows, write freely) saves
+>     as ONE multi-line note (pre-wrap in display), and a single "💾 Save
+>     day" button posts the whole draft at once (footer hint says "Nothing
+>     is saved until…"/"Draft in progress"). Failed save keeps the draft.
+>     Item-level edit/tick/delete stays on the timeline cards. FE-only,
+>     build clean.
+
+## Previous status (2026-08-20, earlier same day) — status check: Tactics tab in real use, first even win vs Trung; BBTV tiers entered as 5 duplicate tournaments
+
+> **Status check 2026-08-20:** no code change since batch 2 (`3f05f30`,
+> PROGRESS `fa15a57`) — the only working-tree change is the DB (user data
+> 17→20/08, uncommitted as usual). What the DB shows:
+>   - **Tactics tab is in real use:** opponent intake filled for 6 people
+>     (Trần Quang Vinh, Phương Quang, Tấn Phát, Tuấn gỗ, Nguyễn Hồng Vinh,
+>     Anh Tuấn gai — incl. "not sure yet" clutch answers, so the unsure
+>     flow works), 2 plans generated vs Nguyễn Văn Trung (both done,
+>     qwen3.5:9b), 1 reflection saved vs Trung ("giao xoáy xuống ngắn,
+>     không được lòi banh"). NO 🧠 coach-extracted me-facts exist yet —
+>     the lone reflection predates the extraction feature going live
+>     (extraction only fires on note SAVE), so that flow's first real
+>     trigger is still pending: the next saved note is the live test.
+>   - **Results are moving (12 singles matches 18–20/08):** the day after
+>     the game plans, the FIRST EVER even win vs Nguyễn Văn Trung (0-3
+>     then 3-2 same evening 18/08 — until now the only win was at 'được
+>     chấp 2-0-2'); after scouting Anh Tuấn gai (long-pips chopper), two
+>     even wins 3-2 + 3-1 on 20/08. The user is now also GIVING kèo in
+>     sparring: chấp 4 (3-0 W, 2-3 L vs Anh Sơn; 2-3 L vs Hậu) and chấp 2
+>     (3-2 W vs Cháu Vũ). 2 new players added, both with points (Quốc clb
+>     TSN 1200, Hứa Khiết Quang 1200).
+>   - **BBTV Open Lần 3 (22–23/08, 2 days away) exposed a modeling gap:**
+>     the tournament exists as FIVE near-duplicate cards (ids 6-9, 11) —
+>     points tiers 1100 / 1200 / 1300 / 1500 / Open, one singles entry
+>     each, same dates. The real-world structure is ONE tournament whose
+>     EVENTS (nội dung) each carry a points tier — our `points_limit`
+>     sits on the tournament, so the user worked around it by duplicating
+>     the card per tier ("ko tạo nội dung OPEN được" 2026-08-17 now reads
+>     as: OPEN is an EVENT tier, not a tournament property). Candidate
+>     follow-up: move/add the points tier to tournament_entry (like the
+>     existing `division` text) + merge the 5 cards — NOT built, needs the
+>     user's call; duplicates left untouched (never delete user data).
+>   - Coach side quiet since 16/08 (verdict #17 + recap #9 both done);
+>     next recap window ends 23/08 — right after BBTV.
+
+## Previous status (2026-08-17) — Tactics "My analysis": post-match reflections feed the plan loop (committed `84138da`; same-day batch 2 `3f05f30`)
 
 > **Reflections (user request 2026-08-17, plan OK'd; needs start.bat
 > restart; driver: first LIVE plan ran today — vs Nguyễn Văn Trung,

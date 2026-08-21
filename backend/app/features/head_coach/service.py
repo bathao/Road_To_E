@@ -369,7 +369,8 @@ def gather_bundle(db: Session) -> schemas.SourceSummary:
         _session_note_dict(n) for n in tracker_service.list_active_advice(db)
     ]
     # Drills count as recap material (what was actually practiced) — prefixed
-    # so the model can tell one exercise from an overall summary.
+    # so the model can tell one exercise from an overall summary. Lessons are
+    # NOT recap material — they get their own section below.
     session_recaps = [
         _session_note_dict(n)
         | (
@@ -378,7 +379,20 @@ def gather_bundle(db: Session) -> schemas.SourceSummary:
             else {}
         )
         for n in db.query(SessionNote)
-        .filter(SessionNote.kind != tracker_service.SN_KIND_ADVICE)
+        .filter(SessionNote.kind.in_(
+            (tracker_service.SN_KIND_DRILL, tracker_service.SN_KIND_RECAP)
+        ))
+        .order_by(SessionNote.date.desc(), SessionNote.id.desc())
+        .limit(_RECENT_NOTES)
+        .all()
+    ]
+
+    # The player's own takeaways from the Journal tab (2026-08-20), newest
+    # first — self-observed, cross-checkable against the numbers.
+    lessons = [
+        _session_note_dict(n)
+        for n in db.query(SessionNote)
+        .filter(SessionNote.kind == tracker_service.SN_KIND_LESSON)
         .order_by(SessionNote.date.desc(), SessionNote.id.desc())
         .limit(_RECENT_NOTES)
         .all()
@@ -392,6 +406,7 @@ def gather_bundle(db: Session) -> schemas.SourceSummary:
         notes=notes,
         coach_advice=coach_advice,
         session_recaps=session_recaps,
+        lessons=lessons,
         coach_notes=_coach_note_dicts(db),
         # Registered upcoming competitions — the week plan aims at these.
         tournaments=tournament_service.upcoming_for_coach(db),
@@ -516,6 +531,9 @@ def _bundle_to_text(b: schemas.SourceSummary) -> str:
     recap_lines = "\n".join(_sn_line(n) for n in b.session_recaps) or (
         "  (chưa có recap buổi tập nào)"
     )
+    lesson_lines = "\n".join(_sn_line(n) for n in b.lessons) or (
+        "  (chưa có bài học nào)"
+    )
 
     racket_total = m.get("racket_minutes_total", 0)
     racket_tr = m.get("racket_minutes_training", 0)
@@ -562,6 +580,9 @@ def _bundle_to_text(b: schemas.SourceSummary) -> str:
         f"{advice_lines}\n\n"
         f"=== RECAP CÁC BUỔI TẬP VỚI HLV TRỰC TIẾP (mới nhất trước) ===\n"
         f"{recap_lines}\n\n"
+        f"=== KINH NGHIỆM HỌC TRÒ TỰ RÚT RA (nhật ký — mới nhất trước; chủ "
+        f"quan, đối chiếu với số liệu khi dùng) ===\n"
+        f"{lesson_lines}\n\n"
         f"=== GHI CHÚ HẰNG NGÀY CỦA HỌC TRÒ (mới nhất trước) ===\n"
         f"{note_lines}\n\n"
         f"=== SỔ TAY HLV (mục tiêu/mốc thời gian/ràng buộc đã chốt với học trò) ===\n"
@@ -1143,7 +1164,12 @@ def _snapshot_pair_lines(stats: dict) -> str:
     return "\n".join(lines)
 
 
-_SN_KIND_VI = {"advice": "HLV dặn", "drill": "Bài tập", "recap": "Recap buổi tập"}
+_SN_KIND_VI = {
+    "advice": "HLV dặn",
+    "drill": "Bài tập",
+    "recap": "Recap buổi tập",
+    "lesson": "Bài học tự rút ra",
+}
 
 
 def _recap_bundle_to_text(b: dict) -> str:
@@ -1188,7 +1214,7 @@ def _recap_bundle_to_text(b: dict) -> str:
         return f"  - {n['date']} · {kind}{tag_s}: {n['text']}"
 
     sn_lines = "\n".join(_sn_line(n) for n in b.get("session_notes", [])) or (
-        "  (không có buổi tập với HLV trực tiếp trong kỳ)"
+        "  (nhật ký trống trong kỳ)"
     )
     note_lines = "\n".join(
         f"  - {n['date']}: {n['text']}" for n in b.get("day_notes", [])
@@ -1217,7 +1243,8 @@ def _recap_bundle_to_text(b: dict) -> str:
         f"Đối đầu nhiều nhất trong kỳ (đơn):\n{h2h_lines}\n"
         f"ELO THEO ĐỐI THỦ trong kỳ (net; trận đôi/đồng đội tính cho mọi đối "
         f"thủ có mặt):\n{_elo_opp_lines(b)}\n\n"
-        f"=== HLV TRỰC TIẾP TRONG KỲ (lời dặn / bài tập / recap học trò ghi lại) ===\n"
+        f"=== NHẬT KÝ TRONG KỲ (lời HLV dặn / bài tập / recap / bài học học "
+        f"trò tự rút ra) ===\n"
         f"{sn_lines}\n\n"
         f"=== GHI CHÚ HẰNG NGÀY CỦA HỌC TRÒ TRONG KỲ ===\n"
         f"{note_lines}\n\n"

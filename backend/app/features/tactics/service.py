@@ -333,6 +333,10 @@ def _match_line(m: Match) -> str:
         parts.append("vòng bảng" if m.round == "group" else _ROUND_NAME.get(m.round, m.round))
     if m.event is not None:
         parts.append(m.event.name)
+    # Per-match journal note (2026-08-21) — the student's own read of that
+    # exact match; gold scouting input.
+    if m.note:
+        parts.append(f"ghi chú của học trò: {m.note}")
     return "  - " + " · ".join(parts)
 
 

@@ -4,6 +4,7 @@ import type { ComponentType } from "react";
 import ComingSoon from "./ComingSoon";
 import DailyTracker from "./daily-tracker";
 import DatabaseTab from "./database";
+import Journal from "./journal";
 import MatchStats from "./match-stats";
 import Tactics from "./tactics";
 import TrainingCenter from "./training-center";
@@ -23,6 +24,15 @@ export const TABS: TabDef[] = [
     label: "Daily Tracker",
     icon: "📅",
     component: DailyTracker,
+    enabled: true,
+  },
+  {
+    // Daily table-tennis diary (2026-08-20): coach reminders + own lessons.
+    // Replaced the grid's Coach & Recap row — same store, new surface.
+    id: "journal",
+    label: "Journal",
+    icon: "📔",
+    component: Journal,
     enabled: true,
   },
   {

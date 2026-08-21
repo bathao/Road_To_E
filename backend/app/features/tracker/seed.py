@@ -196,10 +196,10 @@ def _ensure_activity_unique_index(db: Session) -> bool:
 # (key, label, type, color_group). Order here = display order (sort_order).
 DEFAULT_CATEGORIES = [
     ("train_with_coach", "Train with Coach", "duration", "green"),
-    # Structured advice/recap items for coach sessions. Cells are only
-    # editable on days that have a train_with_coach activity (FE gate +
-    # service.create_session_note), hence it sits right under that row.
-    ("coach_recap", "Coach & Recap", "session_note", "none"),
+    # NOTE 2026-08-20: the "Coach & Recap" session_note row moved to the
+    # Journal tab (same tracker_session_note store, new surface). Fresh DBs
+    # no longer create the category; on existing DBs the row is filtered out
+    # of the grid by type (_load_range) — never deleted.
     ("training_with_partner", "Training with Partner", "duration", "green"),
     ("serve", "Serve", "duration", "green"),
     ("physical_training", "Physical Training", "checklist", "yellow"),

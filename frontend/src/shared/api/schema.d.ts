@@ -294,6 +294,69 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tracker/journal/days": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Journal Days
+         * @description Journal timeline: days that have entries, newest first. `before`
+         *     (exclusive) pages further back.
+         */
+        get: operations["journal_days_api_tracker_journal_days_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tracker/journal/day/{date}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Journal Day
+         * @description One day for the composer — items, the coach-session gate flag and all
+         *     of the day's matches (each with its note).
+         */
+        get: operations["journal_day_api_tracker_journal_day__date__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tracker/matches/{match_id}/note": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Set Match Note
+         * @description The journal's per-match note (writes tracker_match.note; blank
+         *     clears). The Tactics h2h context reads these notes.
+         */
+        patch: operations["set_match_note_api_tracker_matches__match_id__note_patch"];
+        trace?: never;
+    };
     "/api/tracker/session-note-tags": {
         parameters: {
             query?: never;
@@ -1472,6 +1535,7 @@ export interface components {
              *       "notes": [],
              *       "coach_advice": [],
              *       "session_recaps": [],
+             *       "lessons": [],
              *       "coach_notes": [],
              *       "tournaments": [],
              *       "generated_for_range": "",
@@ -2073,6 +2137,63 @@ export interface components {
              */
             alternatives: components["schemas"]["ItemAlt"][];
         };
+        /** JournalDayOut */
+        JournalDayOut: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /**
+             * Coaches
+             * @default []
+             */
+            coaches: string[];
+            /**
+             * Has Coach Session
+             * @default false
+             */
+            has_coach_session: boolean;
+            /**
+             * Items
+             * @default []
+             */
+            items: components["schemas"]["SessionNoteOut"][];
+            /**
+             * Matches
+             * @default []
+             */
+            matches: components["schemas"]["JournalMatchOut"][];
+        };
+        /** JournalDaysOut */
+        JournalDaysOut: {
+            /**
+             * Days
+             * @default []
+             */
+            days: components["schemas"]["JournalDayOut"][];
+            /**
+             * Has More
+             * @default false
+             */
+            has_more: boolean;
+        };
+        /**
+         * JournalMatchOut
+         * @description One of the day's matches in the journal's Matches area — a compact
+         *     English label plus its note (the note writes to tracker_match.note).
+         */
+        JournalMatchOut: {
+            /** Id */
+            id: number;
+            /** Label */
+            label: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+        };
         /**
          * LastDateResponse
          * @description A single data-boundary day — serves BOTH GET /last-date (most recent
@@ -2213,6 +2334,14 @@ export interface components {
             event_name?: string | null;
             /** Round */
             round?: string | null;
+        };
+        /** MatchNoteIn */
+        MatchNoteIn: {
+            /**
+             * Note
+             * @default
+             */
+            note: string;
         };
         /** MatchOut */
         MatchOut: {
@@ -3239,7 +3368,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "advice" | "drill" | "recap";
+            kind: "advice" | "drill" | "recap" | "lesson";
             /**
              * Tags
              * @default []
@@ -3412,6 +3541,11 @@ export interface components {
              * @default []
              */
             session_recaps: Record<string, never>[];
+            /**
+             * Lessons
+             * @default []
+             */
+            lessons: Record<string, never>[];
             /**
              * Coach Notes
              * @default []
@@ -3629,18 +3763,6 @@ export interface components {
             day_notes: {
                 [key: string]: string;
             };
-            /**
-             * Session Notes
-             * @default {}
-             */
-            session_notes: {
-                [key: string]: components["schemas"]["SessionNoteOut"][];
-            };
-            /**
-             * Coach Days
-             * @default []
-             */
-            coach_days: string[];
             /** Physical Cutover */
             physical_cutover?: string | null;
         };
@@ -4106,6 +4228,104 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DayNoteOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    journal_days_api_tracker_journal_days_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                before?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JournalDaysOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    journal_day_api_tracker_journal_day__date__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                date: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JournalDayOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_match_note_api_tracker_matches__match_id__note_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                match_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MatchNoteIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JournalMatchOut"];
                 };
             };
             /** @description Validation Error */

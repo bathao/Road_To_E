@@ -7,7 +7,9 @@ export type CategoryType =
   | "checklist"
   | "note"
   | "computed" // auto-calculated read-only row (Racket Time)
-  | "session_note"; // Coach & Recap — structured advice/recap items
+  // Legacy Coach & Recap row type — filtered out of the grid by the backend
+  // since 2026-08-20 (the data lives in the Journal tab now).
+  | "session_note";
 export type ColorGroup = "green" | "yellow" | "none";
 // one_v_two = I play ALONE vs two opponents; two_v_one = me + partner vs one.
 export type { Discipline } from "../../shared/disciplines";
@@ -117,10 +119,11 @@ export interface CellData {
   color: string | null;
 }
 
-// ---- session notes (Coach & Recap row) ----
+// ---- session notes (Journal tab; formerly the Coach & Recap row) ----
 // advice = coach's instruction (done-lifecycle) · drill = one exercise of
-// the session (auto-numbered by entry order) · recap = overall summary.
-export type SessionNoteKind = "advice" | "drill" | "recap";
+// the session (auto-numbered by entry order) · recap = overall summary ·
+// lesson = the player's own takeaway of the day (any day, no lifecycle).
+export type SessionNoteKind = "advice" | "drill" | "recap" | "lesson";
 
 export interface SessionNote {
   id: number;
@@ -151,6 +154,29 @@ export interface SessionNoteTag {
   label: string;
 }
 
+// ---- Journal tab (timeline over the session-note store) ----
+// One of the day's matches in the journal's Matches area — the note writes
+// straight to tracker_match.note (and the Tactics h2h context reads it).
+export interface JournalMatch {
+  id: number;
+  label: string; // e.g. "W 3-2 vs Nguyễn Văn Trung · receive 2"
+  note: string;
+}
+
+export interface JournalDay {
+  date: string;
+  coaches: string[]; // Train-with-Coach coach names that day
+  has_coach_session: boolean; // gates the composer's coach-reminder block
+  items: SessionNote[];
+  // Composer day: ALL the day's matches; timeline days: noted matches only.
+  matches: JournalMatch[];
+}
+
+export interface JournalDays {
+  days: JournalDay[]; // newest first, only days WITH entries
+  has_more: boolean;
+}
+
 export interface WeekResponse {
   start: string;
   days: string[]; // 7 ISO dates, Mon..Sun
@@ -160,11 +186,6 @@ export interface WeekResponse {
   cells: Record<string, CellData>; // key = `${category_id}|${isoDate}`
   physical_checks: Record<string, string[]>; // isoDate -> ticked item keys (legacy)
   day_notes: Record<string, string>; // isoDate -> note text
-  // Coach & Recap items per isoDate (full text for the editor/tooltip).
-  session_notes: Record<string, SessionNote[]>;
-  // Days with a Train-with-Coach session (>0 min) — empty Coach & Recap
-  // cells only unlock on these days.
-  coach_days: string[];
   // From this date forward the Physical row mirrors Training Center (read-only
   // in the grid). null = unset (no Training Center activity yet).
   physical_cutover: string | null;

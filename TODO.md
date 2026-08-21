@@ -24,6 +24,19 @@ scannable. Last full sync: 2026-07-29.
 
 ## Open — feature ideas (no blocker, just not built)
 
+- [~] **Journal WYSIWYG edit boxes** (approved 2026-08-21, in progress):
+  minimal contentEditable rich-text area — Ctrl+B/I/U render live while
+  typing, serialize back to the existing **marker** plain text on save
+  (DB / AI bundle / Tactics untouched), paste forced to plain text.
+  Scope: 3 composer boxes + 2 timeline edit boxes. Fallback: revert to
+  textarea if Vietnamese IME misbehaves.
+- [ ] **Per-EVENT points tier for tournaments** (spotted 2026-08-20): BBTV
+  Open Lần 3 lives as 5 duplicate cards (tiers 1100/1200/1300/1500/Open)
+  because `points_limit` sits on the tournament while in reality each
+  EVENT (nội dung) has its own tier. Candidate: tier on tournament_entry
+  (like `division`), then merge the 5 cards. Waiting for the user's call —
+  and BBTV is 22-23/08, so any rework should probably wait until after.
+
 - ~~Entry speedups (Quick add Today / Copy yesterday / Repeat last week)~~ —
   DROPPED by the user 2026-07-29 ("ko làm"); don't re-suggest.
 - [ ] **Motivation tab** (🔥) — the only registry entry still disabled.
@@ -72,9 +85,15 @@ scannable. Last full sync: 2026-07-29.
 
 - [ ] First tournament entered via the Daily Tracker → check the coach
   bundle's "đánh giải" split and the t=1.5 delta look sane.
-- [ ] First real Coach & Recap entries (advice + ticking done) → check the
-  coach bundle's "HLV TRỰC TIẾP ĐANG DẶN" section reads sane and the AI
-  actually schedules the open advice into week plans.
+- [ ] Advice done-lifecycle is UI-less since 2026-08-21 (the "Still working
+  on" checklist was dropped; is_done stays in the DB but nothing ticks it) →
+  every advice now counts as "open" forever in the coach bundle's "HLV TRỰC
+  TIẾP ĐANG DẶN" section. If that section grows stale/noisy, switch it to
+  recent-N coach lines (like lessons) and retire is_done + the /active
+  endpoint for real.
+- [ ] First verdict/recap AFTER journal lessons exist (2026-08-20) → check
+  the new "KINH NGHIỆM HỌC TRÒ TỰ RÚT RA" section reads sane and the coach
+  actually cross-checks a lesson against the numbers.
 - [ ] `RACKET_MINUTES_PER_SET = 5` — user confirmed keeping it (2026-07-27,
   "thôi vậy cũng dc"); recalibrate only if session-length data ever says
   otherwise.

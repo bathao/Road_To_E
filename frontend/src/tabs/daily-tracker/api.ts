@@ -10,6 +10,9 @@ import type {
   Match,
   MatchIn,
   PhysicalItem,
+  JournalDay,
+  JournalDays,
+  JournalMatch,
   Player,
   PlayerIn,
   RatingBreakdown,
@@ -96,7 +99,19 @@ export const trackerApi = {
       text,
     }),
 
-  // Coach & Recap row (structured advice/recap items on coach days).
+  // Journal (session notes: coach items on coach days + lessons any day).
+  getJournalDays: (limit = 30, before?: string) =>
+    api.get<JournalDays>(
+      `/tracker/journal/days?limit=${limit}${before ? `&before=${before}` : ""}`
+    ),
+
+  getJournalDay: (dateIso: string) =>
+    api.get<JournalDay>(`/tracker/journal/day/${dateIso}`),
+
+  // Per-match journal note → tracker_match.note (blank clears).
+  setMatchNote: (matchId: number, note: string) =>
+    api.patch<JournalMatch>(`/tracker/matches/${matchId}/note`, { note }),
+
   getSessionNoteTags: () =>
     api.get<SessionNoteTag[]>("/tracker/session-note-tags"),
 

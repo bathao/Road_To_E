@@ -1,0 +1,430 @@
+/* Journal tab (📔) — diary look modeled on the big journaling apps
+   (Day One / Journey): centered reading column, a "today's page" composer,
+   then a month-grouped timeline with a date block per day. Content is the
+   hero; item actions only reveal on hover. */
+
+.tab-journal {
+  max-width: 760px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.jr-head h1 {
+  margin: 0;
+}
+
+.jr-sub {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 4px 0 0;
+}
+
+/* ---------------- composer: today's page ---------------- */
+.jr-composer {
+  background: var(--card, #fff);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.jr-composer-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.jr-composer-day {
+  font-size: 21px;
+  font-weight: 800;
+}
+
+.jr-composer-full {
+  color: var(--muted);
+  font-size: 13px;
+  margin-left: 10px;
+}
+
+.jr-datepick {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.jr-block {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.jr-block-head {
+  font-weight: 700;
+  font-size: 13.5px;
+}
+
+.jr-block-sub {
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 12.5px;
+}
+
+.jr-block-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.jr-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 14.5px;
+  font-family: inherit;
+  line-height: 1.5;
+  background: var(--card, #fff);
+  box-sizing: border-box;
+}
+
+.jr-input:focus {
+  outline: none;
+  border-color: rgba(74, 144, 217, 0.55);
+  box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.12);
+}
+
+textarea.jr-lesson-input {
+  resize: vertical;
+  min-height: 58px;
+}
+
+/* Every writing area is a textarea: Enter = new line, multi-paragraph OK —
+   nothing persists until "Save day" (composer) / 💾 (item edit). */
+textarea.jr-coach-input {
+  resize: vertical;
+  min-height: 44px;
+}
+
+.jr-edit-row textarea.jr-input {
+  resize: vertical;
+  min-height: 44px;
+}
+
+.jr-input-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.jr-input-row .jr-input {
+  flex: 1;
+}
+
+.jr-coach-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.jr-gate-hint {
+  color: var(--muted);
+  font-size: 13px;
+  font-style: italic;
+  margin: 14px 0 0;
+}
+
+/* Local draft lines (not saved yet) inside the composer. */
+.jr-draft-list {
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 6px 10px;
+  background: var(--surface);
+}
+
+.jr-draft-list .jr-item-actions,
+.jr-draft-list .jr-act {
+  opacity: 1;
+}
+
+/* Matches area: one label + note per OPPONENT of the day (same-opponent
+   matches merge into a single entry — the label lists every result). */
+.jr-match {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px 0;
+}
+
+.jr-match-label {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+textarea.jr-match-input {
+  resize: vertical;
+  min-height: 44px;
+}
+
+.jr-gate-inline {
+  margin: 2px 0;
+}
+
+/* Save-day footer: the ONLY thing that persists the draft. */
+.jr-save-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.jr-draft-hint {
+  color: var(--muted);
+  font-size: 12.5px;
+  font-style: italic;
+}
+
+.jr-save-day {
+  font-size: 15px;
+  padding: 8px 18px;
+}
+
+/* ---------------- timeline ---------------- */
+.jr-timeline {
+  display: flex;
+  flex-direction: column;
+  padding-top: 4px;
+}
+
+.jr-month-label {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 16px 0 8px 62px;
+}
+
+.jr-row {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 7px 0;
+}
+
+/* The thread connecting the date blocks. */
+.jr-row::before {
+  content: "";
+  position: absolute;
+  left: 24px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--border);
+}
+
+.jr-datebox {
+  position: relative;
+  z-index: 1;
+  width: 48px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 0;
+  background: var(--card, #fff);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.jr-datebox.today {
+  border-color: rgba(74, 144, 217, 0.6);
+  color: #4a90d9;
+}
+
+.jr-dow {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.jr-datebox.today .jr-dow {
+  color: #4a90d9;
+}
+
+.jr-dom {
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+
+.jr-card {
+  flex: 1;
+  min-width: 0;
+  background: var(--card, #fff);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.jr-group + .jr-group {
+  margin-top: 10px;
+  border-top: 1px dashed var(--border);
+  padding-top: 8px;
+}
+
+.jr-group-head {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 2px;
+}
+
+/* ---------------- items ---------------- */
+.jr-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+
+.jr-item-icon {
+  flex-shrink: 0;
+  width: 22px;
+  text-align: center;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.jr-item-text {
+  flex: 1;
+  min-width: 0;
+  /* Lessons save as one multi-line note — keep the author's line breaks. */
+  white-space: pre-wrap;
+}
+
+.jr-tag {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  vertical-align: 1px;
+  white-space: nowrap;
+}
+
+.jr-tag-btn {
+  margin-left: 0;
+  cursor: pointer;
+}
+
+.jr-tag-btn.on {
+  background: rgba(74, 144, 217, 0.14);
+  border-color: rgba(74, 144, 217, 0.4);
+  color: #4a90d9;
+}
+
+.jr-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Edit / delete reveal on hover (content stays the hero). */
+.jr-item-actions {
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  white-space: nowrap;
+}
+
+.jr-item:hover .jr-item-actions,
+.jr-item:focus-within .jr-item-actions,
+.jr-match:hover .jr-item-actions,
+.jr-match:focus-within .jr-item-actions {
+  opacity: 1;
+}
+
+/* Match rows on timeline cards: label + hover actions on one line. */
+.jr-match-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.jr-act {
+  border: none;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 4px;
+}
+
+.jr-act-del:hover {
+  color: #c62828;
+}
+
+/* In-place editing on timeline cards: the textarea takes the card's full
+   width and grows with the content (rows follow the line count; modern
+   browsers also auto-size via field-sizing); actions sit on their own row. */
+.jr-edit-block {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 2px 0;
+}
+
+textarea.jr-edit-area {
+  width: 100%;
+  resize: vertical;
+  min-height: 90px;
+  max-height: 60vh;
+  field-sizing: content;
+}
+
+.jr-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ---------------- footer bits ---------------- */
+.jr-more {
+  align-self: center;
+  margin: 10px 0 4px;
+}
+
+.jr-empty {
+  color: var(--muted);
+  font-style: italic;
+  text-align: center;
+  padding: 24px 0;
+}

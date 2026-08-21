@@ -112,20 +112,8 @@ export default function WeekGrid({
                   cat.key === "physical_training" &&
                   week.physical_cutover != null &&
                   iso >= week.physical_cutover;
-                // Coach & Recap only unlocks on days with a Train-with-Coach
-                // session. Cells that already HAVE items stay clickable even
-                // if the coach activity was later edited away (the items must
-                // remain manageable — data is never orphaned behind the gate).
-                const lockedSessionNote =
-                  cat.type === "session_note" &&
-                  !week.coach_days.includes(iso) &&
-                  !cell?.display;
                 const editable =
-                  !isRating &&
-                  !isComputed &&
-                  !isFuture &&
-                  !isPhysicalMirror &&
-                  !lockedSessionNote;
+                  !isRating && !isComputed && !isFuture && !isPhysicalMirror;
                 // Tournament-row cell on a day a tournament runs: highlight
                 // it so the user knows this is where its matches go. Fully
                 // knocked-out tournaments stop hinting — there's nothing
@@ -142,7 +130,7 @@ export default function WeekGrid({
                     : undefined;
                 const classes = ["cell", `type-${cat.type}`];
                 if (isToday) classes.push("today");
-                if (isRating || isComputed || isPhysicalMirror || lockedSessionNote)
+                if (isRating || isComputed || isPhysicalMirror)
                   classes.push("readonly");
                 if (isFuture) classes.push("future");
                 if (tourToday) classes.push("cell-tournament");
@@ -154,14 +142,7 @@ export default function WeekGrid({
                 const fullText =
                   cat.type === "note"
                     ? week.day_notes[iso] || ""
-                    : cat.type === "session_note"
-                      ? (week.session_notes[iso] ?? [])
-                          .map(
-                            (n) =>
-                              `${n.kind === "advice" ? "🧑‍🏫" : n.kind === "drill" ? "🏓" : "📋"} ${n.text}`
-                          )
-                          .join("\n")
-                      : cell?.display ?? "";
+                    : cell?.display ?? "";
                 // A mirrored Physical cell with data is clickable to VIEW the
                 // Training Center session (read-only); empty mirror days aren't.
                 const viewablePhysical = isPhysicalMirror && !!cell?.display;
@@ -175,9 +156,7 @@ export default function WeekGrid({
                         ? "Click to view the Training Center session 💪"
                         : isPhysicalMirror
                           ? "Managed in the Training Center tab 💪"
-                          : lockedSessionNote
-                            ? "Log a Train with Coach session first"
-                            : tourToday
+                          : tourToday
                             ? `🏆 ${tourToday.name} — enter this tournament's matches here${fullText ? `\n${fullText}` : ""}`
                             : fullText
                               ? `${cat.label} · ${iso}\n${fullText}`
