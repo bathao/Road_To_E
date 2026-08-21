@@ -1,6 +1,6 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-08-21, latest) — NEW TAB "Journal" (📔): daily diary replaces the Coach & Recap row (built + 1.5 days of live-use reworks, committed in `a86bb60`)
+## Current status (2026-08-21, latest) — NEW TAB "Journal" (📔): daily diary replaces the Coach & Recap row (built + 1.5 days of live-use reworks, committed in `a86bb60`; WYSIWYG RichArea + tab reorder in `b1cf439`)
 
 > **Rework #10 (2026-08-21, built right after the `a86bb60` commit) — WYSIWYG
 > edit boxes:** every journal writing box (3 composer + 2 timeline edits) is
