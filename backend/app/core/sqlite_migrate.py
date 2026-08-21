@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 log = logging.getLogger(__name__)
 
 
-def table_columns(db: Session, table: str) -> set[str]:
+def _table_columns(db: Session, table: str) -> set[str]:
     """Column names of *table* ({} when the table doesn't exist yet)."""
     return {row[1] for row in db.execute(text(f"PRAGMA table_info({table})"))}
 
@@ -23,7 +23,7 @@ def add_missing_columns(db: Session, table: str, columns: dict[str, str]) -> boo
     Returns True when something was added. A not-yet-created table is left
     untouched (create_all, which runs before the seeds, will make it whole).
     """
-    existing = table_columns(db, table)
+    existing = _table_columns(db, table)
     if not existing:
         return False
     changed = False

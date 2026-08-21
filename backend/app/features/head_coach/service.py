@@ -168,8 +168,8 @@ def _elo_opp_lines(d: dict) -> str:
 
 
 def _session_note_dict(n: SessionNote, with_kind: bool = False) -> dict:
-    """One Coach & Recap item as a prompt-ready dict (tag keys → display
-    labels). Shared by the verdict bundle and the recap bundle."""
+    """One journal session-note item as a prompt-ready dict (tag keys →
+    display labels). Shared by the verdict bundle and the recap bundle."""
     tags = [t for t in (n.tags or "").split(",") if t]
     out = {
         "date": n.date.isoformat(),
@@ -278,13 +278,12 @@ def _match_detail(
     monthly trend and the most-played singles head-to-heads (problem
     opponents float up via win_rate)."""
     detail_from = today - dt.timedelta(days=_MATCH_DETAIL_DAYS)
-    # form_seed=False: the bundle's trend reads W/L/win_rate only — skip the
-    # rolling-form seed query. The three per-kind calls read `.overall` only
-    # → overall_only skips their h2h/new-opponents/trend work entirely.
+    # The three per-kind calls read `.overall` only → overall_only skips
+    # their h2h/new-opponents/trend work entirely.
     def _stats(category: str, overall_only: bool = False):
         return tracker_service.build_match_stats(
             db, detail_from, today, "all", category, "month",
-            replay=rep, form_seed=False, overall_only=overall_only,
+            replay=rep, overall_only=overall_only,
         )
 
     detail = _stats("all")
@@ -632,7 +631,7 @@ def _ollama_chat(
     return json.loads(content) if content else {}
 
 
-def _call_model(context_text: str, player_name: str, model: str | None = None) -> dict:
+def _call_model(context_text: str, player_name: str, model: str) -> dict:
     user_text = (
         f"Dưới đây là TOÀN BỘ số liệu hiện có về học trò {player_name}. Hãy đọc kỹ, "
         "đánh giá NGHIÊM KHẮC dựa trên số liệu, rồi đưa ra kết luận + kế hoạch.\n\n"
@@ -667,7 +666,7 @@ def _call_model(context_text: str, player_name: str, model: str | None = None) -
         "- watch_items: cảnh báo (dữ liệu mỏng/cũ, an toàn, điều cần theo dõi)."
     )
     return _ollama_chat(
-        model or resolve_model(),
+        model,
         [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_text},
@@ -782,8 +781,6 @@ def run_generate_job(assessment_id: int, db_or_none: Session | None = None) -> N
             row.directives_json = json.dumps(
                 _sanitize_directives(data.get("directives", [])), ensure_ascii=False
             )
-            # (tactics_json is legacy read-only — RESPONSE_SCHEMA has no
-            # `tactics` key, so the model can never produce one.)
             row.week_plan_json = json.dumps(data.get("week_plan", []), ensure_ascii=False)
             row.watch_items_json = json.dumps(data.get("watch_items", []), ensure_ascii=False)
             row.sources_json = bundle.model_dump_json()
@@ -814,7 +811,6 @@ def _to_out(row: HeadCoachAssessment) -> schemas.AssessmentOut:
         overall_assessment=row.overall_assessment,
         top_priorities=[schemas.Priority(**p) for p in json.loads(row.top_priorities_json)],
         directives=[schemas.Directive(**d) for d in json.loads(row.directives_json)],
-        tactics=[schemas.TacticSuggestion(**t) for t in json.loads(row.tactics_json)],
         week_plan=[schemas.PlanDay(**d) for d in json.loads(row.week_plan_json)],
         watch_items=json.loads(row.watch_items_json),
         sources=schemas.SourceSummary(**json.loads(row.sources_json)),
@@ -1034,7 +1030,7 @@ def gather_recap_bundle(
     (per-discipline/kind results, ELO buckets, h2h, notes, coach sessions).
     `full_stats` / `elo` come from _period_stats — no recomputation here."""
     detail = tracker_service.build_match_stats(
-        db, start, end, "all", "all", "week", replay=rep, form_seed=False
+        db, start, end, "all", "all", "week", replay=rep
     )
 
     def _kind(category: str) -> dict:
@@ -1042,7 +1038,7 @@ def gather_recap_bundle(
         return _ms(
             tracker_service.build_match_stats(
                 db, start, end, "all", category, "week",
-                replay=rep, form_seed=False, overall_only=True,
+                replay=rep, overall_only=True,
             ).overall
         )
 

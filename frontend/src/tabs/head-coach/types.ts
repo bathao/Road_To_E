@@ -35,13 +35,6 @@ export interface DirectiveProgressOut {
   items: DirectiveProgress[];
 }
 
-// LEGACY — tactic suggestions were dropped from the verdict (the coach can't
-// know what tactics the player uses); old snapshots may still carry them.
-export interface TacticSuggestion {
-  situation: string;
-  action: string;
-}
-
 export interface PlanDay {
   day: string;
   focus: string;
@@ -129,7 +122,6 @@ export interface Assessment {
   overall_assessment: string;
   top_priorities: Priority[];
   directives: Directive[];
-  tactics: TacticSuggestion[];
   week_plan: PlanDay[];
   watch_items: string[];
   sources: SourceSummary;

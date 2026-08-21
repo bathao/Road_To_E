@@ -368,8 +368,9 @@ def list_session_note_tags():
 
 @router.get("/session-notes/active", response_model=list[schemas.SessionNoteOut])
 def list_active_advice(db: Session = Depends(get_db)):
-    """All advice items not yet marked done, oldest first — the standing
-    checklist shown in the Coach & Recap editor."""
+    """All advice items not yet marked done, oldest first. No UI calls this
+    since the checklist was dropped 2026-08-21 — kept for the AI bundle's
+    "open advice" notion and pinned by tests."""
     return [service.session_note_to_out(n) for n in service.list_active_advice(db)]
 
 

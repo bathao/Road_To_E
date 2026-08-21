@@ -93,8 +93,9 @@ class TrainingSessionItem(Base):
     target_json: Mapped[str] = mapped_column(String)
     done: Mapped[bool] = mapped_column(Boolean, default=False)
     done_at: Mapped[dt.datetime | None] = mapped_column(DateTime, default=None)
-    # True for an exercise injected by adaptive prescription (from video
-    # analysis), not part of the base program.
+    # True for an exercise injected by the retired adaptive-prescription
+    # injector (video analysis, deleted 2026-07-29). Nothing writes it now;
+    # kept so old prescribed rows still render their badge.
     is_prescribed: Mapped[bool] = mapped_column(Boolean, default=False)
     # Why it was prescribed (shown to the user) — set only for prescribed items.
     rx_reason: Mapped[str | None] = mapped_column(String, default=None)

@@ -1,5 +1,6 @@
 import type { Mode } from "../period";
 import { MODES, MODE_LABEL } from "../period";
+import Seg from "./Seg";
 
 // The single timeline control shared by the grid and the Analysis panel.
 export default function PeriodControl({
@@ -25,17 +26,11 @@ export default function PeriodControl({
 }) {
   return (
     <div className="period-control">
-      <div className="seg">
-        {MODES.map((m) => (
-          <button
-            key={m}
-            className={`seg-btn${mode === m ? " active" : ""}`}
-            onClick={() => onMode(m)}
-          >
-            {MODE_LABEL[m]}
-          </button>
-        ))}
-      </div>
+      <Seg
+        options={MODES.map((m) => [m, MODE_LABEL[m]] as [Mode, string])}
+        value={mode}
+        onChange={onMode}
+      />
 
       {mode === "custom" ? (
         <div className="custom-range">

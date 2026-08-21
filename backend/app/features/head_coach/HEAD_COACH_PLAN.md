@@ -22,7 +22,7 @@ functions **in-process** (no HTTP):
 | Match detail | `tracker_service.build_match_stats(...)` ×3 (all / practice / official) | win-rate by opponent level (below/equal/above), practice-vs-official gap, monthly trend, top head-to-head records |
 | Training Center | `training_service.report(db)` | level, adherence (7/30d, days-since-last), volume by muscle group, streak, intensity_bias |
 | Day notes | `DayNote` (most recent 12) | the player's own dated observations (human signal) |
-| Profile name | `video_analysis.get_or_create_profile(db)` | the editable player name only |
+| Profile name | raw `SELECT name FROM va_profile` (`_player_name`, service.py — the video_analysis feature was deleted 2026-07-29, only its profile-name row survives) | the editable player name only |
 
 The prompt explicitly forbids inventing stroke-technique observations the data
 cannot show — the coach reasons from results, volume and the player's notes.

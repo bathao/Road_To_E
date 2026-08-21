@@ -1,6 +1,68 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-08-21, latest) — NEW TAB "Journal" (📔): daily diary replaces the Coach & Recap row (built + 1.5 days of live-use reworks, committed in `a86bb60`; WYSIWYG RichArea + tab reorder in `b1cf439`)
+## Current status (2026-08-21, latest) — full-source review + cleanup ahead of the next feature wave
+
+> **Review sweep (user: "review toàn bộ source code… clean up, refactory nếu
+> cần"):** 4 parallel read-only agent reviews (backend dead code, frontend
+> dead code, CSS orphans, architecture) + automated checks (pytest,
+> gen:api drift, tsc, unused-import AST scan, unused-export scan). Verdict:
+> the codebase was already in good shape — no unused deps, no console.log,
+> no TODO/FIXME debt, zero real CSS orphans beyond ONE selector, zero dead
+> FE components. Everything found was verified by hand before touching.
+> All 155 tests + gen:api + tsc + vite build green after every change.
+>
+> **Deleted (dead in production):**
+>   - The rolling-"form" cluster (~80 lines): FORM_WINDOW/FORM_MIN,
+>     `_prior_form_results`, the deque in `_trend_buckets`, `form_seed`
+>     param, `MatchTrendBucket.form`, `with_relations` params — its chart
+>     was removed 2026-08-01 and nothing read `.form` since; the only test
+>     pinning it replaced by one pinning the still-live W/L buckets.
+>   - Head-coach legacy `tactics` chain: `TacticSuggestion` schema,
+>     `AssessmentOut.tactics`, the `_to_out` parse (FE mirror too). The
+>     RESPONSE_SCHEMA can't produce it and no component rendered it.
+>     `tactics_json` DB column stays (never delete user data).
+>   - Small: `_SN_KINDS` tuple, unused `dt` import (tactics),
+>     `PHYSICAL_YELLOW_RATIO` re-export (inlined), `.jr-block-actions` CSS,
+>     `trackerApi.getActiveAdvice` (endpoint stays, tests pin it), dead
+>     re-export line in daily-tracker/types.ts, 2 inert tsconfig flags,
+>     `_call_model`'s unreachable `model or resolve_model()` fallback.
+>
+> **Deduplicated / shared:**
+>   - `core/base.utcnow` (was copy-pasted `_utcnow` in head_coach + tactics
+>     models); `TOURNAMENT_DISCIPLINES` single source in shared/tournaments
+>     (form + labels can't drift); PeriodControl + TournamentSection now
+>     render the shared `<Seg>`; `SessionItem extends SimpleExercise` (11
+>     duplicated fields); ChecklistEditor on `useLoad` (last hand-rolled
+>     fetch); journal's local `monthLabel` renamed `monthTitle` (was
+>     shadowing shared/dates.monthLabel with a different format);
+>     `entryLabel` pass-through re-export removed (2 imports retargeted);
+>     `sqlite_migrate.table_columns` → private.
+>
+> **Docs/comments made truthful:** SessionNote docstring (Journal + lesson
+> kind + retired is_done lifecycle), Coach & Recap → Journal wording in 6
+> spots, HEAD_COACH_PLAN.md profile-name row (video_analysis is deleted),
+> TRAINING_CENTER_PLAN.md §5 marked RETIRED, requirements.txt comment,
+> is_prescribed/Priority.source retired-source comments.
+>
+> **Deliberately KEPT (not dead / policy):** is_done lifecycle + /active
+> endpoint (AI bundle's "open advice", tests pin; TODO watch item stands);
+> SourceSummary.video/tactics (old snapshots must parse); type-mirror
+> fields the UI doesn't read (types.ts files are full backend mirrors by
+> convention — deleting accurate fields would make them lie); "internal-
+> only" type exports; eslint-disable comments (documentation);
+> tracker→training and tracker↔tournament lazy imports (documented, stable).
+>
+> **Proposed next (top-5 refactors, waiting for the user's OK — see chat
+> 2026-08-21):** (1) facade-split tracker/service.py (2.5k lines, 8
+> domains); (2) extract app/core/llm.py (tactics imports head_coach
+> privates); (3) adopt generated schema.d.ts types on the FE (mirrors =
+> ~1.070 lines of silent drift risk; the gen:api artifact is imported by
+> NOTHING today); (4) one error/response contract helper (ValueError is
+> 400/404/409 depending on router); (5) promote journal to its own
+> feature module + own FE api.ts. None started — each changes layout the
+> user will live with during the feature wave.
+
+## Previous status (2026-08-21, earlier same day) — NEW TAB "Journal" (📔): daily diary replaces the Coach & Recap row (built + 1.5 days of live-use reworks, committed in `a86bb60`; WYSIWYG RichArea + tab reorder in `b1cf439`)
 
 > **Rework #10 (2026-08-21, built right after the `a86bb60` commit) — WYSIWYG
 > edit boxes:** every journal writing box (3 composer + 2 timeline edits) is

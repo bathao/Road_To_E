@@ -4,8 +4,7 @@ Generated output snapshots (verdicts, recaps) + the chat and notebook. The
 Head Coach does not collect data — these rows are the synthesised output,
 kept so the GUI is stable between page loads. Heavy fields (priorities,
 directives, week plan, the raw source bundle) are stored as JSON text; the
-schemas layer parses them back out. `tactics_json` is legacy read-only —
-kept so pre-2026-07 verdict rows still parse.
+schemas layer parses them back out.
 """
 from __future__ import annotations
 
@@ -14,11 +13,7 @@ import datetime as dt
 from sqlalchemy import Date, DateTime, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.base import Base
-
-
-def _utcnow() -> dt.datetime:
-    return dt.datetime.now(dt.timezone.utc)
+from app.core.base import Base, utcnow as _utcnow
 
 
 class HeadCoachAssessment(Base):
@@ -38,6 +33,9 @@ class HeadCoachAssessment(Base):
     # JSON-encoded lists (see schemas.AssessmentOut).
     top_priorities_json: Mapped[str] = mapped_column(Text, default="[]")
     directives_json: Mapped[str] = mapped_column(Text, default="[]")
+    # Retired: in-match tactic suggestions were dropped from the verdict
+    # (2026-07) and the API stopped surfacing old values 2026-08-21. The
+    # column stays (never delete user data); nothing reads or writes it.
     tactics_json: Mapped[str] = mapped_column(Text, default="[]")
     week_plan_json: Mapped[str] = mapped_column(Text, default="[]")
     watch_items_json: Mapped[str] = mapped_column(Text, default="[]")

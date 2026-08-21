@@ -1,11 +1,8 @@
-// Shared countdown/label logic for the tournament strip + section.
-// entryLabel (+ PLACEMENT_LABEL, now Profile-only) moved to
-// shared/tournaments.ts 2026-08-01 — re-exported so the strip/section keep
-// their one import path.
+// Shared countdown logic for the tournament strip + section. Label helpers
+// (entryLabel, PLACEMENT_LABEL, TOURNAMENT_DISCIPLINES) live in
+// shared/tournaments.ts — import from there directly.
 import { fromIso, todayIso } from "../../../../shared/dates";
 import type { Tournament } from "../../types";
-
-export { entryLabel } from "../../../../shared/tournaments";
 
 const DAY_MS = 86_400_000;
 

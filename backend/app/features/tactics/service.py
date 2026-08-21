@@ -5,7 +5,6 @@ head coach's Ollama plumbing (_ollama_chat / resolve_model) and persona, and
 persists plans with the same generating→done|error polling contract."""
 from __future__ import annotations
 
-import datetime as dt
 import json
 import logging
 

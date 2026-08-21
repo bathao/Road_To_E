@@ -179,11 +179,11 @@ def test_match_stats_vs_pips_bucket(db):
     assert res.vs_pips.win_rate == 0.5
 
 
-def test_trend_form_is_rolling_not_per_day(db):
-    """trend[].form = win rate of the last FORM_WINDOW decided matches ending
-    at that bucket — not the bucket's own (noisy) win rate. It hides until
-    FORM_MIN decided matches, skips ties, and matches before the range seed
-    the window so the line doesn't restart at the range edge."""
+def test_trend_buckets_count_wins_losses_per_day(db):
+    """trend[] = W/L counts per bucket (the coach bundle reads them
+    in-process); ties count as a match but neither win nor loss, and an
+    all-ties bucket has win_rate None. (The rolling-"form" overlay was
+    removed with its chart — cleanup 2026-08-21.)"""
     cat = category_id(db, "practice_match")
     anna = Player(name="Anna", points=950)
     db.add(anna)
@@ -195,29 +195,15 @@ def test_trend_form_is_rolling_not_per_day(db):
         _match(cat, d, 3, 1, opponent_id=anna.id),                        # W
         _match(cat, d + dt.timedelta(days=1), 1, 3, opponent_id=anna.id),  # L
         _match(cat, d + dt.timedelta(days=2), 2, 2, opponent_id=anna.id),  # T
-        _match(cat, d + dt.timedelta(days=3), 0, 3, opponent_id=anna.id),  # L
     ])
     db.commit()
 
-    res = service.build_match_stats(
-        db, d, d + dt.timedelta(days=3), unit="day"
-    )
-    forms = [b.form for b in res.trend]
-    # Day 1: only 2 decided matches — below FORM_MIN, no form yet.
-    assert forms[0] is None
-    # Day 2: window W,W,L. Day 3 is a tie — window (and form) unchanged,
-    # while the bucket's own win_rate is None.
-    assert forms[1] == forms[2] == 2 / 3
-    assert res.trend[2].win_rate is None
-    # Day 4: window W,W,L,L.
-    assert forms[3] == 0.5
-
-    # A range starting mid-history is seeded by the earlier matches: its
-    # first bucket already carries the full window instead of restarting.
-    later = service.build_match_stats(
-        db, d + dt.timedelta(days=3), d + dt.timedelta(days=3), unit="day"
-    )
-    assert later.trend[0].form == 0.5
+    res = service.build_match_stats(db, d, d + dt.timedelta(days=2), unit="day")
+    assert [(b.matches, b.wins, b.losses) for b in res.trend] == [
+        (2, 2, 0), (1, 0, 1), (1, 0, 0),
+    ]
+    assert res.trend[0].win_rate == 1.0
+    assert res.trend[2].win_rate is None  # tie-only bucket
 
 
 def test_build_handicap_split_directions(db):

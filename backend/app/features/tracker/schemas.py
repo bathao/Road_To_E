@@ -566,9 +566,6 @@ class MatchTrendBucket(BaseModel):
     wins: int
     losses: int
     win_rate: float | None
-    # Rolling form at the bucket's end: win rate of the last FORM_WINDOW
-    # decided matches (per-bucket win rate is noise at 2-3 matches/day).
-    form: float | None = None
 
 
 class MatchStatsResponse(BaseModel):
@@ -588,8 +585,8 @@ class MatchStatsResponse(BaseModel):
     opponents: list[OpponentBrief]  # for the head-to-head dropdown
     singles_h2h: list[OpponentRecord]
     doubles_h2h: list[DoublesRecord]
-    # Rolling-form trend buckets — consumed only by the coach bundle
-    # in-process; the HTTP route skips computing them (with_trend=False).
+    # W/L trend buckets — consumed only by the coach bundle in-process;
+    # the HTTP route skips computing them (with_trend=False).
     trend: list[MatchTrendBucket] = []
 
 

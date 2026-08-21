@@ -17,8 +17,10 @@ import type {
 import { tournamentApi } from "../../api";
 import { useMutate } from "../../../../shared/useApi";
 import { prettyDate } from "../../../../shared/dates";
+import { entryLabel, TOURNAMENT_DISCIPLINES } from "../../../../shared/tournaments";
+import Seg from "../../../../shared/ui/Seg";
 import PlayerPicker from "../editors/PlayerPicker";
-import { countdownText, daysUntil, entryLabel, isPast } from "./helpers";
+import { countdownText, daysUntil, isPast } from "./helpers";
 
 // The fixed rank ladder (A strongest → I weakest). A tournament's limit is a
 // set of these; "Open" means explicitly unrestricted.
@@ -132,11 +134,9 @@ function toPayload(d: Draft): TournamentIn {
   };
 }
 
-const DISCIPLINES: { key: TournamentDiscipline; label: string }[] = [
-  { key: "singles", label: "Singles" },
-  { key: "doubles", label: "Doubles" },
-  { key: "team", label: "Team" },
-];
+// Keys + labels come from the shared single source (entryLabel uses the
+// same map, so the form and every rendered label can't drift apart).
+const DISCIPLINES = TOURNAMENT_DISCIPLINES as [TournamentDiscipline, string][];
 
 function EntryRow({
   entry,
@@ -149,17 +149,11 @@ function EntryRow({
 }) {
   return (
     <div className="tour-entry-row">
-      <div className="seg">
-        {DISCIPLINES.map((d) => (
-          <button
-            key={d.key}
-            className={`seg-btn${entry.discipline === d.key ? " active" : ""}`}
-            onClick={() => onChange({ ...entry, discipline: d.key })}
-          >
-            {d.label}
-          </button>
-        ))}
-      </div>
+      <Seg
+        options={DISCIPLINES}
+        value={entry.discipline}
+        onChange={(d) => onChange({ ...entry, discipline: d })}
+      />
       {entry.discipline === "doubles" &&
         (entry.partner ? (
           <div className="tour-partner">

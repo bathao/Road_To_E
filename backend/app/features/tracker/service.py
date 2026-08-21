@@ -5,7 +5,6 @@ import csv
 import datetime as dt
 import io
 import unicodedata
-from collections import deque
 from typing import NamedTuple
 
 from sqlalchemy import func, or_
@@ -49,10 +48,6 @@ PHYSICAL_ITEMS: list[tuple[str, str]] = [
     ("stretching", "Stretching"),
 ]
 PHYSICAL_ITEM_LABELS = dict(PHYSICAL_ITEMS)
-# The Physical Training cell turns yellow once at least this share is ticked.
-# Single source of truth lives in the Training Center (it applies the same rule
-# to its own sessions) — re-exported here for the legacy-checklist path.
-PHYSICAL_YELLOW_RATIO = training_service.PHYSICAL_YELLOW_RATIO
 
 
 def physical_checks_by_date(checks: list[PhysicalCheck]) -> dict[str, list[str]]:
@@ -72,9 +67,12 @@ def format_physical_cell(item_keys: list[str]) -> str:
 
 
 def physical_is_yellow(item_keys: list[str]) -> bool:
+    """Yellow once at least the Training Center's share of items is ticked —
+    the ratio's single source of truth lives there (same rule for its own
+    sessions)."""
     if not PHYSICAL_ITEMS:
         return False
-    return len(item_keys) / len(PHYSICAL_ITEMS) >= PHYSICAL_YELLOW_RATIO
+    return len(item_keys) / len(PHYSICAL_ITEMS) >= training_service.PHYSICAL_YELLOW_RATIO
 
 
 # Max characters shown for a note in the (compact) grid cell.
@@ -87,7 +85,7 @@ PACKAGE_MARK = "★"
 # the coach it was with (Activity.coach_id, picked in the session editor).
 # Coaches with counts_package=False (Phi Vũ — paid per session) never consume
 # the 10-session block; everything else about the session still counts
-# (racket time, Overall color, Coach & Recap gating, coach bundle). Replaces
+# (racket time, Overall color, journal coach-day gating, coach bundle). Replaces
 # the 2026-08-13 note-based rule ("phi vu" fold-matched in the note) —
 # seed.migrate backfilled legacy rows from the notes once.
 
@@ -134,9 +132,9 @@ def note_snippet(text: str) -> str:
     return f"📝 {s}".rstrip()
 
 
-# ------------------------------------------------- session notes (Coach & Recap)
+# ------------------------------------------------- session notes (Journal tab)
 
-# Fixed tag set for Coach & Recap items. (key, English label) — same pattern
+# Fixed tag set for journal coach items. (key, English label) — same pattern
 # as PHYSICAL_ITEMS; unknown keys are dropped on write, never rejected.
 SESSION_NOTE_TAGS: list[tuple[str, str]] = [
     ("serve", "Serve"),
@@ -161,7 +159,6 @@ SN_KIND_RECAP = "recap"  # what the session covered overall
 # lesson = the player's own takeaway of the day (Journal tab 2026-08-20) —
 # allowed on ANY day (no coach-session gate) and has no done-lifecycle.
 SN_KIND_LESSON = "lesson"
-_SN_KINDS = (SN_KIND_ADVICE, SN_KIND_DRILL, SN_KIND_RECAP, SN_KIND_LESSON)
 
 
 def clean_session_tags(tags: list[str]) -> list[str]:
@@ -1068,8 +1065,8 @@ def delete_session_note(db: Session, note_id: int) -> bool:
 
 
 def list_active_advice(db: Session) -> list[SessionNote]:
-    """Every advice item not yet marked done, oldest first — the standing
-    checklist of what the coach wants worked on (editor panel + AI bundle)."""
+    """Every advice item not yet marked done, oldest first. UI-less since
+    the checklist was dropped 2026-08-21 — only the AI bundle reads it."""
     return (
         db.query(SessionNote)
         .filter(SessionNote.kind == SN_KIND_ADVICE, SessionNote.is_done.is_(False))
@@ -1582,18 +1579,19 @@ def _is_vs_pips(m: Match) -> bool:
 _NEWEST_FIRST = (Match.date.desc(), Match.order_index.desc(), Match.id.desc())
 
 
-def _playing_matches(db: Session, with_relations: bool = True):
-    """Base query for playing matches (nonplaying rows excluded), optionally
-    eager-loading the full line-up + event so names resolve without N+1."""
-    q = db.query(Match).filter(Match.is_nonplaying == False)  # noqa: E712
-    if with_relations:
-        q = q.options(
+def _playing_matches(db: Session):
+    """Base query for playing matches (nonplaying rows excluded), eager-
+    loading the full line-up + event so names resolve without N+1."""
+    return (
+        db.query(Match)
+        .filter(Match.is_nonplaying == False)  # noqa: E712
+        .options(
             selectinload(Match.event),
             selectinload(Match.opponent),
             selectinload(Match.opponent2),
             selectinload(Match.partner),
         )
-    return q
+    )
 
 
 def list_player_matches(db: Session, player_id: int) -> list[schemas.MatchOut]:
@@ -1843,13 +1841,10 @@ def _query_named_matches(
     date_to: dt.date,
     discipline: str,
     category: str,
-    with_relations: bool = True,
 ) -> list[Match]:
     """Playing matches with a named opponent in the range, in play order
-    (order_index breaks same-day ties so "last_result" is truly the last).
-    `with_relations=False` skips the four eager loads for callers that only
-    read scores (the rolling-form seed)."""
-    q = _playing_matches(db, with_relations).filter(
+    (order_index breaks same-day ties so "last_result" is truly the last)."""
+    q = _playing_matches(db).filter(
         Match.date >= date_from,
         Match.date <= date_to,
         Match.opponent_id.isnot(None),
@@ -2038,46 +2033,18 @@ def _h2h_accumulate(matches: list[Match], my_now: int) -> _H2HAcc:
     return _H2HAcc(overall, vs_pips, singles_h2h, doubles_h2h, opp_brief)
 
 
-# Rolling "form": win rate over the last FORM_WINDOW decided (W/L) matches.
-# Per-bucket win rate is pure noise at day granularity (2-3 matches/day), so
-# the trend chart plots this window instead; FORM_MIN keeps the very first
-# points from being a meaningless 0%/100% off one or two matches.
-FORM_WINDOW = 10
-FORM_MIN = 3
-
-
-def _prior_form_results(
-    db: Session, date_from: dt.date, discipline: str, category: str
-) -> list[str]:
-    """W/L letters of the last FORM_WINDOW decided named matches before
-    `date_from` (never before the tab floor), oldest first — they seed the
-    rolling form so the line doesn't restart from scratch at the range edge."""
-    if date_from <= MATCH_STATS_FLOOR:
-        return []
-    earlier = _query_named_matches(
-        db,
-        MATCH_STATS_FLOOR,
-        date_from - dt.timedelta(days=1),
-        discipline,
-        category,
-        with_relations=False,  # only scores are read — skip the eager loads
-    )
-    results = [r for r in map(_result_of, earlier) if r != "T"]
-    return results[-FORM_WINDOW:]
-
-
 def _trend_buckets(
     matches: list[Match],
     date_from: dt.date,
     date_to: dt.date,
     unit: str,
-    prior_results: list[str] | None = None,
 ) -> list[schemas.MatchTrendBucket]:
-    """W/L counts per day/week/month bucket + the rolling form at each end."""
+    """W/L counts per day/week/month bucket. (The rolling-"form" overlay was
+    removed with its chart, 2026-08-01 / cleanup 2026-08-21 — git history has
+    it if the chart ever returns.)"""
     by_iso: dict[str, list[Match]] = {}
     for m in matches:
         by_iso.setdefault(m.date.isoformat(), []).append(m)
-    window: deque[str] = deque(prior_results or (), maxlen=FORM_WINDOW)
     trend: list[schemas.MatchTrendBucket] = []
     for key, label, b_from, b_to in _bucket_ranges(date_from, date_to, unit):
         b_m = b_w = b_l = 0
@@ -2089,8 +2056,6 @@ def _trend_buckets(
                     b_w += 1
                 elif r == "L":
                     b_l += 1
-                if r != "T":
-                    window.append(r)
         trend.append(
             schemas.MatchTrendBucket(
                 key=key,
@@ -2101,11 +2066,6 @@ def _trend_buckets(
                 wins=b_w,
                 losses=b_l,
                 win_rate=win_rate(b_w, b_l),
-                form=(
-                    window.count("W") / len(window)
-                    if len(window) >= FORM_MIN
-                    else None
-                ),
             )
         )
     return trend
@@ -2119,7 +2079,6 @@ def build_match_stats(
     category: str = "all",
     unit: str = "month",
     replay: rating.ReplayResult | None = None,
-    form_seed: bool = True,
     with_trend: bool = True,
     overall_only: bool = False,
 ) -> schemas.MatchStatsResponse:
@@ -2130,12 +2089,9 @@ def build_match_stats(
     its primary opponent_id (opponent #1 in doubles); use the Singles filter for
     clean 1-v-1 analysis.
 
-    The trend buckets carry the rolling form; seeding it issues one extra
-    pre-range query (`_prior_form_results`) — callers that ignore `form`
-    (the coach bundle) pass `form_seed=False` to skip it. The Profile tab
-    stopped rendering the trend entirely (its chart was removed 2026-08-01),
-    so the HTTP route passes `with_trend=False` and only the coach bundle
-    (which reads `.trend` in-process) still computes the buckets.
+    The Profile tab stopped rendering the trend (its chart was removed
+    2026-08-01), so the HTTP route passes `with_trend=False`; only the coach
+    bundle (which reads `.trend` in-process) still computes the buckets.
     """
     # Clamp to the floor — this tab only covers matches from June 2026 on.
     date_from = max(date_from, MATCH_STATS_FLOOR)
@@ -2227,12 +2183,7 @@ def build_match_stats(
         opponents=opponents,
         singles_h2h=singles_list,
         doubles_h2h=doubles_list,
-        trend=_trend_buckets(
-            matches, date_from, date_to, unit,
-            _prior_form_results(db, date_from, discipline, category)
-            if form_seed
-            else None,
-        )
+        trend=_trend_buckets(matches, date_from, date_to, unit)
         if with_trend
         else [],
     )

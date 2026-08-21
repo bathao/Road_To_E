@@ -29,18 +29,8 @@ export interface SimpleExercise {
   how_to: string[];
 }
 
-export interface SessionItem {
+export interface SessionItem extends SimpleExercise {
   id: number;
-  exercise_key: string;
-  name_vi: string;
-  muscle: string;
-  tt_benefit: string;
-  kind: ExerciseKind;
-  target: ExerciseTarget;
-  per_side: boolean;
-  gif: string;
-  form_cue: string;
-  how_to: string[];
   done: boolean;
   is_prescribed: boolean;
   rx_reason: string | null;

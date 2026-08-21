@@ -78,11 +78,6 @@
   font-size: 12.5px;
 }
 
-.jr-block-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
 .jr-input {
   width: 100%;
   padding: 10px 12px;

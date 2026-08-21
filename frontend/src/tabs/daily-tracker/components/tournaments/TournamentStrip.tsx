@@ -5,7 +5,8 @@
 // ordinary days. Clicking anywhere else scrolls to the management section.
 import { useState } from "react";
 import type { Tournament } from "../../types";
-import { countdownText, daysUntil, entryLabel, isPast } from "./helpers";
+import { entryLabel } from "../../../../shared/tournaments";
+import { countdownText, daysUntil, isPast } from "./helpers";
 
 const STRIP_HORIZON = 45; // days
 const MAX_SHOWN = 3;

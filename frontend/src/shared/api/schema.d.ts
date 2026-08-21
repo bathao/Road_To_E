@@ -383,8 +383,9 @@ export interface paths {
         };
         /**
          * List Active Advice
-         * @description All advice items not yet marked done, oldest first — the standing
-         *     checklist shown in the Coach & Recap editor.
+         * @description All advice items not yet marked done, oldest first. No UI calls this
+         *     since the checklist was dropped 2026-08-21 — kept for the AI bundle's
+         *     "open advice" notion and pinned by tests.
          */
         get: operations["list_active_advice_api_tracker_session_notes_active_get"];
         put?: never;
@@ -1512,11 +1513,6 @@ export interface components {
              */
             directives: components["schemas"]["Directive"][];
             /**
-             * Tactics
-             * @default []
-             */
-            tactics: components["schemas"]["TacticSuggestion"][];
-            /**
              * Week Plan
              * @default []
              */
@@ -2516,8 +2512,6 @@ export interface components {
             losses: number;
             /** Win Rate */
             win_rate: number | null;
-            /** Form */
-            form?: number | null;
         };
         /** MuscleVolume */
         MuscleVolume: {
@@ -3620,18 +3614,6 @@ export interface components {
         SubstituteIn: {
             /** Exercise Key */
             exercise_key: string;
-        };
-        /**
-         * TacticSuggestion
-         * @description LEGACY — in-match tactic suggestions were dropped from the verdict
-         *     (2026-07: the coach can't know what tactics the player actually uses).
-         *     Kept so snapshots generated before then still parse.
-         */
-        TacticSuggestion: {
-            /** Situation */
-            situation: string;
-            /** Action */
-            action: string;
         };
         /** TickIn */
         TickIn: {

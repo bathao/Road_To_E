@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
-import type { Category, PhysicalItem } from "../../types";
+import { useMemo, useState } from "react";
+import type { Category } from "../../types";
 import { trackerApi } from "../../api";
+import { useLoad } from "../../../../shared/useApi";
 
 const YELLOW_RATIO = 0.7;
 
@@ -15,21 +16,11 @@ export default function ChecklistEditor({
   checked: string[]; // currently ticked item keys
   onSave: (items: string[]) => void;
 }) {
-  const [items, setItems] = useState<PhysicalItem[]>([]);
+  const { data } = useLoad(() => trackerApi.getPhysicalItems(), []);
+  const items = data ?? [];
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(checked)
   );
-
-  useEffect(() => {
-    let alive = true;
-    trackerApi
-      .getPhysicalItems()
-      .then((list) => alive && setItems(list))
-      .catch(() => alive && setItems([]));
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   const toggle = (key: string) => {
     setSelected((prev) => {

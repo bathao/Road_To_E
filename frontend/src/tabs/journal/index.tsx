@@ -26,7 +26,9 @@ const longDate = (iso: string) =>
     year: "numeric",
   });
 
-const monthLabel = (iso: string) =>
+// NOTE: deliberately NOT shared/dates.monthLabel — the timeline wants the
+// full "August 2026" (that helper abbreviates to "Aug 2026").
+const monthTitle = (iso: string) =>
   new Date(iso + "T00:00:00").toLocaleDateString("en-GB", {
     month: "long",
     year: "numeric",
@@ -60,7 +62,7 @@ export default function Journal() {
   // Month groups for the timeline separators (days arrive newest first).
   const months: { label: string; days: JournalDay[] }[] = [];
   for (const d of days) {
-    const label = monthLabel(d.date);
+    const label = monthTitle(d.date);
     const last = months[months.length - 1];
     if (last && last.label === label) last.days.push(d);
     else months.push({ label, days: [d] });

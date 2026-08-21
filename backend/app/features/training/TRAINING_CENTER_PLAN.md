@@ -155,20 +155,13 @@ writes. **One source of truth per era, the physical-day signal is derived:**
 
 ---
 
-## 5. Adaptive prescription — read Video Analysis directly
+## 5. Adaptive prescription — RETIRED (2026-07-29)
 
-The "dynamic prescription" idea, decoupled from the (not-yet-built) Head Coach:
-- The service calls the existing `GET /api/video/report` and inspects `va_skill`
-  (`stance_posture`, `footwork`, `physical` axes — low rating / high priority) and
-  accepted `va_trait` findings.
-- A map (`prescription.py`) turns a weakness into a targeted exercise:
-  `stance_posture` weak → Side Plank / Single-leg; `footwork` weak → Lateral Lunge /
-  Split Step; etc.
-- One `is_prescribed=true` exercise is injected into the currently-open session, with
-  a **transparent reason** (motivating, not abusive): *"Video hôm qua cho thấy hay mất
-  trụ khi giật → thêm Side Plank 45s."*
-- No Head Coach dependency — `/api/video/report` is already structured. When the Head
-  Coach is built, it reads `GET /api/training/report` in addition.
+The original plan injected `is_prescribed=true` exercises from the Video
+Analysis feature's report. That feature was deleted 2026-07-29 and the
+injector with it; the `is_prescribed` / `rx_reason` columns stay so old
+prescribed rows still render their badge. Kept here as historical record —
+the section below described the deleted design.
 
 ---
 

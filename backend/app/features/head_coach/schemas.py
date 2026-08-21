@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 class Priority(BaseModel):
     title: str
     why: str = ""
-    source: str = ""  # video | match | training | tactics | overall
+    source: str = ""  # match | training | overall (video/tactics: retired sources)
 
 
 class Directive(BaseModel):
@@ -27,15 +27,6 @@ class Directive(BaseModel):
     # quantifiable). See GET /directive-progress.
     metric: str = ""
     value: float | None = None
-
-
-class TacticSuggestion(BaseModel):
-    """LEGACY — in-match tactic suggestions were dropped from the verdict
-    (2026-07: the coach can't know what tactics the player actually uses).
-    Kept so snapshots generated before then still parse."""
-
-    situation: str  # when in a match this applies
-    action: str  # what to do
 
 
 class PlanDay(BaseModel):
@@ -62,7 +53,7 @@ class SourceSummary(BaseModel):
     match: dict = {}  # volume + win-rate aggregates for the stats window
     match_detail: dict = {}  # level x handicap, practice-vs-official, trend, head-to-head
     notes: list[dict] = []  # recent day notes [{date, text}]
-    # From the Coach & Recap tracker row (the REAL-LIFE coach's sessions):
+    # From the Journal tab's coach items (the REAL-LIFE coach's sessions):
     # still-active advice + recent session recaps, [{date, text, tags}].
     coach_advice: list[dict] = []
     session_recaps: list[dict] = []
@@ -87,7 +78,6 @@ class AssessmentOut(BaseModel):
     overall_assessment: str = ""
     top_priorities: list[Priority] = []
     directives: list[Directive] = []
-    tactics: list[TacticSuggestion] = []
     week_plan: list[PlanDay] = []
     watch_items: list[str] = []
     sources: SourceSummary = SourceSummary()

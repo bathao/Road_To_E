@@ -11,11 +11,7 @@ import datetime as dt
 from sqlalchemy import DateTime, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.base import Base
-
-
-def _utcnow() -> dt.datetime:
-    return dt.datetime.now(dt.timezone.utc)
+from app.core.base import Base, utcnow as _utcnow
 
 
 class TacticFact(Base):

@@ -198,7 +198,6 @@ export interface PhysicalItem {
 
 // ---- stats / analysis ----
 import type { CategoryMinutes, MatchStats } from "../../shared/types";
-export type { CategoryMinutes, MatchStats };
 
 export interface BreakdownBucket {
   key: string;

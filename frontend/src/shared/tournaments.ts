@@ -11,11 +11,16 @@ export const PLACEMENT_LABEL: Record<string, string> = {
   quarterfinal: "Quarter-final",
 };
 
-const DISCIPLINE_LABEL: Record<string, string> = {
-  singles: "Singles",
-  doubles: "Doubles",
-  team: "Team",
-};
+// Tournament entry disciplines — the single source for both the entry form
+// (TournamentSection) and every label rendered from an entry.
+export const TOURNAMENT_DISCIPLINES: [string, string][] = [
+  ["singles", "Singles"],
+  ["doubles", "Doubles"],
+  ["team", "Team"],
+];
+const DISCIPLINE_LABEL: Record<string, string> = Object.fromEntries(
+  TOURNAMENT_DISCIPLINES
+);
 
 // Structurally typed so both tabs' entry shapes fit (the Daily Tracker's
 // TournamentEntry and the record endpoint's EntryOut both carry these slots).

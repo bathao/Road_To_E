@@ -115,10 +115,6 @@ export const trackerApi = {
   getSessionNoteTags: () =>
     api.get<SessionNoteTag[]>("/tracker/session-note-tags"),
 
-  // All advice not yet marked done, oldest first (the standing checklist).
-  getActiveAdvice: () =>
-    api.get<SessionNote[]>("/tracker/session-notes/active"),
-
   createSessionNote: (payload: SessionNoteIn) =>
     api.post<SessionNote>("/tracker/session-notes", payload),
 

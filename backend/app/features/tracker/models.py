@@ -199,22 +199,25 @@ class DayNote(Base):
 
 
 class SessionNote(Base):
-    """One structured item on the Coach & Recap row: something the real-life
-    coach said (kind='advice'), one exercise of the session (kind='drill',
-    auto-numbered in display by entry order — nothing stored), or an overall
-    recap (kind='recap'). Multiple items per day; a day only accepts items
-    when it has a Train-with-Coach activity (service.create_session_note).
+    """One structured item of a day's journal (the Journal tab — it replaced
+    the grid's Coach & Recap row 2026-08-20): something the real-life coach
+    said (kind='advice'), one exercise of the session (kind='drill',
+    auto-numbered in display by entry order — nothing stored), an overall
+    recap (kind='recap'), or the player's own takeaway (kind='lesson').
+    Multiple items per day; coach kinds only on days with a Train-with-Coach
+    activity, lessons on any day (service.create_session_note).
 
-    Advice has a lifecycle: it stays "active" across days — surfaced as a
-    checklist in the editor and fed to the AI coach — until the user marks it
-    done. ``is_done`` is meaningless for recaps (always False).
+    ``is_done`` is a retired advice lifecycle: the "Still working on"
+    checklist UI was dropped 2026-08-21. The column, PATCH support, and the
+    /session-notes/active endpoint remain (tests pin them; the coach bundle
+    still treats un-done advice as "open") but no UI reads or ticks it.
     """
 
     __tablename__ = "tracker_session_note"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     date: Mapped[dt.date] = mapped_column(Date, index=True)
-    kind: Mapped[str] = mapped_column(String)  # advice | drill | recap
+    kind: Mapped[str] = mapped_column(String)  # advice | drill | recap | lesson
     # Comma-joined tag keys from service.SESSION_NOTE_TAGS ("" = untagged).
     tags: Mapped[str] = mapped_column(String, default="")
     text: Mapped[str] = mapped_column(String)
