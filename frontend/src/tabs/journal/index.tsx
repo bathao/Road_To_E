@@ -13,7 +13,8 @@ import Seg from "../../shared/ui/Seg";
 import { trackerApi } from "../daily-tracker/api";
 import type { JournalDay, SessionNoteKind } from "../daily-tracker/types";
 import DayCard from "./components/DayCard";
-import { formatHotkeys, renderMarkup } from "./markup";
+import RichArea from "./RichArea";
+import { renderMarkup } from "./markup";
 
 const PAGE = 30;
 
@@ -265,12 +266,10 @@ export default function Journal() {
               </div>
             </div>
             <div className="jr-input-row">
-              <textarea
-                className="jr-input jr-coach-input"
-                rows={2}
+              <RichArea
+                className="jr-coach-input"
                 value={coachText}
-                onChange={(e) => setCoachText(e.target.value)}
-                onKeyDown={(e) => formatHotkeys(e, setCoachText)}
+                onChange={setCoachText}
                 placeholder={
                   coachKind === "advice"
                     ? "What did the coach ask you to work on?"
@@ -313,17 +312,11 @@ export default function Journal() {
               day.matches.map((m) => (
                 <div key={m.id} className="jr-match">
                   <div className="jr-match-label">{m.label}</div>
-                  <textarea
-                    className="jr-input jr-match-input"
-                    rows={2}
+                  <RichArea
+                    className="jr-match-input"
                     value={matchNotes[m.id] ?? ""}
-                    onChange={(e) =>
-                      setMatchNotes((d) => ({ ...d, [m.id]: e.target.value }))
-                    }
-                    onKeyDown={(e) =>
-                      formatHotkeys(e, (v) =>
-                        setMatchNotes((d) => ({ ...d, [m.id]: v }))
-                      )
+                    onChange={(v) =>
+                      setMatchNotes((d) => ({ ...d, [m.id]: v }))
                     }
                     placeholder="How did it go vs this opponent? What to remember?"
                   />
@@ -338,12 +331,10 @@ export default function Journal() {
             📝 Notes
             <span className="jr-block-sub"> — optional, anything else from the day</span>
           </div>
-          <textarea
-            className="jr-input jr-lesson-input"
-            rows={3}
+          <RichArea
+            className="jr-lesson-input"
             value={lessonText}
-            onChange={(e) => setLessonText(e.target.value)}
-            onKeyDown={(e) => formatHotkeys(e, setLessonText)}
+            onChange={setLessonText}
             placeholder="Write freely — everything this day taught you."
           />
         </div>

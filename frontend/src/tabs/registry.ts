@@ -27,15 +27,6 @@ export const TABS: TabDef[] = [
     enabled: true,
   },
   {
-    // Daily table-tennis diary (2026-08-20): coach reminders + own lessons.
-    // Replaced the grid's Coach & Recap row — same store, new surface.
-    id: "journal",
-    label: "Journal",
-    icon: "📔",
-    component: Journal,
-    enabled: true,
-  },
-  {
     // The old standalone Profile tab was merged in here 2026-07-30: general
     // info on top, match stats in the middle, training cards at the bottom.
     // The folder keeps its match-stats name; only the label/icon changed.
@@ -43,6 +34,15 @@ export const TABS: TabDef[] = [
     label: "Profile",
     icon: "🪪",
     component: MatchStats,
+    enabled: true,
+  },
+  {
+    // Daily table-tennis diary (2026-08-20): coach reminders + own lessons.
+    // Replaced the grid's Coach & Recap row — same store, new surface.
+    id: "journal",
+    label: "Journal",
+    icon: "📔",
+    component: Journal,
     enabled: true,
   },
   {

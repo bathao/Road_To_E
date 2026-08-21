@@ -1,52 +1,9 @@
-// Lightweight formatting for journal text (user 2026-08-21: Ctrl+B/I/U in
-// the edit boxes). Storage stays plain text with Markdown-style markers —
-// **bold**, *italic*, __underline__ — so the DB, the AI-coach bundle, and
-// the Tactics context keep reading ordinary strings; only the journal's
-// display layer renders the markers.
-import type { KeyboardEvent, ReactNode } from "react";
-
-const HOTKEY_MARKERS: Record<string, string> = { b: "**", i: "*", u: "__" };
-
-/** Ctrl/Cmd+B/I/U inside a textarea: toggle the marker around the selection
- * (an empty selection gets an empty pair with the caret inside). Returns
- * true when the event was handled — callers skip their own key handling. */
-export function formatHotkeys(
-  e: KeyboardEvent<HTMLTextAreaElement>,
-  sync: (value: string) => void
-): boolean {
-  if (!(e.ctrlKey || e.metaKey) || e.altKey) return false;
-  const marker = HOTKEY_MARKERS[e.key.toLowerCase()];
-  if (!marker) return false;
-  e.preventDefault();
-  const ta = e.currentTarget;
-  const s = ta.selectionStart;
-  const en = ta.selectionEnd;
-  const value = ta.value;
-  const sel = value.slice(s, en);
-
-  // Toggle off when the selection sits inside (or includes) the markers.
-  if (
-    sel.startsWith(marker) &&
-    sel.endsWith(marker) &&
-    sel.length >= marker.length * 2
-  ) {
-    const inner = sel.slice(marker.length, sel.length - marker.length);
-    ta.setRangeText(inner, s, en);
-    ta.setSelectionRange(s, s + inner.length);
-  } else if (
-    value.slice(s - marker.length, s) === marker &&
-    value.slice(en, en + marker.length) === marker
-  ) {
-    ta.setRangeText(sel, s - marker.length, en + marker.length);
-    ta.setSelectionRange(s - marker.length, s - marker.length + sel.length);
-  } else {
-    ta.setRangeText(marker + sel + marker, s, en);
-    if (sel) ta.setSelectionRange(s, s + sel.length + marker.length * 2);
-    else ta.setSelectionRange(s + marker.length, s + marker.length);
-  }
-  sync(ta.value);
-  return true;
-}
+// Lightweight formatting for journal text (user 2026-08-21: Ctrl+B/I/U,
+// rendered live while typing via RichArea). Storage stays plain text with
+// Markdown-style markers — **bold**, *italic*, __underline__ — so the DB,
+// the AI-coach bundle, and the Tactics context keep reading ordinary
+// strings; only the journal's display/editing layer renders the markers.
+import type { ReactNode } from "react";
 
 const MARKUP_RX = /(\*\*[^*\n][^*]*?\*\*|__[^_\n][^_]*?__|\*[^*\n]+?\*)/g;
 
@@ -64,4 +21,71 @@ export function renderMarkup(text: string): ReactNode {
       return <em key={i}>{p.slice(1, -1)}</em>;
     return p;
   });
+}
+
+// ---- marker text ⇄ contentEditable HTML (RichArea's storage format) ----
+
+const HTML_ESC: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;" };
+const escapeHtml = (s: string) => s.replace(/[&<>]/g, (c) => HTML_ESC[c]);
+
+/** Marker text → minimal HTML (b/i/u + <br>) to seed a RichArea. */
+export function markersToHtml(text: string): string {
+  return text
+    .split("\n")
+    .map((line) =>
+      line
+        .split(MARKUP_RX)
+        .map((p) => {
+          if (p.startsWith("**") && p.endsWith("**") && p.length > 4)
+            return `<b>${escapeHtml(p.slice(2, -2))}</b>`;
+          if (p.startsWith("__") && p.endsWith("__") && p.length > 4)
+            return `<u>${escapeHtml(p.slice(2, -2))}</u>`;
+          if (p.startsWith("*") && p.endsWith("*") && p.length > 2)
+            return `<i>${escapeHtml(p.slice(1, -1))}</i>`;
+          return escapeHtml(p);
+        })
+        .join("")
+    )
+    .join("<br>");
+}
+
+/** contentEditable HTML → marker text. Handles what browsers actually
+ * produce while editing: <b>/<strong>, <i>/<em>, <u>, <br>, and
+ * div/p-per-line (Chrome); anything else contributes only its text. */
+export function htmlToMarkers(html: string): string {
+  const tpl = document.createElement("template");
+  tpl.innerHTML = html;
+  const out: string[] = [];
+  const endsWithNewline = () =>
+    out.length > 0 && out[out.length - 1].endsWith("\n");
+  const walk = (node: Node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      out.push((node.nodeValue ?? "").replace(/\u00a0/g, " "));
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    const tag = (node as HTMLElement).tagName;
+    if (tag === "BR") {
+      out.push("\n");
+      return;
+    }
+    // Chrome wraps every line after the first in a <div>; an empty line is
+    // <div><br></div> (the prepended \n + the BR's \n = one blank line).
+    if ((tag === "DIV" || tag === "P") && out.length > 0 && !endsWithNewline())
+      out.push("\n");
+    const marker =
+      tag === "B" || tag === "STRONG"
+        ? "**"
+        : tag === "I" || tag === "EM"
+          ? "*"
+          : tag === "U"
+            ? "__"
+            : "";
+    if (marker) out.push(marker);
+    node.childNodes.forEach(walk);
+    if (marker) out.push(marker);
+  };
+  tpl.content.childNodes.forEach(walk);
+  // Empty marker pairs (bold toggled on, nothing typed) are noise.
+  return out.join("").replace(/\*\*\*\*|____/g, "");
 }

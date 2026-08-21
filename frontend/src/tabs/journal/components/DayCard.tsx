@@ -9,7 +9,8 @@ import { useState } from "react";
 import { trackerApi } from "../../daily-tracker/api";
 import type { JournalDay, JournalMatch, SessionNote } from "../../daily-tracker/types";
 import { useMutate } from "../../../shared/useApi";
-import { formatHotkeys, renderMarkup } from "../markup";
+import RichArea from "../RichArea";
+import { renderMarkup } from "../markup";
 
 export default function DayCard({
   day,
@@ -87,15 +88,11 @@ export default function DayCard({
         </span>
         {editingId === n.id ? (
           <span className="jr-edit-block">
-            <textarea
-              className="jr-input jr-edit-area"
-              rows={Math.min(14, Math.max(4, editText.split("\n").length + 1))}
+            <RichArea
+              className="jr-edit-area"
               value={editText}
-              onChange={(e) => setEditText(e.target.value)}
-              onKeyDown={(e) => {
-                if (formatHotkeys(e, setEditText)) return;
-                if (e.key === "Escape") setEditingId(null);
-              }}
+              onChange={setEditText}
+              onEscape={() => setEditingId(null)}
               autoFocus
             />
             <span className="jr-edit-actions">
@@ -201,15 +198,11 @@ export default function DayCard({
                 </div>
                 {editingMatchId === m.id ? (
                   <span className="jr-edit-block">
-                    <textarea
-                      className="jr-input jr-edit-area"
-                      rows={Math.min(14, Math.max(4, matchText.split("\n").length + 1))}
+                    <RichArea
+                      className="jr-edit-area"
                       value={matchText}
-                      onChange={(e) => setMatchText(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (formatHotkeys(e, setMatchText)) return;
-                        if (e.key === "Escape") setEditingMatchId(null);
-                      }}
+                      onChange={setMatchText}
+                      onEscape={() => setEditingMatchId(null)}
                       autoFocus
                     />
                     <span className="jr-edit-actions">

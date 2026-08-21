@@ -101,20 +101,29 @@
   box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.12);
 }
 
-textarea.jr-lesson-input {
-  resize: vertical;
+/* Every writing area is a RichArea (contentEditable): Enter = new line,
+   Ctrl+B/I/U format live — nothing persists until "Save day" (composer) /
+   💾 Save (item edit). The div grows with its content on its own. */
+.jr-rich {
+  white-space: pre-wrap;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  cursor: text;
+  max-height: 60vh;
+}
+
+.jr-rich[data-empty="true"]::before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+.jr-lesson-input {
   min-height: 58px;
 }
 
-/* Every writing area is a textarea: Enter = new line, multi-paragraph OK —
-   nothing persists until "Save day" (composer) / 💾 (item edit). */
-textarea.jr-coach-input {
-  resize: vertical;
-  min-height: 44px;
-}
-
-.jr-edit-row textarea.jr-input {
-  resize: vertical;
+.jr-coach-input {
   min-height: 44px;
 }
 
@@ -169,8 +178,7 @@ textarea.jr-coach-input {
   font-variant-numeric: tabular-nums;
 }
 
-textarea.jr-match-input {
-  resize: vertical;
+.jr-match-input {
   min-height: 44px;
 }
 
@@ -390,9 +398,8 @@ textarea.jr-match-input {
   color: #c62828;
 }
 
-/* In-place editing on timeline cards: the textarea takes the card's full
-   width and grows with the content (rows follow the line count; modern
-   browsers also auto-size via field-sizing); actions sit on their own row. */
+/* In-place editing on timeline cards: the RichArea takes the card's full
+   width and grows with the content; actions sit on their own row. */
 .jr-edit-block {
   flex: 1;
   min-width: 0;
@@ -402,12 +409,9 @@ textarea.jr-match-input {
   margin: 2px 0;
 }
 
-textarea.jr-edit-area {
+.jr-edit-area {
   width: 100%;
-  resize: vertical;
   min-height: 90px;
-  max-height: 60vh;
-  field-sizing: content;
 }
 
 .jr-edit-actions {

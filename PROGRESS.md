@@ -2,13 +2,21 @@
 
 ## Current status (2026-08-21, latest) — NEW TAB "Journal" (📔): daily diary replaces the Coach & Recap row (built + 1.5 days of live-use reworks, committed in `a86bb60`)
 
-> **NEXT UP (approved 2026-08-21, do right after this commit):** upgrade the
-> journal edit boxes to a minimal hand-rolled contentEditable rich-text area
-> — Ctrl+B/I/U show real bold/italic/underline WHILE TYPING (user: "trong
-> khung edit nó ko hiện in đậm được à?"); serialize back to the same
-> **marker** plain text on save (DB / AI bundle / Tactics unchanged); paste
-> forced to plain text; scope = 3 composer boxes + 2 timeline edit boxes;
-> fallback plan: revert to textarea if Vietnamese IME misbehaves.
+> **Rework #10 (2026-08-21, built right after the `a86bb60` commit) — WYSIWYG
+> edit boxes:** every journal writing box (3 composer + 2 timeline edits) is
+> now `RichArea` — a hand-rolled contentEditable div where Ctrl+B/I/U format
+> the selection LIVE while typing (user: "trong khung edit nó ko hiện in đậm
+> được à?"). Value in/out stays the SAME marker plain text (new
+> markersToHtml/htmlToMarkers in markup.tsx; htmlToMarkers walks b/strong,
+> i/em, u, br + Chrome's div-per-line, strips empty marker pairs, nbsp→space)
+> so DB / AI bundle / Tactics read unchanged strings; formatHotkeys (the
+> textarea marker-toggler) deleted — renderMarkup stays for display. Paste is
+> forced to plain text; the DOM is only rewritten on EXTERNAL value changes
+> (draft clear after save), never mid-typing, so the Vietnamese IME and
+> native undo survive; placeholder via data-empty ::before; div auto-grows
+> (max 60vh). Fallback = revert to textarea if IME misbehaves — user to
+> smoke-test Telex typing + bold round-trip (watch item in TODO.md).
+> Same batch: tab order → Daily Tracker, Profile, Journal (user request).
 
 > **Journal tab (user request 2026-08-20, plan OK'd + follow-up "bỏ luôn
 > Coach & Recap, recap cũ convert thành nhật ký ngày cũ"; needs start.bat

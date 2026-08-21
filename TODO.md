@@ -24,12 +24,6 @@ scannable. Last full sync: 2026-07-29.
 
 ## Open — feature ideas (no blocker, just not built)
 
-- [~] **Journal WYSIWYG edit boxes** (approved 2026-08-21, in progress):
-  minimal contentEditable rich-text area — Ctrl+B/I/U render live while
-  typing, serialize back to the existing **marker** plain text on save
-  (DB / AI bundle / Tactics untouched), paste forced to plain text.
-  Scope: 3 composer boxes + 2 timeline edit boxes. Fallback: revert to
-  textarea if Vietnamese IME misbehaves.
 - [ ] **Per-EVENT points tier for tournaments** (spotted 2026-08-20): BBTV
   Open Lần 3 lives as 5 duplicate cards (tiers 1100/1200/1300/1500/Open)
   because `points_limit` sits on the tournament while in reality each
@@ -46,6 +40,12 @@ scannable. Last full sync: 2026-07-29.
   are still an honest option). Only if a real question needs it.
 
 ## Watch list (not actionable yet)
+
+- [ ] **Journal RichArea (WYSIWYG, built 2026-08-21, uncommitted)** — user
+  to smoke-test: Telex/Vietnamese IME typing in the contentEditable boxes,
+  Ctrl+B/I/U live formatting, bold round-trip through save/edit, paste
+  stays plain. Fallback if the IME misbehaves: revert boxes to textarea
+  (markup.tsx renderMarkup stays either way).
 
 - [ ] **SGPP 15–16 Aug needs its End date set** (card currently has
   end_date NULL → the multi-day played rule built 2026-08-04 treats it as
