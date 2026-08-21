@@ -1,6 +1,6 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-08-21, latest) — full-source review + cleanup ahead of the next feature wave
+## Current status (2026-08-21, latest) — full-source review + cleanup ahead of the next feature wave (committed in `8abd9ad`)
 
 > **Review sweep (user: "review toàn bộ source code… clean up, refactory nếu
 > cần"):** 4 parallel read-only agent reviews (backend dead code, frontend
