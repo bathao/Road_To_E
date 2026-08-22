@@ -1,6 +1,6 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-08-23, latest) — status check: BBTV weekend in progress; committed DB snapshots were STALE (WAL not checkpointed)
+## Current status (2026-08-23, latest) — status check: BBTV weekend in progress; committed DB snapshots were STALE (WAL not checkpointed); same-day fixes committed in `51523bc`
 
 > **Status check 2026-08-23:** no code change since the cleanup batch
 > (`8abd9ad`, PROGRESS `faa4e93`) — the only working-tree change is the DB.
