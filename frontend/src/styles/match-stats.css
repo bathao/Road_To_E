@@ -414,6 +414,24 @@
 
 .trec-warn { cursor: help; }
 
+/* Knocked-out chip in the record — a BUTTON: un-marks the mis-click that
+   retired the card into this otherwise read-only view. */
+.trec-out {
+  border: 1px solid #e5b8b8;
+  background: #fdf0f0;
+  color: #a33;
+  border-radius: 10px;
+  padding: 1px 8px;
+  font-size: 11.5px;
+  font-family: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.trec-out:hover { background: #fbe2e2; }
+
+.trec-out:disabled { opacity: 0.6; cursor: default; }
+
 .trec-caret { color: #aab; font-size: 12px; }
 
 .trec-detail { border-top: 1px solid #e9ecf1; padding: 10px 12px; }

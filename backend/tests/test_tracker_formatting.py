@@ -66,6 +66,29 @@ def test_format_match_cell_one_v_two_prefixes():
     assert cell.split("\n") == ["D: W(3-2)", "1v2: W(3-1)", "2v1: L(0-3)"]
 
 
+def test_format_match_cell_multi_event_nests_per_tournament():
+    """Several events on one day (a multi-tier tournament weekend): scores
+    nest under their event name instead of pooling all W/L together (user
+    2026-08-23); event-less matches come last; non-playing stays on top."""
+    open_ev = Event(name="BBTV OPEN")
+    u1100 = Event(name="BBTV U1100")
+    cell = service.format_match_cell([
+        _match(0, my=0, opp=3, event=open_ev),
+        _match(1, my=1, opp=3, event=open_ev),
+        _match(2, my=3, opp=1, event=u1100),
+        _match(3, my=3, opp=0),  # no event link
+        _match(4, nonplaying=True, label="Travel"),
+    ])
+    assert cell.split("\n") == [
+        "Travel",
+        "BBTV OPEN",
+        "L(0-3,1-3)",
+        "BBTV U1100",
+        "W(3-1)",
+        "W(3-0)",
+    ]
+
+
 def test_format_match_cell_empty_and_loss_group():
     assert service.format_match_cell([]) == ""
     cell = service.format_match_cell(

@@ -612,51 +612,64 @@ export default function MatchEditor({
         </div>
       )}
 
-      {/* Existing matches in this cell */}
-      {matches.length > 0 && (
-        <div className="match-list">
-          {matches.map((m) => (
-            <div
-              key={m.id}
-              className={`match-item${editingMatch?.id === m.id ? " editing" : ""}`}
-            >
-              <span>
-                {m.is_nonplaying
-                  ? m.nonplaying_label ?? "—"
-                  : `${DISCIPLINE_SHORT[m.discipline]} ${resultOf(m)} ${m.my_sets}-${m.opp_sets}`}
-                {playersLabel(m) ? ` · ${playersLabel(m)}` : ""}
-                {m.round && ROUND_SHORT[m.round] ? ` · ${ROUND_SHORT[m.round]}` : ""}
-                {m.event_name ? ` · ${m.event_name}` : ""}
-                <EloChip m={m} />
-              </span>
-              <span className="match-item-btns">
-                {!m.is_nonplaying && (
-                  <button
-                    className="icon-btn"
-                    onClick={() => startEdit(m)}
-                    aria-label="Edit match"
-                    title="Edit match"
-                  >
-                    ✏️
-                  </button>
-                )}
+      {/* Existing matches in this cell, FILTERED to the picked entry on a
+          multi-event day (user 2026-08-23: "lọc theo giải đang chọn") —
+          unlinked rows stay visible under any pick. Matches of other
+          events show by switching the dropdown; a knocked-out event's
+          matches come back once no entry is selectable (ctx empty → full
+          list) or after un-marking ☠ on the card / Profile record. */}
+      {(() => {
+        const row = (m: Match) => (
+          <div
+            key={m.id}
+            className={`match-item${editingMatch?.id === m.id ? " editing" : ""}`}
+          >
+            <span>
+              {m.is_nonplaying
+                ? m.nonplaying_label ?? "—"
+                : `${DISCIPLINE_SHORT[m.discipline]} ${resultOf(m)} ${m.my_sets}-${m.opp_sets}`}
+              {playersLabel(m) ? ` · ${playersLabel(m)}` : ""}
+              {m.round && ROUND_SHORT[m.round] ? ` · ${ROUND_SHORT[m.round]}` : ""}
+              {m.event_name ? ` · ${m.event_name}` : ""}
+              <EloChip m={m} />
+            </span>
+            <span className="match-item-btns">
+              {!m.is_nonplaying && (
                 <button
-                  className="icon-btn danger"
-                  onClick={() => {
-                    // Deleting the row currently loaded into the form would
-                    // strand a phantom edit whose Save can only 404.
-                    if (editingMatch?.id === m.id) resetForm();
-                    onDelete(m.id);
-                  }}
-                  aria-label="Delete match"
+                  className="icon-btn"
+                  onClick={() => startEdit(m)}
+                  aria-label="Edit match"
+                  title="Edit match"
                 >
-                  ✕
+                  ✏️
                 </button>
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
+              )}
+              <button
+                className="icon-btn danger"
+                onClick={() => {
+                  // Deleting the row currently loaded into the form would
+                  // strand a phantom edit whose Save can only 404.
+                  if (editingMatch?.id === m.id) resetForm();
+                  onDelete(m.id);
+                }}
+                aria-label="Delete match"
+              >
+                ✕
+              </button>
+            </span>
+          </div>
+        );
+        const mine = selCtx
+          ? matches.filter(
+              (m) =>
+                m.tournament_entry_id == null ||
+                m.tournament_entry_id === selCtx.entry.id
+            )
+          : matches;
+        return mine.length > 0 ? (
+          <div className="match-list">{mine.map(row)}</div>
+        ) : null;
+      })()}
 
       {/* Discipline toggle */}
       <div className="seg-row">

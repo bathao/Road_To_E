@@ -41,11 +41,17 @@ scannable. Last full sync: 2026-07-29.
 
 ## Watch list (not actionable yet)
 
-- [ ] **Journal RichArea (WYSIWYG, built 2026-08-21, uncommitted)** — user
-  to smoke-test: Telex/Vietnamese IME typing in the contentEditable boxes,
-  Ctrl+B/I/U live formatting, bold round-trip through save/edit, paste
-  stays plain. Fallback if the IME misbehaves: revert boxes to textarea
-  (markup.tsx renderMarkup stays either way).
+- [ ] **Checkpoint the DB before committing it** (found 2026-08-23): the
+  app runs SQLite in WAL mode and .gitignore skips -wal/-shm, so a commit
+  made while start.bat is running snapshots a STALE main file (a86bb60 /
+  8abd9ad carried an ~18/08 DB state). Before any commit that includes
+  backend/data/tabletennis.db: stop the app, or run
+  `PRAGMA wal_checkpoint(TRUNCATE)` first. Candidate permanent fix: a tiny
+  pre-commit checkpoint script.
+- [ ] **Journal RichArea (WYSIWYG, built 2026-08-21, committed b1cf439)** —
+  partially confirmed in real use 2026-08-22: a live advice note carries
+  `**...**` bold markers, so Ctrl+B + save round-trip works. Still watch:
+  Telex/IME edge cases while typing, paste stays plain.
 
 - [ ] **SGPP 15–16 Aug needs its End date set** (card currently has
   end_date NULL → the multi-day played rule built 2026-08-04 treats it as

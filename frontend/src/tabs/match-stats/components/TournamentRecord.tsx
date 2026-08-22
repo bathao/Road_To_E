@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { useLoad } from "../../../shared/useApi";
+import { useLoad, useMutate } from "../../../shared/useApi";
 import { dmyDate, prettyDate } from "../../../shared/dates";
 import EloDeltaChip from "../../../shared/ui/EloDeltaChip";
 import { ROUND_LABEL, matchupOf } from "../../../shared/matches";
 import type { TournamentRound } from "../../../shared/matches";
 import { PLACEMENT_LABEL, entryLabel } from "../../../shared/tournaments";
+// The knocked-out toggle is the Daily Tracker's endpoint — reused, not
+// duplicated, so both surfaces stay one PATCH.
+import { tournamentApi } from "../../daily-tracker/api";
 import { matchStatsApi } from "../api";
 import type { RecordEntry, TournamentRecordResponse } from "../types";
 
@@ -68,12 +71,22 @@ function MatchTable({ rec }: { rec: RecordEntry }) {
 }
 
 export default function TournamentRecord() {
-  const { data, error, loading } = useLoad<TournamentRecordResponse>(
+  const { data, error, loading, reload } = useLoad<TournamentRecordResponse>(
     () => matchStatsApi.tournamentRecord(),
     []
   );
+  const { run, error: mutError, busy, clearError } = useMutate();
   const [openId, setOpenId] = useState<number | null>(null);
   const tours = data?.tournaments ?? [];
+
+  // Un-mark a mis-clicked knocked-out: once EVERY entry of a tournament is
+  // ☠ the card retires here, where nothing was clickable — a one-way trap
+  // (hit twice on 2026-08-23). Un-marking may move the tournament back to
+  // the Daily Tracker's upcoming cards (it leaves this list on reload).
+  const unmark = async (entryId: number) => {
+    const ok = await run(() => tournamentApi.setEliminated(entryId, false));
+    if (ok !== undefined) reload();
+  };
 
   return (
     <section className="stats-card trec">
@@ -83,6 +96,11 @@ export default function TournamentRecord() {
         matches logged in the Daily Tracker. Click one for every match.
       </p>
       {error && <div className="pb-error">{error}</div>}
+      {mutError && (
+        <div className="pb-error" onClick={clearError}>
+          {mutError}
+        </div>
+      )}
       {loading && !data && <div className="loading">Loading…</div>}
       {!loading && data && tours.length === 0 && (
         <p className="stats-empty">
@@ -123,6 +141,19 @@ export default function TournamentRecord() {
                       <span className="trec-warn" title={rec.entry.data_warning}>
                         ⚠
                       </span>
+                    )}
+                    {rec.entry.eliminated && (
+                      <button
+                        className="trec-out"
+                        disabled={busy}
+                        title="Knocked out — click to un-mark (the tournament goes back to the Daily Tracker if its days aren't over)"
+                        onClick={(e) => {
+                          e.stopPropagation(); // the head click toggles expand
+                          void unmark(rec.entry.id);
+                        }}
+                      >
+                        ☠ out · un-mark
+                      </button>
                     )}
                   </span>
                 ))}

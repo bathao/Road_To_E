@@ -227,38 +227,14 @@ ROUND_SHORT = {
 }
 
 
-def format_match_cell(matches: list[Match]) -> str:
-    """Render a day's matches the way the Excel sheet shows them.
-
-    e.g. 'W(3-0,3-1)' / 'D: L(2-3,1-3)', with event names and non-playing
-    labels (Travel/Rest) on their own lines.
-    """
-    if not matches:
-        return ""
-
-    ordered = sorted(matches, key=lambda m: m.order_index)
-    lines: list[str] = []
-
-    # Non-playing markers (Travel / Rest).
-    nonplaying: list[str] = []
-    for m in ordered:
-        if m.is_nonplaying and m.nonplaying_label and m.nonplaying_label not in nonplaying:
-            nonplaying.append(m.nonplaying_label)
-
-    # Event names (distinct, first-seen order).
-    events: list[str] = []
-    for m in ordered:
-        if not m.is_nonplaying and m.event and m.event.name and m.event.name not in events:
-            events.append(m.event.name)
-
-    # Group scores by (discipline, result). Knockout-round matches (QF/SF/…)
-    # get their own line per round instead — "QF: W(3-1)" reads like the
-    # bracket; group-stage/no-round matches keep the compact grouping.
+def _match_result_lines(playing: list[Match]) -> list[str]:
+    """The W/L score lines for one batch of playing matches (already in play
+    order). Group-stage/no-round scores group by (discipline, result) —
+    'W(3-0,3-1)' / 'D: L(1-3)'; knockout-round matches (QF/SF/…) get their
+    own line per round instead — 'QF: W(3-1)' reads like the bracket."""
     groups: dict[tuple[str, str], list[str]] = {}
     knockout: list[str] = []
-    for m in ordered:
-        if m.is_nonplaying:
-            continue
+    for m in playing:
         result = _result_letter(m.my_sets, m.opp_sets)
         round_label = ROUND_SHORT.get(m.round or "group", "")
         if round_label:
@@ -270,9 +246,7 @@ def format_match_cell(matches: list[Match]) -> str:
         key = (m.discipline, result)
         groups.setdefault(key, []).append(f"{m.my_sets}-{m.opp_sets}")
 
-    lines.extend(nonplaying)
-    lines.extend(events)
-
+    lines: list[str] = []
     ordered_keys = _GROUP_ORDER + [k for k in groups if k not in _GROUP_ORDER]
     for key in ordered_keys:
         scores = groups.get(key)
@@ -282,6 +256,49 @@ def format_match_cell(matches: list[Match]) -> str:
         prefix = _DISCIPLINE_PREFIX.get(discipline, "")
         lines.append(f"{prefix}{result}({','.join(scores)})")
     lines.extend(knockout)  # in play order, after the grouped results
+    return lines
+
+
+def format_match_cell(matches: list[Match]) -> str:
+    """Render a day's matches the way the Excel sheet shows them.
+
+    Single (or no) event: non-playing labels + the event name on their own
+    lines, then the grouped scores. MULTIPLE events on one day (a
+    several-tier tournament weekend — user 2026-08-23): the scores nest
+    UNDER their event name so each tournament reads separately, with
+    event-less matches last.
+    """
+    if not matches:
+        return ""
+
+    ordered = sorted(matches, key=lambda m: m.order_index)
+    lines: list[str] = []
+
+    # Non-playing markers (Travel / Rest).
+    for m in ordered:
+        if m.is_nonplaying and m.nonplaying_label and m.nonplaying_label not in lines:
+            lines.append(m.nonplaying_label)
+
+    playing = [m for m in ordered if not m.is_nonplaying]
+    # Event names (distinct, first-seen order).
+    events: list[str] = []
+    for m in playing:
+        if m.event and m.event.name and m.event.name not in events:
+            events.append(m.event.name)
+
+    if len(events) > 1:
+        for ev in events:
+            lines.append(ev)
+            lines.extend(
+                _match_result_lines(
+                    [m for m in playing if m.event and m.event.name == ev]
+                )
+            )
+        loose = [m for m in playing if not (m.event and m.event.name)]
+        lines.extend(_match_result_lines(loose))
+    else:
+        lines.extend(events)
+        lines.extend(_match_result_lines(playing))
 
     return "\n".join(lines)
 

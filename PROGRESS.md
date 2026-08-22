@@ -1,6 +1,69 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-08-21, latest) — full-source review + cleanup ahead of the next feature wave (committed in `8abd9ad`)
+## Current status (2026-08-23, latest) — status check: BBTV weekend in progress; committed DB snapshots were STALE (WAL not checkpointed)
+
+> **Status check 2026-08-23:** no code change since the cleanup batch
+> (`8abd9ad`, PROGRESS `faa4e93`) — the only working-tree change is the DB.
+> What the DB shows (diff vs HEAD on a scratchpad copy, as usual):
+>   - **3 new practice singles, 2026-08-22** vs three NEW players Nam /
+>     Thịnh / Anh Vũ "Synopsis" (all with points 800/800/900 — no NULLs,
+>     rule holds): L 1-3 (give 4), W 3-1 (give 4), W 3-0 even. No event
+>     link — a practice session at Synopsis, not BBTV. No Train-with-Coach
+>     or other activities logged 21–22/08.
+>   - **BBTV Open Lần 3 is THIS weekend (22–23/08), still as 5 duplicate
+>     tier cards** (U1100/U1200/Open start 22/08 → end 23/08; U1300/U1500
+>     start 23/08), all singles entries, none eliminated, **no BBTV match
+>     results entered yet**. The per-EVENT points-tier rework (TODO) is
+>     waiting until after this weekend.
+>   - **Journal in real use with the new formatting:** live notes are the
+>     2026-08-20 lesson + a re-entered coach advice whose text carries
+>     `**Giao bóng**:` markers — the Ctrl+B bold + the data-loss re-entry
+>     both confirmed working in anger.
+>   - **⚠ Committed DB snapshots were stale.** `tabletennis.db-wal`/-shm
+>     exist (the app runs in WAL mode) and .gitignore skips them, so the
+>     DB file committed in `a86bb60`/`8abd9ad` is an old checkpoint
+>     (~18/08 state: it still carries session notes the live view had
+>     deleted, and lacks the 20/08 journal notes). The live state has
+>     since checkpointed into the main file — today's working-tree diff
+>     is really "stale snapshot → true state". No data was lost (the WAL
+>     always had the truth); but **from now on, checkpoint before any
+>     commit that includes the DB** (stop start.bat, or run
+>     `PRAGMA wal_checkpoint(TRUNCATE)`) so committed snapshots match
+>     what the user actually sees. Logged as a TODO watch item.
+>   - Session-note history reconciled: live notes are ids 7–8 only; the
+>     4 advice rows deleted on user request 2026-08-21 (ids 1,2,3,6) are
+>     gone from the live view as intended, and ids 4,5 ("Tập đánh đôi với
+>     Lợi Phạm", 13–14/08) had already been deleted by the user via the
+>     old editor — they only look "new" in the stale HEAD snapshot.
+
+> **Same-day fixes (2026-08-23) — knocked-out un-mark in the
+> Profile Tournament Record:** with a single-entry tournament, one ☠
+> mis-click retired the card straight into the read-only record — no undo
+> path (the user hit this twice today; both fixed by hand via the PATCH
+> endpoint). Now the record's ☠ chip is a BUTTON ("☠ out · un-mark",
+> stopPropagation vs the expand click) reusing the Daily Tracker's
+> setEliminated PATCH (imported, not duplicated) + reload; un-marking
+> moves a not-yet-over tournament back to the Daily Tracker cards. FE
+> only — the record payload already carried `eliminated` (EntryOut);
+> mirror field added, .trec-out CSS, tsc + build clean, live endpoint
+> check OK. Match↔tournament linking clarified for the user meanwhile:
+> a saved match binds to the entry SELECTED at save time
+> (tournament_entry_id, line MatchEditor:515), edits keep their own link,
+> and ☠ never deletes or hides saved matches — it only stops NEW entries.
+>   - **Editor match list now FILTERS by the picked entry (user: "lọc theo
+>     giải đang chọn sẽ tốt hơn"):** on a multi-event day the cell's list
+>     shows only the selected tournament's matches (+ unlinked rows);
+>     switching the dropdown switches the list. A knocked-out event's
+>     matches reappear when no entry is selectable (ctx empty → full list)
+>     or after un-marking ☠. FE-only (MatchEditor), build clean.
+>   - **Grid cell nests scores per tournament (user: hover gộp hết W/L
+>     chung, "không phân cấp theo từng tournament"):** format_match_cell —
+>     with MULTIPLE events on one day each event name now heads its own
+>     score lines (event-less matches last); single/no-event days keep the
+>     old compact layout (tests unchanged, pinned). Result-line building
+>     extracted to `_match_result_lines`. Tests 156 (new multi-event pin).
+
+## Previous status (2026-08-21) — full-source review + cleanup ahead of the next feature wave (committed in `8abd9ad`)
 
 > **Review sweep (user: "review toàn bộ source code… clean up, refactory nếu
 > cần"):** 4 parallel read-only agent reviews (backend dead code, frontend

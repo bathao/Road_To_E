@@ -146,6 +146,9 @@ export interface RecordEntryInfo {
   final_placement: string | null;
   bonus_points: number | null;
   data_warning: string | null;
+  // Knocked-out flag — un-markable from the record too (2026-08-23), so a
+  // mis-click that retired the card to this read-only view can be undone.
+  eliminated: boolean;
 }
 
 export interface RecordEntry {
