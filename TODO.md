@@ -55,14 +55,14 @@ scannable. Last full sync: 2026-07-29.
   the last days' matches + today's TC session sit there only. 2026-09-05:
   start.bat restarted 19:09 so the main file is fresh; only recap #11
   (19:12) sits in the WAL — checkpoint, then commit. 2026-09-07: restarted
-  again 20:33, WAL holds only the 2 players added afterwards — same recipe.
-  **The batch has been uncommitted since 24/08 (14 days, 22 modified + 3
-  new files as of 07/09).**)
+  again 20:33, WAL holds only the 2 players added afterwards — same recipe,
+  applied: checkpoint → WAL 0 bytes → committed as `8cc4db7` (the 24/08–07/09
+  batch). Recipe works; the pre-commit script stays a nice-to-have.)
 - [ ] **Journal RichArea (WYSIWYG, built 2026-08-21, committed b1cf439)** —
   partially confirmed in real use 2026-08-22: a live advice note carries
   `**...**` bold markers, so Ctrl+B + save round-trip works. Still watch:
   Telex/IME edge cases while typing, paste stays plain.
-- [ ] **Database tab popover fix (2026-09-07, uncommitted)**: `.db-table-wrap`
+- [ ] **Database tab popover fix (2026-09-07, committed 8cc4db7)**: `.db-table-wrap`
   lost its `overflow-x: auto` (it clipped the points-intent popover when a
   search left 1–2 rows). Watch once: the table on a narrow window (it is
   width: 100% in a 900px tab, so it should shrink, not overflow the page).
@@ -111,7 +111,7 @@ scannable. Last full sync: 2026-07-29.
   bundle's "đánh giải" split and the t=1.5 delta look sane. (BBTV Open
   Lần 3, 2026-08-22..23, is now a full real dataset: 14 linked matches
   across 5 tiers — the next verdict is the live test.)
-- [~] **Jump rope as a daily TC item** (final shape 2026-09-05, uncommitted;
+- [~] **Jump rope as a daily TC item** (final shape 2026-09-05, committed 8cc4db7;
   LIVE since the 07/09 20:33 restart — the open explosive day-4 session
   carries it as item 10/10 with target "100 jumps", 0 ticks so far; tick =
   done, counted in the Physical cell like any item).
@@ -120,7 +120,7 @@ scannable. Last full sync: 2026-07-29.
   and whether the coach's THỂ LỰC muscle_volume line surfaces "Calves,
   ankles, footwork rhythm" sensibly. Orphan EMPTY table `tc_daily_log` from
   the abandoned same-day count-log v1 stays in the DB (never drop tables).
-- [~] **Tracking board first live use** (built 2026-08-24, uncommitted;
+- [~] **Tracking board first live use** (built 2026-08-24, committed 8cc4db7;
   tables live since the 25/08 restart). The 25/08 first task ("Gởi 3 trận
   đấu cho Phi Vũ xem", a one-shot mis-flagged daily) was DELETED by the
   user before 31/08 — board is empty again, watch resets. Still to watch:

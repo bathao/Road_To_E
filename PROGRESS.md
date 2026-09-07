@@ -1,6 +1,6 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-09-07) — status check: jump rope is LIVE in the open TC session (start.bat restarted 20:33 today); Giải STBB (06/09) has ZERO matches logged; Database tab points-intent popover was clipped by the table wrap — fixed + dist rebuilt; batch UNCOMMITTED since 24/08
+## Current status (2026-09-07) — status check: jump rope is LIVE in the open TC session (start.bat restarted 20:33 today); Giải STBB (06/09) has ZERO matches logged; Database tab points-intent popover was clipped by the table wrap — fixed + dist rebuilt; whole 24/08–07/09 batch COMMITTED in `8cc4db7`
 
 > **Status check 2026-09-07:** one small FE fix today (below); otherwise no
 > code change since the 05/09 jump-rope batch. Re-verified: pytest **165
@@ -50,10 +50,12 @@
 >     remain prose in the Journal. No new journal notes since 04/09, no new
 >     recap (#11, 05/09 is the latest), no new verdict (#17, 16/08). Giải F-G
 >     Liên Đoàn (12–13/09, roster Tử Trung only) is this coming weekend.
->   - **⚠ Commit debt: 14 days (since 24/08), 22 modified + 3 new files**
->     including today's database.css fix. The main DB file is fresh as of
->     20:33; `PRAGMA wal_checkpoint(TRUNCATE)` first to fold in the two new
->     players, then commit. Recommend doing it BEFORE the F-G weekend.
+>   - **Commit debt CLEARED (user: "commit đi", 2026-09-07 20:57):** ran
+>     `PRAGMA wal_checkpoint(TRUNCATE)` first (WAL → 0 bytes; the main file
+>     then held all 144 players + recap #11), then committed the whole
+>     24/08–07/09 batch as **`8cc4db7`** — tracking board, jump rope, doubles
+>     chấp ×1.5, filter-hint, chip-wrap, today's database.css fix, tests
+>     156 → 165, DB snapshot. Working tree clean afterwards.
 
 ## Previous status (2026-09-05, later) — Jump rope added to the Training Center as a DAILY staple item (100+ jumps = done) — replaces the same-day count-log card; UNCOMMITTED, needs start.bat restart
 
