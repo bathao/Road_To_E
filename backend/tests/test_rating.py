@@ -237,9 +237,10 @@ def test_rating_folds_handicap_at_full_value(db, monkeypatch):
     assert r.current == 945 and r.counted_matches == 3
 
 
-def test_doubles_handicap_counts_for_one_member_only(db, monkeypatch):
-    """User rule: in doubles the chấp ELO applies to ONE member — on the
-    team-average scale that is half the ladder value. Pinned to scale 1.0."""
+def test_doubles_handicap_weighs_more_than_singles(db, monkeypatch):
+    """User rule 2026-08-31: a doubles handicap is harder to claw back than
+    the same singles one → ladder × ELO_DOUBLES_HANDICAP_MULT (1.5),
+    replacing the old half-ladder rule. Pinned to scale 1.0."""
     monkeypatch.setattr(rating, "HANDICAP_SCALE", 1.0)
     off = category_id(db, "official_match")
     partner = Player(name="DongDoi", points=1050)
@@ -248,14 +249,15 @@ def test_doubles_handicap_counts_for_one_member_only(db, monkeypatch):
     db.add_all([partner, opp1, opp2])
     db.commit()
 
-    # Team avg 1000 vs 1100; receiving 2-2-2 → ladder 150, halved to 75
-    # (< gap 100, so the cap does not bite): mine 1075 vs 1100, E ≈ 0.464.
-    # Official 3-0 sweep: 12 × 1.25 × (1 − 0.464) ≈ +8.0 → 958.
+    # Team avg 1000 vs 1100; receiving 2-2-2 → ladder 150 × 1.5 = 225: the
+    # handicap makes my side the favourite (1225 vs 1100, E ≈ 0.673), so
+    # the win from there earns little. Official 3-0 sweep:
+    # 12 × 1.25 × (1 − 0.673) ≈ +4.9 → 955.
     db.add(_match(off, opp1.id, discipline="doubles", opponent2_id=opp2.id,
                   partner_id=partner.id, handicap=-2))
     db.commit()
     r = service.compute_my_rating(db)
-    assert r.current == 958 and r.counted_matches == 1
+    assert r.current == 955 and r.counted_matches == 1
 
 
 def test_rating_uses_at_match_time_snapshots(db):

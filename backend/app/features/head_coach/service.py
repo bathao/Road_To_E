@@ -167,6 +167,33 @@ def _elo_opp_lines(d: dict) -> str:
     )
 
 
+def _task_dicts(db: Session, today: dt.date) -> list[dict]:
+    """The Tracking board's OPEN tasks as prompt-ready dicts. Daily tasks
+    carry streak / days-since-last, so the coach praises or nudges from
+    real numbers instead of guessing."""
+    src_vi = {"coach": "HLV giao", "ai": "AI đề xuất", "self": "tự giao"}
+    status_vi = {"todo": "chưa bắt đầu", "doing": "đang làm"}
+    out: list[dict] = []
+    for t in tracker_service.list_tasks(db, today).tasks:
+        if t.status == "done":
+            continue
+        d: dict = {
+            "title": t.title,
+            "source": src_vi.get(t.source, t.source),
+            "status": status_vi.get(t.status, t.status),
+        }
+        if t.note:
+            d["note"] = t.note
+        if t.is_daily:
+            d["daily"] = True
+            d["streak"] = t.streak
+            d["days_since_last"] = (
+                (today - t.last_check).days if t.last_check else None
+            )
+        out.append(d)
+    return out
+
+
 def _session_note_dict(n: SessionNote, with_kind: bool = False) -> dict:
     """One journal session-note item as a prompt-ready dict (tag keys →
     display labels). Shared by the verdict bundle and the recap bundle."""
@@ -398,6 +425,7 @@ def gather_bundle(db: Session) -> schemas.SourceSummary:
     ]
 
     return schemas.SourceSummary(
+        tasks=_task_dicts(db, today),
         player=_player_name(db),
         training=training_sum,
         match=match_sum,
@@ -534,6 +562,26 @@ def _bundle_to_text(b: schemas.SourceSummary) -> str:
         "  (chưa có bài học nào)"
     )
 
+    def _task_line(x: dict) -> str:
+        bits = [f"  - [{x['source']} · {x['status']}] {x['title']}"]
+        if x.get("note"):
+            bits.append(f"({x['note']})")
+        if x.get("daily"):
+            since = x.get("days_since_last")
+            bits.append(
+                f"— NHIỆM VỤ HẰNG NGÀY: chuỗi {x.get('streak', 0)} ngày, "
+                + (
+                    "chưa thực hiện lần nào"
+                    if since is None
+                    else f"lần cuối cách đây {since} ngày"
+                )
+            )
+        return " ".join(bits)
+
+    task_lines = "\n".join(_task_line(x) for x in b.tasks) or (
+        "  (bảng nhiệm vụ trống)"
+    )
+
     racket_total = m.get("racket_minutes_total", 0)
     racket_tr = m.get("racket_minutes_training", 0)
     racket_ma = m.get("racket_minutes_matches", 0)
@@ -575,6 +623,10 @@ def _bundle_to_text(b: schemas.SourceSummary) -> str:
         f"=== 7 NGÀY TỚI (khung kế hoạch tuần — 'day' phải dùng NGUYÊN VĂN "
         f"nhãn ngày dưới đây) ===\n"
         f"{_week_ahead_lines(b.tournaments, dt.date.today())}\n\n"
+        f"=== NHIỆM VỤ ĐANG THEO (bảng Tracking — nguồn: HLV trực tiếp / AI "
+        f"/ tự giao; nhiệm vụ hằng ngày có chuỗi ngày — khen chuỗi tốt, nhắc "
+        f"nhiệm vụ bị bỏ bê) ===\n"
+        f"{task_lines}\n\n"
         f"=== HLV TRỰC TIẾP ĐANG DẶN (học trò ghi lại; chưa hoàn thành — cần tập tiếp) ===\n"
         f"{advice_lines}\n\n"
         f"=== RECAP CÁC BUỔI TẬP VỚI HLV TRỰC TIẾP (mới nhất trước) ===\n"
@@ -1112,6 +1164,9 @@ def gather_recap_bundle(
         "session_notes": session_notes,
         "day_notes": day_notes,
         "coach_notes": _coach_note_dicts(db),
+        # Open Tracking-board tasks as of the period's end — the recap can
+        # note kept/broken daily streaks alongside the period's numbers.
+        "tasks": _task_dicts(db, end),
     }
 
 
@@ -1212,6 +1267,20 @@ def _recap_bundle_to_text(b: dict) -> str:
     sn_lines = "\n".join(_sn_line(n) for n in b.get("session_notes", [])) or (
         "  (nhật ký trống trong kỳ)"
     )
+    task_lines = "\n".join(
+        f"  - [{x['source']} · {x['status']}] {x['title']}"
+        + (
+            f" — hằng ngày: chuỗi {x.get('streak', 0)} ngày"
+            + (
+                f", lần cuối cách {x['days_since_last']} ngày"
+                if x.get("days_since_last") is not None
+                else ", chưa thực hiện lần nào"
+            )
+            if x.get("daily")
+            else ""
+        )
+        for x in b.get("tasks", [])
+    ) or "  (bảng nhiệm vụ trống)"
     note_lines = "\n".join(
         f"  - {n['date']}: {n['text']}" for n in b.get("day_notes", [])
     ) or "  (không có ghi chú)"
@@ -1242,6 +1311,9 @@ def _recap_bundle_to_text(b: dict) -> str:
         f"=== NHẬT KÝ TRONG KỲ (lời HLV dặn / bài tập / recap / bài học học "
         f"trò tự rút ra) ===\n"
         f"{sn_lines}\n\n"
+        f"=== NHIỆM VỤ ĐANG THEO CUỐI KỲ (bảng Tracking — nhận xét chuỗi "
+        f"ngày giữ được / bị bỏ bê) ===\n"
+        f"{task_lines}\n\n"
         f"=== GHI CHÚ HẰNG NGÀY CỦA HỌC TRÒ TRONG KỲ ===\n"
         f"{note_lines}\n\n"
         f"=== SỔ TAY HLV (mục tiêu/ràng buộc đã chốt — bối cảnh, có thể ngoài kỳ) ===\n"

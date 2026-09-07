@@ -13,6 +13,7 @@ import Seg from "../../shared/ui/Seg";
 import { trackerApi } from "../daily-tracker/api";
 import type { JournalDay, SessionNoteKind } from "../daily-tracker/types";
 import DayCard from "./components/DayCard";
+import TrackingPanel from "./components/TrackingPanel";
 import RichArea from "./RichArea";
 import { renderMarkup } from "./markup";
 
@@ -169,6 +170,9 @@ export default function Journal() {
 
   return (
     <div className="tab-journal">
+      {/* Left: the diary (composer + timeline). Right: the Tracking board
+          (user 2026-08-24) — fills the previously empty side space. */}
+      <div className="jr-main">
       <header className="jr-head">
         <h1>📔 Journal</h1>
         <p className="jr-sub">Your table-tennis diary — the AI coach reads all of it.</p>
@@ -381,6 +385,9 @@ export default function Journal() {
           </button>
         )}
       </div>
+      </div>
+
+      <TrackingPanel />
     </div>
   );
 }

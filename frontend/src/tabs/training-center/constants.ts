@@ -32,6 +32,7 @@ const POSE: Record<string, string> = {
   toe_stand_hold: "standing",
   calf_raise: "standing",
   gentle_bounce: "standing",
+  jump_rope: "standing",
   march_in_place: "standing",
   lateral_toe_steps: "standing",
   wall_pushup: "wall-pushup",
@@ -67,8 +68,10 @@ export const DAY_ICON: Record<DayType, string> = {
   balance: "⚖️",
 };
 
-// "3×20" / "3×45s", with a per-side suffix when relevant.
+// "3×20" / "3×45s", with a per-side suffix when relevant. A set-less rep
+// target with a unit reads as a plain daily total ("100 jumps").
 export function formatTarget(t: ExerciseTarget, perSide: boolean): string {
+  if (t.sets == null && t.sec == null && t.unit) return `${t.reps ?? 0} ${t.unit}`;
   const sets = t.sets ?? 1;
   const body = t.sec != null ? `${sets}×${t.sec}s` : `${sets}×${t.reps ?? 0}`;
   return perSide ? `${body} / side` : body;

@@ -1,6 +1,365 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-08-23, latest) — status check: BBTV weekend in progress; committed DB snapshots were STALE (WAL not checkpointed); same-day fixes committed in `51523bc`
+## Current status (2026-09-07) — status check: jump rope is LIVE in the open TC session (start.bat restarted 20:33 today); Giải STBB (06/09) has ZERO matches logged; Database tab points-intent popover was clipped by the table wrap — fixed + dist rebuilt; batch UNCOMMITTED since 24/08
+
+> **Status check 2026-09-07:** one small FE fix today (below); otherwise no
+> code change since the 05/09 jump-rope batch. Re-verified: pytest **165
+> passed**, `tsc --noEmit` clean, vite build clean. start.bat WAS restarted
+> today 20:33 (startup backup `backups/tabletennis-2026-09-07.db` exists, the
+> main file checkpointed at 20:33, WAL ~16KB = only the two players added
+> after that). DB diffed vs HEAD on a scratchpad copy (WAL copied alongside):
+>   - **Jump rope reached the live app:** the open session (tc_session #25,
+>     explosive day 4 "balance", unlocked) now carries `jump_rope` as its
+>     10th item with target `{"reps": 100, "unit": "jumps"}` — exactly what
+>     the 05/09 smoke on the DB copy predicted. 0/10 ticked so far; the two
+>     05/09 sessions (day 2 core 22', day 3 legs 21', both pain none / RPE
+>     medium) are untouched (day 3 sits at 3/9 done). The "needs restart"
+>     caveat from 05/09 is closed; the item's first real tick/skip is the
+>     next watch point.
+>   - **⚠ Giải STBB (06/09, team, 4-name roster) shows NO trace of being
+>     played:** entry #17 has 0 linked matches, `eliminated` = 0, no
+>     tracker_activity / physical row on 06/09, and the latest match in the
+>     whole DB is still 31/08 (381 rows, unchanged since 05/09). Either the
+>     event was skipped or the matches were never entered — asked the user;
+>     not assumed. The "first TEAM event through the tab" live test (match↔
+>     entry linking on a team day, đánh giải split, record grouping) is
+>     therefore still pending.
+>   - **Database tab bug (user report 2026-09-07, screenshot): "khung edit
+>     quá nhỏ, ko thấy được ở dưới có j"** — after searching a name and
+>     changing points (Phan Đức Việt 1200 → 1300), the points-intent popover
+>     ("1200 → 1300: what changed?") rendered clipped inside a ~120px-tall
+>     table wrap with its own scrollbar, so neither 📈 Level change nor ✏️
+>     Fix wrong entry was reachable. Root cause: `.db-table-wrap` had
+>     `overflow-x: auto`; per CSS, a non-visible overflow on one axis makes
+>     the other axis a scroll container too, so the absolutely-positioned
+>     popover (anchored to the points cell) was clipped whenever the filtered
+>     list was only a row or two tall (with a long list it simply overlapped
+>     the next rows, which is why it never showed before). Fix:
+>     `overflow: visible` on the wrap (database.css, with a comment); the
+>     table is `width: 100%` inside the 900px tab so it shrinks instead of
+>     overflowing — nothing else used the wrap's scroll. dist rebuilt →
+>     visible on the next browser refresh, no restart needed. ⚠ The edit
+>     itself did NOT land: Phan Đức Việt is still 1200 in the DB — the user
+>     should redo it and pick the intent (they have match history, so the
+>     question will appear again — now fully visible).
+>   - **2 new players today** (Vũ Minh Đức 1100, Thanh Linh gai 1300) →
+>     144 players, **0 NULL points** — rule holds. Both were added through
+>     the tab at ~20:35 (WAL-only as of this check).
+>   - **Tracking board still 0 rows** (tracker_task / tracker_task_check),
+>     14 days after go-live — the 04/09 "3 yêu cầu từ HLV" + 2 self-drills
+>     remain prose in the Journal. No new journal notes since 04/09, no new
+>     recap (#11, 05/09 is the latest), no new verdict (#17, 16/08). Giải F-G
+>     Liên Đoàn (12–13/09, roster Tử Trung only) is this coming weekend.
+>   - **⚠ Commit debt: 14 days (since 24/08), 22 modified + 3 new files**
+>     including today's database.css fix. The main DB file is fresh as of
+>     20:33; `PRAGMA wal_checkpoint(TRUNCATE)` first to fold in the two new
+>     players, then commit. Recommend doing it BEFORE the F-G weekend.
+
+## Previous status (2026-09-05, later) — Jump rope added to the Training Center as a DAILY staple item (100+ jumps = done) — replaces the same-day count-log card; UNCOMMITTED, needs start.bat restart
+
+> **Jump rope, final shape (user 2026-09-05, after seeing v1 live: "coi nó
+> như là 1 trong các bài tập đi, ko cần hiện số lần. mỗi ngày nhảy > 100 cái
+> là hoàn thành bài đó… đưa nó xuống dưới như 1 bài tập luôn"):**
+>   - **What it is now:** `jump_rope` is the third entry in `DAILY_KEYS`
+>     (with gyro_ball / thigh_lift_bottle) — appended to EVERY session by
+>     `_ensure_daily`, ticked like any other item, counted in done/total, so
+>     it shows up in the Daily Tracker's Physical cell ("N/10 · focus") and
+>     the session-by-date view exactly like the other exercises — which is
+>     what the user was missing in v1 (the separate card never reached the
+>     grid). Target is the user's FIXED rule `{"reps": 100, "unit": "jumps"}`
+>     → rendered "100 jumps" (formatTarget: set-less rep target with a unit);
+>     `NO_RAMP_KEYS` keeps `daily_target` from stepping it up with training
+>     age / bias; `NO_SWAP_KEYS` keeps `alternatives_for` from ever offering
+>     the one impact move as a "knee-safe" swap. No count entry anywhere.
+>   - **Knee stance unchanged:** safety note names jump rope as the ONE
+>     impact exception ("skip it the moment the knee complains"); the item's
+>     cue + how-to say low bounce / soft landing / Skip on pain — the
+>     existing per-item Skip and the session pain/RPE feedback are the
+>     autoregulation path (no separate knee log).
+>   - **v1 (built ~2 hours earlier, same day) is GONE:** the count-log
+>     card, GET/PUT /training/daily, `TrainingDailyLog`, `ReportOut.daily_logs`,
+>     the coach-bundle "Nhảy dây: hôm nay N lần…" lines and the 3 recap
+>     `jump_rope_*` snapshot fields were all removed — the coach simply sees
+>     jump rope through `muscle_volume` ("Calves, ankles, footwork rhythm")
+>     like every other item. The user HAD restarted on v1, so the live DB
+>     carries an EMPTY orphan table `tc_daily_log` (0 rows — nothing to
+>     migrate); left in place per the never-drop-tables rule, noted in
+>     models.py. The `_streak()` extraction in service.report stays (pure
+>     refactor).
+>   - **Live effect after the next restart:** the open session (explosive day
+>     4, materialised before the change) picks up the item on first read →
+>     0/10; today's two completed sessions (day 2 core, day 3 legs — done
+>     05/09, 3/9 on the grid) are untouched, `_ensure_daily` skips done rows.
+>   - **Verification:** pytest **165 passed** (160 + 5 in test_jump_rope.py:
+>     catalog shape, fixed target vs ramping staples, never a swap, appended
+>     to the open session + tick counts + re-append after removal, completed
+>     session lands in physical_day_map + muscle_volume). gen:api clean (no
+>     DailyLog types left), `tsc --noEmit` clean, vite build clean. Smoke on
+>     a scratchpad COPY of the live DB (WAL included): /training/today →
+>     explosive day 4, 0/10, last item "Jump rope (100+ jumps in the day)"
+>     with target {reps 100, unit jumps}; done session 05/09 still 3/9.
+>   - **Live-app note:** dist was rebuilt again; this FE no longer calls the
+>     retired endpoint, so the running app is fine as-is — but the item only
+>     appears after start.bat restarts (program.py change).
+>   - Whole tree still UNCOMMITTED (since 24/08). This batch touches
+>     training/{models,program,service}.py (schemas/router are back to HEAD),
+>     head_coach/service.py, tests/test_jump_rope.py, TC types/constants,
+>     schema.d.ts. Commit on the user's word, after a WAL checkpoint.
+
+## Previous status (2026-09-05, earlier) — status check: recap #11 generated TODAY and it READS the journal (04/09 advice cited, all figures grounded); coach set 3 serve/footwork requirements on 04/09 but the Tracking board is still empty; no matches since 31/08; Giải STBB (team) is TOMORROW; batch UNCOMMITTED since 24/08
+
+> **Status check 2026-09-05:** no code change since 31/08 — the working tree
+> is still the tracking-board batch + 23/08 filter-hint + 31/08 chip-wrap +
+> the doubles-chấp ×1.5 flip. Re-verified today: pytest **160 passed**,
+> `tsc --noEmit` clean. start.bat was restarted 02/09, 04/09 and today 19:09
+> (startup backups exist; the main file checkpointed at 19:09, so the WAL held
+> only today's recap at check time). DB diffed vs HEAD on a scratchpad copy
+> (WAL copied alongside, live state included):
+>   - **Recap #11 (week 30/08–05/09) generated 19:10–19:12 today, status
+>     done** — the first recap since the journal-lessons + tracking-board
+>     bundle sections landed, so several watch items got their live test:
+>     - Headline: "ELO tụt 10 điểm, khối lượng trận đấu giảm một nửa và không
+>       gặp đối thủ mới". Stats row checked against the DB: 5 matches (all
+>       31/08, 1W-4L), ELO −10.2 → 967, new_opponents **0** (Anh Trường / Mr
+>       Kim were doubles-only → the singles-only rule held), days_physical 2
+>       (TC 30/08 + 31/08), 120' coached (04/09); previous window 15 matches
+>       / +7.1 → 977. Every number matches the data.
+>     - **The coach DID read the journal:** focus_next says "Tập trung sửa
+>       giao bóng dài nhanh + né tấn công theo dặn ngày 04/09" and `overall`
+>       echoes "chân ì ạch" from the 04/09 lesson — the HLV/KINH NGHIỆM
+>       sections are consumed, not ignored. Per-opponent figures (+3.7 Anh
+>       Trường, −4.5 Chung / Tuấn, −3.6 Danh) all trace to `elo_by_opponent`
+>       in the sources bundle — nothing invented. The ELO drains/sources
+>       item from the 04/08 prompt work is confirmed on the recap side.
+>     - Nits: "Tỷ lệ thắng đơn 0% (1/1)" is garbled wording (0 of 1);
+>       "chưa thực hiện được các yêu cầu" is an inference (no match since
+>       the 04/09 advice), not data. Bundle `tasks: []` — the board is empty,
+>       so the NHIỆM VỤ ĐANG THEO section stayed untested.
+>   - **04/09: coach session (Phi Vũ, 120') + the first journal notes since
+>     20/08** — an advice note "Có 3 yêu cầu từ HLV…" (stamp the foot as the
+>     racket meets the ball on serve, 1–2 fast long serves per set then step
+>     out and attack, get to mid distance quickly) and a lesson note "Bài tập
+>     bổ trợ" (self-practice long fast serves + short loose serves on the
+>     table; continuous bouncing — "bộ chân hiện tại đang rất ì ạch"). ⚠ These
+>     3 requirements + 2 drills are EXACTLY the daily-follow-up material the
+>     Tracking board was built for, yet `tracker_task` still holds **0 rows**
+>     12 days after the board went live. Raised with the user (not assumed).
+>   - **No matches 01–05/09** (latest still 31/08; 381 rows), no physical
+>     rows, TC untouched since 31/08 (explosive day 2 "core" unlocked, 0/9
+>     ticked). The user says they now skip rope DAILY as supplementary work —
+>     none of it is in the DB yet (see the new request below).
+>   - **Giải STBB is TOMORROW (06/09)** — 4-name team roster (Lợi Phạm, Lê
+>     Minh Tú, Nguyễn Công Danh, Trần Đức Hiền); the first TEAM-discipline
+>     event ever played through the tab → the "đánh giải" split for a team
+>     entry, match↔entry linking on a team day and the record grouping get
+>     their live test this weekend. Giải F-G Liên Đoàn (12–13/09) roster now
+>     holds ONLY Tử Trung — Phương Quang was removed by the user (member rows
+>     1–2 gone, row 7 = Tử Trung); the entry's free-text team_members reads
+>     "TMSKY". Not touched, user data.
+>   - Players 142 rows, **0 NULL points** — rule holds. hc_assessment
+>     unchanged (latest verdict #17, 16/08) — the verdict-side watch items
+>     (same-handicap progression credit, week plan dates, NHIỆM VỤ nudge) are
+>     all still pending a run.
+>   - **⚠ Commit debt: the batch has been uncommitted since 24/08 (12 days,
+>     19 modified + 2 new files).** The DB main file is fresh as of 19:09
+>     today; a commit right now — after `PRAGMA wal_checkpoint(TRUNCATE)` to
+>     fold recap #11 in — would be clean. Recommend committing BEFORE the STBB
+>     weekend adds a team tournament's worth of data on top.
+>   - **New request (2026-09-05): jump rope as a DAILY Training Center
+>     exercise with a user-entered count.** Plan presented (own daily log
+>     table + count input + streak/trend in the TC tab + report/coach bundle
+>     line; NOT a session item, since TC sessions are not daily), with the
+>     knee caveat flagged (the program is explicitly no-jumping; grade-1 OA).
+>     Waiting for the user's OK — no code written.
+
+## Previous status (2026-08-31, later) — Doubles chấp rule FLIPPED: ladder × 1.5 (was ÷2) — a doubles chấp now weighs MORE than the same singles chấp
+
+> **Doubles handicap multiplier (user decision 2026-08-31, "Làm đi"):** the
+> user flagged that a chấp is much harder to claw back in doubles ("Đánh
+> đôi rất khó gỡ điểm chấp" — forced rotation: the stronger player touches
+> only half the balls), so the 2026-07-26 "belongs to one member → half
+> ladder" rule pointed the WRONG way. Analysis before the change:
+>   - The user's equivalence "singles 2-2-2 ≈ doubles 2-0-2" ⇒ ×1.5; the
+>     other example ("≈ doubles 0-2-0" ⇒ ×3.0) was tested and REJECTED by
+>     data — worse than even the old rule.
+>   - Backtest over all 19 post-anchor doubles matches with a chấp:
+>     log-loss bottoms exactly at ×1.5 (0.717) vs ×0.5 old (0.739),
+>     ×1.0 (0.723), ×2.25 (0.728), ×3.0 (0.763). Lived record agreed:
+>     giving chấp in doubles the user was 5W-7L on kèo the old rule
+>     called ~50/50.
+>   - Change: `ELO_DOUBLES_HANDICAP_MULT = 1.5` in rating.py (replaces the
+>     inline ÷2), constant documented with the decision; the pinned test
+>     renamed to test_doubles_handicap_weighs_more_than_singles (expected
+>     955, receiver-as-favourite behavior kept). 160 tests pass.
+>   - Replay architecture = no migration: every past doubles match re-scores
+>     on the next read and every LATER match (singles included) cascades
+>     through the running rating automatically. Net effect on today:
+>     967.4 → **967.2** (barely moves — 19 deltas redistribute and later
+>     E's absorb most of it). 31/08 examples: give-2 W 3-1 +6.1 → +7.3;
+>     give-2 L 2-3 −4.5 → −3.5; receive-4 L 2-3 −1.9 → −4.5 (that kèo now
+>     reads as even, so the loss costs real points).
+>   - 1v2 / 2v1 untouched — they keep the FULL ladder (rule 2026-07-27).
+>   - Re-check alongside HANDICAP_SCALE (~Oct 2026) once more doubles-chấp
+>     matches exist (TODO updated).
+
+## Previous status (2026-08-31, earlier) — status check: first roster'd TEAM cards rendered live (roster overflow found + fixed same day); tracker task #1 deleted by the user (board empty again); 13 practice matches 27–31/08; batch still UNCOMMITTED
+
+> **Status check 2026-08-31:** the only code change since 25/08 is a small
+> FE fix made today, prompted by the first live render of roster'd team
+> cards: a 4-5-name roster (Giải STBB) overflowed the card because
+> `.tour-chip` was nowrap inside a 360px card. Entry chips on CARDS now
+> wrap (full roster visible, card grows); the one-line STRIP truncates at
+> 40ch with an ellipsis + hover title instead (daily-tracker.css +
+> TournamentStrip.tsx). The rest of the tree is unchanged: tracking-board
+> batch + the 23/08 filter-hint patch. Re-verified today: pytest **160
+> passed**, `tsc --noEmit` clean. DB diffed vs HEAD on a scratchpad copy
+> (WAL copied alongside, live state included):
+>   - **Second roster'd TEAM entry:** new tournament "Giải STBB" (06/09,
+>     single day, level E F G), discipline=team with 4 member rows — Lợi
+>     Phạm, Lê Minh Tú, Nguyễn Công Danh, Trần Đức Hiền (new player, 1000
+>     pts). `tournament_entry_member` now holds 6 rows across the 2
+>     upcoming team entries; these cards are exactly where the overflow
+>     bug surfaced.
+>   - **Tracking board is EMPTY again — task #1 was deleted** (both
+>     tracker_task and tracker_task_check hold 0 rows; user action,
+>     presumably the ✕ card button — the 25/08 note already flagged it as
+>     a one-shot mis-flagged daily). Not touched, user data. The "first
+>     live use" watch resets: still waiting for a real daily + a streak.
+>   - **13 new practice matches, 27–31/08** (none event-linked): 27/08 —
+>     W 3-0 Phương Quang, W 3-0 / L 1-3 Tấn Phát, L 0-3 Lê Quý Đức-1400
+>     (được chấp 2); 28/08 — L 2-3 Pha Phim-1500 (được chấp 4), Trần Quang
+>     Vinh-1200 even L 0-3 / L 1-3 / W 3-2; 31/08 (today) — a doubles-heavy
+>     Homyland session, 1W-4L incl. L 2-3 vs a Lê Duy Tuấn-1800 pair
+>     (được chấp 4). Latest match is now 31/08; window total 4W-9L.
+>   - 3 new players, all with points (Trần Đức Hiền 1000, Anh Trường
+>     Homyland 750, Mr Kim The Eastern 900) — 0 NULLs anywhere, rule holds.
+>   - Training Center woke up: **explosive day 1 (legs) DONE today** (20',
+>     pain none, RPE medium), day 2 (core) unlocked — first TC movement in
+>     the diff (+2 sessions / +18 items). tracker_activity gained one row
+>     (27/08, coach session 120') — 28–31/08 hold only matches, no
+>     training/physical rows.
+>   - No new recap (latest is #10, week 18–24/08) and no new journal
+>     notes (latest day note still 05/08) — the post-25/08 watch items on
+>     verdict/recap output are all still pending a run.
+>   - **⚠ Commit hygiene applies right now:** the WAL is ~239KB — today's
+>     matches + the TC session live there. Stop start.bat or run
+>     `PRAGMA wal_checkpoint(TRUNCATE)` before any commit that includes
+>     the DB, else the snapshot misses the last few days.
+>   - Next on the user's word: commit the whole batch (tracking board
+>     BE+FE+tests, filter-hint, chip-wrap fix, DB after checkpoint); the
+>     per-EVENT points-tier rework stays unblocked-but-waiting.
+
+## Previous status (2026-08-25) — status check: Tracking board restarted into the live app and got its first real task; no new code since 24/08; whole batch still UNCOMMITTED
+
+> **Status check 2026-08-25:** no code change since yesterday's build. The
+> working tree = the Tracking board (tracker models/schemas/service/router
+> + test_tasks.py, head_coach bundle sections, journal 2-column grid +
+> TrackingPanel + CSS, api.ts/types.ts/schema.d.ts) + the 23/08 filter-hint
+> patch (MatchEditor + daily-tracker.css). Re-verified today: pytest
+> **160 passed**, `tsc --noEmit` clean. DB diffed vs HEAD on a scratchpad
+> copy (WAL copied alongside, so the live state is included):
+>   - **start.bat WAS restarted (18:05 today)** — startup backup
+>     `backups/tabletennis-2026-08-25.db` exists, the main file checkpointed
+>     at 18:05, and `tracker_task` / `tracker_task_check` now exist in the
+>     live DB (create_all did its job — the "needs restart" caveat from
+>     24/08 is closed).
+>   - **Tracking board — first real task (25/08 18:25 local):** #1 "Gởi 3
+>     trận đấu cho Phi Vũ xem (có bảng điểm)", source **coach**, status
+>     todo, **is_daily = 1**, 0 checks. Live `GET /api/tracker/tasks`
+>     returns it exactly as designed: checked_today=false, streak=0,
+>     last_check=null. ⚠ Observation (not touched — user data): the text
+>     reads as a ONE-SHOT deliverable ("send 3 matches to Phi Vũ"), yet it
+>     is flagged daily — so it will sit in ☀️ Today every single day and
+>     never build a streak; a plain (non-daily) task + ✔ when sent is
+>     probably what was meant. Worth a word to the user; the ✏️ edit action
+>     on the card can flip the flag.
+>   - **No other data movement since the 24/08 check:** the +7 matches,
+>     +6 players, +2 events, recap #10, "Giải F-G Liên Đoàn" + its 2 roster
+>     rows and the 3 ☠ flips (entries 9/12/13) are all the BBTV/team items
+>     already logged yesterday. Latest match is still 23/08; **latest
+>     tracker_activity is 20/08** — 21–25/08 hold only the BBTV matches, no
+>     training/physical rows, so the next verdict will (correctly) see a
+>     5-day gap in the activity log.
+>   - SGPP (15–16/08) already has end_date = 2026-08-16 → the TODO watch
+>     item is closed. U1300/U1500 BBTV cards keep end_date NULL — harmless,
+>     they are single-day tiers and all 5 entries are ☠/over.
+>   - **⚠ Commit hygiene applies right now:** the task row lives in the
+>     WAL only (main file checkpointed 18:05, task created 18:25). Before
+>     any commit that includes the DB: stop start.bat or run
+>     `PRAGMA wal_checkpoint(TRUNCATE)`, else the snapshot lacks task #1.
+>   - Next on the user's word: commit the tracking-board batch (BE+FE+tests
+>     + DB after checkpoint); the per-EVENT points-tier rework stays
+>     unblocked-but-waiting.
+
+## Previous status (2026-08-24, later) — NEW: Tracking board in the Journal tab (JIRA-lite tasks + daily streaks); BBTV Open Lần 3 completed
+
+> **Tracking board (user request 2026-08-24: "khu vực Tracking Status,
+> kiểu giống JIRA, task HLV giao, tôi phải follow daily" — plan OK'd
+> "Triển khai đi"; UNCOMMITTED, needs start.bat restart):**
+>   - **Data:** new tables `tracker_task` (title/note/source coach|ai|self,
+>     status todo|doing|done + done_at, is_daily) + `tracker_task_check`
+>     (one row per practiced day, unique task+date). create_all only, no
+>     ALTERs. Done tasks stay listed 7 days (_TASK_DONE_KEEP_DAYS) then
+>     drop off — the row is never deleted.
+>   - **API:** GET/POST /tracker/tasks, PATCH/DELETE /tracker/tasks/{id},
+>     POST /tracker/tasks/{id}/check {date, checked} — every mutation
+>     returns the fresh TasksOut (sidesteps the DELETE-204/useMutate
+>     ambiguity). Streak = consecutive practiced days ending today, or
+>     ending yesterday when today isn't ticked yet.
+>   - **FE:** the Journal tab is now a 2-column grid (diary 760px left,
+>     sticky ~400px Tracking panel right; stacks under 1100px — fills the
+>     empty side space the user flagged). Panel blocks: ☀️ Today (dailies
+>     not ticked yet, amber), 📋 Board (quick-add with source Seg 🧑‍🏫/📝 +
+>     daily toggle; To Do / Doing groups with hover actions ▶ ⏸ ✔ ✏️ ✕;
+>     Done collapsed). Task titles render the journal's **marker**
+>     formatting. The AI parts were CUT same-day on first look (user:
+>     "Bỏ task của AI Coach đi, nó chưa hợp lý lúc này") — the 🤖 AI
+>     source option and the AI-directives progress block are gone from
+>     the panel; the backend keeps source "ai" valid and the head-coach
+>     tab keeps its own directive-progress view.
+>   - **Coach AI:** verdict bundle gains "=== NHIỆM VỤ ĐANG THEO ===" (open
+>     tasks; dailies carry chuỗi N ngày / lần cuối cách N ngày — the prompt
+>     tells the coach to praise kept streaks and nudge neglected ones);
+>     recap bundle gains "NHIỆM VỤ ĐANG THEO CUỐI KỲ". SourceSummary.tasks.
+>   - Tests 156 → 160 (test_tasks.py: CRUD + fresh-list contract, streak
+>     math incl. un-tick fallback + gap break + idempotent double-tick,
+>     7-day done drop-off, bundle section); pytest + gen:api + tsc + vite
+>     build clean.
+
+## Previous status (2026-08-24, earlier) — status check: BBTV Open Lần 3 completed (5 tiers, 14 matches, 2× reached R16), ELO week +31.2; first TEAM entry with roster registered
+
+> **Status check 2026-08-24:** code change since `51523bc` is only the
+> UNCOMMITTED filter-hint patch (see the 23/08 bullet below: "+N more
+> matches this day in other events" under the editor's filtered list —
+> MatchEditor + daily-tracker.css). Everything else is DB (user data,
+> diffed vs HEAD on a scratchpad copy):
+>   - **BBTV Open Lần 3 is DONE — the tab survived its first real
+>     multi-tier tournament weekend.** 14 linked matches across all 5
+>     tiers, every entry now ☠/finished, whole event in the Profile
+>     record: 22/08 — OPEN group L,L (out); U1100 group W 3-2, W 3-0,
+>     L 1-3; U1200 group W 3-2, W 3-1, L 1-3. 23/08 — U1100 **R16**
+>     L 1-3 (Trì Châu Anh Tuấn — advanced from day 1!); U1300 group
+>     L,L,L (incl. Wang Yu Gui, pips, 1300 pts); U1500 group W 3-0,
+>     L 0-3 then **R16** L 0-3 (Phạm Ngọc Thiên An). Weekly recap #10
+>     (18–24/08, done): "Tăng ELO **+31.2** điểm dù giảm tập thể lực,
+>     thắng 40% với 15 đố[i thủ]…".
+>   - **The user self-corrected last night's mis-linked match:** the
+>     23/08 Trần Minh Huy match (saved under U1500 while the dropdown sat
+>     there) was deleted and re-entered under U1300 — the DB now reads
+>     exactly like the real brackets. The filter-hint patch exists so this
+>     confusion can't silently recur.
+>   - **First TEAM entry with a roster:** new tournament "Giải F-G Liên
+>     Đoàn" (12–13/09, level F G), entry discipline=team with the
+>     first-ever `tournament_entry_member` rows (Tử Trung — new player,
+>     1150 — + Phương Quang). Watch: first live render of a roster'd team
+>     entry (cards, coach bundle, record) — the table was empty until now.
+>   - 6 new players, all with points (1150–1350 range, one pips) — no
+>     NULLs, rule holds. Unblocked: the per-EVENT points-tier rework
+>     (TODO) — BBTV is over, the 5-duplicate-cards pain is now lived
+>     experience (5 cards × ☠ churn all weekend); waiting on the user's
+>     go.
+
+## Previous status (2026-08-23) — status check: BBTV weekend in progress; committed DB snapshots were STALE (WAL not checkpointed); same-day fixes committed in `51523bc`
 
 > **Status check 2026-08-23:** no code change since the cleanup batch
 > (`8abd9ad`, PROGRESS `faa4e93`) — the only working-tree change is the DB.
@@ -56,6 +415,12 @@
 >     switching the dropdown switches the list. A knocked-out event's
 >     matches reappear when no entry is selectable (ctx empty → full list)
 >     or after un-marking ☠. FE-only (MatchEditor), build clean.
+>   - **Filter hint (post-`51523bc`, UNCOMMITTED):** the event filter hid
+>     an other-event match silently and the user read it as "the list
+>     lags one match" (all 3 matches were in fact saved and linked
+>     correctly — U1100/U1300/U1500, verified in DB). The list now ends
+>     with "+N more matches this day in other events — switch the event
+>     above to see them" whenever the filter hides rows. FE-only.
 >   - **Grid cell nests scores per tournament (user: hover gộp hết W/L
 >     chung, "không phân cấp theo từng tournament"):** format_match_cell —
 >     with MULTIPLE events on one day each event name now heads its own

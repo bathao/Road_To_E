@@ -358,6 +358,48 @@ def set_match_note(
         raise HTTPException(status_code=404, detail="match not found")
 
 
+# ------------------------------------------------ tracking board (Journal tab)
+@router.get("/tasks", response_model=schemas.TasksOut)
+def list_tasks(db: Session = Depends(get_db)):
+    """The Tracking board: open tasks + last week's done ones, with today's
+    tick + streak on daily tasks. Every mutation below returns this list."""
+    return service.list_tasks(db)
+
+
+@router.post("/tasks", response_model=schemas.TasksOut)
+def create_task(payload: schemas.TaskIn, db: Session = Depends(get_db)):
+    return service.create_task(db, payload)
+
+
+@router.patch("/tasks/{task_id}", response_model=schemas.TasksOut)
+def update_task(
+    task_id: int, payload: schemas.TaskUpdate, db: Session = Depends(get_db)
+):
+    try:
+        return service.update_task(db, task_id, payload)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="task not found")
+
+
+@router.delete("/tasks/{task_id}", response_model=schemas.TasksOut)
+def delete_task(task_id: int, db: Session = Depends(get_db)):
+    try:
+        return service.delete_task(db, task_id)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="task not found")
+
+
+@router.post("/tasks/{task_id}/check", response_model=schemas.TasksOut)
+def set_task_check(
+    task_id: int, payload: schemas.TaskCheckIn, db: Session = Depends(get_db)
+):
+    """Tick / un-tick one day of a daily task (idempotent both ways)."""
+    try:
+        return service.set_task_check(db, task_id, payload)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="task not found")
+
+
 @router.get("/session-note-tags", response_model=list[schemas.SessionNoteTagOut])
 def list_session_note_tags():
     return [

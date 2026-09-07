@@ -56,6 +56,9 @@ export default function TournamentStrip({
               <span
                 key={e.id}
                 className={`tour-chip${e.eliminated ? " tour-chip-out" : ""}`}
+                // The strip truncates long team rosters (CSS ellipsis) — the
+                // title carries the full label.
+                title={entryLabel(e)}
               >
                 {e.eliminated ? `☠ ${entryLabel(e)}` : entryLabel(e)}
               </span>

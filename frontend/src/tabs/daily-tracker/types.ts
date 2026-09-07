@@ -196,6 +196,45 @@ export interface PhysicalItem {
   label: string;
 }
 
+// ---- Tracking board (Journal tab, 2026-08-24) ----
+export type TaskSource = "coach" | "ai" | "self";
+export type TaskStatus = "todo" | "doing" | "done";
+
+// Mirrors backend tracker/schemas.py TaskOut.
+export interface Task {
+  id: number;
+  title: string;
+  note: string;
+  source: TaskSource;
+  status: TaskStatus;
+  is_daily: boolean;
+  created_at: string;
+  done_at: string | null;
+  // Daily-task extras (0/false/null on one-off tasks):
+  checked_today: boolean;
+  streak: number; // consecutive practiced days (today, or ending yesterday)
+  last_check: string | null;
+}
+
+export interface TasksOut {
+  tasks: Task[]; // open + done-in-last-7-days; every mutation returns this
+}
+
+export interface TaskIn {
+  title: string;
+  note?: string;
+  source?: TaskSource;
+  is_daily?: boolean;
+}
+
+export interface TaskUpdate {
+  title?: string;
+  note?: string;
+  source?: TaskSource;
+  status?: TaskStatus;
+  is_daily?: boolean;
+}
+
 // ---- stats / analysis ----
 import type { CategoryMinutes, MatchStats } from "../../shared/types";
 

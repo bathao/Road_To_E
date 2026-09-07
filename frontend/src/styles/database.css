@@ -50,7 +50,12 @@
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface);
-  overflow-x: auto;
+  /* No overflow-x: auto here — any non-visible overflow on one axis turns
+     the other axis into a scroll container too, which clipped the
+     .db-intent-pop popover whenever the search left only a row or two
+     (the wrap was header + 1 row tall; found 2026-09-07). The table is
+     width: 100% inside a 900px tab, so it shrinks instead of overflowing. */
+  overflow: visible;
 }
 
 .db-table {

@@ -500,6 +500,20 @@ def physical_day_map(
     return out
 
 
+def _streak(date_set: set[dt.date], today: dt.date) -> int:
+    """Consecutive days in `date_set` counting back from today — or from
+    yesterday when today isn't in yet, so an unbroken run isn't "lost" before
+    today's work is logged."""
+    streak = 0
+    cursor = today
+    if today not in date_set and (today - dt.timedelta(days=1)) in date_set:
+        cursor = today - dt.timedelta(days=1)
+    while cursor in date_set:
+        streak += 1
+        cursor -= dt.timedelta(days=1)
+    return streak
+
+
 def _weekly_summary(
     last7: int, last30: int, days_since: int | None, level_vi: str
 ) -> str:
@@ -579,16 +593,7 @@ def report(db: Session) -> schemas.ReportOut:
     ]
     # Distinct completed dates (most recent first) → heatmap + current streak.
     done_dates_desc = sorted({s.done_on for s in done}, reverse=True)
-    streak = 0
-    cursor = today
-    date_set = set(done_dates_desc)
-    # A streak counts back from today; if today isn't trained yet, allow it to
-    # start from yesterday (so an unbroken run isn't "lost" before today's session).
-    if today not in date_set and (today - dt.timedelta(days=1)) in date_set:
-        cursor = today - dt.timedelta(days=1)
-    while cursor in date_set:
-        streak += 1
-        cursor -= dt.timedelta(days=1)
+    streak = _streak(set(done_dates_desc), today)
 
     level_vi = program.LEVEL_VI.get(state.current_level, state.current_level)
     return schemas.ReportOut(

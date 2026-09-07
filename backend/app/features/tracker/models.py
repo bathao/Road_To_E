@@ -3,10 +3,18 @@ from __future__ import annotations
 
 import datetime as dt
 
-from sqlalchemy import Boolean, Date, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.base import Base
+from app.core.base import Base, utcnow as _utcnow
 
 
 class Category(Base):
@@ -222,3 +230,47 @@ class SessionNote(Base):
     tags: Mapped[str] = mapped_column(String, default="")
     text: Mapped[str] = mapped_column(String)
     is_done: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class Task(Base):
+    """One item on the Journal tab's Tracking board (2026-08-24) — a
+    JIRA-lite task the player follows: what the real-life coach assigned
+    (source='coach'), the AI coach suggested and the user adopted ('ai'),
+    or self-assigned ('self').
+
+    Two lifecycles: a normal task walks todo → doing → done (done_at set).
+    A DAILY task (is_daily) is a habit — it stays open and collects one
+    TaskCheck row per practiced day; the GUI shows today's tick + streak,
+    and the AI coach reads neglected dailies from the check gaps.
+    """
+
+    __tablename__ = "tracker_task"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String)
+    note: Mapped[str] = mapped_column(String, default="")
+    source: Mapped[str] = mapped_column(String, default="self")  # coach | ai | self
+    status: Mapped[str] = mapped_column(String, default="todo")  # todo | doing | done
+    is_daily: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
+    done_at: Mapped[dt.datetime | None] = mapped_column(DateTime, default=None)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+    checks: Mapped[list["TaskCheck"]] = relationship(
+        back_populates="task", cascade="all, delete-orphan"
+    )
+
+
+class TaskCheck(Base):
+    """One 'did it this day' tick of a daily Task."""
+
+    __tablename__ = "tracker_task_check"
+    __table_args__ = (UniqueConstraint("task_id", "date"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    task_id: Mapped[int] = mapped_column(
+        ForeignKey("tracker_task.id"), index=True
+    )
+    date: Mapped[dt.date] = mapped_column(Date, index=True)
+
+    task: Mapped[Task] = relationship(back_populates="checks")

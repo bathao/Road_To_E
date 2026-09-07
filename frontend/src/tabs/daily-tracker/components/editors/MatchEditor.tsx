@@ -666,8 +666,20 @@ export default function MatchEditor({
                 m.tournament_entry_id === selCtx.entry.id
             )
           : matches;
-        return mine.length > 0 ? (
-          <div className="match-list">{mine.map(row)}</div>
+        // Filtered-out matches must never LOOK lost (user 2026-08-23 read
+        // a hidden other-event match as "the list lags one match") — say
+        // how many the event filter is hiding.
+        const hidden = matches.length - mine.length;
+        return mine.length > 0 || hidden > 0 ? (
+          <div className="match-list">
+            {mine.map(row)}
+            {hidden > 0 && (
+              <div className="match-list-hint">
+                +{hidden} more {hidden === 1 ? "match" : "matches"} this day in
+                other events — switch the event above to see them
+              </div>
+            )}
+          </div>
         ) : null;
       })()}
 

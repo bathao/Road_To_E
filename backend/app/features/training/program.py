@@ -9,6 +9,9 @@ deliberately AVOIDS deep squats, lunges, and jumping/plyometrics. It builds the
 muscles around the knee (quads via leg raises, glutes/hips, hamstrings, calves)
 and the rotational core, using low-load, low-impact home exercises. "Progression"
 across levels = more reps/holds + slightly harder variants, NOT more impact.
+The one impact exception is jump rope (2026-09-05): the player skips rope daily
+on the real coach's footwork advice, so it rides along as a DAILY staple item
+(fixed 100+ jumps = done, never ramped, never offered as a knee-safe swap).
 """
 from __future__ import annotations
 
@@ -18,7 +21,9 @@ from dataclasses import dataclass, field
 SAFETY_NOTE_VI = (
     "Prioritize the THIGH MUSCLES to take load off the knee joint (doctor's advice). "
     "No deep squats / lunges / hard jumping. The light quad work (quad sets, leg raises, "
-    "short-arc) can be done daily. Stop immediately if the knee hurts."
+    "short-arc) can be done daily. Stop immediately if the knee hurts. "
+    "Jump rope (your own daily add-on, coach-requested footwork) is the ONE impact "
+    "exception: low bounce, soft landing — skip it the moment the knee complains."
 )
 
 # Day-types a session focuses on + the focus label shown in the header.
@@ -56,7 +61,9 @@ class Exercise:
     muscle: str  # muscle group
     tt_benefit: str  # why it helps table tennis (motivation, shown on the card)
     kind: str  # "reps" | "timed"
-    target: dict  # {"sets":3,"reps":20} or {"sets":3,"sec":45}
+    # {"sets":3,"reps":20} or {"sets":3,"sec":45}; an optional "unit" (e.g.
+    # "jumps") relabels a set-less rep target in the UI ("100 jumps").
+    target: dict
     day_type: str  # legs | core | balance
     per_side: bool = False  # target is per side (left/right)
     gif: str = ""  # served from frontend /exercises/<key>.gif (placeholder ok)
@@ -377,6 +384,19 @@ _EX = [
              "timed", {"sets": 1, "sec": 40}, "warmup",
              gif=_gif("march_in_place"),
              form_cue="March lightly in place, don't lift the knees high, no jumping."),
+    # --- jump rope (2026-09-05): a DAILY staple like the two above, added on the
+    # real coach's "nhún nhảy liên tục" advice (footwork "ì ạch"). The user's
+    # rule: 100+ jumps in the day = the item is done — a FIXED target (see
+    # NO_RAMP_KEYS), no count entry. It is the program's ONE impact move, hence
+    # the cue and the swap exclusion (NO_SWAP_KEYS).
+    Exercise("jump_rope", "Jump rope (100+ jumps in the day)", "Calves, ankles, footwork rhythm",
+             "Continuous light bouncing → a livelier split-step and faster feet between shots "
+             "(the coach's 04/09 note: the footwork is sluggish). Any time of day, in blocks; "
+             "tick it once you pass 100.",
+             "reps", {"reps": 100, "unit": "jumps"}, "balance",
+             gif=_gif("jump_rope"),
+             form_cue="LOW bounce, land soft on the toes, knees slightly soft — never lock or drop deep. "
+                      "Soft floor or cushioned shoes. Any knee pain → stop and Skip the item for the day."),
 ]
 EXERCISES: dict[str, Exercise] = {e.key: e for e in _EX}
 
@@ -396,10 +416,15 @@ def cooldown_exercises() -> list[Exercise]:
 
 
 # Exercises appended to EVERY session (the player asked to train these daily):
-# the wrist powerball and the supine hip/core "thigh-over-bottle". Unlike the
-# warm-up these ARE tracked and counted, and they carry their own progressive
-# ramp (daily_target) instead of the level/day-type rotation.
-DAILY_KEYS = ("gyro_ball", "thigh_lift_bottle")
+# the wrist powerball, the supine hip/core "thigh-over-bottle" and (2026-09-05)
+# jump rope. Unlike the warm-up these ARE tracked and counted, and they carry
+# their own progressive ramp (daily_target) instead of the level/day-type
+# rotation — except the NO_RAMP_KEYS, whose target is the user's fixed rule.
+DAILY_KEYS = ("gyro_ball", "thigh_lift_bottle", "jump_rope")
+# Daily staples whose target never ramps (jump rope: "100+ a day = done").
+NO_RAMP_KEYS = ("jump_rope",)
+# Never offered by alternatives_for as a "knee-safe" swap — the one impact move.
+NO_SWAP_KEYS = ("jump_rope",)
 
 # 1kg-dumbbell pool. The player trains with weights daily, but doing all of these
 # every day would overload the shoulders and bloat the session, so we ROTATE: a
@@ -645,6 +670,13 @@ HOW_TO: dict[str, tuple[str, ...]] = {
         "Once it spins, GRIP firmly and circle the wrist evenly so the ball speeds up & keeps going.",
         "Keep it going for the full time, then switch hands. Shoulder relaxed, only the forearm works.",
     ),
+    "jump_rope": (
+        "Rope length: handles reach the armpits when you stand on the middle of the rope.",
+        "Elbows close to the body, turn the rope from the WRISTS, not the shoulders.",
+        "Bounce LOW (a few cm), land softly on the toes with the knees slightly soft.",
+        "Go in short blocks (e.g. 30–50 jumps), rest, repeat — any time of day counts.",
+        "Past 100 jumps in total → tick the item. Knee pain during or after → stop and Skip it.",
+    ),
     "thigh_lift_bottle": (
         "Place a water bottle on the floor, about midway between your feet.",
         "Lie on your back, arms by your sides, GENTLY PRESS the lower back into the floor.",
@@ -877,9 +909,11 @@ def daily_target(ex: Exercise, global_day: int, bias: int = 0) -> dict:
 
     Steps up ~weekly (capped), then `bias` applies the same pain/RPE
     autoregulation as the rest of the program (hard/pain → ease off)."""
+    t = dict(ex.target)
+    if ex.key in NO_RAMP_KEYS:
+        return t  # fixed by the user's rule, not by training age
     step = min(max(global_day - 1, 0) // DAILY_STEP_DAYS, DAILY_STEP_CAP)
     step = max(0, min(step + bias, DAILY_STEP_CAP + 2))
-    t = dict(ex.target)
     if step == 0:
         return t
     if ex.kind == "timed" and "sec" in t:
@@ -902,5 +936,6 @@ def alternatives_for(key: str, exclude: set[str]) -> list[Exercise]:
         # share day_type "balance", so without this they'd crowd the top of
         # a balance-day substitution list.
         and e.key not in WARMUP_KEYS and e.key not in COOLDOWN_KEYS
+        and e.key not in NO_SWAP_KEYS
     ]
     return out[:3]

@@ -9,6 +9,7 @@ export interface ExerciseTarget {
   sets?: number;
   reps?: number;
   sec?: number;
+  unit?: string; // relabels a set-less rep target, e.g. "100 jumps"
 }
 
 export interface ItemAlt {

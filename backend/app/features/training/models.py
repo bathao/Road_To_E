@@ -104,3 +104,9 @@ class TrainingSessionItem(Base):
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
     session: Mapped["TrainingSession"] = relationship(back_populates="items")
+
+
+# NOTE: the live DB also holds an EMPTY orphan table `tc_daily_log` — created
+# by a same-day (2026-09-05) jump-rope count-log design that was replaced within
+# hours by the DAILY_KEYS item above. No model maps it; left in place per the
+# never-drop-tables rule.

@@ -23,6 +23,7 @@ from app.features.tracker.rating import (  # noqa: F401
     set_my_points,
     snapshot_match_points,
 )
+from app.core.base import utcnow as _utcnow
 from app.features.tracker.models import (
     Activity,
     Category,
@@ -33,6 +34,8 @@ from app.features.tracker.models import (
     PhysicalCheck,
     Player,
     SessionNote,
+    Task,
+    TaskCheck,
 )
 from app.features.training import service as training_service
 
@@ -1301,6 +1304,118 @@ def journal_day(db: Session, d: dt.date) -> schemas.JournalDayOut:
     )
     matches = _journal_matches(db, [d], noted_only=False).get(d, [])
     return _journal_day_out(db, d, items, matches=matches)
+
+
+# ------------------------------------------------ tracking board (Journal tab)
+
+# Done tasks linger on the board this long, then drop off the list (the row
+# itself is never deleted — restore stays possible via direct status PATCH
+# while it's still listed).
+_TASK_DONE_KEEP_DAYS = 7
+
+
+def _task_streak(check_dates: set[dt.date], today: dt.date) -> int:
+    """Consecutive practiced days ending today — or ending yesterday when
+    today isn't ticked yet (the streak isn't broken until the day is over)."""
+    day = today if today in check_dates else today - dt.timedelta(days=1)
+    streak = 0
+    while day in check_dates:
+        streak += 1
+        day -= dt.timedelta(days=1)
+    return streak
+
+
+def _task_to_out(t: Task, today: dt.date) -> schemas.TaskOut:
+    checks = {c.date for c in t.checks}
+    return schemas.TaskOut(
+        id=t.id,
+        title=t.title,
+        note=t.note or "",
+        source=t.source,
+        status=t.status,
+        is_daily=t.is_daily,
+        created_at=t.created_at,
+        done_at=t.done_at,
+        checked_today=today in checks,
+        streak=_task_streak(checks, today) if t.is_daily else 0,
+        last_check=max(checks) if checks else None,
+    )
+
+
+def list_tasks(db: Session, today: dt.date | None = None) -> schemas.TasksOut:
+    """The board: every open task + tasks done in the last week, oldest
+    first within status (stable — new tasks append at the bottom)."""
+    today = today or dt.date.today()
+    cutoff = dt.datetime.combine(
+        today - dt.timedelta(days=_TASK_DONE_KEEP_DAYS), dt.time.min
+    )
+    rows = (
+        db.query(Task)
+        .filter((Task.status != "done") | (Task.done_at >= cutoff))
+        .order_by(Task.sort_order, Task.id)
+        .options(selectinload(Task.checks))
+        .all()
+    )
+    return schemas.TasksOut(tasks=[_task_to_out(t, today) for t in rows])
+
+
+def create_task(db: Session, payload: schemas.TaskIn) -> schemas.TasksOut:
+    db.add(Task(
+        title=payload.title.strip(),
+        note=payload.note.strip(),
+        source=payload.source,
+        is_daily=payload.is_daily,
+    ))
+    db.commit()
+    return list_tasks(db)
+
+
+def update_task(db: Session, task_id: int, payload: schemas.TaskUpdate) -> schemas.TasksOut:
+    t = db.get(Task, task_id)
+    if t is None:
+        raise LookupError(f"task {task_id} not found")
+    if payload.title is not None:
+        t.title = payload.title.strip()
+    if payload.note is not None:
+        t.note = payload.note.strip()
+    if payload.source is not None:
+        t.source = payload.source
+    if payload.is_daily is not None:
+        t.is_daily = payload.is_daily
+    if payload.status is not None and payload.status != t.status:
+        t.status = payload.status
+        t.done_at = _utcnow() if payload.status == "done" else None
+    db.commit()
+    return list_tasks(db)
+
+
+def delete_task(db: Session, task_id: int) -> schemas.TasksOut:
+    t = db.get(Task, task_id)
+    if t is None:
+        raise LookupError(f"task {task_id} not found")
+    db.delete(t)  # checks go with it (delete-orphan)
+    db.commit()
+    return list_tasks(db)
+
+
+def set_task_check(
+    db: Session, task_id: int, payload: schemas.TaskCheckIn
+) -> schemas.TasksOut:
+    """Tick/un-tick one day of a daily task (idempotent both ways)."""
+    t = db.get(Task, task_id)
+    if t is None:
+        raise LookupError(f"task {task_id} not found")
+    existing = (
+        db.query(TaskCheck)
+        .filter(TaskCheck.task_id == task_id, TaskCheck.date == payload.date)
+        .first()
+    )
+    if payload.checked and existing is None:
+        db.add(TaskCheck(task_id=task_id, date=payload.date))
+    elif not payload.checked and existing is not None:
+        db.delete(existing)
+    db.commit()
+    return list_tasks(db)
 
 
 # ---------------------------------------------------------------- coach packages

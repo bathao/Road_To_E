@@ -420,6 +420,51 @@ class JournalDaysOut(BaseModel):
     has_more: bool = False
 
 
+# ---------- Tracking board (Journal tab, 2026-08-24) ----------
+class TaskIn(BaseModel):
+    title: str = Field(min_length=1, max_length=300)
+    note: str = ""
+    source: Literal["coach", "ai", "self"] = "self"
+    is_daily: bool = False
+
+
+class TaskUpdate(BaseModel):
+    """PATCH payload — only the provided fields change."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=300)
+    note: str | None = None
+    source: Literal["coach", "ai", "self"] | None = None
+    status: Literal["todo", "doing", "done"] | None = None
+    is_daily: bool | None = None
+
+
+class TaskCheckIn(BaseModel):
+    date: dt.date
+    checked: bool  # False = un-tick (a mis-click must be reversible)
+
+
+class TaskOut(BaseModel):
+    id: int
+    title: str
+    note: str
+    source: str  # coach | ai | self
+    status: str  # todo | doing | done
+    is_daily: bool
+    created_at: dt.datetime
+    done_at: dt.datetime | None = None
+    # Daily-task extras (0/False/None for one-off tasks):
+    checked_today: bool = False
+    streak: int = 0  # consecutive practiced days ending today (or yesterday)
+    last_check: dt.date | None = None
+
+
+class TasksOut(BaseModel):
+    # Open tasks + recently done (7 days) — every task mutation returns the
+    # fresh full list, so the GUI never juggles per-row responses (and
+    # DELETE avoids the 204/undefined useMutate ambiguity).
+    tasks: list[TaskOut] = []
+
+
 class SessionNoteTagOut(BaseModel):
     key: str
     label: str

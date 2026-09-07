@@ -357,6 +357,66 @@ export interface paths {
         patch: operations["set_match_note_api_tracker_matches__match_id__note_patch"];
         trace?: never;
     };
+    "/api/tracker/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Tasks
+         * @description The Tracking board: open tasks + last week's done ones, with today's
+         *     tick + streak on daily tasks. Every mutation below returns this list.
+         */
+        get: operations["list_tasks_api_tracker_tasks_get"];
+        put?: never;
+        /** Create Task */
+        post: operations["create_task_api_tracker_tasks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tracker/tasks/{task_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Task */
+        delete: operations["delete_task_api_tracker_tasks__task_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Task */
+        patch: operations["update_task_api_tracker_tasks__task_id__patch"];
+        trace?: never;
+    };
+    "/api/tracker/tasks/{task_id}/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set Task Check
+         * @description Tick / un-tick one day of a daily task (idempotent both ways).
+         */
+        post: operations["set_task_check_api_tracker_tasks__task_id__check_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tracker/session-note-tags": {
         parameters: {
             query?: never;
@@ -1532,6 +1592,7 @@ export interface components {
              *       "coach_advice": [],
              *       "session_recaps": [],
              *       "lessons": [],
+             *       "tasks": [],
              *       "coach_notes": [],
              *       "tournaments": [],
              *       "generated_for_range": "",
@@ -3541,6 +3602,11 @@ export interface components {
              */
             lessons: Record<string, never>[];
             /**
+             * Tasks
+             * @default []
+             */
+            tasks: Record<string, never>[];
+            /**
              * Coach Notes
              * @default []
              */
@@ -3614,6 +3680,95 @@ export interface components {
         SubstituteIn: {
             /** Exercise Key */
             exercise_key: string;
+        };
+        /** TaskCheckIn */
+        TaskCheckIn: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Checked */
+            checked: boolean;
+        };
+        /** TaskIn */
+        TaskIn: {
+            /** Title */
+            title: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /**
+             * Source
+             * @default self
+             * @enum {string}
+             */
+            source: "coach" | "ai" | "self";
+            /**
+             * Is Daily
+             * @default false
+             */
+            is_daily: boolean;
+        };
+        /** TaskOut */
+        TaskOut: {
+            /** Id */
+            id: number;
+            /** Title */
+            title: string;
+            /** Note */
+            note: string;
+            /** Source */
+            source: string;
+            /** Status */
+            status: string;
+            /** Is Daily */
+            is_daily: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Done At */
+            done_at?: string | null;
+            /**
+             * Checked Today
+             * @default false
+             */
+            checked_today: boolean;
+            /**
+             * Streak
+             * @default 0
+             */
+            streak: number;
+            /** Last Check */
+            last_check?: string | null;
+        };
+        /**
+         * TaskUpdate
+         * @description PATCH payload — only the provided fields change.
+         */
+        TaskUpdate: {
+            /** Title */
+            title?: string | null;
+            /** Note */
+            note?: string | null;
+            /** Source */
+            source?: ("coach" | "ai" | "self") | null;
+            /** Status */
+            status?: ("todo" | "doing" | "done") | null;
+            /** Is Daily */
+            is_daily?: boolean | null;
+        };
+        /** TasksOut */
+        TasksOut: {
+            /**
+             * Tasks
+             * @default []
+             */
+            tasks: components["schemas"]["TaskOut"][];
         };
         /** TickIn */
         TickIn: {
@@ -4308,6 +4463,160 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JournalMatchOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_tasks_api_tracker_tasks_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TasksOut"];
+                };
+            };
+        };
+    };
+    create_task_api_tracker_tasks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TasksOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_task_api_tracker_tasks__task_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TasksOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_task_api_tracker_tasks__task_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TasksOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_task_check_api_tracker_tasks__task_id__check_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskCheckIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TasksOut"];
                 };
             };
             /** @description Validation Error */

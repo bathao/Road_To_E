@@ -21,6 +21,9 @@ import type {
   SessionNoteTag,
   SessionNoteUpdate,
   StatsResponse,
+  TaskIn,
+  TasksOut,
+  TaskUpdate,
   TournamentIn,
   TournamentsResponse,
   WeekResponse,
@@ -114,6 +117,23 @@ export const trackerApi = {
 
   getSessionNoteTags: () =>
     api.get<SessionNoteTag[]>("/tracker/session-note-tags"),
+
+  // Tracking board (Journal tab). Every mutation returns the fresh list.
+  getTasks: () => api.get<TasksOut>("/tracker/tasks"),
+
+  createTask: (payload: TaskIn) => api.post<TasksOut>("/tracker/tasks", payload),
+
+  updateTask: (id: number, payload: TaskUpdate) =>
+    api.patch<TasksOut>(`/tracker/tasks/${id}`, payload),
+
+  deleteTask: (id: number) => api.del<TasksOut>(`/tracker/tasks/${id}`),
+
+  // Tick / un-tick one day of a daily task.
+  checkTask: (id: number, dateIso: string, checked: boolean) =>
+    api.post<TasksOut>(`/tracker/tasks/${id}/check`, {
+      date: dateIso,
+      checked,
+    }),
 
   createSessionNote: (payload: SessionNoteIn) =>
     api.post<SessionNote>("/tracker/session-notes", payload),

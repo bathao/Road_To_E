@@ -59,6 +59,9 @@ class SourceSummary(BaseModel):
     session_recaps: list[dict] = []
     # The player's own takeaways from the Journal tab, [{date, text, tags}].
     lessons: list[dict] = []
+    # Open items on the Journal tab's Tracking board (2026-08-24),
+    # [{title, source, status, daily?, streak?, days_since_last?}].
+    tasks: list[dict] = []
     coach_notes: list[dict] = []  # coach notebook entries [{date, text}]
     # Upcoming registered tournaments [{name, start_date, days_left, entries…}].
     tournaments: list[dict] = []

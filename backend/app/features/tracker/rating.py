@@ -198,6 +198,17 @@ HANDICAP_BONUS_MAX_S3 = 15.0  # 5-5-5 is the maximum handicap ratio
 # scratchpad scale_backtest.py after months of post-anchor data.
 HANDICAP_SCALE = 0.5
 
+# Doubles handicap multiplier on the ladder value (USER DECISION 2026-08-31,
+# replacing the 2026-07-26 "belongs to one member → half" rule): a handicap
+# is HARDER to claw back in doubles than in singles — forced rotation means
+# the stronger player touches only half the balls, so the giving pair can't
+# carry the recovery. The user's equivalence "singles 2-2-2 ≈ doubles 2-0-2"
+# gives ×1.5, and a 19-match backtest of every post-anchor handicapped
+# doubles match agreed: log-loss bottoms at 1.5 (0.717) vs 0.5 (0.739) and
+# 3.0 (0.763). Re-check alongside HANDICAP_SCALE (~Oct 2026). 1v2/2v1 keep
+# the full ladder.
+ELO_DOUBLES_HANDICAP_MULT = 1.5
+
 # Why a match does not move the rating (MatchOut.elo_status; counted = it does).
 STATUS_COUNTED = "counted"
 SKIP_NONPLAYING = "nonplaying"
@@ -486,10 +497,10 @@ def replay(db: Session) -> ReplayResult:
         # Sign of the stored handicap: +N = I (my team) give, −N = I receive.
         bonus = handicap_bonus(m.handicap, m.handicap_pattern)
         if m.discipline == "doubles":
-            # User rule 2026-07-26: in doubles the chấp ELO belongs to ONE
-            # member, not both — on the team-AVERAGE scale that is half the
-            # ladder value (avoids inflating the receiving pair abnormally).
-            bonus /= 2.0
+            # A doubles handicap weighs MORE than the same singles handicap
+            # (user decision 2026-08-31 — see ELO_DOUBLES_HANDICAP_MULT;
+            # replaces the 2026-07-26 half-ladder rule).
+            bonus *= ELO_DOUBLES_HANDICAP_MULT
         # 1v2 / 2v1 keep the FULL ladder value ("có điểm chấp thì cũng như
         # công thức bình thường", user 2026-07-27) — the same absolute /400
         # shift as a singles chấp.

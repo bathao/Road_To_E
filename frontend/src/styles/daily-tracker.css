@@ -480,6 +480,15 @@
 
 /* match list */
 
+/* "+N more matches this day in other events" — the event filter must never
+   make an entered match look lost. */
+.match-list-hint {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: italic;
+  padding-top: 2px;
+}
+
 .match-list {
   display: flex;
   flex-direction: column;
@@ -822,6 +831,18 @@
   background: #f3f4f6;
   font-size: 0.82rem;
   white-space: nowrap;
+}
+/* Team rosters run long (4-5 names): on cards the chip wraps so the full
+   roster stays readable; the one-line strip truncates with a hover title
+   instead (set in TournamentStrip). */
+.tour-card-chips .tour-chip {
+  white-space: normal;
+  text-align: left;
+}
+.tour-strip .tour-chip {
+  max-width: 40ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Knocked-out entry: grey strike state. On the card it's a BUTTON (click =
