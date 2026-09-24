@@ -1,6 +1,134 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-09-07) — status check: jump rope is LIVE in the open TC session (start.bat restarted 20:33 today); Giải STBB (06/09) has ZERO matches logged; Database tab points-intent popover was clipped by the table wrap — fixed + dist rebuilt; whole 24/08–07/09 batch COMMITTED in `8cc4db7`
+## Current status (2026-09-24, later) — NEW: "Remember" board in the Journal tab's LEFT column (standing reminders the player re-reads daily — they never scroll away like the diary); COMMITTED in `e432e8f` together with the 08–24/09 DB snapshot (WAL checkpointed first: 161 players, 421 matches, 0 memos yet)
+
+> **Remember board (user 2026-09-24, screenshot of the Journal tab: "layout
+> còn trống cột bên trái. Cột bên trái, tạo thêm bảng những điều cần nhớ,
+> tôi sẽ viết các điều cần ghi nhớ vào đó, để tôi đọc lại hằng ngày, và
+> follow. Nó sẽ không bị trôi giống nhật ký"; plan OK'd "làm đi"):**
+>   - **What it is:** a pinned list of self-set rules, deliberately NOT a
+>     Task — no status, no date, no daily tick, no streak. A memo stays in
+>     priority order (list order) until edited or deleted. Text uses the
+>     diary markup (RichArea: Ctrl+B bold, Enter newline), so one card can
+>     hold a whole "Đỡ giao bóng" checklist. Cards are numbered, warm
+>     "pinned note" tint, actions (↑ ↓ ✏️ ✕) reveal on hover; ✏️ edits in
+>     place with Save/Cancel (Esc cancels).
+>   - **Backend:** `tracker_memo` (`Memo` model: text, sort_order,
+>     created_at, updated_at) — created by `create_all` at startup, no
+>     migration, existing tables untouched (verified on a scratchpad copy of
+>     the live DB + WAL: only `tracker_memo` appeared, match/player/task/
+>     note/session counts identical). `/api/tracker/memos` GET / POST /
+>     PATCH / DELETE + `PUT /memos/order` (full id list → 409 if it is not
+>     exactly the current set, so a stale GUI can't drop or duplicate a
+>     card). Every mutation returns the fresh ordered list (TasksOut idiom).
+>     Blank / whitespace-only text is a 422 (field validator on MemoIn /
+>     MemoUpdate — the first test run caught the service happily storing ""
+>     after strip()).
+>   - **AI coach reads it:** new bundle field `SourceSummary.memos` and a
+>     "=== ĐIỀU HỌC TRÒ TỰ NHẮC MÌNH MỖI NGÀY (bảng Remember …) ===" section
+>     in BOTH the verdict prompt (before "HLV TRỰC TIẾP ĐANG DẶN") and the
+>     weekly/monthly recap prompt (before "GHI CHÚ HẰNG NGÀY"); the recap
+>     stores it in `sources_json` as it stands at generation time (a memo has
+>     no history). Empty board → "(bảng ghi nhớ trống)".
+>   - **Layout:** `.tab-journal` is now a 3-column grid (300–400 / 760 /
+>     320–420, max 1600px): Remember LEFT, diary middle, Tracking right. Below
+>     1500px the Remember board spans the full width ABOVE the diary (it must
+>     still be the first thing read); below 1100px everything stacks.
+>   - **Files:** `tracker/models.py`, `schemas.py`, `service.py`, `router.py`;
+>     `head_coach/schemas.py`, `service.py`; new
+>     `tabs/journal/components/RememberPanel.tsx`; `journal/index.tsx`,
+>     `daily-tracker/{types,api}.ts`, `styles/journal.css`; `schema.d.ts`
+>     regenerated (gen:api — only Memo* types + the 3 memo routes added).
+>   - **Verification:** pytest **170 passed** (165 + 5 in `test_memos.py`:
+>     CRUD + blank rejection, reorder incl. the 3 stale-list refusals, verdict
+>     bundle + text, recap sources + text, empty placeholder). `tsc --noEmit`
+>     clean, vite build clean → dist rebuilt. Smoke on the DB copy: create →
+>     reorder → coach prompt section renders in priority order.
+>   - **⚠ Live effect:** dist is rebuilt, so the NEXT browser refresh already
+>     loads the new Journal layout — but the running server (no --reload)
+>     has neither the router nor the table, so the Remember panel will show
+>     an error banner until **start.bat is restarted** (create_all then adds
+>     `tracker_memo`). Nothing else changes on restart.
+>   - **First live try → "405 Method Not Allowed" on Add (user screenshot,
+>     00:2x):** the server on :8000 was STILL the 23/09 18:07 process (old
+>     code, no memo routes) — the user's 00:19 start.bat DID run the
+>     lifespan (created `tracker_memo` + the 24/09 startup backup) and then
+>     died on the port bind, leaving the stale server up. POST hit the SPA
+>     GET-only catch-all → 405 (GET → 404, which useLoad doesn't surface).
+>     Same failure mode as the June "two stale uvicorn servers" incident.
+>     Killed pids 26596/18568, port freed; user re-runs start.bat.
+>   - **Honest note (raised in the plan, user proceeded):** the Tracking board
+>     on the right is still 0 rows after 31 days. If it is still empty at the
+>     next status check, propose folding it away.
+
+## Previous status (2026-09-24, earlier) — status check: 17 days of pure USE, zero code change; Giải STBB backfilled (☠), Giải F-G Liên Đoàn played as the first TEAM event (☠, 0–2), BBTV League 10 W1 3–2; 35 matches + 16 players in the DB; Tracking board STILL empty (31 days); no weekly recap for 3 weeks; DB drift UNCOMMITTED
+
+> **Status check 2026-09-24 (user: "đọc file md cập nhật status"):** no
+> source file changed since `7a3cd26` (07/09) — the working tree holds ONLY
+> `backend/data/tabletennis.db` (binary drift, 700 416 → 708 608 bytes).
+> Re-verified anyway: pytest **165 passed**, `tsc --noEmit` clean, vite build
+> clean (dist rebuilt, no change). Branch is 26 commits ahead of
+> `origin/master` — nothing has been pushed since the rename batch. Read
+> straight from the live DB (WAL included, read-only):
+>   - **start.bat restarted almost daily** (startup backups 10, 11, 13, 15,
+>     17, 18, 19, 21, 22, 23/09; last 23/09 18:07). The WAL holds ~70 KB
+>     written after that restart (the 23/09 evening matches). The main-file
+>     growth landed between the 15/09 and 17/09 backups.
+>   - **Matches 381 → 416 (+35).** Two are the **Giải STBB (06/09) backfill**
+>     — the "ZERO matches" gap from the 07/09 check is CLOSED: singles 2–3 +
+>     doubles 1–3, entry #17 now ☠ eliminated. The other 33 are 08–23/09:
+>       - **Giải F-G Liên Đoàn (12–13/09, team "TMSKY", entry #16)** — the
+>         first TEAM event actually pushed through the tab: 2 singles, 0–3
+>         (12/09) and 1–3 (13/09), both rows carry `tournament_entry_id` 16 +
+>         event 20, entry ☠. The match↔entry link on a team day worked; what
+>         the Profile record / grid nesting look like for it is still unseen
+>         by me (the user has been looking at them daily — no complaint).
+>       - **BBTV League 10 – Week 1 (19/09, singles, entry #18)** — 5
+>         matches 3W–2L (3–2, 3–1, 3–1, 1–3, 0–3), NOT eliminated (league
+>         format; tournament row has no end_date). First "league" entry —
+>         watch whether Week 2 is entered as a new tournament (the BBTV
+>         Open tiers precedent, 5 duplicate rows) or wants a proper series.
+>       - **26 practice matches, 10 won:** 08/09 6 (4W), 10/09 10 (2W),
+>         18/09 3 (0W, incl. a doubles), 22/09 4 (2W), 23/09 3 (2W).
+>   - **Players 144 → 160 (+16), 0 NULL points** — rule holds; all 16
+>     entered as level "equal", 900–1450. **⚠ Likely duplicates:** the last
+>     three (#158 Nguyễn Vũ Đình Thêm 900, #159 Phạm Xuân Lai 900, #160 Tùng
+>     Ngô 900) are the same Lai / Thêm / Tùng trio seeded on 07/06 as
+>     #24 Lai Ampere 950 (2 matches), #25 Thêm Ampere 850 (0), #26 Tùng
+>     Ampere 850 (0). The new rows already carry matches (3 / 1 / 1) so
+>     match history is now split across two ids per person. Nothing deleted
+>     — flagged to the user; a merge needs their call (which name, which
+>     points, `plays_pips`).
+>   - **Two future tournaments registered:** Giải EFF FriendShip (11/10) and
+>     Đồng Đội Vi Mạch 2026 (01/11) — no entries yet.
+>   - **Daily Tracker is in steady use:** Train with Coach (Phi Vũ, coach_id
+>     2) on 08, 10, 15, 22/09 (120') and 18/09 (90'); Training with Partner
+>     30' on 09, 16, 23/09. **Physical: NOTHING since 07/09** — no
+>     `tracker_physical_check` row, no TC session completed.
+>   - **Training Center stalled at explosive day 5:** session #25 (day 4
+>     balance) was closed 07/09 21:26 at **3/10** and its `jump_rope` row IS
+>     ticked (done 21:25:51, not skipped) — the item's first real tick, the
+>     05/09 watch point, is closed. Session #26 (day 5 legs) materialised
+>     with 10 items incl. jump rope, 0/10, untouched for 17 days.
+>   - **Journal in use, Tracking board NOT:** 4 session notes since 07/09
+>     (advice 08, 10, 15/09 + one lesson 08/09 — the long "Tập với coach Phi
+>     Vũ" serve-receive / flick-combo / counter-loop entries visible in the
+>     tab). `tracker_task` / `tracker_task_check` remain **0 rows, 31 days
+>     after go-live (24/08)**. The coach's requirements keep landing as prose
+>     in the diary — the board's task+streak shape is not what the user
+>     reaches for. (Same day, user asked for a persistent "những điều cần
+>     nhớ" board in the empty LEFT column — see the next entry once built.)
+>   - **Head coach silent:** recap #11 (30/08–05/09) is still the latest —
+>     the weeks 06–12, 13–19 and 20–26/09 have no recap; no `hc_note` since
+>     16/08. Nothing broke — recaps are generated on demand and none was
+>     requested.
+>   - **Not committed:** only the DB moved, but it now carries two
+>     tournaments, 35 matches and 16 players that HEAD lacks. Committing is
+>     the user's call (rule: commit only on request); when asked, run
+>     `PRAGMA wal_checkpoint(TRUNCATE)` first as on 07/09 so the snapshot is
+>     not stale.
+
+## Previous status (2026-09-07) — status check: jump rope is LIVE in the open TC session (start.bat restarted 20:33 today); Giải STBB (06/09) has ZERO matches logged; Database tab points-intent popover was clipped by the table wrap — fixed + dist rebuilt; whole 24/08–07/09 batch COMMITTED in `8cc4db7`
 
 > **Status check 2026-09-07:** one small FE fix today (below); otherwise no
 > code change since the 05/09 jump-rope batch. Re-verified: pytest **165
