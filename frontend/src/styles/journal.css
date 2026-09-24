@@ -35,6 +35,55 @@
   }
 }
 
+/* ---------------- slogan banner (2026-09-24) ---------------- */
+/* Spans every column, sits above the three panels. Big and calm: one line,
+   heavy type, generous tracking, a soft warm band so it reads as a motto
+   carved above the door rather than a notification. */
+.jr-slogan {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  padding: 18px 24px;
+  border: 1px solid #ecdfb4;
+  border-radius: 16px;
+  background: linear-gradient(90deg, #fff8e6 0%, #fffdf5 50%, #fff8e6 100%);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+  text-align: center;
+  user-select: none;
+}
+
+.jr-slogan-en {
+  font-size: 40px;
+  color: #b25e09;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.jr-slogan-sep {
+  font-size: 28px;
+  align-self: center;
+}
+
+.jr-slogan-vi {
+  font-size: 34px;
+  color: #3a3a3a;
+}
+
+@media (max-width: 700px) {
+  .jr-slogan-en {
+    font-size: 28px;
+  }
+  .jr-slogan-vi {
+    font-size: 24px;
+  }
+}
+
 .jr-main {
   min-width: 0;
   display: flex;

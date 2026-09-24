@@ -171,6 +171,15 @@ export default function Journal() {
 
   return (
     <div className="tab-journal">
+      {/* The player's slogan (user 2026-09-24: "1 câu slogan to, rõ ràng,
+          trên chữ Journal luôn, để đập vào mắt hằng ngày") — a full-width
+          banner across all three columns, the first thing seen on the tab.
+          The Vietnamese half IS the slogan, not a GUI label. */}
+      <div className="jr-slogan" role="banner">
+        <span className="jr-slogan-en">Spin to Win</span>
+        <span className="jr-slogan-sep">🏓</span>
+        <span className="jr-slogan-vi">Sống nhờ Xoáy</span>
+      </div>
       {/* Three columns: the Remember board (user 2026-09-24, standing
           reminders that never scroll away) on the LEFT, the diary (composer
           + timeline) in the middle, the Tracking board (user 2026-08-24) on
