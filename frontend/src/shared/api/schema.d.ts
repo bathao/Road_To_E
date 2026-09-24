@@ -417,6 +417,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tracker/memos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Memos
+         * @description The Remember board: standing reminders in priority order. Every
+         *     mutation below returns this list.
+         */
+        get: operations["list_memos_api_tracker_memos_get"];
+        put?: never;
+        /** Create Memo */
+        post: operations["create_memo_api_tracker_memos_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tracker/memos/{memo_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Memo */
+        delete: operations["delete_memo_api_tracker_memos__memo_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Memo */
+        patch: operations["update_memo_api_tracker_memos__memo_id__patch"];
+        trace?: never;
+    };
+    "/api/tracker/memos/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Reorder Memos
+         * @description Set the priority order — the body lists EVERY current memo id.
+         */
+        put: operations["reorder_memos_api_tracker_memos_order_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tracker/session-note-tags": {
         parameters: {
             query?: never;
@@ -1593,6 +1653,7 @@ export interface components {
              *       "session_recaps": [],
              *       "lessons": [],
              *       "tasks": [],
+             *       "memos": [],
              *       "coach_notes": [],
              *       "tournaments": [],
              *       "generated_for_range": "",
@@ -2573,6 +2634,51 @@ export interface components {
             losses: number;
             /** Win Rate */
             win_rate: number | null;
+        };
+        /** MemoIn */
+        MemoIn: {
+            /** Text */
+            text: string;
+        };
+        /** MemoOut */
+        MemoOut: {
+            /** Id */
+            id: number;
+            /** Text */
+            text: string;
+            /** Sort Order */
+            sort_order: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * MemoReorderIn
+         * @description The full id list in the wanted order (every current memo, no extras).
+         */
+        MemoReorderIn: {
+            /** Ids */
+            ids: number[];
+        };
+        /** MemoUpdate */
+        MemoUpdate: {
+            /** Text */
+            text: string;
+        };
+        /** MemosOut */
+        MemosOut: {
+            /**
+             * Memos
+             * @default []
+             */
+            memos: components["schemas"]["MemoOut"][];
         };
         /** MuscleVolume */
         MuscleVolume: {
@@ -3607,6 +3713,11 @@ export interface components {
              */
             tasks: Record<string, never>[];
             /**
+             * Memos
+             * @default []
+             */
+            memos: Record<string, never>[];
+            /**
              * Coach Notes
              * @default []
              */
@@ -4617,6 +4728,158 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TasksOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_memos_api_tracker_memos_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemosOut"];
+                };
+            };
+        };
+    };
+    create_memo_api_tracker_memos_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemoIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemosOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_memo_api_tracker_memos__memo_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                memo_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemosOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_memo_api_tracker_memos__memo_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                memo_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemoUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemosOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reorder_memos_api_tracker_memos_order_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemoReorderIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemosOut"];
                 };
             };
             /** @description Validation Error */

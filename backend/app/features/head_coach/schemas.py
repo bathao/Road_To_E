@@ -62,6 +62,9 @@ class SourceSummary(BaseModel):
     # Open items on the Journal tab's Tracking board (2026-08-24),
     # [{title, source, status, daily?, streak?, days_since_last?}].
     tasks: list[dict] = []
+    # The Journal tab's Remember board (2026-09-24): standing reminders the
+    # player re-reads daily, in priority order, [{text}].
+    memos: list[dict] = []
     coach_notes: list[dict] = []  # coach notebook entries [{date, text}]
     # Upcoming registered tournaments [{name, start_date, days_left, entries…}].
     tournaments: list[dict] = []

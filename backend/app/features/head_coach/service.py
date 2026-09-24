@@ -194,6 +194,13 @@ def _task_dicts(db: Session, today: dt.date) -> list[dict]:
     return out
 
 
+def _memo_dicts(db: Session) -> list[dict]:
+    """The Remember board as prompt-ready dicts, priority order — what the
+    player has pinned to re-read every day (self-set rules; the coach can
+    check whether the numbers show them being followed)."""
+    return [{"text": m.text} for m in tracker_service.list_memos(db).memos]
+
+
 def _session_note_dict(n: SessionNote, with_kind: bool = False) -> dict:
     """One journal session-note item as a prompt-ready dict (tag keys →
     display labels). Shared by the verdict bundle and the recap bundle."""
@@ -426,6 +433,7 @@ def gather_bundle(db: Session) -> schemas.SourceSummary:
 
     return schemas.SourceSummary(
         tasks=_task_dicts(db, today),
+        memos=_memo_dicts(db),
         player=_player_name(db),
         training=training_sum,
         match=match_sum,
@@ -581,6 +589,9 @@ def _bundle_to_text(b: schemas.SourceSummary) -> str:
     task_lines = "\n".join(_task_line(x) for x in b.tasks) or (
         "  (bảng nhiệm vụ trống)"
     )
+    memo_lines = "\n".join(f"  - {x['text']}" for x in b.memos) or (
+        "  (bảng ghi nhớ trống)"
+    )
 
     racket_total = m.get("racket_minutes_total", 0)
     racket_tr = m.get("racket_minutes_training", 0)
@@ -627,6 +638,9 @@ def _bundle_to_text(b: schemas.SourceSummary) -> str:
         f"/ tự giao; nhiệm vụ hằng ngày có chuỗi ngày — khen chuỗi tốt, nhắc "
         f"nhiệm vụ bị bỏ bê) ===\n"
         f"{task_lines}\n\n"
+        f"=== ĐIỀU HỌC TRÒ TỰ NHẮC MÌNH MỖI NGÀY (bảng Remember — theo thứ tự ưu "
+        f"tiên; tự đặt ra, đối chiếu số liệu xem có đang làm theo không) ===\n"
+        f"{memo_lines}\n\n"
         f"=== HLV TRỰC TIẾP ĐANG DẶN (học trò ghi lại; chưa hoàn thành — cần tập tiếp) ===\n"
         f"{advice_lines}\n\n"
         f"=== RECAP CÁC BUỔI TẬP VỚI HLV TRỰC TIẾP (mới nhất trước) ===\n"
@@ -1167,6 +1181,8 @@ def gather_recap_bundle(
         # Open Tracking-board tasks as of the period's end — the recap can
         # note kept/broken daily streaks alongside the period's numbers.
         "tasks": _task_dicts(db, end),
+        # The Remember board as it stands now (no history — standing rules).
+        "memos": _memo_dicts(db),
     }
 
 
@@ -1281,6 +1297,9 @@ def _recap_bundle_to_text(b: dict) -> str:
         )
         for x in b.get("tasks", [])
     ) or "  (bảng nhiệm vụ trống)"
+    memo_lines = "\n".join(
+        f"  - {x['text']}" for x in b.get("memos", [])
+    ) or "  (bảng ghi nhớ trống)"
     note_lines = "\n".join(
         f"  - {n['date']}: {n['text']}" for n in b.get("day_notes", [])
     ) or "  (không có ghi chú)"
@@ -1314,6 +1333,9 @@ def _recap_bundle_to_text(b: dict) -> str:
         f"=== NHIỆM VỤ ĐANG THEO CUỐI KỲ (bảng Tracking — nhận xét chuỗi "
         f"ngày giữ được / bị bỏ bê) ===\n"
         f"{task_lines}\n\n"
+        f"=== ĐIỀU HỌC TRÒ TỰ NHẮC MÌNH MỖI NGÀY (bảng Remember — tự đặt ra; "
+        f"nhận xét kỳ này có làm theo không) ===\n"
+        f"{memo_lines}\n\n"
         f"=== GHI CHÚ HẰNG NGÀY CỦA HỌC TRÒ TRONG KỲ ===\n"
         f"{note_lines}\n\n"
         f"=== SỔ TAY HLV (mục tiêu/ràng buộc đã chốt — bối cảnh, có thể ngoài kỳ) ===\n"

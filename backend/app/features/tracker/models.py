@@ -274,3 +274,26 @@ class TaskCheck(Base):
     date: Mapped[dt.date] = mapped_column(Date, index=True)
 
     task: Mapped[Task] = relationship(back_populates="checks")
+
+
+class Memo(Base):
+    """One card on the Journal tab's Remember board (user 2026-09-24: "bảng
+    những điều cần nhớ… để tôi đọc lại hằng ngày, và follow. Nó sẽ không bị
+    trôi giống nhật ký").
+
+    Deliberately NOT a Task: no status, no daily tick, no streak, no date —
+    a memo is a standing reminder the player re-reads every day until they
+    edit or delete it. The list order IS the priority (sort_order, then id);
+    text uses the journal markup (bold / bullets), so one card can hold a
+    whole "Đỡ giao bóng" checklist.
+    """
+
+    __tablename__ = "tracker_memo"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    text: Mapped[str] = mapped_column(String)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime, default=_utcnow, onupdate=_utcnow
+    )

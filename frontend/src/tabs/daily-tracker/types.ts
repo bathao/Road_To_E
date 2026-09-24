@@ -235,6 +235,21 @@ export interface TaskUpdate {
   is_daily?: boolean;
 }
 
+// ---- Remember board (Journal tab, 2026-09-24) ----
+// Mirrors backend tracker/schemas.py MemoOut. A standing reminder — no
+// status, no date, no tick; list order is the priority.
+export interface Memo {
+  id: number;
+  text: string;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MemosOut {
+  memos: Memo[]; // priority order; every mutation returns this
+}
+
 // ---- stats / analysis ----
 import type { CategoryMinutes, MatchStats } from "../../shared/types";
 

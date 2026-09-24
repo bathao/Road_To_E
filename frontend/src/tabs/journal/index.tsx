@@ -13,6 +13,7 @@ import Seg from "../../shared/ui/Seg";
 import { trackerApi } from "../daily-tracker/api";
 import type { JournalDay, SessionNoteKind } from "../daily-tracker/types";
 import DayCard from "./components/DayCard";
+import RememberPanel from "./components/RememberPanel";
 import TrackingPanel from "./components/TrackingPanel";
 import RichArea from "./RichArea";
 import { renderMarkup } from "./markup";
@@ -170,8 +171,11 @@ export default function Journal() {
 
   return (
     <div className="tab-journal">
-      {/* Left: the diary (composer + timeline). Right: the Tracking board
-          (user 2026-08-24) — fills the previously empty side space. */}
+      {/* Three columns: the Remember board (user 2026-09-24, standing
+          reminders that never scroll away) on the LEFT, the diary (composer
+          + timeline) in the middle, the Tracking board (user 2026-08-24) on
+          the right. */}
+      <RememberPanel />
       <div className="jr-main">
       <header className="jr-head">
         <h1>📔 Journal</h1>

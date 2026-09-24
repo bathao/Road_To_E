@@ -13,6 +13,7 @@ import type {
   JournalDay,
   JournalDays,
   JournalMatch,
+  MemosOut,
   Player,
   PlayerIn,
   RatingBreakdown,
@@ -134,6 +135,20 @@ export const trackerApi = {
       date: dateIso,
       checked,
     }),
+
+  // Remember board (Journal tab). Every mutation returns the fresh list.
+  getMemos: () => api.get<MemosOut>("/tracker/memos"),
+
+  createMemo: (text: string) => api.post<MemosOut>("/tracker/memos", { text }),
+
+  updateMemo: (id: number, text: string) =>
+    api.patch<MemosOut>(`/tracker/memos/${id}`, { text }),
+
+  deleteMemo: (id: number) => api.del<MemosOut>(`/tracker/memos/${id}`),
+
+  // Full id list in the wanted priority order.
+  reorderMemos: (ids: number[]) =>
+    api.put<MemosOut>("/tracker/memos/order", { ids }),
 
   createSessionNote: (payload: SessionNoteIn) =>
     api.post<SessionNote>("/tracker/session-notes", payload),

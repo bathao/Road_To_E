@@ -465,6 +465,52 @@ class TasksOut(BaseModel):
     tasks: list[TaskOut] = []
 
 
+# ---------- Remember board (Journal tab, 2026-09-24) ----------
+class MemoIn(BaseModel):
+    text: str = Field(max_length=4000)
+
+    @field_validator("text")
+    @classmethod
+    def _text_not_blank(cls, v: str) -> str:
+        # A memo is never saved blank — whitespace-only text is rejected
+        # here, not silently stored as "" by the service's strip().
+        v = v.strip()
+        if not v:
+            raise ValueError("Memo text cannot be empty.")
+        return v
+
+
+class MemoUpdate(BaseModel):
+    text: str = Field(max_length=4000)
+
+    @field_validator("text")
+    @classmethod
+    def _text_not_blank(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Memo text cannot be empty.")
+        return v
+
+
+class MemoReorderIn(BaseModel):
+    """The full id list in the wanted order (every current memo, no extras)."""
+
+    ids: list[int] = Field(min_length=1)
+
+
+class MemoOut(BaseModel):
+    id: int
+    text: str
+    sort_order: int
+    created_at: dt.datetime
+    updated_at: dt.datetime
+
+
+class MemosOut(BaseModel):
+    # Every mutation returns the fresh ordered list (same idiom as TasksOut).
+    memos: list[MemoOut] = []
+
+
 class SessionNoteTagOut(BaseModel):
     key: str
     label: str

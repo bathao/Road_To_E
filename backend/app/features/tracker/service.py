@@ -31,6 +31,7 @@ from app.features.tracker.models import (
     DayNote,
     Event,
     Match,
+    Memo,
     PhysicalCheck,
     Player,
     SessionNote,
@@ -1416,6 +1417,66 @@ def set_task_check(
         db.delete(existing)
     db.commit()
     return list_tasks(db)
+
+
+# ---------------------------------------------------------------- remember board
+
+
+def _memo_to_out(m: Memo) -> schemas.MemoOut:
+    return schemas.MemoOut(
+        id=m.id,
+        text=m.text,
+        sort_order=m.sort_order,
+        created_at=m.created_at,
+        updated_at=m.updated_at,
+    )
+
+
+def list_memos(db: Session) -> schemas.MemosOut:
+    """The Remember board in priority order (sort_order, then id — a new
+    memo lands at the bottom until the user moves it)."""
+    rows = db.query(Memo).order_by(Memo.sort_order, Memo.id).all()
+    return schemas.MemosOut(memos=[_memo_to_out(m) for m in rows])
+
+
+def create_memo(db: Session, payload: schemas.MemoIn) -> schemas.MemosOut:
+    last = db.query(func.max(Memo.sort_order)).scalar()
+    db.add(Memo(text=payload.text.strip(), sort_order=(last or 0) + 1))
+    db.commit()
+    return list_memos(db)
+
+
+def update_memo(db: Session, memo_id: int, payload: schemas.MemoUpdate) -> schemas.MemosOut:
+    m = db.get(Memo, memo_id)
+    if m is None:
+        raise LookupError(f"memo {memo_id} not found")
+    m.text = payload.text.strip()
+    db.commit()
+    return list_memos(db)
+
+
+def delete_memo(db: Session, memo_id: int) -> schemas.MemosOut:
+    m = db.get(Memo, memo_id)
+    if m is None:
+        raise LookupError(f"memo {memo_id} not found")
+    db.delete(m)
+    db.commit()
+    return list_memos(db)
+
+
+def reorder_memos(db: Session, payload: schemas.MemoReorderIn) -> schemas.MemosOut:
+    """Set the priority order from the full id list. Rejects a list that is
+    not exactly the current set of memos (a stale GUI must not silently
+    drop or duplicate a card)."""
+    rows = db.query(Memo).all()
+    current = {m.id for m in rows}
+    if sorted(payload.ids) != sorted(current) or len(payload.ids) != len(current):
+        raise ValueError("ids must list every current memo exactly once")
+    by_id = {m.id: m for m in rows}
+    for i, mid in enumerate(payload.ids, start=1):
+        by_id[mid].sort_order = i
+    db.commit()
+    return list_memos(db)
 
 
 # ---------------------------------------------------------------- coach packages

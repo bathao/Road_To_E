@@ -400,6 +400,46 @@ def set_task_check(
         raise HTTPException(status_code=404, detail="task not found")
 
 
+# ------------------------------------------------ remember board (Journal tab)
+@router.get("/memos", response_model=schemas.MemosOut)
+def list_memos(db: Session = Depends(get_db)):
+    """The Remember board: standing reminders in priority order. Every
+    mutation below returns this list."""
+    return service.list_memos(db)
+
+
+@router.post("/memos", response_model=schemas.MemosOut)
+def create_memo(payload: schemas.MemoIn, db: Session = Depends(get_db)):
+    return service.create_memo(db, payload)
+
+
+@router.patch("/memos/{memo_id}", response_model=schemas.MemosOut)
+def update_memo(
+    memo_id: int, payload: schemas.MemoUpdate, db: Session = Depends(get_db)
+):
+    try:
+        return service.update_memo(db, memo_id, payload)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="memo not found")
+
+
+@router.delete("/memos/{memo_id}", response_model=schemas.MemosOut)
+def delete_memo(memo_id: int, db: Session = Depends(get_db)):
+    try:
+        return service.delete_memo(db, memo_id)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="memo not found")
+
+
+@router.put("/memos/order", response_model=schemas.MemosOut)
+def reorder_memos(payload: schemas.MemoReorderIn, db: Session = Depends(get_db)):
+    """Set the priority order — the body lists EVERY current memo id."""
+    try:
+        return service.reorder_memos(db, payload)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+
 @router.get("/session-note-tags", response_model=list[schemas.SessionNoteTagOut])
 def list_session_note_tags():
     return [
