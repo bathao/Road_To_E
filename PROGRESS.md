@@ -57,6 +57,17 @@
 >     GET-only catch-all → 405 (GET → 404, which useLoad doesn't surface).
 >     Same failure mode as the June "two stale uvicorn servers" incident.
 >     Killed pids 26596/18568, port freed; user re-runs start.bat.
+>   - **LIVE after the clean restart (user screenshot, evening 24/09):** the
+>     Remember board renders in the left column with the user's first 3
+>     memos (nhìn tay đối thủ / cự ly tầm trung-dài / đỡ giao bóng BH vs FH),
+>     3-column layout as designed. First real use of a board in this tab —
+>     Tracking on the right is still empty.
+>   - **Slogan banner (user 2026-09-24: "1 câu slogan to, rõ ràng, trên chữ
+>     Journal luôn, để đập vào mắt hằng ngày"):** `"Spin to Win 🏓 Sống nhờ
+>     Xoáy"` as a full-width band above all three columns (`.jr-slogan`,
+>     grid-column 1 / -1; 40px uppercase amber + 34px dark, warm gradient
+>     matching the Remember tint). The Vietnamese half is the slogan itself,
+>     not a GUI label. Frontend only, no restart — committed in `68800dc`.
 >   - **Honest note (raised in the plan, user proceeded):** the Tracking board
 >     on the right is still 0 rows after 31 days. If it is still empty at the
 >     next status check, propose folding it away.
