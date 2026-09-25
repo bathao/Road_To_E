@@ -1,6 +1,52 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-09-24, later) — NEW: "Remember" board in the Journal tab's LEFT column (standing reminders the player re-reads daily — they never scroll away like the diary); COMMITTED in `e432e8f` together with the 08–24/09 DB snapshot (WAL checkpointed first: 161 players, 421 matches, 0 memos yet)
+## Current status (2026-09-25) — NEW: shared READ-ONLY copy for the real-life coach (Render free tier, Docker, `SHARE_MODE=1`) + `sync.bat` (WAL checkpoint → commit DB → push); ELO all-time-peak work + DB snapshot committed as `619e611` and tagged **v0.5** first; share-mode code UNCOMMITTED, Render account/first deploy pending the user
+
+> **Shared copy (user 2026-09-25: "tìm 1 dịch vụ free … để tôi có thể sync
+> 3 tabs không cần AI local: Daily Tracker, Profile and Journal … chia sẻ
+> với HLV thật"; plan OK'd "bắt đầu làm đi", commit + tag first):**
+>   - **Host choice:** Render Free web service (no card, 512 MB, GitHub
+>     auto-deploy, sleeps after 15 idle min / ~1 min wake, 750 h/month).
+>     Rejected: HF Spaces (Docker Spaces now paid), Koyeb (card + 1 h sleep),
+>     Vercel (read-only FS → WAL SQLite rework), Fly/Railway/Cloud Run (card
+>     or trial), Cloudflare Tunnel (PC must be on).
+>   - **Backend:** `settings.SHARE_MODE` / `SHARE_KEY` / `LAST_SYNC_PATH`
+>     (env-driven); new `core/share.py` — `share_guard` middleware (non-GET
+>     under `/api/` → 403 "Read-only shared view: changes are disabled.";
+>     with a key, `/api/*` except `/api/health` + `/api/config` needs
+>     `X-Share-Key` header or `?key=` for the export download → else 401);
+>     `GET /api/config` → `{share_mode, key_required, last_sync}`; backup on
+>     startup skipped in share mode. Settings are read per request so tests
+>     monkeypatch them. 4 new tests (`test_share_mode.py`, filesystem-free —
+>     pytest's tmp dir is blocked in the sandbox); 174 pass.
+>   - **Frontend:** `shared/config.ts` (loadConfig, share-key storage in
+>     localStorage, `SHARED_TAB_IDS`); `client.ts` refuses mutations locally
+>     in share mode + sends the key header, `apiUrl` appends `?key=`;
+>     `AppShell` now boots on `/api/config` (an old backend / network error
+>     falls back to local mode, so the local app never blanks), filters the
+>     tab bar to Daily Tracker / Profile / Journal, shows the amber banner
+>     "👁 Read-only view · shared by the player for the coach · Last synced
+>     25 Sep 2026, 20:13", and renders the access-code gate when required.
+>     Verified with headless-Chrome screenshots on ports 8001 (no key) and
+>     8002 (key) — both as designed.
+>   - **Packaging:** root `Dockerfile` (node:24-alpine builds the SPA →
+>     python:3.12-slim runs uvicorn on `$PORT`; `ENV SHARE_MODE=1` baked in
+>     so the image can never be a writable public app), `.dockerignore`,
+>     `render.yaml` (docker, free, singapore, `/api/health`,
+>     `autoDeployTrigger: commit`, `SHARE_KEY` prompted at setup).
+>     NOT built locally (no Docker on this PC) — the first Render build is
+>     the test.
+>   - **Sync:** `sync.bat` → `backend/scripts/sync_prepare.py`
+>     (`PRAGMA wal_checkpoint(TRUNCATE)`, stamps `backend/data/last_sync.txt`,
+>     prints row counts; exit 1 if a writer blocks the checkpoint) → commits
+>     ONLY the DB + stamp (`git commit -- <paths>`, code stays untouched;
+>     "nothing to push" when the DB is unchanged) → `git push origin master`.
+>     This also closes the TODO watch-list item on stale WAL commits.
+>   - **Next (user):** create the Render account (GitHub login) → New →
+>     Blueprint → this repo → enter `SHARE_KEY` → first deploy; optional
+>     cron-job.org pinger; send link + code to the coach.
+
+## Previous status (2026-09-24, later) — NEW: "Remember" board in the Journal tab's LEFT column (standing reminders the player re-reads daily — they never scroll away like the diary); COMMITTED in `e432e8f` together with the 08–24/09 DB snapshot (WAL checkpointed first: 161 players, 421 matches, 0 memos yet)
 
 > **Remember board (user 2026-09-24, screenshot of the Journal tab: "layout
 > còn trống cột bên trái. Cột bên trái, tạo thêm bảng những điều cần nhớ,

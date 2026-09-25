@@ -1229,3 +1229,91 @@ input:focus {
   color: var(--muted);
   font-size: 12px;
 }
+
+/* ---------------- Shared read-only view (2026-09-25) ---------------- */
+
+.app-boot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  color: var(--muted);
+}
+
+.share-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 20px;
+  background: #fff7e0;
+  border-bottom: 1px solid #f3dc9a;
+  color: #7a5a00;
+  font-size: 13px;
+  cursor: help;
+}
+
+.share-banner-icon {
+  font-size: 15px;
+}
+
+.share-banner-sync {
+  margin-left: auto;
+  color: #9a7a1a;
+}
+
+.share-gate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.share-gate-card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: center;
+}
+
+.share-gate-logo {
+  font-size: 40px;
+}
+
+.share-gate-card h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.share-gate-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.share-gate-card input {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 9px 12px;
+  font-size: 15px;
+  text-align: center;
+  letter-spacing: 2px;
+}
+
+.share-gate-card input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.share-gate-error {
+  color: var(--danger);
+  font-size: 13px;
+}

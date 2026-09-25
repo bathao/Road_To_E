@@ -1,0 +1,26 @@
+# Keep the shared-copy image small and free of local-only artefacts.
+.git
+.vscode
+.idea
+**/__pycache__
+*.pyc
+.pytest_cache
+backend/.venv
+backend/data/backups
+backend/data/models
+backend/data/videos
+backend/data/profile_refs
+backend/data/identity
+backend/data/*.db-wal
+backend/data/*.db-shm
+backend/tests
+frontend/node_modules
+frontend/dist
+frontend/openapi.json
+frontend/vite.config.js
+frontend/vite.config.d.ts
+*.tsbuildinfo
+*.log
+*.md
+start.bat
+sync.bat

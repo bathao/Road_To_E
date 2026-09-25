@@ -67,6 +67,30 @@ model; it falls back to `qwen3:14b` if not pulled — see
   points (maintained by hand), auto rank chip, pips flag.
 - 🔥 Motivation — placeholder ("coming soon").
 
+## Sharing with the coach (read-only copy)
+
+The Daily Tracker, Profile and Journal tabs can be published as a **read-only
+copy** on Render's free tier so the real-life coach can follow along — no AI,
+no editing, same GUI. It is the same app started with `SHARE_MODE=1`
+(`backend/app/core/share.py`):
+
+- every non-GET call under `/api/` is refused with 403, the GUI hides the
+  other tabs and shows a "Read-only view · Last synced …" banner, and the
+  API client refuses writes before they leave the browser;
+- optional `SHARE_KEY`: the coach types the code once (remembered in the
+  browser; the export link carries it as `?key=`);
+- the on-startup backup is skipped (the host's disk is ephemeral).
+
+The data on the shared copy is the committed `backend/data/tabletennis.db`.
+**Syncing = `sync.bat`**: it checkpoints the WAL (so the committed file is
+never stale), stamps `backend/data/last_sync.txt`, commits ONLY those two
+files and pushes; Render rebuilds the Docker image (~3–5 min). `render.yaml`
+is the Blueprint (Docker runtime, Singapore, health check `/api/health`);
+`Dockerfile` builds the SPA with Node and runs uvicorn on python:3.12-slim.
+A free web service sleeps after 15 idle minutes (~1 min to wake) — an
+external pinger on `/api/health` every ~10 min keeps it awake within the
+750 free hours/month.
+
 ## Development
 
 Run backend and frontend dev servers separately for hot reload:
@@ -109,7 +133,8 @@ Feature-based modularity so adding a tab = one folder + one registry line.
 - **Frontend:** `src/tabs/<tab>/`; `src/tabs/registry.ts` declares each tab;
   `AppShell` builds the tab bar. Shared helpers/UI live in `src/shared/`.
 - The SQLite DB (`backend/data/tabletennis.db`) is tracked in git on purpose;
-  a daily snapshot also lands in `backend/data/backups/` on startup.
+  a daily snapshot also lands in `backend/data/backups/` on startup. The committed
+  file is also what the shared read-only copy serves (see above).
 
 See `PROGRESS.md` for the live status log (newest first), `TODO.md` for open
 items, and `PLAN.md` for the original Tab-1 design (historical).

@@ -1,0 +1,27 @@
+# Render Blueprint (2026-09-25): the shared READ-ONLY copy for the real-life
+# coach. In the Render dashboard: New → Blueprint → pick this GitHub repo;
+# Render reads this file, builds the Dockerfile and redeploys on every push
+# to master (sync.bat pushes the fresh DB snapshot).
+#
+# Free plan facts (render.com/docs/free): 512 MB RAM, spins down after 15 min
+# without traffic (~1 min to wake), 750 instance-hours/month — enough for one
+# always-on service if an external pinger hits /api/health every ~10 min.
+services:
+  - type: web
+    name: road-to-e
+    runtime: docker
+    plan: free
+    region: singapore
+    branch: master
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      # Read-only mode: writes → 403, only Daily Tracker / Profile / Journal.
+      - key: SHARE_MODE
+        value: "1"
+      # Access code the coach types once. Render prompts for the value when
+      # the Blueprint is created; leave it empty for a no-code public link.
+      - key: SHARE_KEY
+        sync: false

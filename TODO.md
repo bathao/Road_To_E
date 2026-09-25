@@ -45,7 +45,20 @@ scannable. Last full sync: 2026-07-29.
 
 ## Watch list (not actionable yet)
 
-- [ ] **Checkpoint the DB before committing it** (found 2026-08-23): the
+- [ ] **Shared read-only copy on Render (built 2026-09-25, `v0.5` + share
+  commit)** — first deploy pending the user's Render account. Watch once
+  live: (a) the Docker build passes on Render (not testable locally — no
+  Docker on this PC); (b) the coach's first open with the access code;
+  (c) whether the 1-minute wake-up after idle is acceptable or a pinger
+  (cron-job.org → `/api/health`, every 10 min) is wanted; (d) editors in
+  the shared GUI still OPEN on click (saving fails with the read-only
+  sentence) — hide the edit affordances in `.share-mode` if the coach finds
+  that confusing.
+
+- [x] **Checkpoint the DB before committing it** (found 2026-08-23; SOLVED
+  2026-09-25 — `sync.bat` runs `backend/scripts/sync_prepare.py`, which
+  checkpoints the WAL before every DB commit; for hand-made commits the
+  recipe below still applies): the
   app runs SQLite in WAL mode and .gitignore skips -wal/-shm, so a commit
   made while start.bat is running snapshots a STALE main file (a86bb60 /
   8abd9ad carried an ~18/08 DB state). Before any commit that includes

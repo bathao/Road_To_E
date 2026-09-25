@@ -12,10 +12,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.core import logbuffer
+from app.core import logbuffer, share
 from app.core.backup import backup_database
 from app.core.db import SessionLocal, init_db
-from app.core.settings import APP_TITLE, FRONTEND_DIST
+from app.core.settings import APP_TITLE, FRONTEND_DIST, SHARE_MODE
 from app.features import registry
 
 # uvicorn only configures its own loggers; give the app's `app.*` loggers a
@@ -28,7 +28,9 @@ logbuffer.install()
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     # Snapshot BEFORE init_db/seeds so a bad migration can't taint the backup.
-    backup_database()
+    # Pointless on the shared host (ephemeral disk, the DB is a git copy).
+    if not SHARE_MODE:
+        backup_database()
     init_db()
     db = SessionLocal()
     try:
@@ -47,6 +49,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Shared read-only view: refuse writes / require the access code (a no-op
+# locally, where neither SHARE_MODE nor SHARE_KEY is set).
+app.middleware("http")(share.share_guard)
 
 
 @app.middleware("http")
@@ -69,6 +76,13 @@ for feature_router in registry.FEATURE_ROUTERS:
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/api/config")
+def config():
+    """What the GUI needs before rendering: shared read-only mode, whether
+    an access code is required, and when the data was last synced."""
+    return share.config_payload()
 
 
 # ------------------------------------------------------------- serve frontend
