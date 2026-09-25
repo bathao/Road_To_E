@@ -45,15 +45,15 @@ scannable. Last full sync: 2026-07-29.
 
 ## Watch list (not actionable yet)
 
-- [ ] **Shared read-only copy on Render (built 2026-09-25, `v0.5` + share
-  commit)** — first deploy pending the user's Render account. Watch once
-  live: (a) the Docker build passes on Render (not testable locally — no
-  Docker on this PC); (b) the coach's first open with the access code;
-  (c) whether the 1-minute wake-up after idle is acceptable or a pinger
-  (cron-job.org → `/api/health`, every 10 min) is wanted; (d) editors in
-  the shared GUI still OPEN on click (saving fails with the read-only
-  sentence) — hide the edit affordances in `.share-mode` if the coach finds
-  that confusing.
+- [ ] **Shared read-only copy on Render — LIVE 2026-09-25 at
+  https://road-to-e.onrender.com** (`0eafc2c`, Docker build passed in 1 min,
+  no access code by the user's choice). Watch: (a) the coach's first open
+  and the first REAL "pushed" run of the ☁ Sync to coach button (DB
+  changed → commit → push → Render redeploy → button turns "✓ Live"); (b) whether the ~50 s wake-up after 15 idle minutes bothers
+  the coach — then a pinger (cron-job.org → `/api/health`, every 10 min);
+  (c) editors in the shared GUI still OPEN on click (saving fails with the
+  read-only sentence) — hide the edit affordances in `.share-mode` if the
+  coach finds that confusing.
 
 - [x] **Checkpoint the DB before committing it** (found 2026-08-23; SOLVED
   2026-09-25 — `sync.bat` runs `backend/scripts/sync_prepare.py`, which

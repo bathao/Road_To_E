@@ -1,6 +1,6 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-09-25) — NEW: shared READ-ONLY copy for the real-life coach (Render free tier, Docker, `SHARE_MODE=1`) + `sync.bat` (WAL checkpoint → commit DB → push); ELO all-time-peak work + DB snapshot committed as `619e611` and tagged **v0.5** first; share-mode code UNCOMMITTED, Render account/first deploy pending the user
+## Current status (2026-09-25) — NEW: shared READ-ONLY copy for the real-life coach (Render free tier, Docker, `SHARE_MODE=1`) + `sync.bat` (WAL checkpoint → commit DB → push); ELO all-time-peak work + DB snapshot committed as `619e611` and tagged **v0.5** first; share-mode code committed `0eafc2c`; **LIVE at https://road-to-e.onrender.com** (no access code, user's choice); ☁ Sync to coach button added (UNCOMMITTED, needs start.bat restart)
 
 > **Shared copy (user 2026-09-25: "tìm 1 dịch vụ free … để tôi có thể sync
 > 3 tabs không cần AI local: Daily Tracker, Profile and Journal … chia sẻ
@@ -42,9 +42,54 @@
 >     ONLY the DB + stamp (`git commit -- <paths>`, code stays untouched;
 >     "nothing to push" when the DB is unchanged) → `git push origin master`.
 >     This also closes the TODO watch-list item on stale WAL commits.
->   - **Next (user):** create the Render account (GitHub login) → New →
->     Blueprint → this repo → enter `SHARE_KEY` → first deploy; optional
->     cron-job.org pinger; send link + code to the coach.
+>   - **Bugfix — Remember board taller than the screen could not scroll
+>     (user 2026-09-25: "tôi đang viết tới 8 điều, hết màn hình rồi"):**
+>     `.rem-panel` is `position: sticky`; once taller than the viewport its
+>     top stays pinned and the bottom is unreachable while the diary column
+>     is longer. Fix in `styles/journal.css`: the panel itself scrolls
+>     (`max-height: calc(100vh - 130px)`, `overflow-y: auto`,
+>     `overscroll-behavior: contain`, thin scrollbar); same cap on the
+>     Tracking board (`.trk-panel`, identical trap waiting to happen); caps
+>     lifted where the boards go static (Remember ≤1500px, Tracking ≤1100px).
+>     Verified via CDP screenshots on :8001 with the real 8 memos: panel
+>     770px tall, content 1217px, scrolls to memo 8. Follow-up the same
+>     evening (user: "giữ lại chữ Remember"): the cards now sit in a
+>     `.rem-list` wrapper (RememberPanel.tsx) that is the ONLY scrolling
+>     part — "📌 Remember", the "Read every day" line and the add box stay
+>     fixed (`.rem-panel` overflow hidden, `.rem-block` flex 1 / min-height
+>     0, `.rem-list` overflow-y auto). Re-verified via CDP: list 577px tall,
+>     content 1024px, heading still in place with memo 5–8 in view. dist
+>     rebuilt — a page reload picks it up, no restart needed.
+>   - **☁ Sync to coach button (user 2026-09-25: "nhiều khi tôi update
+>     database thôi, mà ko chỉnh gì code … làm thêm 1 nút sync database
+>     trên layout"; plan OK'd "Làm đi"):** `POST /api/sync` →
+>     `core/syncer.py` (`prepare()` = WAL checkpoint + stamp, shared with
+>     `scripts/sync_prepare.py`; `run_sync()` = `git add` DB+stamp → `diff
+>     --cached --quiet` → "nothing" (stamp reverted, no commit) or `commit
+>     -- <2 paths>` + `push origin master`; git as a subprocess in
+>     PROJECT_DIR with an injectable runner for tests; refuses in SHARE_MODE
+>     and the read-only guard 403s it on the host anyway). GUI:
+>     `shared/ui/SyncButton.tsx` in the header's right side (local only):
+>     "Last synced …" → "Checkpoint · commit · push…" → "Pushed · rebuilding
+>     (~1 min)…" → polls `<share_url>/api/config` every 15 s (6 min budget)
+>     → "✓ Live for the coach"; "Nothing new since …"; errors in red with
+>     the git output in the tooltip. `/api/config` now returns `last_sync`
+>     locally too + `share_url` (settings.SHARE_PUBLIC_URL); CORS allows
+>     localhost:8000 so the poll works. 5 tests (`test_sync.py`, fake git);
+>     179 pass. Verified live on :8001: the "nothing" path (DB unchanged →
+>     no commit, stamp restored) and a non-interactive `git push --dry-run`
+>     from a Python subprocess (credentials OK). The "pushed" path's first
+>     real run is the user's first click after new data.
+>   - **LIVE 2026-09-25 evening:** Render account created (GitHub login),
+>     Blueprint applied on `0eafc2c`, Docker build passed first try in 1m00s
+>     → **https://road-to-e.onrender.com** (Singapore, Free). Probed from
+>     outside: `/api/health` 200 in 0.4 s, `/api/config` `share_mode=true`
+>     + `last_sync 2026-09-25T20:13`, real data served (ELO 986 / 176
+>     matches / 8 memos, CSV export 200), POST/DELETE → 403, SPA loads.
+>   - **No access code — user's decision** ("Không cần mật mã. link này
+>     mấy người biết đâu, trừ người tôi share"): `SHARE_KEY` left empty, the
+>     link is open to whoever has it. Don't re-suggest. Pinger not set up
+>     (the ~50 s wake-up after 15 idle minutes stands unless the user asks).
 
 ## Previous status (2026-09-24, later) — NEW: "Remember" board in the Journal tab's LEFT column (standing reminders the player re-reads daily — they never scroll away like the diary); COMMITTED in `e432e8f` together with the 08–24/09 DB snapshot (WAL checkpointed first: 161 players, 421 matches, 0 memos yet)
 

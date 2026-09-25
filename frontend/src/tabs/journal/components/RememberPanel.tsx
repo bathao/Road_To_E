@@ -78,6 +78,9 @@ export default function RememberPanel() {
           </div>
         </div>
 
+        {/* Only the cards scroll (2026-09-25): the heading, the "Read every
+            day" line and the add box stay put while the list grows. */}
+        <div className="rem-list">
         {memos.length === 0 && (
           <p className="rem-empty">
             Nothing pinned yet — write the rules you want to re-read before every session. 📌
@@ -152,6 +155,7 @@ export default function RememberPanel() {
             )}
           </div>
         ))}
+        </div>
       </section>
     </aside>
   );

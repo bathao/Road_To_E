@@ -81,10 +81,14 @@ no editing, same GUI. It is the same app started with `SHARE_MODE=1`
   browser; the export link carries it as `?key=`);
 - the on-startup backup is skipped (the host's disk is ephemeral).
 
+Live copy: **https://road-to-e.onrender.com** (no access code by choice).
 The data on the shared copy is the committed `backend/data/tabletennis.db`.
-**Syncing = `sync.bat`**: it checkpoints the WAL (so the committed file is
+**Syncing = the ☁ Sync to coach button** in the local header (`POST /api/sync`,
+`backend/app/core/syncer.py`) or, as a fallback, `sync.bat`. Both checkpoint the WAL (so the committed file is
 never stale), stamps `backend/data/last_sync.txt`, commits ONLY those two
-files and pushes; Render rebuilds the Docker image (~3–5 min). `render.yaml`
+files and push; Render rebuilds the Docker image (~1 min). The button then
+polls the shared copy's `/api/config` until the new `last_sync` shows up
+there and reports "Live for the coach". `render.yaml`
 is the Blueprint (Docker runtime, Singapore, health check `/api/health`);
 `Dockerfile` builds the SPA with Node and runs uvicorn on python:3.12-slim.
 A free web service sleeps after 15 idle minutes (~1 min to wake) — an
