@@ -225,6 +225,13 @@ class MyRatingBreakdownOut(BaseModel):
     counted: int
     rating_start: int | None  # rating carried INTO the range; None = pre-anchor
     rating_end: int | None
+    # ALL-TIME peak since the anchor (user 2026-09-24: "điểm ELO cao nhất tôi
+    # đã từng đạt được") — end-of-day values, so it always matches a point
+    # on the by-day curve; the anchor day itself counts. Independent of the
+    # requested range: the GUI stars the point when it is in view and prints
+    # the caption either way. None only when no rating exists yet.
+    peak_rating: int | None = None
+    peak_date: dt.date | None = None
     buckets: list[RatingBucketOut]
     # EVERY counted match in the range, newest first — the GUI renders a
     # sortable table (was top-3 gains + top-3 losses until 2026-07-30).

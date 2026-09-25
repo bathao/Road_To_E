@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { shortDate } from "../../../shared/dates";
+import { prettyDate, shortDate } from "../../../shared/dates";
 import { DISCIPLINE_LABEL } from "../../../shared/disciplines";
 import { fmtDelta } from "../../../shared/format";
 import EloDeltaChip from "../../../shared/ui/EloDeltaChip";
@@ -26,6 +26,16 @@ export function EloCurveCard({
 }) {
   // The whole range predates the anchor — no rating existed yet.
   if (elo.rating_end === null) return null;
+  // All-time peak (user 2026-09-24): ★ on the curve when the peak day is in
+  // view, and a caption under the chart either way — so a "Last 90 days"
+  // view still shows the record set in an earlier range.
+  const peak =
+    elo.peak_rating !== null && elo.peak_date !== null
+      ? { rating: elo.peak_rating, date: elo.peak_date }
+      : null;
+  const peakInView =
+    peak !== null && elo.date_from <= peak.date && peak.date <= elo.date_to;
+  const atPeak = peak !== null && elo.rating_end === peak.rating;
   return (
     <section className="stats-card">
       <div className="elo-head">
@@ -62,7 +72,22 @@ export function EloCurveCard({
             Not enough data in this range to draw a line.
           </p>
         }
+        peak={peak}
       />
+      {peak && (
+        <p
+          className={`elo-peak${atPeak ? " at-peak" : ""}`}
+          title="Highest end-of-day rating since the anchor — not limited to the visible range"
+        >
+          <span className="elo-peak-star">★</span> All-time peak{" "}
+          <strong>{peak.rating}</strong> · {prettyDate(peak.date)}
+          {atPeak
+            ? " — you are there right now"
+            : peakInView
+              ? ""
+              : " (outside this range)"}
+        </p>
+      )}
     </section>
   );
 }

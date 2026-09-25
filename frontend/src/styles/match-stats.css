@@ -258,6 +258,28 @@
   color: var(--muted);
 }
 
+/* All-time peak caption under the ELO curve (2026-09-24). */
+.elo-peak {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.elo-peak strong {
+  color: var(--text, #222);
+  font-variant-numeric: tabular-nums;
+}
+
+.elo-peak-star {
+  color: #e0a100;
+  font-size: 15px;
+}
+
+/* Sitting on the record right now — let it glow a little. */
+.elo-peak.at-peak {
+  color: #8a6d1d;
+}
+
 /* Signed ±Δ value (ELO-per-match table; the old delta-bars block was
    replaced by the shared EloCurve). */
 .elo-delta-val {

@@ -335,6 +335,10 @@ export interface RatingBreakdown {
   counted: number;
   rating_start: number | null;
   rating_end: number | null;
+  // All-time peak since the anchor (end-of-day values; independent of the
+  // requested range). null only when no rating exists yet.
+  peak_rating: number | null;
+  peak_date: string | null;
   buckets: RatingBucket[];
   // Every counted match in the range, biggest |Δ| first (the Match Stats
   // table sorts client-side).

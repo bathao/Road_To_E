@@ -2721,6 +2721,10 @@ export interface components {
             rating_start: number | null;
             /** Rating End */
             rating_end: number | null;
+            /** Peak Rating */
+            peak_rating?: number | null;
+            /** Peak Date */
+            peak_date?: string | null;
             /** Buckets */
             buckets: components["schemas"]["RatingBucketOut"][];
             /** Movers */

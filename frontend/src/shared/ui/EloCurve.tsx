@@ -31,6 +31,7 @@ export default function EloCurve({
   tipOf,
   gutter,
   fallback = null,
+  peak = null,
 }: {
   elo: EloCurveData;
   labelOf: (b: EloCurveBucket) => string;
@@ -38,7 +39,16 @@ export default function EloCurve({
   gutter?: string;
   /** Rendered instead of the chart when there are <2 drawable points. */
   fallback?: ReactNode;
+  /** All-time peak (2026-09-24): the bucket that contains `date` AND ends
+      at `rating` gets a ★ instead of a dot. By day that is exact; a week/
+      month bucket only qualifies when the peak held to the bucket's end. */
+  peak?: { date: string; rating: number } | null;
 }) {
+  const isPeak = (b: EloCurveBucket) =>
+    peak !== null &&
+    b.date_from <= peak.date &&
+    peak.date <= b.date_to &&
+    b.rating_end === peak.rating;
   const today = todayIso();
   // ?? null keeps an old backend (field missing) on the previous blank look.
   const anchorVal: number | null = elo.anchor_points ?? null;
@@ -61,6 +71,7 @@ export default function EloCurve({
                 ? `${b.rating_end} · Δ ${fmtDelta(b.delta)} (${b.counted} matches)`
                 : String(b.rating_end),
           tip: tipOf(b),
+          star: isPeak(b) ? `All-time peak · ${peak!.rating}` : undefined,
         };
       })}
       formatY={(v) => String(Math.round(v + base))}

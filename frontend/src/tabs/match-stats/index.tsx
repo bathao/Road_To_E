@@ -35,8 +35,9 @@ import type {
 export default function MatchStats() {
   // YouTube-Studio-style range picker (user request 2026-08-02): rolling
   // windows ending today, whole years, recent months, custom. Default is
-  // the rolling "Last 28 days" (replaced the calendar current-month default).
-  const [preset, setPreset] = useState<RangePreset>("last28");
+  // the rolling "Last 90 days" (user 2026-09-24; was "Last 28 days", which
+  // had replaced the calendar current-month default).
+  const [preset, setPreset] = useState<RangePreset>("last90");
   const [customFrom, setCustomFrom] = useState<string>(() =>
     toIso(startOfMonth(new Date()))
   );

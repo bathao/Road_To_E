@@ -2536,7 +2536,19 @@ def build_rating_breakdown(
     if rating_start is None and date_to >= anchor_date:
         rating_start = anchor_points
 
+    # All-time peak on END-OF-DAY values (the last step of each day), so the
+    # star lands on a real point of the by-day curve; the anchor day is a
+    # candidate too. First day the peak was reached wins a tie.
+    end_of_day: dict[dt.date, float] = {anchor_date: float(anchor_points)}
+    for s in steps:
+        end_of_day[s.date] = s.rating_after
+    peak_date, peak_val = max(
+        end_of_day.items(), key=lambda kv: (round(kv[1]), -kv[0].toordinal())
+    )
+
     return schemas.MyRatingBreakdownOut(
+        peak_rating=round(peak_val),
+        peak_date=peak_date,
         date_from=date_from,
         date_to=date_to,
         unit=unit,

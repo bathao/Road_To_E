@@ -461,6 +461,13 @@ def test_rating_breakdown_buckets_and_movers(db):
 
     assert (b.rating_start, b.rating_end) == (950, 960)
     assert (b.total_delta, b.counted) == (9.5, 3)
+    # All-time peak = highest END-OF-DAY value (30/07 closes at 960, above
+    # the 958 of 28–29/07); independent of the requested range.
+    assert (b.peak_rating, b.peak_date) == (960, d2)
+    narrow = service.build_rating_breakdown(
+        db, dt.date(2026, 7, 27), dt.date(2026, 7, 28), unit="day"
+    )
+    assert (narrow.peak_rating, narrow.peak_date) == (960, d2)
     # Every counted match is a mover row, newest first (the GUI table's
     # default sort; other orders are client-side).
     assert [m.delta for m in b.movers] == [9.7, -7.7, 7.5]

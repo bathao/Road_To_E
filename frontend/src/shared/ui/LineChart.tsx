@@ -7,6 +7,9 @@ interface Bar {
   value: number | null; // numeric height driver; null = gap (no dot, no line)
   display: string; // text shown above the bar
   tip?: string; // rich-tooltip heading
+  // Draw a ★ at this point instead of the plain dot (the ELO all-time
+  // peak, 2026-09-24). Its title is the hover text of the star itself.
+  star?: string;
 }
 
 // A YouTube-style area + line trend chart. SVG draws the gridlines, filled
@@ -113,7 +116,16 @@ export default function LineChart({
           </svg>
 
           {coords.map((c, i) =>
-            c.y === null ? null : (
+            c.y === null ? null : c.p.star ? (
+              <div
+                key={i}
+                className={`lc-star${hover === i ? " active" : ""}`}
+                style={{ left: `${c.x}%`, top: `${c.y}%` }}
+                title={c.p.star}
+              >
+                ★
+              </div>
+            ) : (
               <div
                 key={i}
                 className={`lc-dot${hover === i ? " active" : ""}`}
