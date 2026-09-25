@@ -7,12 +7,12 @@ fresh build is always picked up by the browser.
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.core import logbuffer, share
+from app.core import logbuffer, share, syncer
 from app.core.backup import backup_database
 from app.core.db import SessionLocal, init_db
 from app.core.settings import APP_TITLE, FRONTEND_DIST, SHARE_MODE
@@ -42,10 +42,14 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(title=APP_TITLE, lifespan=lifespan)
 
-# Allow the Vite dev server during development.
+# Allow the Vite dev server during development, and the local app (port
+# 8000) so its "Sync to coach" button can poll the shared copy's /api/config.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=[
+        "http://localhost:5173", "http://127.0.0.1:5173",
+        "http://localhost:8000", "http://127.0.0.1:8000",
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -83,6 +87,17 @@ def config():
     """What the GUI needs before rendering: shared read-only mode, whether
     an access code is required, and when the data was last synced."""
     return share.config_payload()
+
+
+@app.post("/api/sync")
+def sync_to_coach():
+    """Local machine only (the read-only guard 403s it on the shared host):
+    checkpoint the DB, commit the snapshot + stamp, push → Render rebuilds
+    the shared copy. See app/core/syncer.py."""
+    try:
+        return syncer.run_sync()
+    except syncer.SyncError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 # ------------------------------------------------------------- serve frontend

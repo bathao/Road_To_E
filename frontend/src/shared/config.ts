@@ -8,14 +8,17 @@
 export interface AppConfig {
   share_mode: boolean;
   key_required: boolean;
-  /** ISO minute timestamp written by sync.bat; null when unknown. */
+  /** ISO timestamp of the last sync (sync.bat / Sync button); null when unknown. */
   last_sync: string | null;
+  /** Public URL of the shared copy (local mode only — the Sync button polls it). */
+  share_url: string | null;
 }
 
 export const LOCAL_CONFIG: AppConfig = {
   share_mode: false,
   key_required: false,
   last_sync: null,
+  share_url: null,
 };
 
 const KEY_STORAGE = "road-to-e.share-key";

@@ -1317,3 +1317,44 @@ input:focus {
   color: var(--danger);
   font-size: 13px;
 }
+
+/* "Sync to coach" button in the header (local machine only) */
+
+.app-tools {
+  margin-left: auto;
+  font-weight: 400;
+}
+
+.sync-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sync-btn {
+  font-size: 13px;
+  padding: 5px 11px;
+}
+
+.sync-status {
+  font-size: 12px;
+  color: var(--muted);
+  max-width: 420px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sync-wait {
+  color: #9a7a1a;
+}
+
+.sync-live {
+  color: #15803d;
+  font-weight: 600;
+}
+
+.sync-error {
+  color: var(--danger);
+  cursor: help;
+}

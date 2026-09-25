@@ -18,9 +18,11 @@ class _Sync:
         return self.text
 
 
-def test_local_mode_is_untouched(client):
+def test_local_mode_is_untouched(client, monkeypatch):
+    monkeypatch.setattr(settings, "LAST_SYNC_PATH", _Sync(None))
     assert client.get("/api/config").json() == {
         "share_mode": False, "key_required": False, "last_sync": None,
+        "share_url": settings.SHARE_PUBLIC_URL,
     }
     assert client.post("/api/tracker/memos", json={"text": "x"}).status_code == 200
 
@@ -44,6 +46,7 @@ def test_share_mode_refuses_every_write(client, monkeypatch):
     assert client.get("/api/health").json() == {"status": "ok"}
     assert client.get("/api/config").json() == {
         "share_mode": True, "key_required": False, "last_sync": "2026-09-25T20:15",
+        "share_url": None,
     }
     # Non-API paths (the SPA itself) are never touched by the guard.
     assert client.get("/").status_code == 200

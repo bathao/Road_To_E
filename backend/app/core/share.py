@@ -68,5 +68,9 @@ def config_payload() -> dict:
     return {
         "share_mode": settings.SHARE_MODE,
         "key_required": bool(settings.SHARE_KEY),
-        "last_sync": last_sync() if settings.SHARE_MODE else None,
+        # Shared host: when its data was published. Local: when the player
+        # last pushed (the Sync button's "Last synced" line).
+        "last_sync": last_sync(),
+        # Local GUI polls this after a push; meaningless on the host itself.
+        "share_url": None if settings.SHARE_MODE else settings.SHARE_PUBLIC_URL,
     }

@@ -54,3 +54,7 @@ SHARE_KEY = os.environ.get("SHARE_KEY", "").strip()
 # Written by sync.bat right before the DB is committed; shown in the shared
 # view's banner ("Last synced ..."). Tracked in git on purpose.
 LAST_SYNC_PATH = DATA_DIR / "last_sync.txt"
+
+# Public URL of the shared copy. The local GUI's "Sync to coach" button polls
+# <url>/api/config after a push until the new last_sync shows up there.
+SHARE_PUBLIC_URL = os.environ.get("SHARE_PUBLIC_URL", "https://road-to-e.onrender.com").rstrip("/")

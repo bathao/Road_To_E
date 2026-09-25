@@ -10,6 +10,7 @@ import {
   type AppConfig,
 } from "./shared/config";
 import { prettyDate } from "./shared/dates";
+import SyncButton from "./shared/ui/SyncButton";
 
 // Top-level layout: a tab bar driven by the registry plus the active tab body.
 // A plain useState (not a router) keeps the build dependency-free.
@@ -58,6 +59,12 @@ export default function AppShell() {
       tabs={tabs}
       shareMode={config.share_mode}
       banner={config.share_mode ? <ShareBanner lastSync={config.last_sync} /> : null}
+      // Local machine only: one click publishes the DB to the shared copy.
+      tools={
+        config.share_mode ? null : (
+          <SyncButton initialLastSync={config.last_sync} shareUrl={config.share_url} />
+        )
+      }
     />
   );
 }
@@ -66,10 +73,12 @@ function Shell({
   tabs,
   shareMode,
   banner,
+  tools,
 }: {
   tabs: TabDef[];
   shareMode: boolean;
   banner: ReactNode;
+  tools: ReactNode;
 }) {
   const firstEnabled = tabs.find((t) => t.enabled) ?? tabs[0];
   const [activeId, setActiveId] = useState(firstEnabled.id);
@@ -84,6 +93,7 @@ function Shell({
         <div className="app-title">
           <span className="app-logo">🏓</span>
           <span>Road To E</span>
+          {tools && <div className="app-tools">{tools}</div>}
         </div>
         <nav className="tab-bar">
           {tabs.map((tab) => (
