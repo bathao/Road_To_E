@@ -1054,6 +1054,24 @@ button.tour-chip-out:hover {
   border-color: #f59e0b;
 }
 
+/* League format chip (2026-09-25): round-robin block, no knockout ladder. */
+.tour-chip-league {
+  background: #e0f2fe;
+  border-color: #38bdf8;
+  color: #075985;
+  font-weight: 600;
+}
+
+/* Format toggle row in the tournament form. */
+.tour-format-row {
+  align-items: center;
+  gap: 10px;
+}
+.tour-format-hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 /* Points-cap row in the tournament form (presets + free input). */
 .tour-points-row {
   display: flex;

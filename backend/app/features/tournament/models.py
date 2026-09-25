@@ -26,6 +26,14 @@ class Tournament(Base):
     # Points-capped tournaments ("giải 1300 điểm", user 2026-08-17): max BBTV
     # points allowed to enter. None = no points cap (rank-limited or open).
     points_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Competition format (user 2026-09-25): "knockout" = the classic
+    # tournament (group stage → knockout ladder; placements, bonus, ☠ marks,
+    # round picker all apply) or "league" = a fixed set of 3–5 round-robin
+    # matches and done — no rounds, no elimination, no placement; the only
+    # result is W–L (e.g. "BBTV League 10 - Week 1").
+    format: Mapped[str] = mapped_column(
+        String, nullable=False, default="knockout", server_default="knockout"
+    )
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     entries: Mapped[list["TournamentEntry"]] = relationship(

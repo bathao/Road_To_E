@@ -11,6 +11,19 @@ export const PLACEMENT_LABEL: Record<string, string> = {
   quarterfinal: "Quarter-final",
 };
 
+// Competition format (2026-09-25). knockout = the classic tournament (group
+// stage → knockout ladder: rounds, ☠ knocked-out, derived placements);
+// league = a fixed round-robin block of 3–5 matches and done — no rounds,
+// no elimination, no placement, W–L is the whole result ("BBTV League").
+export const TOURNAMENT_FORMATS: [string, string][] = [
+  ["knockout", "Tournament"],
+  ["league", "League"],
+];
+export const isLeague = (t: { format?: string | null }) => t.format === "league";
+/** Card / strip / banner icon by format. */
+export const tournamentIcon = (t: { format?: string | null }) =>
+  isLeague(t) ? "🎽" : "🏆";
+
 // Tournament entry disciplines — the single source for both the entry form
 // (TournamentSection) and every label rendered from an entry.
 export const TOURNAMENT_DISCIPLINES: [string, string][] = [

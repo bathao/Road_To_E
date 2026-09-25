@@ -1498,6 +1498,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Config
+         * @description What the GUI needs before rendering: shared read-only mode, whether
+         *     an access code is required, and when the data was last synced.
+         */
+        get: operations["config_api_config_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sync To Coach
+         * @description Local machine only (the read-only guard 403s it on the shared host):
+         *     checkpoint the DB, commit the snapshot + stamp, push → Render rebuilds
+         *     the shared copy. See app/core/syncer.py.
+         */
+        post: operations["sync_to_coach_api_sync_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/{full_path}": {
         parameters: {
             query?: never;
@@ -3453,6 +3496,11 @@ export interface components {
             /** End Date */
             end_date?: string | null;
             /**
+             * Format
+             * @default knockout
+             */
+            format: string;
+            /**
              * Entries
              * @default []
              */
@@ -3923,6 +3971,11 @@ export interface components {
             level_limit?: string | null;
             /** Points Limit */
             points_limit?: number | null;
+            /**
+             * Format
+             * @default knockout
+             */
+            format: string;
             /** Note */
             note?: string | null;
             /**
@@ -3950,6 +4003,11 @@ export interface components {
             level_limit?: string | null;
             /** Points Limit */
             points_limit?: number | null;
+            /**
+             * Format
+             * @default knockout
+             */
+            format: string;
             /** Note */
             note?: string | null;
             /**
@@ -6621,6 +6679,46 @@ export interface operations {
         };
     };
     health_api_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    config_api_config_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    sync_to_coach_api_sync_post: {
         parameters: {
             query?: never;
             header?: never;

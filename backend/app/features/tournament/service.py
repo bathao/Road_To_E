@@ -34,10 +34,14 @@ def _entry_out(
     placements: _Placements,
     warnings: dict[int, str],
     reached: dict[int, tuple[str, bool]],
+    league: bool = False,
 ) -> schemas.EntryOut:
     teammate_ids = [m.player_id for m in e.members]
-    placement = placements.get(e.id, (None,))[0]
-    latest = reached.get(e.id)
+    # League (round-robin block): rounds/placements/bonus/data gaps are
+    # knockout concepts — a league entry reports none of them, whatever the
+    # linked matches' round column says (old league matches saved "group").
+    placement = None if league else placements.get(e.id, (None,))[0]
+    latest = None if league else reached.get(e.id)
     return schemas.EntryOut(
         id=e.id,
         discipline=e.discipline,
@@ -49,7 +53,7 @@ def _entry_out(
         division=e.division,
         final_placement=placement,
         bonus_points=placement_bonus(e.discipline, placement) or None,
-        data_warning=warnings.get(e.id),
+        data_warning=None if league else warnings.get(e.id),
         latest_round=latest[0] if latest else None,
         latest_round_won=latest[1] if latest else None,
         eliminated=e.eliminated,
@@ -72,10 +76,11 @@ def _to_out(
         end_date=t.end_date,
         level_limit=t.level_limit,
         points_limit=t.points_limit,
+        format=t.format,
         note=t.note,
         played=played,
         entries=[
-            _entry_out(e, players, placements, warnings, reached)
+            _entry_out(e, players, placements, warnings, reached, league=t.format == "league")
             for e in t.entries
         ],
     )
@@ -196,6 +201,7 @@ def _apply(t: Tournament, payload: schemas.TournamentIn) -> None:
     )
     t.level_limit = (payload.level_limit or "").strip() or None
     t.points_limit = payload.points_limit  # schema guards 0 < N < 10000
+    t.format = payload.format  # schema guards knockout | league
     t.note = (payload.note or "").strip() or None
     # Entries reconcile IN PLACE by id. Matches reference entries via
     # tournament_entry_id (an ALTER-added column — the live DB has no FK on
@@ -325,12 +331,13 @@ def build_record(db: Session, today: dt.date | None = None) -> schemas.Tournamen
             elo_delta=round(delta, 1) if delta is not None else None,
         )
 
-    def _record_entry(e: TournamentEntry) -> schemas.RecordEntry:
+    def _record_entry(e: TournamentEntry, league: bool) -> schemas.RecordEntry:
         ms = by_entry.get(e.id, [])
         decided = [m for m in ms if m.my_sets != m.opp_sets]
-        rnd, won = reached.get(e.id, (None, False))
+        # League: no "round reached" — W–L is the whole story.
+        rnd, won = (None, False) if league else reached.get(e.id, (None, False))
         return schemas.RecordEntry(
-            entry=_entry_out(e, players, placements, warnings, reached),
+            entry=_entry_out(e, players, placements, warnings, reached, league=league),
             round_reached=rnd,
             reached_won=won,
             wins=sum(1 for m in decided if m.my_sets > m.opp_sets),
@@ -346,7 +353,8 @@ def build_record(db: Session, today: dt.date | None = None) -> schemas.Tournamen
                 location=t.location,
                 start_date=t.start_date,
                 end_date=t.end_date,
-                entries=[_record_entry(e) for e in t.entries],
+                format=t.format,
+                entries=[_record_entry(e, t.format == "league") for e in t.entries],
             )
             for t in past
         ]
@@ -395,6 +403,9 @@ def upcoming_for_coach(
                 "level_limit": t.level_limit or "",
                 # 0 = no points cap (the coach line skips falsy values).
                 "points_limit": t.points_limit or 0,
+                # knockout | league — the coach must not plan a league week
+                # like a knockout run ("cố vào sâu").
+                "format": t.format,
                 "entries": entries,
                 "note": t.note or "",
             }

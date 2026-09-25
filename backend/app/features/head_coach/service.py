@@ -542,7 +542,15 @@ def _bundle_to_text(b: schemas.SourceSummary) -> str:
             limit += f" Giới hạn điểm: ≤{t['points_limit']} điểm BBTV."
         entries = "; ".join(t.get("entries", [])) or "chưa ghi nội dung"
         note = f" Ghi chú: {t['note']}" if t.get("note") else ""
-        return f"  - {t.get('name')}{loc}: {when}.{limit} Nội dung: {entries}.{note}"
+        # League (2026-09-25): a fixed block of 3–5 round-robin matches, no
+        # knockout ladder — the coach must not plan it as a "đi sâu" run.
+        fmt = (
+            " Thể thức: LEAGUE — đánh vòng tròn 3–5 trận rồi kết thúc, không có"
+            " vòng loại trực tiếp, kết quả chỉ tính thắng–thua."
+            if t.get("format") == "league"
+            else ""
+        )
+        return f"  - {t.get('name')}{loc}: {when}.{fmt}{limit} Nội dung: {entries}.{note}"
 
     tour_lines = "\n".join(_tour_line(t) for t in b.tournaments) or (
         "  (chưa đăng ký giải nào)"

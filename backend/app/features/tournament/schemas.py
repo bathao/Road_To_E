@@ -6,6 +6,9 @@ import datetime as dt
 from pydantic import BaseModel, Field, field_validator
 
 DISCIPLINES = ("singles", "doubles", "team")
+# knockout = classic tournament; league = round-robin block of matches, W–L
+# is the whole result (no rounds / elimination / placement).
+FORMATS = ("knockout", "league")
 
 
 class EntryIn(BaseModel):
@@ -36,8 +39,16 @@ class TournamentIn(BaseModel):
     level_limit: str | None = None  # allowed ranks, free text ("E F G"…)
     # Points-capped tournaments ("giải 1300 điểm"): max points allowed.
     points_limit: int | None = Field(default=None, gt=0, lt=10000)
+    format: str = "knockout"  # knockout | league
     note: str | None = None
     entries: list[EntryIn] = []
+
+    @field_validator("format")
+    @classmethod
+    def _known_format(cls, v: str) -> str:
+        if v not in FORMATS:
+            raise ValueError(f"format must be one of {FORMATS}")
+        return v
 
 
 class EntryOut(BaseModel):
@@ -81,6 +92,9 @@ class TournamentOut(BaseModel):
     end_date: dt.date | None = None
     level_limit: str | None = None
     points_limit: int | None = None
+    # knockout | league — a league entry never carries placement / bonus /
+    # data_warning / latest_round (they are knockout concepts).
+    format: str = "knockout"
     note: str | None = None
     # Past the LAST day OR results entered for that last day — entering a
     # same-day tournament's results retires it immediately (user 2026-08-01);
@@ -136,6 +150,7 @@ class RecordTournament(BaseModel):
     location: str | None = None
     start_date: dt.date
     end_date: dt.date | None = None
+    format: str = "knockout"  # league → the GUI shows W–L only, no rounds
     entries: list[RecordEntry] = []
 
 

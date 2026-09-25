@@ -1,6 +1,6 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-09-25) — NEW: shared READ-ONLY copy for the real-life coach (Render free tier, Docker, `SHARE_MODE=1`) + `sync.bat` (WAL checkpoint → commit DB → push); ELO all-time-peak work + DB snapshot committed as `619e611` and tagged **v0.5** first; share-mode code committed `0eafc2c`; **LIVE at https://road-to-e.onrender.com** (no access code, user's choice); ☁ Sync to coach button added (UNCOMMITTED, needs start.bat restart)
+## Current status (2026-09-25) — NEW: shared READ-ONLY copy for the real-life coach (Render free tier, Docker, `SHARE_MODE=1`) + `sync.bat` (WAL checkpoint → commit DB → push); ELO all-time-peak work + DB snapshot committed as `619e611` and tagged **v0.5** first; share-mode code committed `0eafc2c`; **LIVE at https://road-to-e.onrender.com** (no access code, user's choice); ☁ Sync to coach button committed `fbbca51`; **League tournament format** added (UNCOMMITTED, needs start.bat restart)
 
 > **Shared copy (user 2026-09-25: "tìm 1 dịch vụ free … để tôi có thể sync
 > 3 tabs không cần AI local: Daily Tracker, Profile and Journal … chia sẻ
@@ -42,6 +42,33 @@
 >     ONLY the DB + stamp (`git commit -- <paths>`, code stays untouched;
 >     "nothing to push" when the DB is unchanged) → `git push origin master`.
 >     This also closes the TODO watch-list item on stale WAL commits.
+>   - **League format for tournaments (user 2026-09-25: "BBTV League …
+>     chỉ có đánh như đánh league, 3 4 hoặc 5 trận vòng bảng, xong rồi kết
+>     thúc … ko phải mark knocked out"; plan OK'd "Làm đi", ELO: "League hệ
+>     số vẫn quan trọng như các giải khác" → t=1.5 unchanged):**
+>     `tournament.format` = `knockout` (default) | `league`. Migration adds
+>     the column and, ONLY in that same startup, backfills `format=league`
+>     for names containing "League" (applied to the live DB 2026-09-25
+>     evening by the :8001 test server: #14 "BBTV League 10 - Week 1" and
+>     #17 "BBTV League - Group 2"; verified inert on a second run — a later
+>     knockout event named "…League…" keeps the form's choice). League
+>     entries report no placement / bonus / data_warning / latest_round and
+>     the record's round_reached is None even if matches carry rounds (the
+>     5 Week-1 matches still store "group" — harmless, hidden). Coach line
+>     adds "Thể thức: LEAGUE — đánh vòng tròn 3–5 trận rồi kết thúc, không
+>     có vòng loại trực tiếp". GUI: Format toggle (🏆 Tournament / 🎽
+>     League) in the Add/Edit form — auto-picks League while the name
+>     contains "League" until the user clicks the toggle; League chip +
+>     🎽 icon on cards / strip / grid hint / editor banner / record; match
+>     editor hides the Round picker and ☠ for a league and saves round=null
+>     (an edited old "group" is cleared); Profile record shows "League" +
+>     W–L and drops the Round column. Files: tournament `models/schemas/
+>     service/seed.py`, head_coach `service.py`; FE `shared/tournaments.ts`
+>     (TOURNAMENT_FORMATS, isLeague, tournamentIcon), `TournamentSection`,
+>     `TournamentStrip`, `WeekGrid`, `MatchEditor`, `TournamentRecord`,
+>     types, `daily-tracker.css`, `schema.d.ts` regenerated. 2 new tests
+>     (181 pass); CDP screenshots of form / editor / record / strip all as
+>     designed. Needs start.bat restart (backend change).
 >   - **Bugfix — Remember board taller than the screen could not scroll
 >     (user 2026-09-25: "tôi đang viết tới 8 điều, hết màn hình rồi"):**
 >     `.rem-panel` is `position: sticky`; once taller than the viewport its

@@ -206,3 +206,49 @@ def test_record_api_shape(db, client):
     e = body["tournaments"][0]["entries"][0]
     assert e["round_reached"] == "group" and e["wins"] == 1
     assert e["matches"][0]["my_sets"] == 3
+
+
+def test_league_entry_has_no_rounds_placement_or_warning(db):
+    """League format (user 2026-09-25): W–L is the whole result. Even when
+    its matches carry rounds (old league matches were saved as "group", and
+    a stray "f" must not crown a champion), the entry reports no placement,
+    no bonus, no data-gap warning, no round reached / latest round."""
+    cat = category_id(db, "tournament_match")
+    resp = t_service.create_tournament(
+        db,
+        t_schemas.TournamentIn(
+            name="BBTV League 10 - Week 1", start_date=PLAYED, format="league",
+            entries=[t_schemas.EntryIn(discipline="singles")],
+        ),
+    )
+    entry = resp.tournaments[0].entries[0].id
+    _add_match(db, cat, entry, round="group", my=3, opp=2)
+    _add_match(db, cat, entry, round="group", my=1, opp=3, order=1)
+    _add_match(db, cat, entry, round="f", my=3, opp=1, order=2)  # stray round
+
+    out = t_service.build_record(db)
+    t = out.tournaments[0]
+    assert t.format == "league"
+    rec = t.entries[0]
+    assert (rec.wins, rec.losses) == (2, 1)
+    assert rec.round_reached is None and rec.reached_won is False
+    assert rec.entry.final_placement is None and rec.entry.bonus_points is None
+    assert rec.entry.data_warning is None
+    assert rec.entry.latest_round is None and rec.entry.latest_round_won is None
+    # The Daily Tracker list carries the same knockout-free entry.
+    listed = t_service.list_tournaments(db).tournaments[0]
+    assert listed.format == "league" and listed.entries[0].final_placement is None
+
+    # A knockout tournament with the same matches DOES derive a champion —
+    # the league flag is what suppresses it.
+    resp = t_service.create_tournament(
+        db,
+        t_schemas.TournamentIn(
+            name="Knockout Cup", start_date=PLAYED,
+            entries=[t_schemas.EntryIn(discipline="singles")],
+        ),
+    )
+    ko_entry = next(t for t in resp.tournaments if t.name == "Knockout Cup").entries[0].id
+    _add_match(db, cat, ko_entry, round="f", my=3, opp=1)
+    ko = next(t for t in t_service.build_record(db).tournaments if t.name == "Knockout Cup")
+    assert ko.entries[0].entry.final_placement == "champion"

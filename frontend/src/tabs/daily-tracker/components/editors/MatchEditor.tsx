@@ -22,6 +22,7 @@ import {
   ROUND_SHORT,
 } from "../../../../shared/matches";
 import type { TournamentRound } from "../../../../shared/matches";
+import { isLeague, tournamentIcon } from "../../../../shared/tournaments";
 import { resultOf } from "../../../../shared/types";
 
 const FORMATS = [3, 5, 7];
@@ -198,6 +199,9 @@ export default function MatchEditor({
   // the clamped entry.
   const selIdx = Math.min(entryIdx, Math.max(tournamentCtx.length - 1, 0));
   const selCtx = tournamentCtx.length > 0 ? tournamentCtx[selIdx] : null;
+  // League (2026-09-25): a round-robin block — no Round picker, no ☠, and
+  // matches save without a round (nothing pretends to be a stage).
+  const league = selCtx !== null && isLeague(selCtx.tournament);
   // Default round = auto-advance from the deepest decided round (win → next
   // round pre-picked, loss → stays). Re-derived after every save/delete and
   // on entry switch — see the effect below (never while editing a match).
@@ -485,11 +489,14 @@ export default function MatchEditor({
       tournament_entry_id: editingMatch.tournament_entry_id ?? null,
       // Round follows the picker only if the user touched it this edit —
       // otherwise the match keeps its stored value (incl. "no round").
-      round: isTournamentCell
-        ? roundTouched
-          ? round
-          : editingMatch.round ?? null
-        : editingMatch.round ?? null,
+      // League matches never carry a round (an old "group" is cleared).
+      round: league
+        ? null
+        : isTournamentCell
+          ? roundTouched
+            ? round
+            : editingMatch.round ?? null
+          : editingMatch.round ?? null,
     });
     if (ok) resetForm();
   };
@@ -513,7 +520,7 @@ export default function MatchEditor({
       handicap,
       handicap_pattern: handicapPattern,
       tournament_entry_id: selCtx?.entry.id ?? null,
-      round: isTournamentCell ? round : null,
+      round: isTournamentCell && !league ? round : null,
     });
     // Clear the opponent(s) so the next person can be picked right away.
     // Partner + handicap + format are kept (usually the same across a session).
@@ -529,15 +536,23 @@ export default function MatchEditor({
       {selCtx && (
         <div className="tour-banner">
           <span className="tour-banner-name">
-            🏆 {selCtx.tournament.name}
+            {tournamentIcon(selCtx.tournament)} {selCtx.tournament.name}
             {selCtx.entry.division ? ` · ${selCtx.entry.division}` : ""}
           </span>
+          {league && (
+            <span
+              className="tour-chip tour-chip-league"
+              title="League: round-robin block — no rounds, no knocked-out; just enter the matches"
+            >
+              League
+            </span>
+          )}
           {selCtx.entry.discipline === "doubles" && selCtx.entry.partner_name && (
             <span className="tour-chip">
               🤝 with {selCtx.entry.partner_name}
             </span>
           )}
-          {onEliminate && !editingMatch && (
+          {onEliminate && !editingMatch && !league && (
             <button
               className="btn tour-out-btn"
               title="Knocked out of this event — no more matches to enter; once every entry is out, the tournament moves to the Profile record with its result"
@@ -581,8 +596,9 @@ export default function MatchEditor({
         </div>
       )}
 
-      {/* Round: group stage by default; knockout rounds as far as I survive. */}
-      {isTournamentCell && (
+      {/* Round: group stage by default; knockout rounds as far as I survive.
+          Hidden for a league (round-robin block — there are no rounds). */}
+      {isTournamentCell && !league && (
         <div className="seg-row">
           <span className="seg-label">Round</span>
           <select

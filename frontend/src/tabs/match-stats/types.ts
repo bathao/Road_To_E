@@ -166,6 +166,7 @@ export interface RecordTournament {
   location: string | null;
   start_date: string;
   end_date: string | null;
+  format: "knockout" | "league"; // league → W–L only, no rounds column
   entries: RecordEntry[];
 }
 

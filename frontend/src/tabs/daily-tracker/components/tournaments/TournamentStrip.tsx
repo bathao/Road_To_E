@@ -5,7 +5,7 @@
 // ordinary days. Clicking anywhere else scrolls to the management section.
 import { useState } from "react";
 import type { Tournament } from "../../types";
-import { entryLabel } from "../../../../shared/tournaments";
+import { entryLabel, isLeague, tournamentIcon } from "../../../../shared/tournaments";
 import { countdownText, daysUntil, isPast } from "./helpers";
 
 const STRIP_HORIZON = 45; // days
@@ -36,12 +36,15 @@ export default function TournamentStrip({
       <div className="tour-strip-rows">
         {shown.map((t, i) => (
           <div key={t.id} className="tour-strip-row">
-            <span className="tour-strip-name">🏆 {t.name}</span>
+            <span className="tour-strip-name">{tournamentIcon(t)} {t.name}</span>
             <span
               className={`tour-strip-count${daysUntil(t) <= 7 ? " urgent" : ""}`}
             >
               {countdownText(t)}
             </span>
+            {isLeague(t) && (
+              <span className="tour-chip tour-chip-league">League</span>
+            )}
             {t.level_limit && (
               <span className="tour-chip tour-chip-limit">
                 Level: {t.level_limit}

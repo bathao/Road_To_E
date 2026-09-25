@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef } from "react";
 import type { Category, Tournament, WeekResponse } from "../types";
 import { cellKey } from "../types";
 import { dayHeader, monthGroups, todayIso } from "../../../shared/dates";
+import { tournamentIcon } from "../../../shared/tournaments";
 
 // The Excel-like weekly grid. Rows = categories, columns = 7 days.
 // Clicking any cell opens the matching editor for that (category, date).
@@ -157,7 +158,7 @@ export default function WeekGrid({
                         : isPhysicalMirror
                           ? "Managed in the Training Center tab 💪"
                           : tourToday
-                            ? `🏆 ${tourToday.name} — enter this tournament's matches here${fullText ? `\n${fullText}` : ""}`
+                            ? `${tournamentIcon(tourToday)} ${tourToday.name} — enter this tournament's matches here${fullText ? `\n${fullText}` : ""}`
                             : fullText
                               ? `${cat.label} · ${iso}\n${fullText}`
                               : undefined;
@@ -176,9 +177,10 @@ export default function WeekGrid({
                   >
                     {!isRating &&
                       (tourToday && !cell?.display ? (
-                        // Empty tournament-day cell: a soft trophy hint marks
-                        // the input spot without pretending there's data.
-                        <span className="cell-tour-hint">🏆</span>
+                        // Empty tournament-day cell: a soft trophy (or league
+                        // shirt) hint marks the input spot without pretending
+                        // there's data.
+                        <span className="cell-tour-hint">{tournamentIcon(tourToday)}</span>
                       ) : (
                         <span className="cell-text">{cell?.display ?? ""}</span>
                       ))}

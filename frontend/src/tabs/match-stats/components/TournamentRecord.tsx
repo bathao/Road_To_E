@@ -4,7 +4,12 @@ import { dmyDate, prettyDate } from "../../../shared/dates";
 import EloDeltaChip from "../../../shared/ui/EloDeltaChip";
 import { ROUND_LABEL, matchupOf } from "../../../shared/matches";
 import type { TournamentRound } from "../../../shared/matches";
-import { PLACEMENT_LABEL, entryLabel } from "../../../shared/tournaments";
+import {
+  PLACEMENT_LABEL,
+  entryLabel,
+  isLeague,
+  tournamentIcon,
+} from "../../../shared/tournaments";
 // The knocked-out toggle is the Daily Tracker's endpoint — reused, not
 // duplicated, so both surfaces stay one PATCH.
 import { tournamentApi } from "../../daily-tracker/api";
@@ -14,7 +19,9 @@ import type { RecordEntry, TournamentRecordResponse } from "../types";
 // "How far did I get" in one phrase: a derived medal placement (with the
 // flat ELO bonus it earned) when the matches decide one, otherwise the
 // deepest decided round.
-function resultLabel(rec: RecordEntry): string {
+function resultLabel(rec: RecordEntry, league: boolean): string {
+  // League: W–L (rendered next to this label) is the whole result.
+  if (league) return rec.matches.length ? "League" : "No matches entered";
   const p = rec.entry.final_placement;
   if (p) {
     const bonus = rec.entry.bonus_points ? ` +${rec.entry.bonus_points}` : "";
@@ -29,7 +36,7 @@ function resultLabel(rec: RecordEntry): string {
   return rec.reached_won ? `Reached ${name}` : `Stopped at ${name}`;
 }
 
-function MatchTable({ rec }: { rec: RecordEntry }) {
+function MatchTable({ rec, league }: { rec: RecordEntry; league: boolean }) {
   if (rec.matches.length === 0) {
     return <p className="stats-empty">No matches entered for this event.</p>;
   }
@@ -38,7 +45,7 @@ function MatchTable({ rec }: { rec: RecordEntry }) {
       <thead>
         <tr>
           <th>Date</th>
-          <th>Round</th>
+          {!league && <th>Round</th>}
           <th>Match</th>
           <th>Score</th>
           <th>ELO</th>
@@ -48,9 +55,11 @@ function MatchTable({ rec }: { rec: RecordEntry }) {
         {rec.matches.map((m) => (
           <tr key={m.id}>
             <td className="trec-td-date">{dmyDate(m.date)}</td>
-            <td>
-              {m.round ? ROUND_LABEL[m.round as TournamentRound] ?? m.round : "—"}
-            </td>
+            {!league && (
+              <td>
+                {m.round ? ROUND_LABEL[m.round as TournamentRound] ?? m.round : "—"}
+              </td>
+            )}
             <td className="trec-td-match">{matchupOf(m)}</td>
             <td className={m.won == null ? "" : m.won ? "trec-w" : "trec-l"}>
               {m.my_sets}–{m.opp_sets}
@@ -118,7 +127,9 @@ export default function TournamentRecord() {
               onClick={() => setOpenId(open ? null : t.id)}
             >
               <div className="trec-title">
-                <b>{t.name}</b>
+                <b>
+                  {tournamentIcon(t)} {t.name}
+                </b>
                 <span className="trec-date">
                   {prettyDate(t.start_date)}
                   {t.end_date ? ` – ${prettyDate(t.end_date)}` : ""}
@@ -131,7 +142,7 @@ export default function TournamentRecord() {
                     <span className="trec-entry-label">
                       {entryLabel(rec.entry)}
                     </span>
-                    <b className="trec-result">{resultLabel(rec)}</b>
+                    <b className="trec-result">{resultLabel(rec, isLeague(t))}</b>
                     {(rec.wins > 0 || rec.losses > 0) && (
                       <span className="trec-wl">
                         {rec.wins}W–{rec.losses}L
@@ -165,7 +176,7 @@ export default function TournamentRecord() {
                 {t.entries.map((rec) => (
                   <div key={rec.entry.id} className="trec-entry-detail">
                     {t.entries.length > 1 && <h4>{entryLabel(rec.entry)}</h4>}
-                    <MatchTable rec={rec} />
+                    <MatchTable rec={rec} league={isLeague(t)} />
                   </div>
                 ))}
               </div>

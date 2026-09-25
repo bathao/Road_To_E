@@ -6,18 +6,11 @@
 // the history lives in the Profile tab's Tournament Record (read-only —
 // editing/deleting a played tournament has no GUI path anymore).
 import { useState } from "react";
-import type {
-  Player,
-  Tournament,
-  TournamentDiscipline,
-  TournamentEntryIn,
-  TournamentIn,
-  TournamentsResponse,
-} from "../../types";
+import type { Player, Tournament, TournamentDiscipline, TournamentEntryIn, TournamentFormat, TournamentIn, TournamentsResponse } from "../../types";
 import { tournamentApi } from "../../api";
 import { useMutate } from "../../../../shared/useApi";
 import { prettyDate } from "../../../../shared/dates";
-import { entryLabel, TOURNAMENT_DISCIPLINES } from "../../../../shared/tournaments";
+import { TOURNAMENT_DISCIPLINES, TOURNAMENT_FORMATS, entryLabel, isLeague, tournamentIcon } from "../../../../shared/tournaments";
 import Seg from "../../../../shared/ui/Seg";
 import PlayerPicker from "../editors/PlayerPicker";
 import { countdownText, daysUntil, isPast } from "./helpers";
@@ -56,6 +49,10 @@ interface Draft {
   location: string;
   start_date: string;
   end_date: string;
+  // knockout | league. Auto-follows the name ("…League…" → league) until
+  // the user clicks the Format toggle themselves (formatTouched).
+  format: TournamentFormat;
+  formatTouched: boolean;
   // Rank limit: selected ranks, or explicit Open, or neither (unspecified).
   levels: string[];
   open: boolean;
@@ -71,6 +68,8 @@ const EMPTY_DRAFT: Draft = {
   location: "",
   start_date: "",
   end_date: "",
+  format: "knockout",
+  formatTouched: false,
   levels: [],
   open: false,
   points: "",
@@ -89,6 +88,8 @@ function toDraft(t: Tournament): Draft {
     location: t.location ?? "",
     start_date: t.start_date,
     end_date: t.end_date ?? "",
+    format: t.format ?? "knockout",
+    formatTouched: true, // editing: never second-guess a stored format
     levels: open ? [] : raw.split(/\s+/).filter((r) => RANKS.includes(r as never)),
     open,
     points: t.points_limit ? String(t.points_limit) : "",
@@ -129,6 +130,7 @@ function toPayload(d: Draft): TournamentIn {
     level_limit: d.open ? OPEN : levels || null,
     // Open = no limit at all — it clears the points cap too.
     points_limit: !d.open && Number.isInteger(points) && points > 0 ? points : null,
+    format: d.format,
     note: d.note.trim() || null,
     entries,
   };
@@ -137,6 +139,7 @@ function toPayload(d: Draft): TournamentIn {
 // Keys + labels come from the shared single source (entryLabel uses the
 // same map, so the form and every rendered label can't drift apart).
 const DISCIPLINES = TOURNAMENT_DISCIPLINES as [TournamentDiscipline, string][];
+const FORMATS = TOURNAMENT_FORMATS;
 
 function EntryRow({
   entry,
@@ -246,7 +249,17 @@ function TournamentForm({
           className="pb-input tour-name"
           placeholder="Tournament name *"
           value={d.name}
-          onChange={(e) => setD({ ...d, name: e.target.value })}
+          onChange={(e) => {
+            const name = e.target.value;
+            // "…League…" in the name pre-picks the League format until the
+            // user takes over the toggle.
+            const format: TournamentFormat = d.formatTouched
+              ? d.format
+              : /league/i.test(name)
+                ? "league"
+                : "knockout";
+            setD({ ...d, name, format });
+          }}
         />
         <input
           type="text"
@@ -255,6 +268,33 @@ function TournamentForm({
           value={d.location}
           onChange={(e) => setD({ ...d, location: e.target.value })}
         />
+      </div>
+      <div className="tour-form-row tour-format-row">
+        <span className="seg-label">Format</span>
+        <div className="seg">
+          {FORMATS.map(([k, lbl]) => (
+            <button
+              key={k}
+              className={`seg-btn${d.format === k ? " active" : ""}`}
+              title={
+                k === "league"
+                  ? "League: a fixed block of 3–5 round-robin matches, then done — no rounds, no knocked-out, no placement; W–L is the result"
+                  : "Tournament: group stage → knockout rounds; placements and ELO bonus derive from the rounds you enter"
+              }
+              onClick={() =>
+                setD({ ...d, format: k as TournamentFormat, formatTouched: true })
+              }
+            >
+              {k === "league" ? "🎽 " : "🏆 "}
+              {lbl}
+            </button>
+          ))}
+        </div>
+        <span className="tour-format-hint">
+          {d.format === "league"
+            ? "Round-robin block: no Round picker, no ☠, result = W–L."
+            : "Rounds, knocked-out marks and placements apply."}
+        </span>
       </div>
       <div className="tour-form-row">
         <label>
@@ -411,7 +451,7 @@ function TournamentCard({
   return (
     <div className={`tour-card${urgent ? " urgent" : ""}`}>
       <div className="tour-card-head">
-        <span className="tour-card-name">🏆 {t.name}</span>
+        <span className="tour-card-name">{tournamentIcon(t)} {t.name}</span>
         <span className="tour-card-count">{countdownText(t)}</span>
       </div>
       <div className="tour-card-meta">
@@ -420,6 +460,14 @@ function TournamentCard({
         {t.location ? ` · ${t.location}` : ""}
       </div>
       <div className="tour-card-chips">
+        {isLeague(t) && (
+          <span
+            className="tour-chip tour-chip-league"
+            title="League: round-robin block, no rounds / knocked-out / placement"
+          >
+            League
+          </span>
+        )}
         {t.level_limit && (
           <span className="tour-chip tour-chip-limit">Level: {t.level_limit}</span>
         )}

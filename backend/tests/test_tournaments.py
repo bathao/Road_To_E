@@ -150,3 +150,32 @@ def test_upcoming_for_coach_labels_and_horizon(db):
     assert abc["level_limit"] == "E F G"
     assert abc["entries"] == ["đơn — hạng E", "đôi (đánh cặp với Bình)"]
     assert up[0]["days_left"] == -1  # running now
+
+
+def test_league_format_roundtrip_and_coach_line(db):
+    """League format (user 2026-09-25): a round-robin block of 3–5 matches,
+    no knockout ladder. Stored/echoed on the tournament, default knockout,
+    schema rejects unknown values, and the coach line says so in Vietnamese."""
+    resp = service.create_tournament(
+        db, _payload("BBTV League 10 - Week 2", TODAY + dt.timedelta(days=3), format="league")
+    )
+    league = resp.tournaments[0]
+    assert league.format == "league"
+    # Default stays knockout — a name with "League" in it does NOT flip the
+    # format by itself (only the one-off migration backfill did that).
+    service.create_tournament(db, _payload("Giải League Cup", TODAY + dt.timedelta(days=5)))
+    resp = service.list_tournaments(db, today=TODAY)  # upcoming, soonest first
+    assert [t.format for t in resp.tournaments] == ["league", "knockout"]
+
+    up = service.upcoming_for_coach(db, today=TODAY, horizon_days=90)
+    assert [t["format"] for t in up] == ["league", "knockout"]
+
+    # Switching format via update.
+    service.update_tournament(
+        db, league.id,
+        _payload("BBTV League 10 - Week 2", TODAY + dt.timedelta(days=3), format="knockout"),
+    )
+    assert service.list_tournaments(db, today=TODAY).tournaments[0].format == "knockout"
+
+    with pytest.raises(ValueError):
+        schemas.TournamentIn(name="x", start_date=TODAY, format="cup")

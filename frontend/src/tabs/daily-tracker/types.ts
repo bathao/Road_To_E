@@ -391,6 +391,9 @@ export interface Tournament {
   end_date?: string | null; // null = single-day
   level_limit?: string | null; // allowed ranks, free text ("E F G"…)
   points_limit?: number | null; // points-capped tournaments (≤N points)
+  // knockout (classic: rounds, ☠, placements) | league (a round-robin block
+  // of 3–5 matches and done — W–L is the whole result). 2026-09-25.
+  format: TournamentFormat;
   note?: string | null;
   // Ended before today OR results already entered — the strip + section
   // filter played tournaments OUT on this flag (history lives in the
@@ -410,6 +413,8 @@ export interface TournamentEntryIn {
   division?: string | null;
 }
 
+export type TournamentFormat = "knockout" | "league";
+
 export interface TournamentIn {
   name: string;
   location?: string | null;
@@ -417,6 +422,7 @@ export interface TournamentIn {
   end_date?: string | null;
   level_limit?: string | null;
   points_limit?: number | null;
+  format: TournamentFormat;
   note?: string | null;
   entries: TournamentEntryIn[];
 }

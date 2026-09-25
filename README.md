@@ -37,7 +37,9 @@ model; it falls back to `qwen3:14b` if not pulled — see
   - Match rows (Practice / Official / Tournament) → Singles / Doubles / 1v2 /
     2v1, BO3/5/7, score picker, opponents/partner from the player pool,
     per-set handicap patterns, tournament link + round, per-match ±ELO chip.
-    No typing.
+    No typing. Tournaments have a **format**: Tournament (group → knockout
+    rounds, ☠ knocked-out, derived placements) or **League** (a round-robin
+    block of 3–5 matches; no rounds, no elimination, W–L is the result).
   - Coach & Recap row → structured items per coach-session day (advice with
     a done-lifecycle, numbered drills, session recaps) — feeds the AI coach.
   - Overall row → auto color; day notes; upcoming-tournament strip + section
