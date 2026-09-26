@@ -79,6 +79,10 @@ no editing, same GUI. It is the same app started with `SHARE_MODE=1`
 - every non-GET call under `/api/` is refused with 403, the GUI hides the
   other tabs and shows a "Read-only view · Last synced …" banner, and the
   API client refuses writes before they leave the browser;
+- the write affordances (Add tournament / Edit / Delete, the diary composer,
+  the Remember and Tracking add boxes, item actions) are hidden under the
+  `.share-mode` class (`styles/base.css`) — the coach mostly reads on a
+  phone, so the three tabs are checked at 390px too;
 - optional `SHARE_KEY`: the coach types the code once (remembered in the
   browser; the export link carries it as `?key=`);
 - the on-startup backup is skipped (the host's disk is ephemeral).

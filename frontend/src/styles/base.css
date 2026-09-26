@@ -1261,6 +1261,33 @@ input:focus {
   color: #9a7a1a;
 }
 
+/* Read-only shared copy: every write affordance is hidden outright (the
+   backend 403s them anyway). Coach's phone 2026-09-26: "+ Add tournament",
+   Edit / Delete, the Remember add box and the diary composer were all
+   visible and only produced errors. Cell clicks in the grid stay: they are
+   the only way to read a match's details. */
+.share-mode .tour-head .btn,
+.share-mode .tour-hint,
+.share-mode .tour-empty,
+.share-mode .tour-card-actions,
+.share-mode .tour-strip-manage,
+.share-mode .rem-add,
+.share-mode .rem-actions,
+.share-mode .trk-add,
+.share-mode .trk-actions,
+.share-mode .trk-edit,
+.share-mode .jr-composer,
+.share-mode .jr-act,
+.share-mode .trec-out {
+  display: none !important;
+}
+
+.share-mode .trk-tick,
+.share-mode .tour-chip-out,
+.share-mode .tour-strip {
+  pointer-events: none;
+}
+
 .share-gate {
   display: flex;
   align-items: center;

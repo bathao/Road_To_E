@@ -18,31 +18,6 @@
   justify-content: center;
 }
 
-@media (max-width: 1500px) {
-  .tab-journal {
-    max-width: 1220px;
-    grid-template-columns: minmax(0, 760px) minmax(320px, 420px);
-  }
-  .rem-panel {
-    grid-column: 1 / -1;
-    position: static;
-    max-height: none;
-  }
-}
-
-@media (max-width: 1100px) {
-  .tab-journal {
-    grid-template-columns: minmax(0, 760px);
-  }
-  /* Stacked: the Tracking board sits below the diary, so no pin, no cap. */
-  .trk-panel {
-    position: static;
-    max-height: none;
-    overflow: visible;
-    padding-right: 0;
-  }
-}
-
 /* ---------------- slogan banner (2026-09-24) ---------------- */
 /* Spans every column, sits above the three panels. Big and calm: one line,
    heavy type, generous tracking, a soft warm band so it reads as a motto
@@ -699,6 +674,42 @@
   overscroll-behavior: contain;
   padding-right: 4px;
   scrollbar-width: thin;
+}
+
+/* ---------------- responsive stacking ---------------- */
+/* These overrides MUST come after the .rem-panel / .trk-panel rules above:
+   a media query adds no specificity, so when this block sat at the top of
+   the file the later `position: sticky` won and, on any window narrower
+   than 1500px (every phone), the Remember board stayed pinned while the
+   diary scrolled straight through it (coach's phone, 2026-09-26). */
+@media (max-width: 1500px) {
+  .tab-journal {
+    max-width: 1220px;
+    grid-template-columns: minmax(0, 760px) minmax(320px, 420px);
+  }
+  .rem-panel {
+    grid-column: 1 / -1;
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+  .rem-list {
+    overflow: visible;
+    padding-right: 0;
+  }
+}
+
+@media (max-width: 1100px) {
+  .tab-journal {
+    grid-template-columns: minmax(0, 760px);
+  }
+  /* Stacked: the Tracking board sits below the diary, so no pin, no cap. */
+  .trk-panel {
+    position: static;
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
 }
 
 .trk-head {

@@ -48,12 +48,19 @@ scannable. Last full sync: 2026-07-29.
 - [ ] **Shared read-only copy on Render — LIVE 2026-09-25 at
   https://road-to-e.onrender.com** (`0eafc2c`, Docker build passed in 1 min,
   no access code by the user's choice). Watch: (a) the coach's first open
-  and the first REAL "pushed" run of the ☁ Sync to coach button (DB
-  changed → commit → push → Render redeploy → button turns "✓ Live"); (b) whether the ~50 s wake-up after 15 idle minutes bothers
+  — the first REAL "pushed" run of the ☁ Sync to coach button is DONE
+  (`39bf375` "DB sync 2026-09-26" 19:28, DB + stamp only, pushed; probed
+  from outside at 19:31: Render already served `last_sync 19:28`,
+  last-date 26/09, 180 counted matches — redeploy ≈ 2 min). User then
+  reported "web vẫn không thấy" → the SPA tab was opened before the
+  redeploy and holds old state; a page reload is required, the API and
+  index.html are `no-store` so nothing else caches; (b) whether the ~50 s wake-up after 15 idle minutes bothers
   the coach — then a pinger (cron-job.org → `/api/health`, every 10 min);
-  (c) editors in the shared GUI still OPEN on click (saving fails with the
-  read-only sentence) — hide the edit affordances in `.share-mode` if the
-  coach finds that confusing.
+  (c) DONE 2026-09-26 — the coach opened the link on a phone ("hiển thị
+  rất tệ"): write affordances now hidden under `.share-mode`, the Journal
+  sticky-board CSS order bug and the Tournament Record squeeze fixed (see
+  PROGRESS). Grid cells still open the match editor on tap (read-only, it
+  is the only detail view) — hide that too if the coach trips on it.
 
 - [x] **Checkpoint the DB before committing it** (found 2026-08-23; SOLVED
   2026-09-25 — `sync.bat` runs `backend/scripts/sync_prepare.py`, which

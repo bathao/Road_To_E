@@ -1,6 +1,6 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-09-25) — NEW: shared READ-ONLY copy for the real-life coach (Render free tier, Docker, `SHARE_MODE=1`) + `sync.bat` (WAL checkpoint → commit DB → push); ELO all-time-peak work + DB snapshot committed as `619e611` and tagged **v0.5** first; share-mode code committed `0eafc2c`; **LIVE at https://road-to-e.onrender.com** (no access code, user's choice); ☁ Sync to coach button committed `fbbca51`; **League tournament format** added (UNCOMMITTED, needs start.bat restart)
+## Current status (2026-09-26) — shared READ-ONLY copy for the real-life coach is LIVE at https://road-to-e.onrender.com (Render free tier, Docker, `SHARE_MODE=1`, no access code by the user's choice); ELO all-time-peak + DB snapshot `619e611` tagged **v0.5**; share-mode code `0eafc2c`; ☁ Sync to coach button `fbbca51`; **League tournament format** committed `57d948b` (2026-09-25 21:44, after DB sync `3c81bff`); **first real DB sync via the ☁ button: `39bf375` 2026-09-26 19:28** (DB + stamp only, pushed, working tree clean); **phone fixes for the shared copy** (coach opened the link on a phone) — Journal sticky-board CSS order bug, Tournament Record squeeze, write affordances hidden in `.share-mode`
 
 > **Shared copy (user 2026-09-25: "tìm 1 dịch vụ free … để tôi có thể sync
 > 3 tabs không cần AI local: Daily Tracker, Profile and Journal … chia sẻ
@@ -68,7 +68,9 @@
 >     `TournamentStrip`, `WeekGrid`, `MatchEditor`, `TournamentRecord`,
 >     types, `daily-tracker.css`, `schema.d.ts` regenerated. 2 new tests
 >     (181 pass); CDP screenshots of form / editor / record / strip all as
->     designed. Needs start.bat restart (backend change).
+>     designed. Committed `57d948b` (2026-09-25 21:44) right after the DB
+>     sync `3c81bff`; backend change → needs a start.bat restart to take
+>     effect locally (the Render copy rebuilt from the push).
 >   - **Bugfix — Remember board taller than the screen could not scroll
 >     (user 2026-09-25: "tôi đang viết tới 8 điều, hết màn hình rồi"):**
 >     `.rem-panel` is `position: sticky`; once taller than the viewport its
@@ -106,13 +108,45 @@
 >     179 pass. Verified live on :8001: the "nothing" path (DB unchanged →
 >     no commit, stamp restored) and a non-interactive `git push --dry-run`
 >     from a Python subprocess (credentials OK). The "pushed" path's first
->     real run is the user's first click after new data.
+>     real run is the user's first click after new data. → **Happened
+>     2026-09-26 19:28: commit `39bf375` "DB sync 2026-09-26"** (DB +
+>     `last_sync.txt` only, 712 KB, pushed to origin/master, tree clean) —
+>     the "pushed" path works end to end.
 >   - **LIVE 2026-09-25 evening:** Render account created (GitHub login),
 >     Blueprint applied on `0eafc2c`, Docker build passed first try in 1m00s
 >     → **https://road-to-e.onrender.com** (Singapore, Free). Probed from
 >     outside: `/api/health` 200 in 0.4 s, `/api/config` `share_mode=true`
 >     + `last_sync 2026-09-25T20:13`, real data served (ELO 986 / 176
 >     matches / 8 memos, CSV export 200), POST/DELETE → 403, SPA loads.
+>   - **Phone fixes for the shared copy (user 2026-09-26: "coach mở bằng
+>     điện thoại, hiển thị rất tệ … qua tab Journal, scroll lên nó hiện
+>     tung tung"; plan OK'd "làm tất cả đi"):** reproduced with headless
+>     Chrome via CDP at 390×844 (iPhone UA, touch) against the live Render
+>     copy, then re-verified on a local `SHARE_MODE=1` server on :8001.
+>     (1) **Journal "hiện tung tung"** — a CSS ORDER bug: the `@media
+>     (max-width: 1500px/1100px)` blocks that make `.rem-panel` /
+>     `.trk-panel` static sat at the TOP of `journal.css`, and the base
+>     `position: sticky` rules further down won (same specificity), so on
+>     every screen under 1500px the Remember board stayed pinned at
+>     `calc(100vh - 130px)` tall while the diary scrolled straight through
+>     it. Fix: the two media blocks moved AFTER the panel rules (+ `.rem-list`
+>     overflow visible when stacked). Verified: 390px scrolls clean; 1920px
+>     keeps all three sticky columns; 1366px = Remember static above the
+>     diary, Tracking sticky — the layout intended on 2026-09-24 (a 1366
+>     laptop was silently affected by the same bug before). (2) **Profile →
+>     Tournament Record** — `.trec-head` was a non-wrapping flex row with
+>     `.trec-entries { flex: 1 }`, so the title collapsed to one word per
+>     line on a phone (cards 300px tall). Now `flex-wrap: wrap`, title
+>     `flex: 1 1 200px`, entries `flex: 1 1 220px` (side by side when wide,
+>     stacked when narrow), left-aligned under 600px. (3) **Write
+>     affordances hidden in share mode** (closes TODO watch item (c)):
+>     `.share-mode` rules in `base.css` hide `＋ Add tournament`, the hint /
+>     empty text, card Edit/Delete, the strip's "Manage ↓", the Remember and
+>     Tracking add boxes and per-item actions, the diary composer, diary
+>     ✏️/✕, the ☠ un-mark chip; `.trk-tick` / strip / out-chips get
+>     `pointer-events: none`. Grid cells still open the editor on tap — the
+>     only way to read a match's details. CSS-only, no backend change; dist
+>     rebuilt; committed + pushed so Render redeploys (~2 min).
 >   - **No access code — user's decision** ("Không cần mật mã. link này
 >     mấy người biết đâu, trừ người tôi share"): `SHARE_KEY` left empty, the
 >     link is open to whoever has it. Don't re-suggest. Pinger not set up
