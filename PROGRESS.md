@@ -1,6 +1,222 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-09-26) — shared READ-ONLY copy for the real-life coach is LIVE at https://road-to-e.onrender.com (Render free tier, Docker, `SHARE_MODE=1`, no access code by the user's choice); ELO all-time-peak + DB snapshot `619e611` tagged **v0.5**; share-mode code `0eafc2c`; ☁ Sync to coach button `fbbca51`; **League tournament format** committed `57d948b` (2026-09-25 21:44, after DB sync `3c81bff`); **first real DB sync via the ☁ button: `39bf375` 2026-09-26 19:28** (DB + stamp only, pushed, working tree clean); **phone fixes for the shared copy** (coach opened the link on a phone) — Journal sticky-board CSS order bug, Tournament Record squeeze, write affordances hidden in `.share-mode`
+## Current status (2026-10-10, night) — 14 days of pure USE since 26/09, then one evening of Tactics-tab work, COMMITTED as one code commit on top of the user's ☁ sync `d34318e`: **Match log = point-by-point charting of hand-picked singles matches, ledger layout, derived shot statistics fed into the coach context** (3 new tables, serve repertoire seeded with the user's 6 serves), type-to-search opponent picker, "About me" scouting moved to Profile, "My analysis" section dropped from the GUI, opponent intake = general info only (+ Age / Build), 🗑 Clear plan; 187 tests pass, dist rebuilt; **needs a start.bat restart** (the :8000 process was still the 17:20 one at the end of the session); the ☁ Sync to coach button is now routine (3 more DB syncs: `bba6e79` 28/09, `3fcef1b` 07/10, `a82c368` 08/10) and the Render copy serves `last_sync 2026-10-08T18:14`; TODAY's BBTV League (4W–1L) + Tactics plan #3 sit only in the WAL (uncommitted — next ☁ click); Giải EFF FriendShip (TEAM, "New City") is TOMORROW 11/10
+
+> **Facts (read-only DB query + live probes, 2026-10-10 17:30; start.bat
+> is running on :8000 — WAL 202 KB, so the committed main file is 08/10):**
+>   - **Sync path proven:** three real "pushed" runs after `39bf375`
+>     (28/09 21:06, 07/10 19:35, 08/10 18:14; DB + stamp only, tree clean).
+>     Render probed from outside today: cold wake-up 22.6 s → `/api/config`
+>     200, `share_mode=true`, `last_sync 2026-10-08T18:14`. Nothing to fix.
+>   - **Data:** 448 matches (03/03 → 10/10), 173 players (+12 since 26/09:
+>     ids 162–173, all with points), ELO **1030** (anchor 950 on 27/07, 203
+>     counted matches). Window 27/09–10/10: 23 matches, 14W–9L (61 %),
+>     7 new singles opponents.
+>   - **League format in real use:** entry #21 "BBTV League 10 - Week 2"
+>     (26/09) 2W–2L; entry #22 on tournament #18 **"BBTV League"** (10/10 —
+>     NO week number in the name, probably Week 3 → ask the user) 4W–1L: the
+>     opener lost 2–3 to Nguyễn Phúc Hoàng Vy (1100) — the very player
+>     **Tactics plan #3** was generated for this morning (first plan since
+>     #2 on 17/08, `qwen3.5:9b`, status done, data_gaps flags her empty
+>     scouting) — then W 3–1 / 3–2 / 3–0 / 3–0 vs 950 / 1050 / 1000 / 900.
+>     All 5 matches are `tournament_match`, round = null, as designed.
+>   - **Upcoming entries:** Giải EFF FriendShip 11/10 (team "New City",
+>     entry #19), Giải Đơn Hổn Hợp CLB Gia Định 24/10 (singles, #23), Đồng
+>     Đội Vi Mạch 01/11 (team "Ampere Computing", #20), Giải Friendship FGH
+>     22/11 (team, no roster yet, #24).
+>   - **Training:** coach sessions 29/09, 01/10, 08/10 (120 min each),
+>     partner 07/10 (90 min). Training Center: session #26 (explosive
+>     day 5, legs) still `unlocked` — no TC session completed since 07/09
+>     (33 days); jump-rope watch item therefore has no new data.
+>   - **Journal / AI coach:** latest real-coach advice 24/09 (#15, serve
+>     short right → loop), 8 Remember memos unchanged, **Tracking board
+>     STILL 0 rows** (46 days since go-live), day note 25/09 "Rest". No
+>     recap since #11 (05/09, 5 weeks), no verdict since #17 (16/08, 8
+>     weeks) — the only AI feature touched in this window is Tactics.
+>   - **Match log — point-by-point charting in the Tactics tab (user
+>     2026-10-10 evening, screenshot of the tab: "khi tôi chọn 1 đối thủ …
+>     nó phải hiện rõ 2 trận gần nhất, rồi … tôi sẽ input các thông tin
+>     cần thiết của 2 trận đó … Tỉ số các set, Ai giao bóng trước … điểm 1
+>     tôi giao ntn, tấn công thành công, thất bại ra sao … tôi cần 1 bảng
+>     thống kê … tôi giật phải qua phải bao nhiêu, qua trái bao nhiêu …
+>     Dữ liệu detail đó sẽ được lưu vào database, thì AI coach mới có data
+>     để phân tích"; scope clarified "nhập liệu thiệt là kỹ lưỡng, của vài
+>     trận cố định thôi"; serve detail added "nếu tôi giao thì tôi giao
+>     bóng kiểu gì, độ xoáy điểm rơi ntn. Nếu đối thủ giao thì …"; after a
+>     clickable HTML mock-up (2 rounds — the user asked for a first-server
+>     toggle, typed set scores, MY serve repertoire as 1-tap chips with an
+>     add button, the opponent's serves LEARNED from the first points, and
+>     Vietnamese chip labels), the user dictated the 6 serves + "lưu nó lại
+>     vô database cá nhân của tôi luôn" = go):**
+>     - **Placement convention (user): Right / Middle / Left are ALWAYS
+>       from the RECEIVER's side** ("khi tôi nói tôi giao qua phải, là có
+>       nghĩa là qua phải của đối thủ"). Every chip label says whose side.
+>     - **Data (3 new tables, `create_all` makes them on the next
+>       start.bat; no ALTER):** `tactic_serve` = the user's named serve
+>       repertoire (name, stance right|center|left, motion, spin, amount,
+>       length, default place) — seeded ONCE with the 6 dictated serves
+>       (marker `tracker_setting.tactic_serves_seeded`, so GUI deletions
+>       stick); `tactic_set` = typed set scores + first_server per set;
+>       `tactic_point` = one rally: set_no/point_no/server/winner/end_kind
+>       (winner|error)/forced/note + `shots_json` (chain of {h, serve?,
+>       serve_id?, stance/motion/spin/amount/length | stroke, place}).
+>       Points COPY the serve attributes so editing/deleting a repertoire
+>       row never rewrites history. Codes are English and fixed (models.py
+>       header lists them); `vocab.ts` carries the Vietnamese chip labels
+>       — a standing exception to the English-GUI rule (saved in memory).
+>     - **Backend** (`tactics/matchlog.py`, routes under `/api/tactics`):
+>       serves CRUD; `GET matchlog/{match_id}` (sets + points + the
+>       opponent's distinct serves seen across ALL charted matches vs
+>       them, most frequent first); `PUT …/sets` (replace); `POST
+>       …/points` (validates: first shot = the server's serve with spin +
+>       length, later shots have a stroke, hitters alternate; winner
+>       derived: last hitter on a clean winner, the other player on an
+>       error; point_no = next in the set); `PUT points/{id}/note`;
+>       `DELETE points/{id}` (later points of the set renumber); `GET
+>       matchlog/status/{player_id}`; `GET matchlog/{match_id}/stats` and
+>       `GET stats/{player_id}` → one `StatsOut`: points me/opp, won % on
+>       my / their serve, my attacks per stroke × landing spot [won, lost,
+>       missed], errors per stroke [unforced, forced] both sides, clean
+>       winners, my receive stroke vs outcome, every serve's played/won
+>       (mine by repertoire row, theirs by attributes), rally-length
+>       buckets, clutch points from 8-8, the per-point notes. Only singles
+>       matches with an opponent have a log (404 otherwise). 5 tests
+>       (`test_matchlog.py`); 186 pass.
+>     - **GUI** — new section "🎬 Match log" between Head-to-head and
+>       Scouting (`MatchLogSection.tsx`): every singles match vs the
+>       opponent with a status chip (not logged / N set scores typed / N
+>       pts charted) and Log points ›. `PointCharter.tsx` (port of the
+>       approved mock-up): first-server toggle for set 1 (later sets
+>       alternate, each set box says who serves first), set boxes = typed
+>       score inputs that lock and auto-fill once a set has points, the
+>       set count comes from the match's my_sets+opp_sets; scoreboard
+>       with derived score / point no. / server (2 serves each, 1 each
+>       from 10-10); rally breadcrumb; stages: MY serve = one tap on a
+>       repertoire chip (its default landing spot commits it, a "Giao
+>       rơi" row lets you re-tap another spot before the next shot) +
+>       "＋ Thêm bài giao mới" inline form (name + stance/motion/spin/
+>       amount/length/place chips → saved to the repertoire and picked);
+>       THEIR serve = "đã thấy N×" chips or 5 chip rows for a new one,
+>       then landing spot; rally = stroke chip + landing spot (hitter
+>       alternates); ✓ / ✗ end the point on the LAST shot; then Tự hỏng /
+>       Bị ép + note + Save. Keyboard: digits = serve / stroke chips, R M
+>       L, W E, U F, Enter, Backspace. Points table per set with ✕.
+>       `MatchReport.tsx`: KPI tiles + the 6 tables + notes, toggle "This
+>       match / All charted vs <name>". CSS `ml-*` in `tactics.css`;
+>       `schema.d.ts` regenerated.
+>     - **Verified** with headless-Chrome CDP against a :8001 server on the
+>       real DB: picker → Vy → match list (2 rows, "not logged") → Log
+>       points → Vy serves first → Vy's serve built from chips → my push →
+>       her BH loop → E (keyboard) → Bị ép + note → Save = 1–0; point 2
+>       picked her serve from the "đã thấy 1×" chip, W + Enter = 2–0;
+>       point 3: my serve chip #1 committed with → R in one tap, winner =
+>       3–0; report tiles/tables correct (attacks Giật phải 1/0/0 at L,
+>       errors Vy Giật trái forced 1, receive Gò phải 100 %, serves
+>       played/won, note listed with date + score); all 3 test points
+>       deleted via ✕ (table empty, score back to 0–0) and the test set
+>       row cleared — the DB keeps only the 3 empty tables + the 6 serves.
+>     - **Needs a start.bat restart** (new backend routes/tables). The
+>       ☁ Sync the user clicked at 18:44 today (`d34318e`) snapshotted the
+>       DB BEFORE the new tables existed (checked the blob) — clean.
+>     - **Ledger layout (user, same evening: "Tôi muốn thiết kế từng điểm
+>       kiểu từng dòng … tôi chọn kiểu giao ở các option ở trên, nó hiện
+>       xuống dưới dòng đó, xong tôi viết tiếp diễn biến … Design cho có
+>       điểm của set đó ở đâu đó trong GUI"; then "Làm luôn tất cả mọi thứ
+>       đã plan nãy giờ luôn nha. Tôi sẽ góp ý trực tiếp trên product"):**
+>       `PointCharter.tsx` rewritten as ONE column — setup row → palette
+>       card with a "Set 1 · Point 5 · 3 – 1 · 🏓 Thảo giao bóng" strip +
+>       the context chips → the LIVE ROW right under them ("#5 · 3–1 ·
+>       Thảo giao … › Vy Gò phải → Phải › Thảo Giật phải (bóng xoáy xuống)
+>       → Phải › ✓ ăn điểm · +1 Thảo → 4–1", Save / Undo on the row) →
+>       ledger card: one line per logged point, newest first, score after
+>       the point, ✕. Extras from the user's three worked examples:
+>       stroke `other` "Đỡ / cú khác" (for "Vy đỡ ra ngoài"); a shot that
+>       MISSED needs no landing spot (✗ chip appears next to the Rơi row as
+>       soon as a stroke is picked; backend `place` nullable, validated:
+>       only the last shot of an error point may lack it; the attacks
+>       table folds place "-" into the total column only); optional "Bóng
+>       tới" chip (bóng xoáy xuống / xoáy lên / lỏng, stored as `ball`,
+>       shown in the row text, not yet in the stats); receive stats now
+>       [won, lost, missed] for BOTH sides ("Thảo đỡ hư giao bóng 1 quả").
+>     - **Step 2 DONE in neutral form:** `matchlog.stats_block_for()`
+>       renders `StatsOut` as Vietnamese fact lines and `build_context`
+>       inserts a "=== THỐNG KÊ TỪNG ĐIỂM TỪ CÁC TRẬN ĐÃ GHI CHI TIẾT VỚI
+>       <NAME> ===" section (only when something is charted) before the
+>       coach notebook — so the plan / interview prompts already read the
+>       numbers. The user will tune the PROMPT wording themselves ("Tôi sẽ
+>       custom prompt cho AI coach phân tích sau") — don't invent one. 2
+>       more tests (187 pass).
+>     - **Re-verified** via CDP on :8001 with the user's own three examples:
+>       (1) Thảo giao #5 → Vy Gò phải → Thảo Giật phải (bóng xoáy xuống) →
+>       Phải ✓ = 1–0, attacks table Giật phải Phải 1/0/0; (2) Thảo giao #1
+>       → Vy Gò trái ✗ (no spot) = 2–0, Vy receive "đỡ hư 1"; (3) Vy giao
+>       (trái tay ngang-xuống ngắn → Giữa) → Thảo Gò phải ✗ + note "quả mổ
+>       xuống ngắn" = 2–1, Thảo receive đỡ hư 1, note in the report. The
+>       3 test points deleted again; status endpoint empty.
+>   - **Tactics tab restructured after the first look at the product
+>     (user 2026-10-10 night, screenshot: "Nếu đã có chỗ input match cực
+>     kỳ detail như thế này rồi, thì xóa mục My Analysis đi. Phần
+>     Scouting about Me cũng ko nên nằm đây … move qua Profile … Scouting
+>     về đối thủ thì nên ghi theo kiểu general info của Vy … để AI coach
+>     hiểu vị trí khi tôi input giao bóng sau này. Nên có nút Clear giáo
+>     án thi đấu ở dưới, vì hiện tại sai nhiều lắm"):**
+>     (1) **"My analysis" (reflections) section REMOVED from the GUI** —
+>     `ReflectionsSection.tsx` deleted; the table, its endpoints and the
+>     prompt section that reads it stay (1 real note from 17/08 vs Trung
+>     keeps feeding the context; never delete data). (2) **"About me"
+>     scouting moved to the Profile tab** as `ScoutingMeCard.tsx` right
+>     under the header card (same FactsPanel + ME_INTAKE widgets, loads
+>     `GET /tactics/facts/0` for the global me-list; CSS `.prof-scouting`).
+>     (3) The opponent panel is now the only scouting panel in Tactics,
+>     full width, titled "<name> · general info" with a hint that it is
+>     who they are as a player (hand, grip, rubbers / pips, style…) and
+>     that the coach reads it with every charted point. (4) **🗑 Clear
+>     plan** button in the plan's meta row (two-step: "Yes, clear it" /
+>     Keep) → `DELETE /api/tactics/plan/{player_id}` =
+>     `service.clear_plans` deletes every TacticPlan row for that
+>     opponent (generated content only) → status back to `empty`. Also:
+>     match-log rows are clickable (hover highlight) and the Log points ›
+>     button is primary-styled on un-logged matches (user could not find
+>     the entry point). The :8000 process the user looked at was still
+>     the 17:20 one (404 on `/api/tactics/serves`) — told them to Ctrl+C
+>     and run start.bat again. Verified on :8001 via CDP screenshots:
+>     Profile card renders the 11 me-facts; Tactics shows H2H → Match log
+>     → Scouting (opponent only) → Game plan; Clear plan confirm row
+>     works ("Keep" leaves the plan). 187 tests pass, dist rebuilt.
+>   - **Opponent intake = general info only (user 2026-10-10 night,
+>     screenshot of the Profile-questions card: "bỏ phần này đi, hỏi về
+>     tâm lý này nọ ko chính xác được. Chỉ nên input những general
+>     information thôi. Có thể input thêm tuổi đời"):** the `weapon`
+>     (Scariest weapon), `weak_spot` (Where they miss) and `clutch` (At
+>     8-8 / 9-9) questions are REMOVED from `OPP_INTAKE` (intake.ts) and
+>     `OPP_INTAKE_KEYS` (prompt.py — the interview's "still blank" list);
+>     NEW `age` (Under 20 / 20s / 30s / 40s / 50s / 60+, gloss "độ tuổi
+>     (sức bền, độ nhanh nhẹn)") and `build` (Small / Average / Tall-big,
+>     "thể hình"). Hand / Grip / Rubber / Style / Footwork stay. Existing
+>     answered facts with the old keys (Vy has none of the three) would
+>     simply remain as plain facts — nothing deleted. test_tactics
+>     interview test switched from `clutch` to `age`; 187 pass; dist
+>     rebuilt (reload only — the key map is backend, so the interview's
+>     blank list needs the restart the user owes anyway).
+>   - **Tactics opponent search (user 2026-10-10 evening: "kiếm đối thủ
+>     khó quá, làm thêm chỗ gõ là search để tìm cho nhanh"; plan OK'd "làm
+>     đi"):** the `<select>` (99 opponents sorted by matches played, so a
+>     player met once sat at the bottom) is replaced by
+>     `tactics/components/OpponentPicker.tsx` — a type-to-search combo over
+>     the already-loaded list (client-side `fold`, diacritic-insensitive:
+>     "hoang vy" → Nguyễn Phúc Hoàng Vy; empty query = full list in API
+>     order; ↑↓ Enter Esc; "No singles opponent matches …" hint) that turns
+>     into a pill "Name · N matches (W–L) [Pips] ✕" once picked — click the
+>     pill to search again (focus returns to the input). Nobody can be
+>     added here (only people played in singles exist in the list). Reuses
+>     the Daily Tracker's `.player-combo/.player-dropdown/.player-option`
+>     CSS; `.tac-pick*` rules + `.player-option.is-active` added to
+>     `tactics.css`. No backend change, dist rebuilt (a page reload picks
+>     it up, no restart). Verified with headless-Chrome CDP on :8000: 99
+>     rows on focus, 1 row for "hoang vy", Enter → pill + H2H section,
+>     pill click → input focused, "zzzz" → hint. UNCOMMITTED.
+
+## Previous status (2026-09-26) — shared READ-ONLY copy for the real-life coach is LIVE at https://road-to-e.onrender.com (Render free tier, Docker, `SHARE_MODE=1`, no access code by the user's choice); ELO all-time-peak + DB snapshot `619e611` tagged **v0.5**; share-mode code `0eafc2c`; ☁ Sync to coach button `fbbca51`; **League tournament format** committed `57d948b` (2026-09-25 21:44, after DB sync `3c81bff`); **first real DB sync via the ☁ button: `39bf375` 2026-09-26 19:28** (DB + stamp only, pushed, working tree clean); **phone fixes for the shared copy** (coach opened the link on a phone) — Journal sticky-board CSS order bug, Tournament Record squeeze, write affordances hidden in `.share-mode`
 
 > **Shared copy (user 2026-09-25: "tìm 1 dịch vụ free … để tôi có thể sync
 > 3 tabs không cần AI local: Daily Tracker, Profile and Journal … chia sẻ

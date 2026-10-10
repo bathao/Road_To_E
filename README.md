@@ -62,6 +62,20 @@ model; it falls back to `qwen3:14b` if not pulled — see
   range picker (rolling last-N-days / Lifetime / year / month / custom), and
   the Tournament Record (played tournaments: result reached, W-L, every
   match — all derived from the grid).
+- **🎯 Singles Tactics** — one opponent at a time (type-to-search picker):
+  head-to-head tiles and charts, the opponent's scouting file (general
+  info: hand, grip, rubbers, style…; the "about me" file lives on the
+  Profile tab), a coach interview for the gaps and a generated Vietnamese
+  game plan (with a Clear button). **Match log**: chart a hand-picked
+  singles match point by point — serve (my named repertoire as one-tap
+  chips; the opponent's serves are learned from the first points), every
+  shot as stroke + landing spot (Right / Middle / Left always from the
+  receiver's side), how the point ended (winner / unforced / forced error,
+  optional note). Score, point number and server are derived; so is the
+  report: attacks per stroke × landing spot (won / lost / missed), errors
+  and clean winners per stroke, serve and receive effectiveness, rally
+  length, clutch points — per match or across every charted match vs that
+  opponent (`GET /api/tactics/stats/{player_id}`).
 - **💪 Training Center** — knee-safe (grade-1 osteoarthritis) physical
   program: leveled day templates, workout player, progressive targets with
   pain/RPE autoregulation, weekly summary.

@@ -20,6 +20,7 @@ import { matchStatsApi } from "./api";
 import MatchLines from "./components/MatchLines";
 import { EloCurveCard, EloTableCard } from "./components/EloSection";
 import GeneralInfoCard from "./components/GeneralInfoCard";
+import ScoutingMeCard from "./components/ScoutingMeCard";
 import TournamentRecord from "./components/TournamentRecord";
 import TrainingCenterCard from "./components/TrainingCenterCard";
 import TrainingDisciplineCard from "./components/TrainingDisciplineCard";
@@ -209,6 +210,7 @@ export default function MatchStats() {
     <div className="stats">
       {/* 1) General info — rangeless header (avatar, current ELO). */}
       <GeneralInfoCard />
+      <ScoutingMeCard />
 
       <RangePicker
         preset={preset}

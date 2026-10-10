@@ -142,12 +142,12 @@ def test_interview_context_lists_missing_intake_and_plan_gaps(db, monkeypatch):
     service.add_fact(db, schemas.FactIn(
         player_id=None, kind="style", key="grip", text="Grip: Shakehand"))
     service.add_fact(db, schemas.FactIn(
-        player_id=rival.id, kind="note", key="clutch", text="At 8-8 / 9-9: Gets shaky"))
+        player_id=rival.id, kind="style", key="age", text="Age: 40s (40–49 tuổi)"))
     service.run_interview(db, rival.id)
     me_line = next(l for l in seen["user"].splitlines() if l.startswith("Về học trò"))
     opp_line = next(l for l in seen["user"].splitlines() if l.startswith("Về đối thủ"))
     assert "cầm vợt" not in me_line and "tay thuận" in me_line
-    assert "tâm lý điểm căng" not in opp_line and "tay thuận" in opp_line
+    assert "độ tuổi" not in opp_line and "tay thuận" in opp_line
 
     # A finished plan's data_gaps ride the next interview.
     row = TacticPlan(player_id=rival.id, status="done",

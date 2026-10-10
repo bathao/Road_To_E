@@ -5,7 +5,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
-from app.features.tactics import schemas, service
+from app.features.tactics import matchlog, schemas, service
 
 router = APIRouter(prefix="/api/tactics", tags=["tactics"])
 
@@ -130,3 +130,104 @@ def generate_plan(
         raise HTTPException(status_code=409, detail=str(exc))
     background.add_task(service.run_plan_job, out.id)
     return out
+
+
+@router.delete("/plan/{player_id}", response_model=schemas.OkOut)
+def clear_plans(player_id: int, db: Session = Depends(get_db)):
+    """Forget every generated plan for this opponent (status goes back to
+    `empty`); scouting data is untouched."""
+    service.clear_plans(db, player_id)
+    return schemas.OkOut()
+
+
+# -------------------------------------------------------------- match log
+# Point-by-point charting of hand-picked singles matches (2026-10-10). The
+# shot statistics the coach reads are derived server-side from the points.
+@router.get("/serves", response_model=list[schemas.ServeOut])
+def list_serves(db: Session = Depends(get_db)):
+    """The user's serve repertoire — one-tap chips for every opponent."""
+    return matchlog.list_serves(db)
+
+
+@router.post("/serves", response_model=schemas.ServeOut)
+def add_serve(payload: schemas.ServeIn, db: Session = Depends(get_db)):
+    return matchlog.add_serve(db, payload)
+
+
+@router.put("/serves/{serve_id}", response_model=schemas.ServeOut)
+def update_serve(serve_id: int, payload: schemas.ServeIn, db: Session = Depends(get_db)):
+    try:
+        return matchlog.update_serve(db, serve_id, payload)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="Serve not found")
+
+
+@router.delete("/serves/{serve_id}", response_model=schemas.OkOut)
+def delete_serve(serve_id: int, db: Session = Depends(get_db)):
+    matchlog.delete_serve(db, serve_id)
+    return schemas.OkOut()
+
+
+@router.get("/matchlog/status/{player_id}", response_model=list[schemas.MatchLogStatus])
+def matchlog_status(player_id: int, db: Session = Depends(get_db)):
+    """Which matches vs this opponent have points / set scores logged."""
+    return matchlog.status_for_player(db, player_id)
+
+
+@router.get("/matchlog/{match_id}", response_model=schemas.MatchLogOut)
+def get_matchlog(match_id: int, db: Session = Depends(get_db)):
+    """Typed set scores + every charted point of one singles match, plus the
+    opponent's serves seen so far (across all charted matches vs them)."""
+    try:
+        return matchlog.get_matchlog(db, match_id)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="Singles match not found")
+
+
+@router.put("/matchlog/{match_id}/sets", response_model=list[schemas.SetOut])
+def put_sets(match_id: int, payload: schemas.SetsIn, db: Session = Depends(get_db)):
+    try:
+        return matchlog.put_sets(db, match_id, payload)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="Singles match not found")
+
+
+@router.post("/matchlog/{match_id}/points", response_model=schemas.PointOut)
+def add_point(match_id: int, payload: schemas.PointIn, db: Session = Depends(get_db)):
+    """Append one rally to a set (point_no = next in that set)."""
+    try:
+        return matchlog.add_point(db, match_id, payload)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="Singles match not found")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.put("/matchlog/points/{point_id}/note", response_model=schemas.PointOut)
+def update_point_note(point_id: int, payload: schemas.PointNoteIn, db: Session = Depends(get_db)):
+    try:
+        return matchlog.update_point_note(db, point_id, payload)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="Point not found")
+
+
+@router.delete("/matchlog/points/{point_id}", response_model=schemas.OkOut)
+def delete_point(point_id: int, db: Session = Depends(get_db)):
+    """Delete one rally; later points of that set close the gap."""
+    matchlog.delete_point(db, point_id)
+    return schemas.OkOut()
+
+
+@router.get("/matchlog/{match_id}/stats", response_model=schemas.StatsOut)
+def match_stats(match_id: int, db: Session = Depends(get_db)):
+    try:
+        return matchlog.match_stats(db, match_id)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="Singles match not found")
+
+
+@router.get("/stats/{player_id}", response_model=schemas.StatsOut)
+def player_stats(player_id: int, db: Session = Depends(get_db)):
+    """Every charted match vs this opponent folded together — the numbers
+    the coach's plan prompt will read."""
+    return matchlog.player_stats(db, player_id)

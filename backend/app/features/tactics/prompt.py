@@ -26,10 +26,9 @@ OPP_INTAKE_KEYS = {
     "grip": "cầm vợt dọc/ngang",
     "rubber": "mặt vợt (láng/gai/anti)",
     "style": "lối chơi chủ đạo",
-    "weapon": "vũ khí đáng sợ nhất",
-    "weak_spot": "hay đánh hỏng ở đâu",
     "footwork": "bộ chân so với học trò",
-    "clutch": "tâm lý điểm căng (8-8, 9-9)",
+    "age": "độ tuổi (sức bền, độ nhanh nhẹn)",
+    "build": "thể hình",
 }
 
 _PERSONA = (

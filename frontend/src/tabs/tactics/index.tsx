@@ -15,12 +15,13 @@ import RangePicker, {
   type RangePreset,
 } from "../match-stats/components/RangePicker";
 import { tacticsApi } from "./api";
-import { ME_INTAKE, OPP_INTAKE, type IntakeItem } from "./intake";
+import { OPP_INTAKE, type IntakeItem } from "./intake";
 import FactsPanel from "./components/FactsPanel";
 import HandicapBars from "./components/HandicapBars";
 import IntakeCard from "./components/IntakeCard";
-import ReflectionsSection from "./components/ReflectionsSection";
 import MarginTimeline from "./components/MarginTimeline";
+import OpponentPicker from "./components/OpponentPicker";
+import MatchLogSection from "./components/MatchLogSection";
 import PlanSection from "./components/PlanSection";
 import type {
   AnswerIn,
@@ -28,7 +29,6 @@ import type {
   FactsOut,
   FactSubject,
   InterviewQuestion,
-  Reflection,
   TacticPlan,
 } from "./types";
 
@@ -48,9 +48,6 @@ export default function Tactics() {
     () => (selId ? tacticsApi.getFacts(selId) : Promise.resolve(null)),
     [selId]
   );
-  const { data: reflections, setData: setReflections } = useLoad<
-    Reflection[] | null
-  >(() => (selId ? tacticsApi.getReflections(selId) : Promise.resolve(null)), [selId]);
   const { data: plan, setData: setPlan, reload: reloadPlan } = useLoad<
     TacticPlan | null
   >(() => (selId ? tacticsApi.getPlan(selId) : Promise.resolve(null)), [selId]);
@@ -155,30 +152,6 @@ export default function Tactics() {
     if (out !== undefined) await refreshFacts();
   };
 
-  // ---- reflections (refresh via one GET, same pattern as facts) ----
-  const refreshReflections = async () => {
-    if (!selId) return;
-    const out = await run(() => tacticsApi.getReflections(selId));
-    if (out !== undefined) setReflections(out);
-  };
-  const addReflection = async (text: string) => {
-    if (!selId) return false;
-    const out = await run(() => tacticsApi.addReflection(selId, text));
-    if (out === undefined) return false;
-    await refreshReflections();
-    return true;
-  };
-  const editReflection = async (id: number, text: string) => {
-    const out = await run(() => tacticsApi.updateReflection(id, text));
-    if (out === undefined) return false;
-    await refreshReflections();
-    return true;
-  };
-  const deleteReflection = async (id: number) => {
-    const out = await run(() => tacticsApi.deleteReflection(id));
-    if (out !== undefined) await refreshReflections();
-  };
-
   // ---- interview ----
   const [questions, setQuestions] = useState<InterviewQuestion[] | null>(null);
   const [answers, setAnswers] = useState<Record<number, string>>({});
@@ -228,6 +201,13 @@ export default function Tactics() {
     const out = await run(() => tacticsApi.generatePlan(selId));
     if (out !== undefined) setPlan(out);
   };
+  // Forget the generated plans for this opponent (user 2026-10-10: early
+  // plans were built on thin data and read wrong). Scouting data stays.
+  const clearPlans = async () => {
+    if (!selId) return;
+    const out = await run(() => tacticsApi.clearPlans(selId));
+    if (out !== undefined) reloadPlan();
+  };
 
   const pickOpponent = (id: number | null) => {
     setSelId(id);
@@ -240,19 +220,11 @@ export default function Tactics() {
     <div className="tab-tactics">
       <div className="tac-head">
         <h1>🎯 Singles Tactics</h1>
-        <select
-          className="pb-select tac-pick"
-          value={selId ?? ""}
-          onChange={(e) => pickOpponent(e.target.value ? Number(e.target.value) : null)}
-        >
-          <option value="">Select an opponent…</option>
-          {(opponents ?? []).map((o) => (
-            <option key={o.id} value={o.id}>
-              {o.name} · {o.matches_vs} matches ({o.wins}W–{o.losses}L)
-              {o.plays_pips ? " · pips" : ""}
-            </option>
-          ))}
-        </select>
+        <OpponentPicker
+          opponents={opponents ?? []}
+          selected={selected}
+          onPick={pickOpponent}
+        />
       </div>
 
       {error && (
@@ -322,6 +294,12 @@ export default function Tactics() {
             </details>
           </section>
 
+          <MatchLogSection
+            opponentId={selected.id}
+            opponentName={selected.name}
+            matches={vsAll}
+          />
+
           <section className="tac-scouting">
             <div className="tac-sec-head">
               <h2>🔍 Scouting</h2>
@@ -377,26 +355,10 @@ export default function Tactics() {
                 )}
               </div>
             )}
-            <div className="tac-facts">
+            <div className="tac-facts tac-facts-single">
               <FactsPanel
-                title="About me (all opponents)"
-                hint="Saved once, remembered forever — the coach never re-asks these. It also files anything about you it spots in your analysis notes (🧠)."
-                facts={facts?.me ?? []}
-                busy={busy}
-                intake={
-                  <IntakeCard
-                    items={ME_INTAKE}
-                    facts={facts?.me ?? []}
-                    busy={busy}
-                    onAnswer={answerIntake(null)}
-                  />
-                }
-                onAdd={addFact(null)}
-                onEdit={editFact}
-                onDelete={deleteFact}
-              />
-              <FactsPanel
-                title={`About ${selected.name}`}
+                title={`${selected.name} · general info`}
+                hint={`Who ${selected.name} is as a player — hand, grip, rubbers (pips!), style, footwork, weapons, where they break. The coach reads this with every charted point, so a left-hander's "Right" lands on their forehand. Your own file lives on the Profile tab.`}
                 facts={facts?.opponent ?? []}
                 busy={busy}
                 intake={
@@ -414,19 +376,11 @@ export default function Tactics() {
             </div>
           </section>
 
-          <ReflectionsSection
-            opponentName={selected.name}
-            reflections={reflections ?? []}
-            busy={busy}
-            onAdd={addReflection}
-            onEdit={editReflection}
-            onDelete={deleteReflection}
-          />
-
           <PlanSection
             plan={plan ?? null}
             opponentName={selected.name}
             onGenerate={() => void generatePlan()}
+            onClear={() => void clearPlans()}
             busy={busy}
           />
         </>

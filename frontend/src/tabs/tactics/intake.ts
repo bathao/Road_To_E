@@ -126,18 +126,6 @@ export const OPP_INTAKE: IntakeItem[] = [
     ],
   },
   {
-    key: "weapon",
-    kind: "strength",
-    label: "Scariest weapon",
-    placeholder: "Their shot you fear most…",
-  },
-  {
-    key: "weak_spot",
-    kind: "weakness",
-    label: "Where they miss",
-    placeholder: "Situations where they break down…",
-  },
-  {
     key: "footwork",
     kind: "note",
     label: "Footwork vs mine",
@@ -148,14 +136,34 @@ export const OPP_INTAKE: IntakeItem[] = [
       { en: "Similar", vi: "ngang nhau" },
     ],
   },
+  // General, observable facts only (user 2026-10-10: "hỏi về tâm lý này
+  // nọ ko chính xác được. Chỉ nên input những general information thôi" —
+  // the old weapon / where-they-miss / clutch questions are gone; the
+  // match log carries that evidence now). Age and build let the coach
+  // reason about fitness and agility.
   {
-    key: "clutch",
-    kind: "note",
-    label: "At 8-8 / 9-9",
+    key: "age",
+    kind: "style",
+    label: "Age",
     unsure: true,
     choices: [
-      { en: "Holds nerve", vi: "bản lĩnh" },
-      { en: "Gets shaky", vi: "hay run" },
+      { en: "Under 20", vi: "dưới 20" },
+      { en: "20s", vi: "20–29 tuổi" },
+      { en: "30s", vi: "30–39 tuổi" },
+      { en: "40s", vi: "40–49 tuổi" },
+      { en: "50s", vi: "50–59 tuổi" },
+      { en: "60+", vi: "từ 60 tuổi" },
+    ],
+  },
+  {
+    key: "build",
+    kind: "style",
+    label: "Build",
+    unsure: true,
+    choices: [
+      { en: "Small / light", vi: "nhỏ con" },
+      { en: "Average", vi: "trung bình" },
+      { en: "Tall / big", vi: "cao to" },
     ],
   },
 ];

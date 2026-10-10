@@ -56,4 +56,41 @@ export const tacticsApi = {
 
   generatePlan: (playerId: number) =>
     api.post<TacticPlan>(`/tactics/plan/${playerId}`, {}),
+
+  clearPlans: (playerId: number) =>
+    api.del<{ ok: boolean }>(`/tactics/plan/${playerId}`),
+};
+
+// ---------------------------------------------------------------- match log
+import type {
+  MatchLog,
+  MatchLogStatus,
+  Point,
+  PointIn,
+  Serve,
+  ServeIn,
+  SetScore,
+  Stats,
+} from "./types";
+
+export const matchlogApi = {
+  getServes: () => api.get<Serve[]>("/tactics/serves"),
+  addServe: (s: ServeIn) => api.post<Serve>("/tactics/serves", s),
+  updateServe: (id: number, s: ServeIn) => api.put<Serve>(`/tactics/serves/${id}`, s),
+  deleteServe: (id: number) => api.del<{ ok: boolean }>(`/tactics/serves/${id}`),
+
+  status: (playerId: number) =>
+    api.get<MatchLogStatus[]>(`/tactics/matchlog/status/${playerId}`),
+  get: (matchId: number) => api.get<MatchLog>(`/tactics/matchlog/${matchId}`),
+  putSets: (matchId: number, sets: SetScore[]) =>
+    api.put<SetScore[]>(`/tactics/matchlog/${matchId}/sets`, { sets }),
+  addPoint: (matchId: number, p: PointIn) =>
+    api.post<Point>(`/tactics/matchlog/${matchId}/points`, p),
+  updateNote: (pointId: number, note: string | null) =>
+    api.put<Point>(`/tactics/matchlog/points/${pointId}/note`, { note }),
+  deletePoint: (pointId: number) =>
+    api.del<{ ok: boolean }>(`/tactics/matchlog/points/${pointId}`),
+
+  matchStats: (matchId: number) => api.get<Stats>(`/tactics/matchlog/${matchId}/stats`),
+  playerStats: (playerId: number) => api.get<Stats>(`/tactics/stats/${playerId}`),
 };

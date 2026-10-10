@@ -1481,6 +1481,198 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tactics/serves": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Serves
+         * @description The user's serve repertoire — one-tap chips for every opponent.
+         */
+        get: operations["list_serves_api_tactics_serves_get"];
+        put?: never;
+        /** Add Serve */
+        post: operations["add_serve_api_tactics_serves_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tactics/serves/{serve_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Serve */
+        put: operations["update_serve_api_tactics_serves__serve_id__put"];
+        post?: never;
+        /** Delete Serve */
+        delete: operations["delete_serve_api_tactics_serves__serve_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tactics/matchlog/status/{player_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Matchlog Status
+         * @description Which matches vs this opponent have points / set scores logged.
+         */
+        get: operations["matchlog_status_api_tactics_matchlog_status__player_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tactics/matchlog/{match_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Matchlog
+         * @description Typed set scores + every charted point of one singles match, plus the
+         *     opponent's serves seen so far (across all charted matches vs them).
+         */
+        get: operations["get_matchlog_api_tactics_matchlog__match_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tactics/matchlog/{match_id}/sets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Sets */
+        put: operations["put_sets_api_tactics_matchlog__match_id__sets_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tactics/matchlog/{match_id}/points": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Point
+         * @description Append one rally to a set (point_no = next in that set).
+         */
+        post: operations["add_point_api_tactics_matchlog__match_id__points_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tactics/matchlog/points/{point_id}/note": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Point Note */
+        put: operations["update_point_note_api_tactics_matchlog_points__point_id__note_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tactics/matchlog/points/{point_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Point
+         * @description Delete one rally; later points of that set close the gap.
+         */
+        delete: operations["delete_point_api_tactics_matchlog_points__point_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tactics/matchlog/{match_id}/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Match Stats */
+        get: operations["match_stats_api_tactics_matchlog__match_id__stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tactics/stats/{player_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Player Stats
+         * @description Every charted match vs this opponent folded together — the numbers
+         *     the coach's plan prompt will read.
+         */
+        get: operations["player_stats_api_tactics_stats__player_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -2496,6 +2688,41 @@ export interface components {
             /** Round */
             round?: string | null;
         };
+        /** MatchLogOut */
+        MatchLogOut: {
+            /** Match Id */
+            match_id: number;
+            /**
+             * Sets
+             * @default []
+             */
+            sets: components["schemas"]["SetOut"][];
+            /**
+             * Points
+             * @default []
+             */
+            points: components["schemas"]["PointOut"][];
+            /**
+             * Opp Serves Seen
+             * @default []
+             */
+            opp_serves_seen: components["schemas"]["OppServeSeen"][];
+        };
+        /** MatchLogStatus */
+        MatchLogStatus: {
+            /** Match Id */
+            match_id: number;
+            /**
+             * Points
+             * @default 0
+             */
+            points: number;
+            /**
+             * Sets Typed
+             * @default 0
+             */
+            sets_typed: number;
+        };
         /** MatchNoteIn */
         MatchNoteIn: {
             /**
@@ -2873,6 +3100,28 @@ export interface components {
             expires_at: string;
         };
         /**
+         * OppServeSeen
+         * @description A distinct serve this opponent has shown across every charted match
+         *     (the charter offers these as one-tap chips).
+         */
+        OppServeSeen: {
+            /** Stance */
+            stance?: ("right" | "center" | "left") | null;
+            /** Motion */
+            motion?: ("pend" | "rev" | "bh" | "toma" | "other") | null;
+            /** Spin */
+            spin?: ("back" | "side" | "sideback" | "top" | "none") | null;
+            /** Amount */
+            amount?: ("light" | "med" | "heavy") | null;
+            /** Length */
+            length?: ("short" | "half" | "long") | null;
+            /**
+             * Count
+             * @default 0
+             */
+            count: number;
+        };
+        /**
          * OpponentBrief
          * @description Lightweight entry for the opponent dropdown.
          */
@@ -3159,6 +3408,82 @@ export interface components {
              * @default []
              */
             players: components["schemas"]["PlayerDbRow"][];
+        };
+        /** PointIn */
+        PointIn: {
+            /** Set No */
+            set_no: number;
+            /**
+             * Server
+             * @enum {string}
+             */
+            server: "me" | "opp";
+            /** Shots */
+            shots: components["schemas"]["ShotIn"][];
+            /**
+             * End Kind
+             * @enum {string}
+             */
+            end_kind: "winner" | "error";
+            /**
+             * Forced
+             * @default false
+             */
+            forced: boolean;
+            /** Note */
+            note?: string | null;
+        };
+        /** PointNoteIn */
+        PointNoteIn: {
+            /** Note */
+            note?: string | null;
+        };
+        /** PointNoteOut */
+        PointNoteOut: {
+            /** Match Id */
+            match_id: number;
+            /** Date */
+            date?: string | null;
+            /** Set No */
+            set_no: number;
+            /** Point No */
+            point_no: number;
+            /** Score */
+            score: string;
+            /** Note */
+            note: string;
+        };
+        /** PointOut */
+        PointOut: {
+            /** Id */
+            id: number;
+            /** Match Id */
+            match_id: number;
+            /** Set No */
+            set_no: number;
+            /** Point No */
+            point_no: number;
+            /**
+             * Server
+             * @enum {string}
+             */
+            server: "me" | "opp";
+            /**
+             * Winner
+             * @enum {string}
+             */
+            winner: "me" | "opp";
+            /** End Kind */
+            end_kind: string;
+            /** Forced */
+            forced: boolean;
+            /** Note */
+            note?: string | null;
+            /**
+             * Shots
+             * @default []
+             */
+            shots: components["schemas"]["ShotIn"][];
         };
         /** Priority */
         Priority: {
@@ -3570,6 +3895,97 @@ export interface components {
             /** Intensity Bias */
             intensity_bias: number;
         };
+        /**
+         * ServeIn
+         * @description One serve of the user's repertoire.
+         */
+        ServeIn: {
+            /** Name */
+            name: string;
+            /** Stance */
+            stance?: ("right" | "center" | "left") | null;
+            /** Motion */
+            motion?: ("pend" | "rev" | "bh" | "toma" | "other") | null;
+            /**
+             * Spin
+             * @enum {string}
+             */
+            spin: "back" | "side" | "sideback" | "top" | "none";
+            /** Amount */
+            amount?: ("light" | "med" | "heavy") | null;
+            /**
+             * Length
+             * @enum {string}
+             */
+            length: "short" | "half" | "long";
+            /** Place */
+            place?: ("R" | "M" | "L") | null;
+        };
+        /** ServeOut */
+        ServeOut: {
+            /** Name */
+            name: string;
+            /** Stance */
+            stance?: ("right" | "center" | "left") | null;
+            /** Motion */
+            motion?: ("pend" | "rev" | "bh" | "toma" | "other") | null;
+            /**
+             * Spin
+             * @enum {string}
+             */
+            spin: "back" | "side" | "sideback" | "top" | "none";
+            /** Amount */
+            amount?: ("light" | "med" | "heavy") | null;
+            /**
+             * Length
+             * @enum {string}
+             */
+            length: "short" | "half" | "long";
+            /** Place */
+            place?: ("R" | "M" | "L") | null;
+            /** Id */
+            id: number;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+        };
+        /** ServeStat */
+        ServeStat: {
+            /**
+             * Side
+             * @enum {string}
+             */
+            side: "me" | "opp";
+            /** Serve Id */
+            serve_id?: number | null;
+            /** Stance */
+            stance?: ("right" | "center" | "left") | null;
+            /** Motion */
+            motion?: ("pend" | "rev" | "bh" | "toma" | "other") | null;
+            /** Spin */
+            spin?: ("back" | "side" | "sideback" | "top" | "none") | null;
+            /** Amount */
+            amount?: ("light" | "med" | "heavy") | null;
+            /** Length */
+            length?: ("short" | "half" | "long") | null;
+            /**
+             * Place
+             * @enum {string}
+             */
+            place: "R" | "M" | "L";
+            /**
+             * Played
+             * @default 0
+             */
+            played: number;
+            /**
+             * Won
+             * @default 0
+             */
+            won: number;
+        };
         /** SessionNoteIn */
         SessionNoteIn: {
             /**
@@ -3674,6 +4090,73 @@ export interface components {
              * @default []
              */
             cooldown: components["schemas"]["SimpleExercise"][];
+        };
+        /** SetIn */
+        SetIn: {
+            /** Set No */
+            set_no: number;
+            /** My Points */
+            my_points?: number | null;
+            /** Opp Points */
+            opp_points?: number | null;
+            /** First Server */
+            first_server?: ("me" | "opp") | null;
+        };
+        /** SetOut */
+        SetOut: {
+            /** Set No */
+            set_no: number;
+            /** My Points */
+            my_points?: number | null;
+            /** Opp Points */
+            opp_points?: number | null;
+            /** First Server */
+            first_server?: ("me" | "opp") | null;
+        };
+        /** SetsIn */
+        SetsIn: {
+            /**
+             * Sets
+             * @default []
+             */
+            sets: components["schemas"]["SetIn"][];
+        };
+        /**
+         * ShotIn
+         * @description One shot of a rally. The first shot of a point is the serve (serve
+         *     attributes), every later one a stroke; `place` is always the landing
+         *     spot on the RECEIVER's side.
+         */
+        ShotIn: {
+            /**
+             * H
+             * @enum {string}
+             */
+            h: "me" | "opp";
+            /**
+             * Serve
+             * @default false
+             */
+            serve: boolean;
+            /** Serve Id */
+            serve_id?: number | null;
+            /** Stance */
+            stance?: ("right" | "center" | "left") | null;
+            /** Motion */
+            motion?: ("pend" | "rev" | "bh" | "toma" | "other") | null;
+            /** Spin */
+            spin?: ("back" | "side" | "sideback" | "top" | "none") | null;
+            /** Amount */
+            amount?: ("light" | "med" | "heavy") | null;
+            /** Length */
+            length?: ("short" | "half" | "long") | null;
+            /** Stroke */
+            stroke?: ("fhloop" | "bhloop" | "fhdrive" | "bhdrive" | "fhpush" | "bhpush" | "flick" | "block" | "smash" | "chop") | null;
+            /**
+             * Place
+             * @enum {string}
+             */
+            place: "R" | "M" | "L";
         };
         /**
          * SimpleExercise
@@ -3794,6 +4277,119 @@ export interface components {
              * @default {}
              */
             tactics: Record<string, never>;
+        };
+        /**
+         * StatsOut
+         * @description Shot statistics over a set of charted points (one match, or every
+         *     charted match against one opponent). Vocabulary codes as keys — the
+         *     frontend labels them.
+         */
+        StatsOut: {
+            /**
+             * Matches
+             * @default 0
+             */
+            matches: number;
+            /**
+             * Points
+             * @default 0
+             */
+            points: number;
+            /**
+             * Points Me
+             * @default 0
+             */
+            points_me: number;
+            /**
+             * Points Opp
+             * @default 0
+             */
+            points_opp: number;
+            /**
+             * On My Serve
+             * @default [
+             *       0,
+             *       0
+             *     ]
+             */
+            on_my_serve: number[];
+            /**
+             * On Opp Serve
+             * @default [
+             *       0,
+             *       0
+             *     ]
+             */
+            on_opp_serve: number[];
+            /**
+             * Attacks
+             * @default {}
+             */
+            attacks: {
+                [key: string]: {
+                    [key: string]: number[];
+                };
+            };
+            /**
+             * Errors Me
+             * @default {}
+             */
+            errors_me: {
+                [key: string]: number[];
+            };
+            /**
+             * Errors Opp
+             * @default {}
+             */
+            errors_opp: {
+                [key: string]: number[];
+            };
+            /**
+             * Winners Me
+             * @default {}
+             */
+            winners_me: {
+                [key: string]: number;
+            };
+            /**
+             * Winners Opp
+             * @default {}
+             */
+            winners_opp: {
+                [key: string]: number;
+            };
+            /**
+             * Receive Me
+             * @default {}
+             */
+            receive_me: {
+                [key: string]: number[];
+            };
+            /**
+             * Serves
+             * @default []
+             */
+            serves: components["schemas"]["ServeStat"][];
+            /**
+             * Rally Len
+             * @default {}
+             */
+            rally_len: {
+                [key: string]: number[];
+            };
+            /**
+             * Clutch
+             * @default [
+             *       0,
+             *       0
+             *     ]
+             */
+            clutch: number[];
+            /**
+             * Notes
+             * @default []
+             */
+            notes: components["schemas"]["PointNoteOut"][];
         };
         /** StatsResponse */
         StatsResponse: {
@@ -6665,6 +7261,385 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlanOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_serves_api_tactics_serves_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServeOut"][];
+                };
+            };
+        };
+    };
+    add_serve_api_tactics_serves_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_serve_api_tactics_serves__serve_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                serve_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_serve_api_tactics_serves__serve_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                serve_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    matchlog_status_api_tactics_matchlog_status__player_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                player_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatchLogStatus"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_matchlog_api_tactics_matchlog__match_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                match_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatchLogOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_sets_api_tactics_matchlog__match_id__sets_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                match_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_point_api_tactics_matchlog__match_id__points_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                match_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PointIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PointOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_point_note_api_tactics_matchlog_points__point_id__note_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                point_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PointNoteIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PointOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_point_api_tactics_matchlog_points__point_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                point_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    match_stats_api_tactics_matchlog__match_id__stats_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                match_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    player_stats_api_tactics_stats__player_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                player_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatsOut"];
                 };
             };
             /** @description Validation Error */

@@ -1,6 +1,7 @@
 // The generated game plan (Vietnamese coach content) + the Generate button.
 // Same job contract as the Head Coach verdict: `generating` polls until the
 // backend flips it to done/error.
+import { useState } from "react";
 import { prettyDate } from "../../../shared/dates";
 import type { TacticPlan } from "../types";
 
@@ -15,14 +16,18 @@ export default function PlanSection({
   plan,
   opponentName,
   onGenerate,
+  onClear,
   busy,
 }: {
   plan: TacticPlan | null;
   opponentName: string;
   onGenerate: () => void;
+  // Forget every generated plan for this opponent (two-step confirm).
+  onClear: () => void;
   busy: boolean;
 }) {
   const generating = plan?.status === "generating";
+  const [confirmClear, setConfirmClear] = useState(false);
   return (
     <section className="tac-plan">
       <div className="tac-sec-head">
@@ -93,8 +98,32 @@ export default function PlanSection({
             </div>
           )}
           <div className="tac-plan-meta">
-            {plan.created_at ? `Generated ${prettyDate(plan.created_at.slice(0, 10))}` : ""}
-            {plan.model ? ` · ${plan.model}` : ""}
+            <span>
+              {plan.created_at ? `Generated ${prettyDate(plan.created_at.slice(0, 10))}` : ""}
+              {plan.model ? ` · ${plan.model}` : ""}
+            </span>
+            {confirmClear ? (
+              <span className="tac-plan-clear">
+                Forget this plan (the scouting file stays)?
+                <button
+                  className="btn danger"
+                  disabled={busy}
+                  onClick={() => { setConfirmClear(false); onClear(); }}
+                >
+                  Yes, clear it
+                </button>
+                <button className="btn" onClick={() => setConfirmClear(false)}>Keep</button>
+              </span>
+            ) : (
+              <button
+                className="btn"
+                disabled={busy}
+                title="Remove this plan — it was written on thin data; generate a new one later"
+                onClick={() => setConfirmClear(true)}
+              >
+                🗑 Clear plan
+              </button>
+            )}
           </div>
         </div>
       )}

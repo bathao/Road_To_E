@@ -2,7 +2,7 @@
 
 Status: [ ] pending · [~] in progress · [x] done. Live narrative log lives in
 `PROGRESS.md` (newest first); this file only tracks OPEN work so it stays
-scannable. Last full sync: 2026-07-29.
+scannable. Last full sync: 2026-10-10.
 
 ## Open — needs data to accumulate first
 
@@ -23,6 +23,10 @@ scannable. Last full sync: 2026-07-29.
 - [ ] **Tournament ELO multiplier** (`t = 1.5`) is still a placeholder — the
   first real tournament matches exist now (Homyland2, 2026-08-01, 4 matches)
   but one event is far too little; revisit after several tournaments.
+  2026-10-10: LEAGUE events also use t=1.5 (user's call 2026-09-25) and
+  now carry real data — BBTV League W1 3–2, W2 2–2, 10/10 4–1 — plus the
+  knockout/team events; enough to backtest t once the Oct tournaments
+  (EFF FriendShip 11/10, Gia Định 24/10) are in.
 
 ## Open — feature ideas (no blocker, just not built)
 
@@ -45,6 +49,19 @@ scannable. Last full sync: 2026-07-29.
 
 ## Watch list (not actionable yet)
 
+- [ ] **Match log (point charter) — built + committed 2026-10-10, needs a
+  start.bat restart.** Watch the FIRST real charted match (the user said
+  "vài trận cố định thôi", charted the evening of the match): (a) does
+  the 6-serve repertoire + "đã thấy" opponent-serve chips make a BO5
+  (~80 points) loggable in ~10–15 min, or does the flow need a shortcut
+  (e.g. "repeat last point's serve"); (b) is the 10-stroke vocabulary
+  enough (counter-loop? lob separate from chop?) — the codes are fixed,
+  so extend BEFORE many matches are logged; (c) sanity of the derived
+  report against the user's memory of the match. Then **step 2**: feed
+  `GET /api/tactics/stats/{player_id}` into the plan prompt with the
+  user's own custom prompt (user: "Tôi sẽ custom prompt cho AI coach
+  phân tích sau") — wait for their text, don't invent one.
+
 - [ ] **Shared read-only copy on Render — LIVE 2026-09-25 at
   https://road-to-e.onrender.com** (`0eafc2c`, Docker build passed in 1 min,
   no access code by the user's choice). Watch: (a) the coach's first open
@@ -61,6 +78,9 @@ scannable. Last full sync: 2026-07-29.
   sticky-board CSS order bug and the Tournament Record squeeze fixed (see
   PROGRESS). Grid cells still open the match editor on tap (read-only, it
   is the only detail view) — hide that too if the coach trips on it.
+  (d) 2026-10-10 check: ☁ button used 3 more times (28/09, 07/10, 08/10 —
+  all "pushed" path, DB + stamp only); Render cold wake-up probed at 22.6 s,
+  serves `last_sync 2026-10-08T18:14`. No pinger, no complaint so far.
 
 - [x] **Checkpoint the DB before committing it** (found 2026-08-23; SOLVED
   2026-09-25 — `sync.bat` runs `backend/scripts/sync_prepare.py`, which
@@ -109,7 +129,8 @@ scannable. Last full sync: 2026-07-29.
   right days (no invented dates). (b) CONFIRMED on the recap side 2026-09-05
   (recap #11 names Anh Trường +3.7 / Chung, Tuấn −4.5 / Danh −3.6 — all
   grounded in elo_by_opponent). (a) and (c) still need a VERDICT run (latest
-  is #17, 16/08).
+  is #17, 16/08). 2026-10-10: still no verdict since 16/08 and no recap
+  since #11 (05/09) — the AI coach has not been run for 5 weeks.
 - [x] "New opponents" stat (2026-08-01; redefined 2026-08-02 to SINGLES-only
   — team-only meetings don't count) — GUI verified by the user; recap #11
   (05/09) references it correctly ("Không gặp đối thủ mới đánh đơn nào (0
@@ -130,7 +151,9 @@ scannable. Last full sync: 2026-07-29.
 - [ ] First tournament entered via the Daily Tracker → check the coach
   bundle's "đánh giải" split and the t=1.5 delta look sane. (BBTV Open
   Lần 3, 2026-08-22..23, is now a full real dataset: 14 linked matches
-  across 5 tiers — the next verdict is the live test.)
+  across 5 tiers — the next verdict is the live test.) 2026-10-10: league
+  entries now too (W2 26/09 2–2, "BBTV League" 10/10 4–1, round=null) —
+  the coach line "Thể thức: LEAGUE…" has never been read by a verdict yet.
 - [~] **Jump rope as a daily TC item** (final shape 2026-09-05, committed 8cc4db7;
   LIVE since the 07/09 20:33 restart — the open explosive day-4 session
   carries it as item 10/10 with target "100 jumps", 0 ticks so far; tick =
@@ -151,7 +174,9 @@ scannable. Last full sync: 2026-07-29.
   foot-stamp serve, 1–2 fast long serves per set, mid-distance) + the 2
   self-drills sit in the Journal as prose. Those are the obvious first
   tasks; raised with the user. Recap #11 got `tasks: []`. 2026-09-07:
-  still 0 rows (14 days).
+  still 0 rows (14 days). **2026-10-10: still 0 rows (46 days)** — the
+  feature is unused; if still empty by the next code wave, ask the user
+  whether to keep it or hide the board.
 - [ ] **First roster'd TEAM entries** (Giải F-G Liên Đoàn 12–13/09, Tử
   Trung + Phương Quang; Giải STBB 06/09, 4-name roster). Card/strip labels
   ARE rendered live now — and immediately exposed a roster-overflow bug,

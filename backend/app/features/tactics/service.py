@@ -18,7 +18,7 @@ from app.features.head_coach.service import (
     _ollama_chat,
     resolve_model,
 )
-from app.features.tactics import schemas
+from app.features.tactics import matchlog, schemas
 from app.features.tactics.models import TacticFact, TacticPlan, TacticReflection
 from app.features.tactics.prompt import (
     EXTRACT_RESPONSE_SCHEMA,
@@ -386,6 +386,14 @@ def build_context(db: Session, player: Player) -> str:
     coach_notes = "\n".join(
         f"  - {n['text']}" for n in _coach_note_dicts(db)
     ) or "  (chưa có)"
+    # Point-by-point match log (2026-10-10): hard numbers from the rallies
+    # the student charted — present only when something was charted.
+    ml = matchlog.stats_block_for(db, player.id, player.name)
+    ml_block = (
+        f"=== THỐNG KÊ TỪNG ĐIỂM TỪ CÁC TRẬN ĐÃ GHI CHI TIẾT VỚI "
+        f"{player.name.upper()} (dữ liệu thật, học trò ghi từng cú đánh; "
+        f"hướng bóng tính theo phía người đỡ) ===\n{ml}\n\n"
+    ) if ml else ""
     return (
         f"=== ĐỐI THỦ ===\n"
         f"{player.name}: {points}.{pips}{note}\n\n"
@@ -410,6 +418,7 @@ def build_context(db: Session, player: Player) -> str:
         f"=== PHÂN TÍCH CỦA HỌC TRÒ SAU CÁC TRẬN VỚI {player.name.upper()} "
         f"(mới nhất trước — CHỦ QUAN, phải đối chiếu với dữ liệu) ===\n"
         f"{reflection_lines}\n\n"
+        f"{ml_block}"
         f"=== SỔ TAY HLV (bối cảnh chung) ===\n"
         f"{coach_notes}\n"
     )
@@ -514,6 +523,15 @@ def get_plan(db: Session, player_id: int) -> schemas.PlanOut:
         .first()
     )
     return _plan_out(row) if row else schemas.PlanOut(player_id=player_id)
+
+
+def clear_plans(db: Session, player_id: int) -> None:
+    """Delete every generated plan for this opponent (user 2026-10-10: the
+    early plans were written on thin data and read wrong — "tôi ko muốn
+    đọc những info sai đó. sau này generate lại sau"). Generated content
+    only; scouting facts, reflections and the match log stay."""
+    db.query(TacticPlan).filter(TacticPlan.player_id == player_id).delete()
+    db.commit()
 
 
 def start_plan(db: Session, player_id: int) -> schemas.PlanOut:
