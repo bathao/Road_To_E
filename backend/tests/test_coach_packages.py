@@ -197,6 +197,13 @@ def test_coach_roster_create_and_dedupe(db):
         _coach(db, "COACH BA")
     names = [c.name for c in service.list_coaches(db)]
     assert names == ["Minh Thới", "Phi Vũ", "Coach Ba"]
+    # The default is the is_default row (Phi Vũ since 2026-10-14), not the
+    # package coach; with nothing flagged it falls back to the package coach.
+    by_name = {c.name: c for c in service.list_coaches(db)}
+    assert by_name["Phi Vũ"].is_default is True
+    assert service.default_coach_id(db) == by_name["Phi Vũ"].id
+    by_name["Phi Vũ"].is_default = False
+    db.commit()
     assert service.default_coach_id(db) == mt.id
 
 
@@ -231,26 +238,28 @@ def test_seed_backfill_stamps_legacy_sessions(db):
 
 def test_upsert_activity_coach_stamping(client, db):
     """PUT /activities: names a coach → stored; omits it → new rows default
-    to the package coach, edits keep the stored one; ★ with a per-session
-    coach is stripped (it would be invisible to the package math); unknown
-    coach → 400. Non-coach categories never carry a coach."""
+    to the is_default coach (Phi Vũ), edits keep the stored one; ★ with a
+    per-session coach is stripped (it would be invisible to the package
+    math); unknown coach → 400. Non-coach categories never carry a coach."""
     cat = category_id(db, "train_with_coach")
     mt, pv = _seeded(db)
 
     base = {"date": BASE.isoformat(), "category_id": cat, "duration_minutes": 60}
-    # Omitted coach on a new row → package coach.
-    r = client.put("/api/tracker/activities", json=base)
-    assert r.json()["coach_id"] == mt.id
-    # Explicit per-session coach + ★ → coach stored, ★ stripped.
-    r = client.put(
-        "/api/tracker/activities",
-        json={**base, "coach_id": pv.id, "is_package_start": True},
-    )
+    # Omitted coach on a new row → the default coach, with ★ stripped since
+    # Phi Vũ is paid per session.
+    r = client.put("/api/tracker/activities", json={**base, "is_package_start": True})
     assert r.json()["coach_id"] == pv.id
     assert r.json()["is_package_start"] is False
-    # Edit with coach omitted → keeps Phi Vũ (not reset to the default).
+    # Explicit package coach + ★ → both stored.
+    r = client.put(
+        "/api/tracker/activities",
+        json={**base, "coach_id": mt.id, "is_package_start": True},
+    )
+    assert r.json()["coach_id"] == mt.id
+    assert r.json()["is_package_start"] is True
+    # Edit with coach omitted → keeps Minh Thới (not reset to the default).
     r = client.put("/api/tracker/activities", json={**base, "duration_minutes": 90})
-    assert (r.json()["coach_id"], r.json()["duration_minutes"]) == (pv.id, 90)
+    assert (r.json()["coach_id"], r.json()["duration_minutes"]) == (mt.id, 90)
     # Unknown coach -> 400.
     assert (
         client.put(

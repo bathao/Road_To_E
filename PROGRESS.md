@@ -1,6 +1,35 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-10-10, night) — 14 days of pure USE since 26/09, then one evening of Tactics-tab work, COMMITTED as one code commit on top of the user's ☁ sync `d34318e`: **Match log = point-by-point charting of hand-picked singles matches, ledger layout, derived shot statistics fed into the coach context** (3 new tables, serve repertoire seeded with the user's 6 serves), type-to-search opponent picker, "About me" scouting moved to Profile, "My analysis" section dropped from the GUI, opponent intake = general info only (+ Age / Build), 🗑 Clear plan; 187 tests pass, dist rebuilt; **needs a start.bat restart** (the :8000 process was still the 17:20 one at the end of the session); the ☁ Sync to coach button is now routine (3 more DB syncs: `bba6e79` 28/09, `3fcef1b` 07/10, `a82c368` 08/10) and the Render copy serves `last_sync 2026-10-08T18:14`; TODAY's BBTV League (4W–1L) + Tactics plan #3 sit only in the WAL (uncommitted — next ☁ click); Giải EFF FriendShip (TEAM, "New City") is TOMORROW 11/10
+## Current status (2026-10-14) — small tweak on top of the user's ☁ sync `e82fc76`: **the Train-with-Coach editor now preselects Phi Vũ instead of Minh Thới** (user: "sửa default từ Minh Thới qua Phi Vũ") via a new `Coach.is_default` flag; 187 tests pass; **needs a start.bat restart** (backend column migration + frontend rebuild)
+
+> **Default coach (user 2026-10-14, screenshot of the "Train with Coach ·
+> 2026-10-14" modal with Minh Thới highlighted):** the old rule was
+> hard-coded on both sides — "first package coach" (`default_coach_id`
+> in service.py, `list.find(c => c.counts_package)` in DurationEditor) —
+> and Phi Vũ is a per-session coach, so no flag flip could reach him.
+>   - **Backend:** `tracker_coach.is_default BOOLEAN DEFAULT 0` (ALTER-added
+>     by seed.migrate like the other late columns); `_ensure_default_coach`
+>     flips it ONCE when no coach carries it — the row whose folded name is
+>     "Phi Vũ", else the first package coach, else the oldest row — and
+>     never touches a DB that already has a default. `default_coach_id`
+>     (the stamp for PUT /activities without `coach_id`) = the flagged row,
+>     falling back to the oldest package coach. `CoachOut.is_default`
+>     exposed; schema.d.ts regenerated.
+>   - **GUI (DurationEditor):** stored coach still wins on edit; a NEW
+>     session preselects the `is_default` coach (package coach as fallback).
+>     Consequence by design: Phi Vũ is pay-per-session, so the ★ "Start of
+>     a new 10-session package" row is hidden until Minh Thới is picked.
+>   - **Tests:** 2 expectations updated (coach stamping: omitted coach →
+>     Phi Vũ with ★ stripped, explicit Minh Thới + ★ kept, edit keeps the
+>     stored coach; journal timeline resolves the omitted coach to Phi Vũ)
+>     + the roster test asserts the flag and the fallback. 187 pass, tsc
+>     clean.
+>   - **Real DB:** migrate run by hand on `tabletennis.db` → `1 Minh Thới
+>     package · 2 Phi Vũ per-session DEFAULT`. Existing sessions untouched.
+>   - **No GUI to move the default** — one-liner in the DB (or ask) if a
+>     third coach ever becomes the norm.
+
+## Previous status (2026-10-10, night) — 14 days of pure USE since 26/09, then one evening of Tactics-tab work, COMMITTED as one code commit on top of the user's ☁ sync `d34318e`: **Match log = point-by-point charting of hand-picked singles matches, ledger layout, derived shot statistics fed into the coach context** (3 new tables, serve repertoire seeded with the user's 6 serves), type-to-search opponent picker, "About me" scouting moved to Profile, "My analysis" section dropped from the GUI, opponent intake = general info only (+ Age / Build), 🗑 Clear plan; 187 tests pass, dist rebuilt; **needs a start.bat restart** (the :8000 process was still the 17:20 one at the end of the session); the ☁ Sync to coach button is now routine (3 more DB syncs: `bba6e79` 28/09, `3fcef1b` 07/10, `a82c368` 08/10) and the Render copy serves `last_sync 2026-10-08T18:14`; TODAY's BBTV League (4W–1L) + Tactics plan #3 sit only in the WAL (uncommitted — next ☁ click); Giải EFF FriendShip (TEAM, "New City") is TOMORROW 11/10
 
 > **Facts (read-only DB query + live probes, 2026-10-10 17:30; start.bat
 > is running on :8000 — WAL 202 KB, so the committed main file is 08/10):**

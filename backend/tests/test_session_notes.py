@@ -125,7 +125,7 @@ def test_journal_timeline_days_and_pagination(client, db):
     assert out["has_more"] is False
     first = out["days"][2]
     assert first["has_coach_session"] is True
-    assert first["coaches"] == ["Minh Thới"]  # NULL coach_id = package coach
+    assert first["coaches"] == ["Phi Vũ"]  # omitted coach_id = default coach
     assert [n["kind"] for n in first["items"]] == ["advice"]
     assert out["days"][0]["has_coach_session"] is False
     assert out["days"][0]["coaches"] == []

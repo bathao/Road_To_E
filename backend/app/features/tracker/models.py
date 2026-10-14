@@ -40,13 +40,19 @@ class Coach(Base):
     (2026-08-13): seed.migrate backfills Activity.coach_id from the notes
     once, then the flag on this table is the single source. New coaches are
     added from the session editor; there is no delete (would orphan the
-    sessions pointing at them)."""
+    sessions pointing at them).
+
+    ``is_default``: the coach preselected in the session editor and stamped
+    on sessions whose caller names none (user 2026-10-14: Phi Vũ, replacing
+    the old "first package coach" rule). At most one row is True; seed.migrate
+    flips it once on existing DBs."""
 
     __tablename__ = "tracker_coach"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String, unique=True, index=True)
     counts_package: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class Activity(Base):

@@ -13,9 +13,9 @@ const CHIPS: { label: string; minutes: number }[] = [
 
 // Fast duration entry: one-tap chips + optional custom value + note.
 // Train-with-Coach cells additionally pick WHICH coach the session was with
-// (user 2026-08-15): the package coach is the preselected norm; per-session
-// coaches (Phi Vũ) never consume the 10-session block, so the ★ hides for
-// them. New coaches are added inline.
+// (user 2026-08-15): the is_default coach is preselected (Phi Vũ since
+// 2026-10-14); per-session coaches (Phi Vũ) never consume the 10-session
+// block, so the ★ hides for them. New coaches are added inline.
 export default function DurationEditor({
   category,
   dateIso,
@@ -45,8 +45,8 @@ export default function DurationEditor({
   const currentMinutes = current?.duration_minutes ?? 0;
   const isCoach = category.key === "train_with_coach";
 
-  // Coach picker (coach cells only). Stored coach wins; otherwise the first
-  // package coach (the seeded default) once the roster loads.
+  // Coach picker (coach cells only). Stored coach wins; otherwise the
+  // is_default coach (first package coach as a fallback) once the roster loads.
   const [coaches, setCoaches] = useState<Coach[]>([]);
   const [coachId, setCoachId] = useState<number | null>(
     current?.coach_id ?? null
@@ -64,7 +64,11 @@ export default function DurationEditor({
         if (!alive) return;
         setCoaches(list);
         setCoachId(
-          (cur) => cur ?? list.find((c) => c.counts_package)?.id ?? null
+          (cur) =>
+            cur ??
+            list.find((c) => c.is_default)?.id ??
+            list.find((c) => c.counts_package)?.id ??
+            null
         );
       })
       .catch(() => {});

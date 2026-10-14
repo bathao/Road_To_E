@@ -133,7 +133,7 @@ def upsert_activity(payload: schemas.ActivityIn, db: Session = Depends(get_db)):
 
     # The coach stamp is a train_with_coach concern only. Payload names a
     # coach -> validate and use it; payload omits it -> keep the stored one
-    # (legacy callers), defaulting to the package coach on brand-new rows.
+    # (legacy callers), defaulting to the is_default coach on brand-new rows.
     category = db.get(Category, payload.category_id)
     coach_id: int | None = None
     if category is not None and category.key == "train_with_coach":

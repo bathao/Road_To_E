@@ -1475,7 +1475,12 @@ export interface paths {
          *     is already running for this opponent.
          */
         post: operations["generate_plan_api_tactics_plan__player_id__post"];
-        delete?: never;
+        /**
+         * Clear Plans
+         * @description Forget every generated plan for this opponent (status goes back to
+         *     `empty`); scouting data is untouched.
+         */
+        delete: operations["clear_plans_api_tactics_plan__player_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2040,6 +2045,11 @@ export interface components {
             name: string;
             /** Counts Package */
             counts_package: boolean;
+            /**
+             * Is Default
+             * @default false
+             */
+            is_default: boolean;
         };
         /** CoachPackage */
         CoachPackage: {
@@ -3970,11 +3980,8 @@ export interface components {
             amount?: ("light" | "med" | "heavy") | null;
             /** Length */
             length?: ("short" | "half" | "long") | null;
-            /**
-             * Place
-             * @enum {string}
-             */
-            place: "R" | "M" | "L";
+            /** Place */
+            place?: ("R" | "M" | "L") | null;
             /**
              * Played
              * @default 0
@@ -4151,12 +4158,11 @@ export interface components {
             /** Length */
             length?: ("short" | "half" | "long") | null;
             /** Stroke */
-            stroke?: ("fhloop" | "bhloop" | "fhdrive" | "bhdrive" | "fhpush" | "bhpush" | "flick" | "block" | "smash" | "chop") | null;
-            /**
-             * Place
-             * @enum {string}
-             */
-            place: "R" | "M" | "L";
+            stroke?: ("fhloop" | "bhloop" | "fhdrive" | "bhdrive" | "fhpush" | "bhpush" | "flick" | "block" | "smash" | "chop" | "other") | null;
+            /** Ball */
+            ball?: ("back" | "top" | "none") | null;
+            /** Place */
+            place?: ("R" | "M" | "L") | null;
         };
         /**
          * SimpleExercise
@@ -4363,6 +4369,13 @@ export interface components {
              * @default {}
              */
             receive_me: {
+                [key: string]: number[];
+            };
+            /**
+             * Receive Opp
+             * @default {}
+             */
+            receive_opp: {
                 [key: string]: number[];
             };
             /**
@@ -7261,6 +7274,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlanOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    clear_plans_api_tactics_plan__player_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                player_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OkOut"];
                 };
             };
             /** @description Validation Error */

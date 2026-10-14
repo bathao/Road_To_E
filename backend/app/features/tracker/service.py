@@ -1498,7 +1498,7 @@ def _coach_sessions(db: Session) -> list[Activity]:
 
 
 def list_coaches(db: Session) -> list[Coach]:
-    """All coaches, oldest first (the seeded package coach leads)."""
+    """All coaches, oldest first (the picker preselects the is_default one)."""
     return db.query(Coach).order_by(Coach.id).all()
 
 
@@ -1517,9 +1517,15 @@ def create_coach(db: Session, payload: schemas.CoachIn) -> Coach:
 
 
 def default_coach_id(db: Session) -> int | None:
-    """The coach a new session gets when the caller names none: the oldest
-    package coach (Minh Thới on the real DB)."""
+    """The coach a new session gets when the caller names none: the row
+    flagged is_default (Phi Vũ on the real DB since 2026-10-14), falling
+    back to the oldest package coach when nothing is flagged."""
     row = (
+        db.query(Coach.id)
+        .filter(Coach.is_default.is_(True))
+        .order_by(Coach.id)
+        .first()
+    ) or (
         db.query(Coach.id)
         .filter(Coach.counts_package.is_(True))
         .order_by(Coach.id)

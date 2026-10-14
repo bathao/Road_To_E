@@ -43,6 +43,8 @@ export interface Coach {
   id: number;
   name: string;
   counts_package: boolean;
+  // Preselected in the session editor (user 2026-10-14: Phi Vũ).
+  is_default: boolean;
 }
 
 // Skill level of a player relative to me (canonical definition in shared/).

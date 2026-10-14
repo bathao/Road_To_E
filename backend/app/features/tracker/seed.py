@@ -41,10 +41,19 @@ _ACTIVITY_COLUMNS = {
     # can't attach a FK — tolerated; NULL reads as the default package coach.
     "coach_id": "INTEGER",
 }
+_COACH_COLUMNS = {
+    # Editor-preselected coach (2026-10-14). Exactly one row is flipped to 1
+    # by _ensure_default_coach once the column exists.
+    "is_default": "BOOLEAN DEFAULT 0",
+}
 
 # First-run coach roster (user 2026-08-15): Minh Thới sells the 10-session
 # package, Phi Vũ is paid per session. More coaches are added from the GUI.
 _DEFAULT_COACHES = (("Minh Thới", True), ("Phi Vũ", False))
+# The coach new sessions default to (user 2026-10-14: Phi Vũ, no longer the
+# package coach). Falls back to the first package coach when no row folds to
+# this name — only reachable on a DB whose roster was renamed by hand.
+_DEFAULT_COACH_NAME = "Phi Vũ"
 
 
 def migrate(db: Session) -> None:
@@ -52,11 +61,30 @@ def migrate(db: Session) -> None:
     changed = add_missing_columns(db, "tracker_player", _PLAYER_COLUMNS)
     changed = add_missing_columns(db, "tracker_match", _MATCH_COLUMNS) or changed
     changed = add_missing_columns(db, "tracker_activity", _ACTIVITY_COLUMNS) or changed
+    changed = add_missing_columns(db, "tracker_coach", _COACH_COLUMNS) or changed
     changed = _ensure_activity_unique_index(db) or changed
     changed = _rebuild_match_player_fks(db) or changed
     changed = _seed_coaches_and_backfill(db) or changed
+    changed = _ensure_default_coach(db) or changed
     if changed:
         db.commit()
+
+
+def _ensure_default_coach(db: Session) -> bool:
+    """One-time: when no coach carries is_default, flip it on the configured
+    default (Phi Vũ), else on the first package coach. Never touches a DB
+    that already has a default — the user may have moved it since."""
+    from app.features.tracker.service import _fold  # local: avoid import cycle
+
+    coaches = db.query(Coach).order_by(Coach.id).all()
+    if not coaches or any(c.is_default for c in coaches):
+        return False
+    target = next(
+        (c for c in coaches if _fold(c.name) == _fold(_DEFAULT_COACH_NAME)), None
+    ) or next((c for c in coaches if c.counts_package), None) or coaches[0]
+    target.is_default = True
+    log.info("coach default set: %s", target.name)
+    return True
 
 
 def _seed_coaches_and_backfill(db: Session) -> bool:

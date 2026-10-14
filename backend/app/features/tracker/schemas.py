@@ -65,6 +65,8 @@ class CoachOut(BaseModel):
     id: int
     name: str
     counts_package: bool
+    # Preselected in the session editor; at most one coach carries it.
+    is_default: bool = False
 
 
 # ---------- Coach packages (10-session blocks) ----------
