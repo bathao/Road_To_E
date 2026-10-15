@@ -600,6 +600,52 @@
   color: var(--muted);
 }
 
+/* SearchPicker (shared/ui): the combo above turned into a pill once an item
+   is picked; click the pill to pick someone else. Hosts size it via a
+   className (.tac-pick, .stats-opp-pick). */
+.spick {
+  position: relative;
+}
+
+.spick-meta {
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.player-option.is-active {
+  background: var(--today);
+}
+
+.spick-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.spick-pill:hover {
+  border-color: var(--accent);
+}
+
+.spick-x {
+  color: var(--muted);
+  font-size: 13px;
+  margin-left: 4px;
+}
+
+.spick-pill:hover .spick-x {
+  color: var(--accent);
+}
+
 .player-add {
   border-top: 1px solid var(--border);
   margin-top: 4px;

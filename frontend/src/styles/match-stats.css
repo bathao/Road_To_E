@@ -153,9 +153,8 @@
   font-size: 12px;
 }
 
-.stats-opp-select {
-  min-width: 260px;
-  max-width: 100%;
+.stats-opp-pick {
+  max-width: 420px;
 }
 
 .stats-h2h-detail {

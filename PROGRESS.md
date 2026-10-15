@@ -1,6 +1,39 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-10-14) — small tweak on top of the user's ☁ sync `e82fc76`: **the Train-with-Coach editor now preselects Phi Vũ instead of Minh Thới** (user: "sửa default từ Minh Thới qua Phi Vũ") via a new `Coach.is_default` flag; 187 tests pass; **needs a start.bat restart** (backend column migration + frontend rebuild)
+## Current status (2026-10-15) — **Profile tab: the Head-to-head lookup is a type-to-search combo** (user: "đổi phần Head-to-Head (Pick an opponent) thành dạng có thể vừa chọn dropdown, vừa gõ search được, giống vài chỗ khác trong project này") — the Tactics tab's OpponentPicker was generalised into `shared/ui/SearchPicker` and both tabs use it; frontend only (tsc clean, dist rebuilt, verified headless on :8000 — no restart needed)
+
+> **Head-to-head picker (user 2026-10-15, screenshot of "— Pick an
+> opponent (129) —"):** 129 opponents in a plain `<select>` meant
+> scrolling for anyone met once. Same fix as Tactics on 2026-10-10, done
+> once instead of twice:
+>   - **`shared/ui/SearchPicker.tsx` (new):** the Tactics combo lifted
+>     verbatim — client-side diacritic-insensitive filter over an already-
+>     loaded `{id, name}` list (empty query = full list in the caller's
+>     order), ↑/↓/Enter/Esc, pill once picked (✕ to pick someone else).
+>     Callers pass `describe(item, "list" | "pill")`, optional `pillExtra`
+>     (chips), `placeholder`, `emptyText`, `className` for sizing. Nothing
+>     can be ADDED here — PlayerPicker (Daily Tracker) stays the creator.
+>   - **Tactics `OpponentPicker`** is now a thin wrapper (describe =
+>     "N matches (W–L)", " · pips" list-only, 🏓 Pips chip on the pill).
+>     Pixel-identical before/after (CDP screenshot).
+>   - **Profile (`match-stats/index.tsx`):** `<select class="stats-opp-
+>     select">` → `<SearchPicker className="stats-opp-pick">` over
+>     `data.opponents` (the range's list); rows read "Equal · 2 matches ·
+>     NEW", placeholder "Search an opponent (129)…". `selOpp` state and the
+>     New-opponents table's "Head-to-head ↓" button are unchanged (selected
+>     item is derived from the id, so a range change that drops the
+>     opponent falls back to the empty input + the existing "No matches…"
+>     line, exactly like the blank <select> did).
+>   - **CSS:** pill/meta/active-row rules moved from tactics.css to
+>     daily-tracker.css next to `.player-combo` under neutral `.spick*`
+>     names; tactics.css keeps only the header sizing; match-stats.css
+>     `.stats-opp-pick { max-width: 420px }`.
+>   - **Verified** with headless Chrome over CDP on the running :8000
+>     (dist rebuilt, same bundle served): typed "vy" → one hit → Enter →
+>     pill "Nguyễn Phúc Hoàng Vy · Equal · 2 matches · NEW" + Singles 0–2
+>     detail; Tactics tab renders as before.
+
+## Previous status (2026-10-14) — small tweak on top of the user's ☁ sync `e82fc76`: **the Train-with-Coach editor now preselects Phi Vũ instead of Minh Thới** (user: "sửa default từ Minh Thới qua Phi Vũ") via a new `Coach.is_default` flag; 187 tests pass; **needs a start.bat restart** (backend column migration + frontend rebuild)
 
 > **Default coach (user 2026-10-14, screenshot of the "Train with Coach ·
 > 2026-10-14" modal with Minh Thới highlighted):** the old rule was

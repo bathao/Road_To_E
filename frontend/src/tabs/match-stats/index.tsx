@@ -15,6 +15,7 @@ import type { RangePreset } from "./components/RangePicker";
 import { levelShort } from "../../shared/levels";
 import { pct } from "../../shared/format";
 import Seg from "../../shared/ui/Seg";
+import SearchPicker from "../../shared/ui/SearchPicker";
 import { trainingApi } from "../training-center/api";
 import { matchStatsApi } from "./api";
 import MatchLines from "./components/MatchLines";
@@ -46,7 +47,7 @@ export default function MatchStats() {
   const [discipline, setDiscipline] = useState<DisciplineFilter>("all");
   const [category, setCategory] = useState<CategoryFilter>("all");
 
-  const [selOpp, setSelOpp] = useState<number | "">(""); // head-to-head dropdown
+  const [selOpp, setSelOpp] = useState<number | "">(""); // head-to-head picker
   // Which KPI drill-down is open below the KPI row: the match list (Matches /
   // W-L / Win rate tiles), the same list filtered to pips opponents, or the
   // new-opponents table. One panel at a time.
@@ -459,19 +460,24 @@ export default function MatchStats() {
           {hasMatches && (
           <section className="stats-card">
             <h3>Head-to-head (pick an opponent)</h3>
-            <select
-              className="pb-select stats-opp-select"
-              value={selOpp}
-              onChange={(e) => setSelOpp(e.target.value ? Number(e.target.value) : "")}
-            >
-              <option value="">— Pick an opponent ({data!.opponents.length}) —</option>
-              {data!.opponents.map((op) => (
-                <option key={op.id} value={op.id}>
-                  {op.name} · {levelShort(op.level)} · {op.played} matches
-                  {op.is_new ? " · NEW" : ""}
-                </option>
-              ))}
-            </select>
+            {/* Type-to-search combo (user 2026-10-15: the plain <select>
+                over 129 opponents was unsearchable) — same SearchPicker as
+                the Tactics tab, filtering the range's opponent list. */}
+            <SearchPicker
+              className="stats-opp-pick"
+              items={data!.opponents}
+              selected={
+                data!.opponents.find((op) => op.id === selOpp) ?? null
+              }
+              onPick={(id) => setSelOpp(id ?? "")}
+              describe={(op) =>
+                `${levelShort(op.level)} · ${op.played} ${
+                  op.played === 1 ? "match" : "matches"
+                }${op.is_new ? " · NEW" : ""}`
+              }
+              placeholder={`Search an opponent (${data!.opponents.length})…`}
+              emptyText={(q) => `No opponent in this range matches “${q}”.`}
+            />
 
             {selOpp !== "" &&
               (() => {

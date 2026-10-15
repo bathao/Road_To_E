@@ -17,56 +17,17 @@
   margin: 0;
 }
 
-/* Opponent picker: a type-to-search combo (reuses the Daily Tracker's
-   .player-combo / .player-dropdown / .player-option look) that turns into
-   a pill once someone is picked; click the pill to pick someone else. */
+/* Opponent picker: the shared SearchPicker (.spick, daily-tracker.css) —
+   only the header sizing lives here. */
 .tac-pick {
   flex: 0 1 420px;
   min-width: 260px;
   font-size: 15px;
 }
 
-.tac-pick input {
+.tac-pick input,
+.tac-pick .spick-pill {
   font-size: 15px;
-}
-
-.tac-pick-meta {
-  color: var(--muted);
-  font-size: 13px;
-  white-space: nowrap;
-}
-
-.player-option.is-active {
-  background: var(--today);
-}
-
-.tac-pick-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  max-width: 100%;
-  padding: 7px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface);
-  color: var(--text);
-  font-size: 15px;
-  font-family: inherit;
-  cursor: pointer;
-}
-
-.tac-pick-pill:hover {
-  border-color: var(--accent);
-}
-
-.tac-pick-x {
-  color: var(--muted);
-  font-size: 13px;
-  margin-left: 4px;
-}
-
-.tac-pick-pill:hover .tac-pick-x {
-  color: var(--accent);
 }
 
 .tac-hint {
