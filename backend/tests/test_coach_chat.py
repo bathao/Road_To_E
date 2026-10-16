@@ -4,6 +4,7 @@ from __future__ import annotations
 import pytest
 
 from app.features.head_coach import service as hc_service
+from app.features.head_coach.service import chat as hc_chat
 from app.features.head_coach.models import CoachChatMessage, CoachNote
 
 
@@ -29,8 +30,8 @@ def fake_model(monkeypatch):
             ],
         }
 
-    monkeypatch.setattr(hc_service, "_call_chat_model", _fake)
-    monkeypatch.setattr(hc_service, "resolve_model", lambda: "test-model")
+    monkeypatch.setattr(hc_chat, "_call_chat_model", _fake)
+    monkeypatch.setattr(hc_chat, "resolve_model", lambda: "test-model")
     return calls
 
 
@@ -82,12 +83,12 @@ def test_one_question_at_a_time(db):
 
 
 def test_model_failure_marks_error_not_lost(db, monkeypatch):
-    monkeypatch.setattr(hc_service, "resolve_model", lambda: "test-model")
+    monkeypatch.setattr(hc_chat, "resolve_model", lambda: "test-model")
 
     def _boom(*_a, **_k):
         raise RuntimeError("Ollama down")
 
-    monkeypatch.setattr(hc_service, "_call_chat_model", _boom)
+    monkeypatch.setattr(hc_chat, "_call_chat_model", _boom)
     hc_service.start_chat(db, "Câu hỏi")
     hc_service.run_chat_job(db)
 
@@ -102,7 +103,7 @@ def test_model_failure_marks_error_not_lost(db, monkeypatch):
 def test_empty_reply_retried_once(db, monkeypatch):
     """First structured-output call after model load can come back empty
     (seen in smoke tests) — the job retries once before reporting an error."""
-    monkeypatch.setattr(hc_service, "resolve_model", lambda: "test-model")
+    monkeypatch.setattr(hc_chat, "resolve_model", lambda: "test-model")
     attempts: list[int] = []
 
     def _flaky(*_a, **_k):
@@ -111,7 +112,7 @@ def test_empty_reply_retried_once(db, monkeypatch):
             return {"reply": "", "new_notes": []}
         return {"reply": "Trả lời được rồi.", "new_notes": []}
 
-    monkeypatch.setattr(hc_service, "_call_chat_model", _flaky)
+    monkeypatch.setattr(hc_chat, "_call_chat_model", _flaky)
     hc_service.start_chat(db, "Câu hỏi")
     hc_service.run_chat_job(db)
 

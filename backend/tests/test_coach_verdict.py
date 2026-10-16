@@ -9,6 +9,7 @@ import datetime as dt
 
 from conftest import category_id
 from app.features.head_coach import service as hc_service
+from app.features.head_coach.service import verdict as hc_verdict
 from app.features.head_coach.models import HeadCoachAssessment
 from app.features.tracker.models import Match, Player
 
@@ -30,8 +31,8 @@ def _fake_verdict(*_args, **_kwargs) -> dict:
 
 
 def test_run_generate_job_fills_snapshot(db, monkeypatch):
-    monkeypatch.setattr(hc_service, "_call_model", _fake_verdict)
-    monkeypatch.setattr(hc_service, "resolve_model", lambda: "test-model")
+    monkeypatch.setattr(hc_verdict, "_call_model", _fake_verdict)
+    monkeypatch.setattr(hc_verdict, "resolve_model", lambda: "test-model")
 
     out = hc_service.start_generate(db)
     hc_service.run_generate_job(out.id, db)
@@ -123,8 +124,8 @@ def test_run_generate_job_error_marks_row(db, monkeypatch):
     def _boom(*_a, **_k):
         raise RuntimeError("ollama down")
 
-    monkeypatch.setattr(hc_service, "_call_model", _boom)
-    monkeypatch.setattr(hc_service, "resolve_model", lambda: "test-model")
+    monkeypatch.setattr(hc_verdict, "_call_model", _boom)
+    monkeypatch.setattr(hc_verdict, "resolve_model", lambda: "test-model")
 
     out = hc_service.start_generate(db)
     hc_service.run_generate_job(out.id, db)

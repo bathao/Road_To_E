@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from app.features.tracker import service
 from app.features.tracker.models import Memo
+from app.features.head_coach.service import recap as hc_recap
 
 
 def _post(client, text):
@@ -100,14 +101,14 @@ def test_recap_bundle_reads_memos(client, db, monkeypatch):
     _post(client, "Xoay chân phải vào khi giật")
     _post(client, "Giao dài trước, ngắn sau")
     monkeypatch.setattr(
-        hc_service,
+        hc_recap,
         "_call_recap_model",
         lambda *a, **k: {
             "headline": "ok", "overall": "ok",
             "went_well": [], "concerns": [], "focus_next": [],
         },
     )
-    monkeypatch.setattr(hc_service, "resolve_model", lambda: "test-model")
+    monkeypatch.setattr(hc_recap, "resolve_model", lambda: "test-model")
 
     out = hc_service.start_recap(db, "week", today=dt.date.today())
     hc_service.run_recap_job(out.id, db)

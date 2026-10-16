@@ -5,6 +5,7 @@ import datetime as dt
 import json
 
 from app.features.head_coach import service as hc_service
+from app.features.head_coach.service import recap as hc_recap
 from app.features.head_coach.models import HeadCoachRecap
 from app.features.tracker.models import Activity, Match, Player
 
@@ -59,8 +60,8 @@ def test_get_recaps_is_read_only(db):
 
 
 def test_get_recaps_returns_newest(db, monkeypatch):
-    monkeypatch.setattr(hc_service, "_call_recap_model", _fake_recap)
-    monkeypatch.setattr(hc_service, "resolve_model", lambda: "test-model")
+    monkeypatch.setattr(hc_recap, "_call_recap_model", _fake_recap)
+    monkeypatch.setattr(hc_recap, "resolve_model", lambda: "test-model")
     _seed_day(db, TODAY - dt.timedelta(days=1))
     _seed_day(db, TODAY)
     old = hc_service.start_recap(db, "week", today=TODAY - dt.timedelta(days=1))
@@ -112,8 +113,8 @@ def test_start_recap_validation(db):
 
 
 def test_same_day_press_reuses_row(db, monkeypatch):
-    monkeypatch.setattr(hc_service, "_call_recap_model", _fake_recap)
-    monkeypatch.setattr(hc_service, "resolve_model", lambda: "test-model")
+    monkeypatch.setattr(hc_recap, "_call_recap_model", _fake_recap)
+    monkeypatch.setattr(hc_recap, "resolve_model", lambda: "test-model")
     _seed_day(db, TODAY)
     first = hc_service.start_recap(db, "week", today=TODAY)
     hc_service.run_recap_job(first.id, db)
@@ -127,8 +128,8 @@ def test_same_day_press_reuses_row(db, monkeypatch):
 
 # ------------------------------------------------------------------ the job
 def test_run_recap_job_fills_row_and_stats(db, monkeypatch):
-    monkeypatch.setattr(hc_service, "_call_recap_model", _fake_recap)
-    monkeypatch.setattr(hc_service, "resolve_model", lambda: "test-model")
+    monkeypatch.setattr(hc_recap, "_call_recap_model", _fake_recap)
+    monkeypatch.setattr(hc_recap, "resolve_model", lambda: "test-model")
     _seed_day(db, TODAY, minutes=90, matches=3)  # 2W/1L, inside the window
     _seed_day(db, WEEK_START - dt.timedelta(days=1), minutes=999)  # just outside
 
@@ -178,8 +179,8 @@ def test_recap_bundle_h2h_progression_and_elo_by_opponent(db, monkeypatch):
     each top-h2h line carries the in-period match sequence (oldest → newest,
     with the handicap) so the model can compare new vs old results at the
     SAME ratio, and the bundle names who the period's ELO went to."""
-    monkeypatch.setattr(hc_service, "_call_recap_model", _fake_recap)
-    monkeypatch.setattr(hc_service, "resolve_model", lambda: "test-model")
+    monkeypatch.setattr(hc_recap, "_call_recap_model", _fake_recap)
+    monkeypatch.setattr(hc_recap, "resolve_model", lambda: "test-model")
     anna = Player(name="Anna", points=950)
     db.add(anna)
     db.commit()
@@ -216,8 +217,8 @@ def test_recap_bundle_h2h_progression_and_elo_by_opponent(db, monkeypatch):
 
 
 def test_run_recap_job_no_previous_before_first_data(db, monkeypatch):
-    monkeypatch.setattr(hc_service, "_call_recap_model", _fake_recap)
-    monkeypatch.setattr(hc_service, "resolve_model", lambda: "test-model")
+    monkeypatch.setattr(hc_recap, "_call_recap_model", _fake_recap)
+    monkeypatch.setattr(hc_recap, "resolve_model", lambda: "test-model")
     _seed_day(db, TODAY, minutes=60)  # the only data ever
 
     out = hc_service.start_recap(db, "week", today=TODAY)
@@ -230,8 +231,8 @@ def test_run_recap_job_error_marks_row(db, monkeypatch):
     def _boom(*_a, **_k):
         raise RuntimeError("ollama down")
 
-    monkeypatch.setattr(hc_service, "_call_recap_model", _boom)
-    monkeypatch.setattr(hc_service, "resolve_model", lambda: "test-model")
+    monkeypatch.setattr(hc_recap, "_call_recap_model", _boom)
+    monkeypatch.setattr(hc_recap, "resolve_model", lambda: "test-model")
     _seed_day(db, TODAY)
 
     out = hc_service.start_recap(db, "week", today=TODAY)

@@ -22,6 +22,11 @@ import pytest
 
 from conftest import assert_golden, category_id
 from app.features.head_coach import service as hc_service
+from app.features.head_coach.service import verdict as hc_verdict
+from app.features.head_coach.service import recap as hc_recap
+from app.features.head_coach.service import bundle as hc_bundle
+from app.features.head_coach.service import directives as hc_directives
+from app.features.head_coach.service import render as hc_render
 from app.features.head_coach.models import CoachNote, HeadCoachRecap
 from app.features.tournament import schemas as t_schemas
 from app.features.tournament import service as t_service
@@ -46,7 +51,10 @@ class _FrozenDate(dt.date):
 # (Patching ``datetime.date`` itself would break SQLAlchemy's own
 # ``isinstance(value, datetime.date)`` check on real date objects.)
 _CLOCK_MODULES = (
-    hc_service,
+    hc_bundle,
+    hc_directives,
+    hc_recap,
+    hc_render,
     tracker_grid,
     tracker_boards,
     tracker_players,
@@ -221,8 +229,8 @@ def test_verdict_context_golden(frozen_today, client, db, monkeypatch):
         seen["player"] = player_name
         return _verdict_payload()
 
-    monkeypatch.setattr(hc_service, "_call_model", capture)
-    monkeypatch.setattr(hc_service, "resolve_model", lambda: "test-model")
+    monkeypatch.setattr(hc_verdict, "_call_model", capture)
+    monkeypatch.setattr(hc_verdict, "resolve_model", lambda: "test-model")
     out = hc_service.start_generate(db)
     hc_service.run_generate_job(out.id, db)
     assert hc_service.get_latest(db).status == "done"
@@ -239,8 +247,8 @@ def test_recap_context_golden(frozen_today, client, db, monkeypatch, period_type
         seen["text"] = context_text
         return _recap_payload()
 
-    monkeypatch.setattr(hc_service, "_call_recap_model", capture)
-    monkeypatch.setattr(hc_service, "resolve_model", lambda: "test-model")
+    monkeypatch.setattr(hc_recap, "_call_recap_model", capture)
+    monkeypatch.setattr(hc_recap, "resolve_model", lambda: "test-model")
     out = hc_service.start_recap(db, period_type, today=TODAY)
     hc_service.run_recap_job(out.id, db)
     row = db.get(HeadCoachRecap, out.id)
