@@ -18,8 +18,15 @@ Left for the user: `git rm -r backend/scripts/imports backend/scripts/migrations
 (`ollama`, `jobs.run_llm_job` + `recover_stuck`, `persona`, `format_vi`,
 `time`), `app/core/errors.py` (NotFound/Conflict/BadRequest + one handler —
 all router re-mapping removed), `tracker/constants.py`, `registry.STARTUP_FUNCS`.
-Prompts verified byte-identical. Next: Phase 3. Line numbers below are
-pre-cleanup and drift.
+Prompts verified byte-identical.
+
+**Phase 3 done the same day:** `tracker/service/` (13 modules + activities),
+`head_coach/service/` (10 modules), `training/program/` (6 modules) — all
+mechanical splits behind re-exporting facades (no function body changed; the
+goldens held); tracker router thin (581 → 407 lines); `coach_sessions_q`
+dedupe. NOT merged: the verdict/recap section renderers (different wording =
+prompt change — ask the user). Next: Phase 4 (frontend). Line numbers below
+are pre-split and no longer apply to the backend.
 
 Sizes: backend 13.3k lines of Python (50 files, 33 test files / 5.3k lines),
 frontend 14.7k lines of TS/TSX (99 files) + 6.2k lines of global CSS.

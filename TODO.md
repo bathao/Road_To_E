@@ -40,10 +40,10 @@ scannable. Last full sync: 2026-10-10.
 - [x] Phase 2 (2026-10-16) — `app/shared/` (ollama, jobs, persona,
   format_vi, time), typed errors + one handler, `tracker/constants.py`,
   `registry.STARTUP_FUNCS`.
-- [ ] **Phase 3** — split tracker/head_coach service and training/program
-  into packages behind re-exporting facades (the goldens guard it); move
-  router business logic (`upsert_activity`, `create/update_match`) into
-  the service; dedupe W/L tallies, date ranges, coach-session lookups.
+- [x] Phase 3 (2026-10-16) — `tracker/service/`, `head_coach/service/`,
+  `training/program/` packages; thin tracker router; coach-session query
+  deduped. Left open: merging the verdict/recap renderers (changes prompt
+  wording — user's call).
 - [ ] **Phase 4** — frontend: shared domain types + `MatchRowList` /
   `RangePicker` in `shared/`, `usePolling` / `useRangePreset` / `errMsg` /
   `ResultBadge`, alias types to `schema.d.ts`, split the big components;

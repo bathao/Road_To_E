@@ -1,6 +1,62 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-10-16) — **Refactor Phase 2 (REFACTOR.md): backend shared layer, typed errors, constants, explicit startup hooks** (user: "commit đi. rồi tiếp tục làm tiếp") — 203 backend tests, no API shape change (schema.d.ts unchanged); **needs a start.bat restart** (backend only)
+## Current status (2026-10-16) — **Refactor Phase 3 (REFACTOR.md): the three god files are packages, the tracker router is thin** — 4 commits (3a `9d40e59`, 3b `d5af65a`, 3c `dee70a8`, 3d/3e `fbc7fcc`), 203 backend tests, goldens untouched, schema.d.ts unchanged; **needs a start.bat restart** (backend only)
+
+> **How the splits were done (all three the same way):** an AST pass listed
+> every top-level definition with the names it references; each definition
+> was assigned to a module; the sibling-import graph was checked acyclic;
+> each definition moved with the comment lines above it; the full external
+> import block was copied into every module and pruned by `ruff --fix
+> F401,I`; the package `__init__` re-exports EVERY name (public and
+> test-used private) so `service.X` / `program.X` keep working. No function
+> body changed, which is why the 5 goldens held without edits.
+>   - **3a `tracker/service/`** (was 2.7k lines): text, periods, tally
+>     (leaves) · players · matches · grid · export · journal · boards ·
+>     coaches · stats · match_stats · rating_analytics. Two tests relied on
+>     transitive names (`service.Category`, `service.dt` in the frozen-clock
+>     fixture) and now point at the owning modules.
+>   - **3b `head_coach/service/`** (was 1.6k lines): common (shared-layer
+>     aliases) · bundle (verdict + recap gatherers) · render (both context
+>     renderers) · verdict (+ directive sanitiser) · directives · recap ·
+>     chat · notes · recovery · debug. **Tests monkeypatch the submodule
+>     that owns a job** (`service.verdict._call_model`,
+>     `service.recap._call_recap_model`, `service.chat._call_chat_model`,
+>     `resolve_model` per module): the facade re-exports names, but a job
+>     looks them up in its own module.
+>   - **3c `training/program/`** (was 941 lines): levels · catalog · daily ·
+>     how_to · schedule · progression; the knee-safe curriculum docstring
+>     stays on the package.
+>   - **3d thin tracker router** (581 → 407 lines, no model imports): the
+>     duration-chip upsert with its coach-stamp / ★ rules, the physical
+>     checklist, day notes, categories and the event autocomplete live in
+>     `service/activities.py`; `create_match` / `update_match` /
+>     `delete_match` / `next_order` in `service/matches.py` with ONE
+>     `_apply_match_payload` instead of the two field-by-field copies.
+>   - **3e dedupes:** `coaches.coach_sessions_q` is the single definition of
+>     "a coach session" (package math, `has_coach_session`, journal coach
+>     names); `_journal_result_token` uses `_result_letter`; `build_week`
+>     uses `_date_range`.
+>
+> **Not done, on purpose:** the plan's "ONE section renderer for verdict
+> and recap" — the two renderers word the same sections differently
+> ("— NHIỆM VỤ HẰNG NGÀY: chuỗi …" vs "— hằng ngày: chuỗi …", different
+> section headers), so unifying them changes prompt text the model was
+> tuned on. They now sit side by side in `render.py`; merging is a prompt
+> decision for the user, not a refactor. Also left: tournament placement
+> code in rating.py, the `_VI` renames, E501 (all "deliberately NOT doing").
+>
+> **Verified:** 203 pytest (unchanged count — pure moves), ruff F/E9/I
+> clean on the touched packages, `npm run gen:api` → schema.d.ts identical,
+> uvicorn on :8001 (start.bat holds :8000): health, typed 404/409/400,
+> /weeks, /training/today, /assessment, /debug, /tactics/plan, /chat.
+> Next per REFACTOR.md: **Phase 4 (frontend)** — shared domain types +
+> `MatchRowList` / `RangePicker` in `shared/`, `usePolling` /
+> `useRangePreset` / `errMsg` / `ResultBadge`, alias types to
+> `schema.d.ts`, split the big components (MatchEditor and PointCharter
+> last, after vitest coverage of `pointRules` / handicap math /
+> `tournamentDraft`); 39 lint warnings to burn down.
+
+## Previous status (2026-10-16, mid) — **Refactor Phase 2 (REFACTOR.md): backend shared layer, typed errors, constants, explicit startup hooks** (user: "commit đi. rồi tiếp tục làm tiếp") — 203 backend tests, no API shape change (schema.d.ts unchanged); **needs a start.bat restart** (backend only)
 
 > **`app/shared/` (new):**
 >   - `ollama.py` — `resolve_model`, `ollama_chat`, `call_with_empty_retry`,
