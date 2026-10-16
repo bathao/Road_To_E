@@ -24,19 +24,24 @@ from .text import _fold
 COACH_PACKAGE_SIZE = 10
 
 
-def _coach_sessions(db: Session) -> list[Activity]:
-    """Every Train-with-Coach session with real duration, in date order —
-    the single query behind all package computations. Includes second-coach
-    sessions; package math filters them via _counts_toward_package."""
+def coach_sessions_q(db: Session):
+    """Query of every Train-with-Coach activity with real minutes — the one
+    definition of "a coach session" (packages, journal, coach names). None
+    when the category does not exist (fresh DB before the seed)."""
     coach = db.query(Category).filter(Category.key == "train_with_coach").first()
     if coach is None:
-        return []
-    return (
-        db.query(Activity)
-        .filter(Activity.category_id == coach.id, Activity.duration_minutes > 0)
-        .order_by(Activity.date)
-        .all()
+        return None
+    return db.query(Activity).filter(
+        Activity.category_id == coach.id, Activity.duration_minutes > 0
     )
+
+
+def _coach_sessions(db: Session) -> list[Activity]:
+    """Every coach session in date order — the single query behind all
+    package computations. Includes second-coach sessions; package math
+    filters them via _counts_toward_package."""
+    q = coach_sessions_q(db)
+    return [] if q is None else q.order_by(Activity.date).all()
 
 
 def list_coaches(db: Session) -> list[Coach]:

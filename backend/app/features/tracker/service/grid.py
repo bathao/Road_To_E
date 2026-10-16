@@ -25,6 +25,7 @@ from app.features.tracker.models import (
 from app.features.training import service as training_service
 
 from .matches import _annotate_elo
+from .periods import _date_range
 from .tally import _result_letter
 from .text import _fold
 
@@ -528,8 +529,7 @@ def build_week(
         end = start + dt.timedelta(days=6)
     if end < start:
         end = start
-    span = (end - start).days + 1
-    days = [start + dt.timedelta(days=i) for i in range(span)]
+    days = _date_range(start, end)
 
     rng = _load_range(db, start, end)
     categories = rng.categories

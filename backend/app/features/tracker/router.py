@@ -1,4 +1,7 @@
-"""HTTP API for the Daily Tracker tab (prefix /api/tracker)."""
+"""HTTP API for the Daily Tracker tab (prefix /api/tracker).
+
+Thin by design: every handler maps HTTP to one service call; typed service
+errors (app.core.errors) become the response codes."""
 from __future__ import annotations
 
 import datetime as dt
@@ -8,36 +11,14 @@ from sqlalchemy.orm import Session
 
 from app.core.db import get_db
 from app.features.tracker import schemas, service
-from app.features.tracker.models import (
-    Activity,
-    Category,
-    Coach,
-    DayNote,
-    Event,
-    Match,
-    PhysicalCheck,
-)
 
 router = APIRouter(prefix="/api/tracker", tags=["tracker"])
-
-
-def _next_order(db: Session, date: dt.date, category_id: int) -> int:
-    """Next free order_index in a cell — max+1, not count(), so the index
-    stays unique after deletes/moves leave holes."""
-    current_max = (
-        db.query(Match.order_index)
-        .filter(Match.date == date, Match.category_id == category_id)
-        .order_by(Match.order_index.desc())
-        .limit(1)
-        .scalar()
-    )
-    return 0 if current_max is None else current_max + 1
 
 
 # ---------------------------------------------------------------- categories
 @router.get("/categories", response_model=list[schemas.CategoryOut])
 def list_categories(db: Session = Depends(get_db)):
-    return db.query(Category).order_by(Category.sort_order).all()
+    return service.list_categories(db)
 
 
 # ---------------------------------------------------------------- last date
@@ -112,156 +93,23 @@ def create_coach(payload: schemas.CoachIn, db: Session = Depends(get_db)):
 @router.put("/activities", response_model=schemas.ActivityOut | None)
 def upsert_activity(payload: schemas.ActivityIn, db: Session = Depends(get_db)):
     """One call for the duration chips: upsert by (date, category). Empty -> delete."""
-    rows = (
-        db.query(Activity)
-        .filter(Activity.date == payload.date, Activity.category_id == payload.category_id)
-        .order_by(Activity.id)
-        .all()
-    )
-    # Legacy DBs (created before the unique index) can hold duplicate rows for
-    # the pair; a single-row delete would let the extra resurrect the value —
-    # always collapse to one row.
-    for extra in rows[1:]:
-        db.delete(extra)
-    existing = rows[0] if rows else None
-
-    # The coach stamp is a train_with_coach concern only. Payload names a
-    # coach -> validate and use it; payload omits it -> keep the stored one
-    # (legacy callers), defaulting to the is_default coach on brand-new rows.
-    category = db.get(Category, payload.category_id)
-    coach_id: int | None = None
-    if category is not None and category.key == "train_with_coach":
-        if payload.coach_id is not None:
-            if db.get(Coach, payload.coach_id) is None:
-                raise HTTPException(status_code=400, detail="Unknown coach")
-            coach_id = payload.coach_id
-        else:
-            coach_id = (
-                existing.coach_id if existing else None
-            ) or service.default_coach_id(db)
-
-    # A package can only start on a real session: a ★ on a 0-minute row would
-    # show in the grid while being invisible to the package math. A pay-per-
-    # session coach's ★ is equally invisible — strip it instead of storing a
-    # mark the package math ignores.
-    star = payload.is_package_start and payload.duration_minutes > 0
-    if star and coach_id is not None:
-        coach = db.get(Coach, coach_id)
-        if coach is not None and not coach.counts_package:
-            star = False
-    if payload.duration_minutes <= 0 and not payload.note and not star:
-        if existing:
-            db.delete(existing)
-        db.commit()
-        return None
-    if existing:
-        existing.duration_minutes = payload.duration_minutes
-        existing.note = payload.note
-        existing.is_package_start = star
-        existing.coach_id = coach_id
-    else:
-        existing = Activity(
-            date=payload.date,
-            category_id=payload.category_id,
-            duration_minutes=payload.duration_minutes,
-            note=payload.note,
-            is_package_start=star,
-            coach_id=coach_id,
-        )
-        db.add(existing)
-    db.commit()
-    db.refresh(existing)
-    return existing
+    return service.upsert_activity(db, payload)
 
 
 # ---------------------------------------------------------------- matches
 @router.post("/matches", response_model=schemas.MatchOut)
 def create_match(payload: schemas.MatchIn, db: Session = Depends(get_db)):
-    # Tournament matches with no explicit event default to the tournament's
-    # name, so event-based displays label them automatically.
-    event = service.get_or_create_event(
-        db,
-        payload.event_name
-        or service.tournament_default_event(db, payload.tournament_entry_id),
-    )
-    match = Match(
-        date=payload.date,
-        category_id=payload.category_id,
-        discipline=payload.discipline,
-        best_of=payload.best_of,
-        my_sets=payload.my_sets,
-        opp_sets=payload.opp_sets,
-        event_id=event.id if event else None,
-        is_nonplaying=payload.is_nonplaying,
-        nonplaying_label=payload.nonplaying_label,
-        note=payload.note,
-        order_index=(
-            payload.order_index
-            if payload.order_index is not None
-            else _next_order(db, payload.date, payload.category_id)
-        ),
-        opponent_id=payload.opponent_id,
-        opponent2_id=payload.opponent2_id,
-        partner_id=payload.partner_id,
-        handicap=payload.handicap or 0,
-        handicap_pattern=service.normalize_handicap_pattern(payload.handicap_pattern),
-        tournament_entry_id=payload.tournament_entry_id,
-        round=payload.round,
-    )
-    # Freeze the involved players' points at match time (ELO reads these).
-    service.snapshot_match_points(db, match)
-    db.add(match)
-    db.commit()
-    db.refresh(match)
-    return service.match_to_out(match, service.compute_my_rating(db).current)
+    return service.create_match(db, payload)
 
 
 @router.put("/matches/{match_id}", response_model=schemas.MatchOut)
 def update_match(match_id: int, payload: schemas.MatchIn, db: Session = Depends(get_db)):
-    match = db.get(Match, match_id)
-    if not match:
-        raise HTTPException(status_code=404, detail="Match not found")
-    event = service.get_or_create_event(
-        db,
-        payload.event_name
-        or service.tournament_default_event(db, payload.tournament_entry_id),
-    )
-    prev_ids = (match.opponent_id, match.opponent2_id, match.partner_id)
-    if (payload.date, payload.category_id) != (match.date, match.category_id):
-        # Moved to another cell → append after that cell's existing matches so
-        # order_index stays unique within the cell.
-        match.order_index = _next_order(db, payload.date, payload.category_id)
-    match.date = payload.date
-    match.category_id = payload.category_id
-    match.discipline = payload.discipline
-    match.best_of = payload.best_of
-    match.my_sets = payload.my_sets
-    match.opp_sets = payload.opp_sets
-    match.event_id = event.id if event else None
-    match.is_nonplaying = payload.is_nonplaying
-    match.nonplaying_label = payload.nonplaying_label
-    match.note = payload.note
-    match.opponent_id = payload.opponent_id
-    match.opponent2_id = payload.opponent2_id
-    match.partner_id = payload.partner_id
-    match.handicap = payload.handicap or 0
-    match.handicap_pattern = service.normalize_handicap_pattern(payload.handicap_pattern)
-    match.tournament_entry_id = payload.tournament_entry_id
-    match.round = payload.round
-    # Re-snapshot points ONLY for slots whose player changed; editing a score
-    # or date keeps the original at-match-time snapshots.
-    service.snapshot_match_points(db, match, prev_ids=prev_ids)
-    db.commit()
-    db.refresh(match)
-    return service.match_to_out(match, service.compute_my_rating(db).current)
+    return service.update_match(db, match_id, payload)
 
 
 @router.delete("/matches/{match_id}", status_code=204)
 def delete_match(match_id: int, db: Session = Depends(get_db)):
-    obj = db.get(Match, match_id)
-    if obj:
-        db.delete(obj)
-        db.commit()
+    service.delete_match(db, match_id)
     return Response(status_code=204)
 
 
@@ -292,33 +140,14 @@ def list_physical_items():
 @router.put("/physical-checks", response_model=schemas.PhysicalChecksOut)
 def set_physical_checks(payload: schemas.PhysicalChecksIn, db: Session = Depends(get_db)):
     """Replace the full set of ticked items for a day."""
-    valid = {key for key, _ in service.PHYSICAL_ITEMS}
-    wanted = [k for k in payload.items if k in valid]
-
-    db.query(PhysicalCheck).filter(PhysicalCheck.date == payload.date).delete()
-    for key in wanted:
-        db.add(PhysicalCheck(date=payload.date, item_key=key))
-    db.commit()
-    return schemas.PhysicalChecksOut(date=payload.date, items=wanted)
+    return service.set_physical_checks(db, payload)
 
 
 # ---------------------------------------------------------------- day notes
 @router.put("/day-notes", response_model=schemas.DayNoteOut)
 def upsert_day_note(payload: schemas.DayNoteIn, db: Session = Depends(get_db)):
     """Upsert a day's note. Empty text deletes it."""
-    text = (payload.text or "").strip()
-    existing = db.query(DayNote).filter(DayNote.date == payload.date).first()
-    if not text:
-        if existing:
-            db.delete(existing)
-            db.commit()
-        return schemas.DayNoteOut(date=payload.date, text="")
-    if existing:
-        existing.text = text
-    else:
-        db.add(DayNote(date=payload.date, text=text))
-    db.commit()
-    return schemas.DayNoteOut(date=payload.date, text=text)
+    return service.upsert_day_note(db, payload)
 
 
 # ------------------------------------------------- session notes (Journal tab)
@@ -452,10 +281,7 @@ def delete_session_note(note_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------------- events
 @router.get("/events", response_model=list[schemas.EventOut])
 def list_events(q: str = Query("", description="search term"), db: Session = Depends(get_db)):
-    query = db.query(Event)
-    if q:
-        query = query.filter(Event.name.ilike(f"%{q}%"))
-    return query.order_by(Event.name).limit(20).all()
+    return service.list_events(db, q)
 
 
 # ---------------------------------------------------------------- players

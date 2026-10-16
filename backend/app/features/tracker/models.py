@@ -14,7 +14,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.base import Base, utcnow as _utcnow
+from app.core.base import Base
+from app.core.base import utcnow as _utcnow
 
 
 class Category(Base):

@@ -14,11 +14,13 @@ from app.core.errors import BadRequest, NotFound
 from app.features.tracker import schemas
 from app.features.tracker.models import (
     Activity,
-    Category,
     Coach,
     Match,
     SessionNote,
 )
+
+from .coaches import coach_sessions_q
+from .tally import _result_letter
 
 # Fixed tag set for journal coach items. (key, English label) — same pattern
 # as PHYSICAL_ITEMS; unknown keys are dropped on write, never rejected.
@@ -76,17 +78,8 @@ def session_note_to_out(n: SessionNote) -> schemas.SessionNoteOut:
 
 def has_coach_session(db: Session, d: dt.date) -> bool:
     """Whether the day has a Train-with-Coach activity with actual minutes."""
-    return (
-        db.query(Activity.id)
-        .join(Category, Category.id == Activity.category_id)
-        .filter(
-            Category.key == "train_with_coach",
-            Activity.date == d,
-            Activity.duration_minutes > 0,
-        )
-        .first()
-        is not None
-    )
+    q = coach_sessions_q(db)
+    return q is not None and q.filter(Activity.date == d).first() is not None
 
 
 def create_session_note(db: Session, payload: schemas.SessionNoteIn) -> SessionNote:
@@ -159,10 +152,8 @@ def _journal_coach_names(db: Session, dates: list[dt.date]) -> dict[str, list[st
     """iso date -> that day's Train-with-Coach coach names (deduped, entry
     order). coach_id NULL = the package coach (same convention as the package
     math); no package coach seeded and NULL → the day just shows no name."""
-    if not dates:
-        return {}
-    coach_cat = db.query(Category).filter(Category.key == "train_with_coach").first()
-    if coach_cat is None:
+    q = coach_sessions_q(db) if dates else None
+    if q is None:
         return {}
     names = {c.id: c.name for c in db.query(Coach).all()}
     package = next(
@@ -171,16 +162,7 @@ def _journal_coach_names(db: Session, dates: list[dt.date]) -> dict[str, list[st
         None,
     )
     out: dict[str, list[str]] = {}
-    acts = (
-        db.query(Activity)
-        .filter(
-            Activity.category_id == coach_cat.id,
-            Activity.date.in_(dates),
-            Activity.duration_minutes > 0,
-        )
-        .order_by(Activity.id)
-        .all()
-    )
+    acts = q.filter(Activity.date.in_(dates)).order_by(Activity.id).all()
     for a in acts:
         name = names.get(a.coach_id) if a.coach_id else package
         day = out.setdefault(a.date.isoformat(), [])
@@ -191,10 +173,7 @@ def _journal_coach_names(db: Session, dates: list[dt.date]) -> dict[str, list[st
 
 def _journal_result_token(m: Match) -> str:
     """One match's result inside a group label: 'W 3-2', 'L 1-3 (receive 2)'."""
-    if m.my_sets == m.opp_sets:
-        res = f"T {m.my_sets}-{m.opp_sets}"
-    else:
-        res = f"{'W' if m.my_sets > m.opp_sets else 'L'} {m.my_sets}-{m.opp_sets}"
+    res = f"{_result_letter(m.my_sets, m.opp_sets)} {m.my_sets}-{m.opp_sets}"
     if m.handicap:
         spec = m.handicap_pattern or str(abs(m.handicap))
         res += f" ({'give' if m.handicap > 0 else 'receive'} {spec})"

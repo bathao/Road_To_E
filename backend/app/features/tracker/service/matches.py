@@ -6,9 +6,12 @@ Part of the tracker service package (split 2026-10-16 from the former
 """
 from __future__ import annotations
 
+import datetime as dt
+
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from app.core.errors import NotFound
 from app.features.tracker import rating, schemas
 from app.features.tracker.models import (
     Event,
@@ -148,3 +151,89 @@ def list_player_matches(db: Session, player_id: int) -> list[schemas.MatchOut]:
         .all()
     )
     return _annotate_elo(db, matches)
+
+
+# ------------------------------------------------------------- create / edit
+def next_order(db: Session, date: dt.date, category_id: int) -> int:
+    """Next free order_index in a cell — max+1, not count(), so the index
+    stays unique after deletes/moves leave holes."""
+    current_max = (
+        db.query(Match.order_index)
+        .filter(Match.date == date, Match.category_id == category_id)
+        .order_by(Match.order_index.desc())
+        .limit(1)
+        .scalar()
+    )
+    return 0 if current_max is None else current_max + 1
+
+
+def _apply_match_payload(db: Session, match: Match, payload: schemas.MatchIn) -> None:
+    """Copy every editable field of the payload onto the row (order_index and
+    the points snapshots are handled by the callers). Tournament matches with
+    no explicit event default to the tournament's name, so event-based
+    displays label them automatically."""
+    event = get_or_create_event(
+        db,
+        payload.event_name or tournament_default_event(db, payload.tournament_entry_id),
+    )
+    match.date = payload.date
+    match.category_id = payload.category_id
+    match.discipline = payload.discipline
+    match.best_of = payload.best_of
+    match.my_sets = payload.my_sets
+    match.opp_sets = payload.opp_sets
+    match.event_id = event.id if event else None
+    match.is_nonplaying = payload.is_nonplaying
+    match.nonplaying_label = payload.nonplaying_label
+    match.note = payload.note
+    match.opponent_id = payload.opponent_id
+    match.opponent2_id = payload.opponent2_id
+    match.partner_id = payload.partner_id
+    match.handicap = payload.handicap or 0
+    match.handicap_pattern = normalize_handicap_pattern(payload.handicap_pattern)
+    match.tournament_entry_id = payload.tournament_entry_id
+    match.round = payload.round
+
+
+def create_match(db: Session, payload: schemas.MatchIn) -> schemas.MatchOut:
+    match = Match(
+        order_index=(
+            payload.order_index
+            if payload.order_index is not None
+            else next_order(db, payload.date, payload.category_id)
+        ),
+    )
+    _apply_match_payload(db, match, payload)
+    # Freeze the involved players' points at match time (ELO reads these).
+    rating.snapshot_match_points(db, match)
+    db.add(match)
+    db.commit()
+    db.refresh(match)
+    return match_to_out(match, rating.compute_my_rating(db).current)
+
+
+def update_match(db: Session, match_id: int, payload: schemas.MatchIn) -> schemas.MatchOut:
+    match = db.get(Match, match_id)
+    if match is None:
+        raise NotFound("Match not found")
+    prev_ids = (match.opponent_id, match.opponent2_id, match.partner_id)
+    if (payload.date, payload.category_id) != (match.date, match.category_id):
+        # Moved to another cell → append after that cell's existing matches so
+        # order_index stays unique within the cell.
+        match.order_index = next_order(db, payload.date, payload.category_id)
+    _apply_match_payload(db, match, payload)
+    # Re-snapshot points ONLY for slots whose player changed; editing a score
+    # or date keeps the original at-match-time snapshots.
+    rating.snapshot_match_points(db, match, prev_ids=prev_ids)
+    db.commit()
+    db.refresh(match)
+    return match_to_out(match, rating.compute_my_rating(db).current)
+
+
+def delete_match(db: Session, match_id: int) -> None:
+    """Idempotent: deleting a missing match is not an error (the GUI's
+    delete button may be pressed twice)."""
+    obj = db.get(Match, match_id)
+    if obj is not None:
+        db.delete(obj)
+        db.commit()

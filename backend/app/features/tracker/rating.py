@@ -17,7 +17,12 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session, selectinload
 
 from app.features.tracker import schemas
-from app.features.tracker.constants import DISCIPLINES, NEXT_ROUND, ROUND_DEPTH, ROUND_NAME
+from app.features.tracker.constants import (
+    DISCIPLINES,
+    NEXT_ROUND,
+    ROUND_DEPTH,
+    ROUND_NAME,
+)
 from app.features.tracker.models import Category, Match, Player, Setting
 
 # ------------------------------------------------------------- constants

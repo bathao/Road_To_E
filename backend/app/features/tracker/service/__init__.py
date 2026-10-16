@@ -1,7 +1,8 @@
 """Business logic for the Daily Tracker tab — a package since 2026-10-16.
 
 Modules (leaf → composite): text, periods, tally · players · matches · grid
-· export · journal · boards · coaches · stats · match_stats · rating_analytics.
+· export · journal · boards · coaches · activities · stats · match_stats ·
+rating_analytics.
 Every public AND test-used private name is re-exported here so callers
 (router, head_coach, tactics, tests) keep using ``service.X``; new code
 should import from the submodule that owns the name.
@@ -19,6 +20,14 @@ from app.features.tracker.rating import (  # noqa: F401
     snapshot_match_points,
 )
 
+from .activities import (  # noqa: F401
+    EVENT_SEARCH_LIMIT,
+    list_categories,
+    list_events,
+    set_physical_checks,
+    upsert_activity,
+    upsert_day_note,
+)
 from .boards import (  # noqa: F401
     _TASK_DONE_KEEP_DAYS,
     _memo_to_out,
@@ -122,12 +131,16 @@ from .match_stats import (  # noqa: F401
 )
 from .matches import (  # noqa: F401
     _annotate_elo,
+    create_match,
+    delete_match,
     get_or_create_event,
     last_handicap_vs,
     list_player_matches,
     match_to_out,
+    next_order,
     normalize_handicap_pattern,
     tournament_default_event,
+    update_match,
 )
 from .periods import (  # noqa: F401
     _WEEKDAYS,
