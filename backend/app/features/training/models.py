@@ -2,7 +2,7 @@
 
 A Tier-1 specialist coach for off-table physical training. The *programs*
 (which exercises make up each session of each level) are static reference
-content in ``program.py`` and are never stored here — the DB only holds the
+content in the ``program`` package and are never stored here — the DB only holds the
 player's progress: which level they are on, which sessions they completed, and
 which exercises they ticked.
 

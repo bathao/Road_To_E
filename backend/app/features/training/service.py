@@ -1,6 +1,6 @@
 """Business logic for the Training Center tab.
 
-Programs are static (program.py); this module materialises the player's progress
+Programs are static (the ``program`` package); this module materialises the player's progress
 through them: it opens the next session on demand, records ticks and completions,
 and advances/unlocks levels. Sessions are created lazily — the current
 session's tc_session row appears on the first read that needs it (today view,
@@ -127,7 +127,7 @@ def open_session(db: Session) -> TrainingSession:
         nxt = program.next_level(level)
         if nxt is None:
             # Last level finished — DON'T dead-end. Keep opening the next session
-            # (maintenance cycles with progressive overload, see program.py).
+            # (maintenance cycles with progressive overload, see program.progression).
             return _materialise(db, level, done + 1)
         unlocked = _unlocked_set(state) | {nxt}
         state.unlocked_levels = ",".join(l for l in program.LEVELS if l in unlocked)
