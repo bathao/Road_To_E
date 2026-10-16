@@ -1,6 +1,72 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-10-16) — **Refactor Phase 0 + 1 (REFACTOR.md): safety net in place, low-risk cleanup done** (user: "làm các việc trong file md hôm qua mới ghi vô đi") — 194 backend tests (was 187), ESLint + vitest on the frontend, dead reflections API gone, one real bug fixed; **needs a start.bat restart** (backend code + frontend rebuild)
+## Current status (2026-10-16) — **Refactor Phase 2 (REFACTOR.md): backend shared layer, typed errors, constants, explicit startup hooks** (user: "commit đi. rồi tiếp tục làm tiếp") — 203 backend tests, no API shape change (schema.d.ts unchanged); **needs a start.bat restart** (backend only)
+
+> **`app/shared/` (new):**
+>   - `ollama.py` — `resolve_model`, `ollama_chat`, `call_with_empty_retry`,
+>     `loaded_models` (the `/api/ps` probe). ONE copy instead of head_coach
+>     owning it and tactics importing the privates. `ollama_chat` now always
+>     returns a dict (the three `out if isinstance(out, dict) else {}`
+>     wrappers are gone) and turns a malformed JSON reply into a readable
+>     ValueError ("Model trả về JSON không hợp lệ") instead of a raw
+>     JSONDecodeError in `error_msg`. Named constants `NUM_CTX`,
+>     `CHAT_TIMEOUT_S`, `PROBE_TIMEOUT_S`.
+>   - `jobs.py` — `run_llm_job(db_or_none, fetch=, work=, tag=, in_flight=)`
+>     replaces the 4 copied generating→done|error lifecycles (verdict, recap,
+>     chat, tactic plan); `recover_stuck(db, Model, in_flight=, label=)`
+>     replaces the two hand-written recoveries. The tactics plan job now
+>     gets the empty-reply retry it was missing.
+>   - `persona.py` — `COACH_IDENTITY` + `ADDRESS_RULE`; the four system
+>     prompts compose them and were verified **byte-identical** before/after
+>     (the patch script snapshotted the strings and asserted equality).
+>   - `format_vi.py` — `LEVEL_VI`, `HANDICAP_VI`, `dm`, `day_label_vi`,
+>     `hdc_vi`; `time.py` — `as_utc`. head_coach keeps `_dm` / `_hdc_vi` /
+>     `_tz` / `_LEVEL_VI` … as aliases so tests and in-file callers are
+>     untouched; tactics `PlanOut.created_at` is now UTC-aware like every
+>     other timestamp (was naive).
+>   - tactics no longer imports head_coach privates: `coach_note_dicts` is
+>     the one public cross-feature read (notebook), everything else comes
+>     from `app.shared` / `tracker.constants`.
+>
+> **Typed errors (`app/core/errors.py`):** `NotFound` (404) / `Conflict`
+>   (409) / `BadRequest` (400) subclass `LookupError` / `ValueError`, one
+>   handler installed in `main.py` returns `{"detail": message}`. Every
+>   service raise site is typed; the routers' 30 hand-written
+>   `except … raise HTTPException` blocks are gone (tracker, tactics,
+>   head_coach, training, tournament). **Contract changes (status codes
+>   only — the GUI never branches on codes, it shows `detail`):** recap
+>   in-flight 400 → 409 (same as verdict/chat); training complete on an
+>   unknown level stays 404 via NotFound; player rename clash, duplicate
+>   coach, memo reorder with stale ids and "start next package" too early
+>   are now 409 (state conflicts; were 400/409 mixed). Not-found details
+>   now carry the id ("match 999 not found"). Recap error texts are
+>   Vietnamese like the rest.
+>
+> **`tracker/constants.py`:** `Discipline` / `Round` Literals (+ tuples via
+>   `get_args`), `DISCIPLINE_PREFIX`, `ROUND_SHORT`, `ROUND_NAME`,
+>   `ROUND_DEPTH`, `NEXT_ROUND` — schemas, service, rating and the tactics
+>   prompt read from here (5 duplicated spellings before).
+>
+> **Startup:** `registry.STARTUP_FUNCS` + `run_startup` (job recovery) run
+>   by `main.lifespan` AFTER the seeds; `head_coach/seed.py` and
+>   `tactics/seed.py` are column migrations only again (the recovery and
+>   the service import are out of "migrate"). Order documented in the
+>   registry docstring.
+>
+> **Tests:** `tests/test_shared_layer.py` (typed errors → codes via the
+>   real routes, `run_llm_job` error/skip/success, `recover_stuck`,
+>   `ollama_chat` reply hygiene + payload shape); the debug-endpoint test
+>   patches `app.shared.ollama.httpx`; the recap test pins 409. 203 pass;
+>   ruff F/B905 clean; the 5 goldens from Phase 0 did not move.
+>
+> **Verified** on a second uvicorn (port 8001 — :8000 was the user's
+> running start.bat): health, 404/409/400 typed answers with the service
+> messages, GET /weeks, /training/today, /assessment (done), /debug
+> (Ollama off → ollama_ok false, panel still renders), /tactics/plan,
+> /chat (10 messages). Next per REFACTOR.md: Phase 3 (split the god
+> files behind facades — the goldens guard it).
+
+## Previous status (2026-10-16, earlier) — **Refactor Phase 0 + 1 (REFACTOR.md): safety net in place, low-risk cleanup done** (user: "làm các việc trong file md hôm qua mới ghi vô đi") — 194 backend tests (was 187), ESLint + vitest on the frontend, dead reflections API gone, one real bug fixed; **needs a start.bat restart** (backend code + frontend rebuild)
 
 > **Phase 0 — safety net (nothing user-visible):**
 >   - **Golden tests** `tests/test_golden_grid.py` pin GET /weeks, the CSV

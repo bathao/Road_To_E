@@ -6,6 +6,8 @@ import datetime as dt
 from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.errors import NotFound
+
 from app.features.tournament import schemas
 from app.features.tournament.models import (
     Tournament,
@@ -247,7 +249,7 @@ def update_tournament(
 ) -> schemas.TournamentsResponse:
     t = db.get(Tournament, tournament_id)
     if t is None:
-        raise LookupError("Tournament not found")
+        raise NotFound("Tournament not found")
     _apply(t, payload)  # entries are fully replaced (delete-orphan cascade)
     db.commit()
     return list_tournaments(db)
@@ -261,7 +263,7 @@ def set_entry_eliminated(
     card chip, and the form must never silently clear it."""
     e = db.get(TournamentEntry, entry_id)
     if e is None:
-        raise LookupError("Entry not found")
+        raise NotFound("Entry not found")
     e.eliminated = eliminated
     db.commit()
     return list_tournaments(db)

@@ -18,7 +18,9 @@ from typing import NamedTuple
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.errors import BadRequest, Conflict, NotFound
 from app.features.tracker import rating, schemas
+from app.features.tracker.constants import DISCIPLINE_PREFIX, DISCIPLINES, ROUND_SHORT
 
 # The user's dynamic ELO rating lives in rating.py (constants, anchor store,
 # snapshots, handicap ladder, replay engine). Re-exported names keep existing
@@ -216,27 +218,7 @@ def _result_letter(my_sets: int, opp_sets: int) -> str:
 
 
 # Fixed ordering of result groups within a cell.
-_GROUP_ORDER = [
-    (d, r)
-    for d in ("singles", "doubles", "one_v_two", "two_v_one")
-    for r in ("W", "L", "T")
-]
-
-# Cell/export prefix per discipline (singles stays bare, Excel-style).
-_DISCIPLINE_PREFIX = {"doubles": "D: ", "one_v_two": "1v2: ", "two_v_one": "2v1: "}
-
-# Short round labels for tournament matches — group-stage matches stay bare
-# (they're the bulk), knockout rounds each get their own prefixed cell line.
-ROUND_SHORT = {
-    "group": "",
-    "r64": "1/64",
-    "r32": "1/32",
-    "r16": "1/16",
-    "r8": "1/8",
-    "qf": "QF",
-    "sf": "SF",
-    "f": "F",
-}
+_GROUP_ORDER = [(d, r) for d in DISCIPLINES for r in ("W", "L", "T")]
 
 
 def _match_result_lines(playing: list[Match]) -> list[str]:
@@ -250,7 +232,7 @@ def _match_result_lines(playing: list[Match]) -> list[str]:
         result = _result_letter(m.my_sets, m.opp_sets)
         round_label = ROUND_SHORT.get(m.round or "group", "")
         if round_label:
-            prefix = _DISCIPLINE_PREFIX.get(m.discipline, "")
+            prefix = DISCIPLINE_PREFIX.get(m.discipline, "")
             knockout.append(
                 f"{round_label}: {prefix}{result}({m.my_sets}-{m.opp_sets})"
             )
@@ -265,7 +247,7 @@ def _match_result_lines(playing: list[Match]) -> list[str]:
         if not scores:
             continue
         discipline, result = key
-        prefix = _DISCIPLINE_PREFIX.get(discipline, "")
+        prefix = DISCIPLINE_PREFIX.get(discipline, "")
         lines.append(f"{prefix}{result}({','.join(scores)})")
     lines.extend(knockout)  # in play order, after the grouped results
     return lines
@@ -528,7 +510,7 @@ def update_player(
             None,
         )
         if clash is not None:
-            raise ValueError(f'A player named "{clash.name}" already exists.')
+            raise Conflict(f'A player named "{clash.name}" already exists.')
     p.name = new_name or p.name
     # payload.level is ignored — the column is frozen legacy (see above).
     # None = caller doesn't manage the note (the picker's pips toggle sends a
@@ -1046,9 +1028,9 @@ def create_session_note(db: Session, payload: schemas.SessionNoteIn) -> SessionN
     is welcome on ANY day."""
     text_ = (payload.text or "").strip()
     if not text_:
-        raise ValueError("Text is required")
+        raise BadRequest("Text is required")
     if payload.kind != SN_KIND_LESSON and not has_coach_session(db, payload.date):
-        raise ValueError("No Train with Coach session on this day — log it first")
+        raise BadRequest("No Train with Coach session on this day — log it first")
     n = SessionNote(
         date=payload.date,
         kind=payload.kind,
@@ -1069,11 +1051,11 @@ def update_session_note(
     done) even if the coach activity was edited away later."""
     n = db.get(SessionNote, note_id)
     if n is None:
-        raise LookupError(f"session note {note_id} not found")
+        raise NotFound(f"session note {note_id} not found")
     if payload.text is not None:
         text_ = payload.text.strip()
         if not text_:
-            raise ValueError("Text cannot be empty — delete the item instead")
+            raise BadRequest("Text cannot be empty — delete the item instead")
         n.text = text_
     if payload.tags is not None:
         n.tags = ",".join(clean_session_tags(payload.tags))
@@ -1223,7 +1205,7 @@ def set_match_note(db: Session, match_id: int, note: str) -> schemas.JournalMatc
     composer's state stays aligned with what the day endpoint serves."""
     m = db.get(Match, match_id)
     if m is None:
-        raise LookupError(f"match {match_id} not found")
+        raise NotFound(f"match {match_id} not found")
     m.note = note.strip() or None
     db.commit()
     db.refresh(m)
@@ -1382,7 +1364,7 @@ def create_task(db: Session, payload: schemas.TaskIn) -> schemas.TasksOut:
 def update_task(db: Session, task_id: int, payload: schemas.TaskUpdate) -> schemas.TasksOut:
     t = db.get(Task, task_id)
     if t is None:
-        raise LookupError(f"task {task_id} not found")
+        raise NotFound(f"task {task_id} not found")
     if payload.title is not None:
         t.title = payload.title.strip()
     if payload.note is not None:
@@ -1401,7 +1383,7 @@ def update_task(db: Session, task_id: int, payload: schemas.TaskUpdate) -> schem
 def delete_task(db: Session, task_id: int) -> schemas.TasksOut:
     t = db.get(Task, task_id)
     if t is None:
-        raise LookupError(f"task {task_id} not found")
+        raise NotFound(f"task {task_id} not found")
     db.delete(t)  # checks go with it (delete-orphan)
     db.commit()
     return list_tasks(db)
@@ -1413,7 +1395,7 @@ def set_task_check(
     """Tick/un-tick one day of a daily task (idempotent both ways)."""
     t = db.get(Task, task_id)
     if t is None:
-        raise LookupError(f"task {task_id} not found")
+        raise NotFound(f"task {task_id} not found")
     existing = (
         db.query(TaskCheck)
         .filter(TaskCheck.task_id == task_id, TaskCheck.date == payload.date)
@@ -1457,7 +1439,7 @@ def create_memo(db: Session, payload: schemas.MemoIn) -> schemas.MemosOut:
 def update_memo(db: Session, memo_id: int, payload: schemas.MemoUpdate) -> schemas.MemosOut:
     m = db.get(Memo, memo_id)
     if m is None:
-        raise LookupError(f"memo {memo_id} not found")
+        raise NotFound(f"memo {memo_id} not found")
     m.text = payload.text.strip()
     db.commit()
     return list_memos(db)
@@ -1466,7 +1448,7 @@ def update_memo(db: Session, memo_id: int, payload: schemas.MemoUpdate) -> schem
 def delete_memo(db: Session, memo_id: int) -> schemas.MemosOut:
     m = db.get(Memo, memo_id)
     if m is None:
-        raise LookupError(f"memo {memo_id} not found")
+        raise NotFound(f"memo {memo_id} not found")
     db.delete(m)
     db.commit()
     return list_memos(db)
@@ -1479,7 +1461,7 @@ def reorder_memos(db: Session, payload: schemas.MemoReorderIn) -> schemas.MemosO
     rows = db.query(Memo).all()
     current = {m.id for m in rows}
     if sorted(payload.ids) != sorted(current) or len(payload.ids) != len(current):
-        raise ValueError("ids must list every current memo exactly once")
+        raise Conflict("ids must list every current memo exactly once")
     by_id = {m.id: m for m in rows}
     for i, mid in enumerate(payload.ids, start=1):
         by_id[mid].sort_order = i
@@ -1516,7 +1498,7 @@ def create_coach(db: Session, payload: schemas.CoachIn) -> Coach:
     name = payload.name.strip()
     for c in db.query(Coach).all():
         if _fold(c.name) == _fold(name):
-            raise ValueError(f'Coach "{c.name}" already exists.')
+            raise Conflict(f'Coach "{c.name}" already exists.')
     c = Coach(name=name, counts_package=payload.counts_package)
     db.add(c)
     db.commit()
@@ -1652,7 +1634,7 @@ def start_next_coach_package(db: Session) -> schemas.CoachPackagesResponse:
             start_idx = i
     block = sessions[start_idx:]
     if len(block) <= COACH_PACKAGE_SIZE:
-        raise ValueError(
+        raise Conflict(
             f"The current package only has {len(block)}/{COACH_PACKAGE_SIZE} "
             "sessions — no session has run over the package yet."
         )
@@ -2055,7 +2037,7 @@ def _query_named_matches(
         Match.date <= date_to,
         Match.opponent_id.isnot(None),
     )
-    if discipline in ("singles", "doubles", "one_v_two", "two_v_one"):
+    if discipline in DISCIPLINES:
         q = q.filter(Match.discipline == discipline)
     if category in _CATEGORY_KEY:
         cat = db.query(Category).filter(Category.key == _CATEGORY_KEY[category]).first()

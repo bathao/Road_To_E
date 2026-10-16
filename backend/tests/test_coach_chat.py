@@ -167,7 +167,9 @@ def test_debug_endpoint(client, monkeypatch):
     def _no_ollama(*_a, **_k):
         raise ConnectionError("refused")
 
-    monkeypatch.setattr(hc_service.httpx, "get", _no_ollama)
+    from app.shared import ollama as shared_ollama  # the VRAM probe lives here
+
+    monkeypatch.setattr(shared_ollama.httpx, "get", _no_ollama)
     r = client.get("/api/head-coach/debug")
     assert r.status_code == 200
     body = r.json()

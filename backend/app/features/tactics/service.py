@@ -1,8 +1,8 @@
 """Tactics service: scouting facts + per-opponent game plans.
 
-A consumer like the Head Coach: reads tracker matches in-process, reuses the
-head coach's Ollama plumbing (_ollama_chat / resolve_model) and persona, and
-persists plans with the same generating→done|error polling contract."""
+A consumer like the Head Coach: reads tracker matches in-process, uses the
+shared Ollama plumbing / persona (app.shared) and persists plans with the
+same generating→done|error polling contract (app.shared.jobs)."""
 from __future__ import annotations
 
 import json
@@ -11,13 +11,8 @@ import logging
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.core.db import SessionLocal
-from app.features.head_coach.service import (
-    _coach_note_dicts,
-    _hdc_vi,
-    _ollama_chat,
-    resolve_model,
-)
+from app.core.errors import BadRequest, Conflict, NotFound
+from app.features.head_coach.service import coach_note_dicts
 from app.features.tactics import matchlog, schemas
 from app.features.tactics.models import TacticFact, TacticPlan, TacticReflection
 from app.features.tactics.prompt import (
@@ -28,11 +23,19 @@ from app.features.tactics.prompt import (
     PLAN_RESPONSE_SCHEMA,
     PLAN_SYSTEM_PROMPT,
 )
+from app.features.tracker.constants import ROUND_NAME
 from app.features.tracker.models import Match, Player
-from app.features.tracker.rating import _ROUND_NAME
 from app.features.tracker.service import compute_my_rating
+from app.shared.format_vi import hdc_vi as _hdc_vi
+from app.shared.jobs import recover_stuck, run_llm_job
+from app.shared.ollama import call_with_empty_retry, ollama_chat, resolve_model
+from app.shared.time import as_utc
 
 log = logging.getLogger(__name__)
+
+# Module globals so tests can monkeypatch the LLM call / model on THIS module.
+_ollama_chat = ollama_chat
+_call_with_empty_retry = call_with_empty_retry
 
 # Most recent h2h matches spelled out per prompt (older ones fold into the
 # summary counts only).
@@ -147,13 +150,13 @@ def add_fact(
 def update_fact(db: Session, fact_id: int, payload: schemas.FactUpdate) -> TacticFact:
     row = db.get(TacticFact, fact_id)
     if row is None:
-        raise LookupError("Fact not found")
+        raise NotFound("Fact not found")
     if payload.kind is not None:
         row.kind = payload.kind
     if payload.text is not None:
         text = payload.text.strip()
         if not text:
-            raise ValueError("Fact text cannot be empty.")
+            raise BadRequest("Fact text cannot be empty.")
         row.text = text
     db.commit()
     db.refresh(row)
@@ -226,7 +229,7 @@ def _match_line(m: Match) -> str:
         _hdc_vi(m.handicap, m.handicap_pattern),
     ]
     if m.round:
-        parts.append("vòng bảng" if m.round == "group" else _ROUND_NAME.get(m.round, m.round))
+        parts.append("vòng bảng" if m.round == "group" else ROUND_NAME.get(m.round, m.round))
     if m.event is not None:
         parts.append(m.event.name)
     # Per-match journal note (2026-08-21) — the student's own read of that
@@ -281,7 +284,7 @@ def build_context(db: Session, player: Player) -> str:
     note = f" Ghi chú database: {player.note}." if player.note else ""
     points = f"{player.points} điểm BBTV" if player.points is not None else "chưa có điểm"
     coach_notes = "\n".join(
-        f"  - {n['text']}" for n in _coach_note_dicts(db)
+        f"  - {n['text']}" for n in coach_note_dicts(db)
     ) or "  (chưa có)"
     # Point-by-point match log (2026-10-10): hard numbers from the rallies
     # the student charted — present only when something was charted.
@@ -364,7 +367,7 @@ def run_interview(db: Session, player_id: int) -> schemas.InterviewOut:
     button shows a spinner; no job row needed."""
     player = db.get(Player, player_id)
     if player is None:
-        raise LookupError("Player not found")
+        raise NotFound("Player not found")
     model = resolve_model()
     user_text = (
         f"{build_context(db, player)}\n"
@@ -395,7 +398,7 @@ def run_interview(db: Session, player_id: int) -> schemas.InterviewOut:
 def _plan_out(row: TacticPlan) -> schemas.PlanOut:
     return schemas.PlanOut(
         id=row.id,
-        created_at=row.created_at,
+        created_at=as_utc(row.created_at),
         player_id=row.player_id,
         model=row.model,
         status=row.status or "done",
@@ -435,14 +438,14 @@ def start_plan(db: Session, player_id: int) -> schemas.PlanOut:
     """Create the `generating` placeholder (the heavy call runs in
     run_plan_job on a background task). One in-flight plan per opponent."""
     if db.get(Player, player_id) is None:
-        raise LookupError("Player not found")
+        raise NotFound("Player not found")
     running = (
         db.query(TacticPlan)
         .filter(TacticPlan.player_id == player_id, TacticPlan.status == "generating")
         .first()
     )
     if running is not None:
-        raise ValueError("Đang lên giáo án cho đối thủ này — chờ xong rồi bấm lại.")
+        raise Conflict("Đang lên giáo án cho đối thủ này — chờ xong rồi bấm lại.")
     row = TacticPlan(player_id=player_id, status="generating")
     db.add(row)
     db.commit()
@@ -453,24 +456,22 @@ def start_plan(db: Session, player_id: int) -> schemas.PlanOut:
 def run_plan_job(plan_id: int, db_or_none: Session | None = None) -> None:
     """Background job: build the context, call the model, fill the snapshot.
     Injected session = tests run it synchronously (head-coach job contract)."""
-    db = db_or_none or SessionLocal()
-    try:
-        row = db.get(TacticPlan, plan_id)
-        if row is None or row.status != "generating":
-            return
-        try:
-            player = db.get(Player, row.player_id)
-            if player is None:
-                raise LookupError("Player not found")
-            context = build_context(db, player)
-            model = resolve_model()
-            row.model = model
-            user_text = (
-                f"{context}\n"
-                f"Hãy viết giáo án thi đấu để học trò THẮNG {player.name}, đúng "
-                "JSON schema (tiếng Việt)."
-            )
-            data = _ollama_chat(
+
+    def work(db: Session, row: TacticPlan) -> None:
+        player = db.get(Player, row.player_id)
+        if player is None:
+            raise NotFound("Player not found")
+        context = build_context(db, player)
+        model = resolve_model()
+        row.model = model
+        user_text = (
+            f"{context}\n"
+            f"Hãy viết giáo án thi đấu để học trò THẮNG {player.name}, đúng "
+            "JSON schema (tiếng Việt)."
+        )
+
+        def call() -> dict:
+            return _ollama_chat(
                 model,
                 [
                     {"role": "system", "content": PLAN_SYSTEM_PROMPT},
@@ -480,41 +481,31 @@ def run_plan_job(plan_id: int, db_or_none: Session | None = None) -> None:
                 temperature=0.3,
                 tag="tactics plan",
             )
-            if not (data.get("overall") or "").strip():
-                raise ValueError("Model trả về giáo án rỗng.")
-            # Persistence stays inside the try — a failure must mark the row
-            # `error`, never leave it stuck `generating` with no job alive.
-            row.headline = data.get("headline", "")
-            row.overall = data.get("overall", "")
-            row.serve_receive_json = json.dumps(data.get("serve_receive", []), ensure_ascii=False)
-            row.rally_json = json.dumps(data.get("rally", []), ensure_ascii=False)
-            row.avoid_json = json.dumps(data.get("avoid", []), ensure_ascii=False)
-            row.mental_json = json.dumps(data.get("mental", []), ensure_ascii=False)
-            row.data_gaps_json = json.dumps(data.get("data_gaps", []), ensure_ascii=False)
-            row.sources_json = json.dumps({"context": context}, ensure_ascii=False)
-            row.status = "done"
-            row.error_msg = None
-            db.commit()
-        except Exception as exc:  # noqa: BLE001 — surfaced to the GUI via status
-            log.exception("tactics plan(%d) failed", plan_id)
-            db.rollback()
-            row = db.get(TacticPlan, plan_id)
-            if row is not None:
-                row.status = "error"
-                row.error_msg = str(exc)[:1000]
-                db.commit()
-    finally:
-        if db_or_none is None:
-            db.close()
+
+        data = _call_with_empty_retry(call, "overall", "tactics plan", model)
+        if not (data.get("overall") or "").strip():
+            raise ValueError("Model trả về giáo án rỗng.")
+        row.headline = data.get("headline", "")
+        row.overall = data.get("overall", "")
+        row.serve_receive_json = json.dumps(data.get("serve_receive", []), ensure_ascii=False)
+        row.rally_json = json.dumps(data.get("rally", []), ensure_ascii=False)
+        row.avoid_json = json.dumps(data.get("avoid", []), ensure_ascii=False)
+        row.mental_json = json.dumps(data.get("mental", []), ensure_ascii=False)
+        row.data_gaps_json = json.dumps(data.get("data_gaps", []), ensure_ascii=False)
+        row.sources_json = json.dumps({"context": context}, ensure_ascii=False)
+        row.status = "done"
+        row.error_msg = None
+
+    run_llm_job(
+        db_or_none,
+        fetch=lambda db: db.get(TacticPlan, plan_id),
+        work=work,
+        tag=f"tactics plan({plan_id})",
+    )
 
 
 def recover_stuck_plans(db: Session) -> None:
     """Startup: background jobs die with the process — a plan left
     `generating` would block its opponent's Generate button forever."""
-    stuck = db.query(TacticPlan).filter(TacticPlan.status == "generating").all()
-    for row in stuck:
-        row.status = "error"
-        row.error_msg = "Server restarted trong lúc đang chạy — bấm chạy lại."
-    if stuck:
-        log.warning("tactics: recovered %d stuck plan(s)", len(stuck))
+    if recover_stuck(db, TacticPlan, in_flight="generating", label="tactic plan(s)"):
         db.commit()

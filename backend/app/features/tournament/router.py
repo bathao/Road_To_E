@@ -1,7 +1,7 @@
 """HTTP API for tournaments (prefix /api/tournaments)."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -35,10 +35,7 @@ def create_tournament(payload: schemas.TournamentIn, db: Session = Depends(get_d
 def update_tournament(
     tournament_id: int, payload: schemas.TournamentIn, db: Session = Depends(get_db)
 ):
-    try:
-        return service.update_tournament(db, tournament_id, payload)
-    except LookupError:
-        raise HTTPException(status_code=404, detail="Tournament not found")
+    return service.update_tournament(db, tournament_id, payload)
 
 
 @router.patch("/entries/{entry_id}", response_model=schemas.TournamentsResponse)
@@ -48,10 +45,7 @@ def set_entry_eliminated(
     """Knocked-out toggle for one entry (group-stage exits can't be derived
     from results, so the user marks them). Returns the fresh full list like
     every other tournament mutation."""
-    try:
-        return service.set_entry_eliminated(db, entry_id, payload.eliminated)
-    except LookupError:
-        raise HTTPException(status_code=404, detail="Entry not found")
+    return service.set_entry_eliminated(db, entry_id, payload.eliminated)
 
 
 @router.delete("/{tournament_id}", response_model=schemas.TournamentsResponse)

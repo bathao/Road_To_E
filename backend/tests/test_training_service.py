@@ -35,9 +35,9 @@ def test_autoregulate_clamping(db):
 
 # ---------------------------------------------------------------- complete
 def test_complete_session_invalid_level_raises_and_404(db, client):
-    with pytest.raises(ValueError):
+    with pytest.raises(LookupError):  # app.core.errors.NotFound
         service.complete_session(db, "no_such_level", 1, None)
-    with pytest.raises(ValueError):
+    with pytest.raises(LookupError):
         service.complete_session(db, "foundation", 0, None)
 
     r = client.post("/api/training/session/no_such_level/1/complete", json={})

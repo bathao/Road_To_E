@@ -6,6 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.features.tracker.constants import Discipline, Round
+
 
 class CategoryOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -245,8 +247,7 @@ class MyRatingBreakdownOut(BaseModel):
 class MatchIn(BaseModel):
     date: dt.date
     category_id: int
-    # one_v_two = I play ALONE vs two opponents; two_v_one = me + partner vs one.
-    discipline: Literal["singles", "doubles", "one_v_two", "two_v_one"] = "singles"
+    discipline: Discipline = "singles"
     best_of: Literal[3, 5, 7] = 5
     my_sets: int = Field(default=0, ge=0, le=4)  # ≤4 set wins even in a BO7
     opp_sets: int = Field(default=0, ge=0, le=4)
@@ -269,7 +270,7 @@ class MatchIn(BaseModel):
     # Tournament link: the registered discipline (entry) this match belongs
     # to + the round played. Both None on ordinary matches.
     tournament_entry_id: int | None = None
-    round: Literal["group", "r64", "r32", "r16", "r8", "qf", "sf", "f"] | None = None
+    round: Round | None = None
 
     @model_validator(mode="after")
     def _pattern_needs_signed_handicap(self) -> "MatchIn":

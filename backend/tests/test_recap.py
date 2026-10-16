@@ -278,13 +278,14 @@ def test_recaps_api_shape(db, client, monkeypatch):
     assert body["period_end"] == real_today.isoformat()
     assert body["period_start"] == (real_today - dt.timedelta(days=6)).isoformat()
 
-    # Now GET surfaces it; a second press while generating is refused.
+    # Now GET surfaces it; a second press while generating is refused with
+    # 409 like the verdict and chat (Conflict — unified 2026-10-16).
     resp = client.get("/api/head-coach/recaps?period=week")
     assert resp.json()["latest"]["id"] == body["id"]
     resp = client.post(
         "/api/head-coach/recaps/generate", json={"period_type": "week"}
     )
-    assert resp.status_code == 400
+    assert resp.status_code == 409
 
     # Unknown window type → 400.
     resp = client.post(

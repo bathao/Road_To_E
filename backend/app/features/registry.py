@@ -3,13 +3,20 @@
 This is the single place that wires tabs into the backend. Adding a new tab's
 backend = create ``app/features/<feature>/`` and append its router + seed here.
 Importing the feature modules also registers their ORM models on Base.metadata.
+
+Startup order (app.main.lifespan): backup → create_all → SEED_FUNCS (column
+migrations + reference rows, in this order — tactics needs the tracker's
+Setting table seeded first) → STARTUP_FUNCS (job recovery: background LLM
+jobs die with the process, so rows left in flight become visible errors).
 """
 from sqlalchemy.orm import Session
 
 from app.features.head_coach import router as head_coach_router
 from app.features.head_coach import seed as head_coach_seed
+from app.features.head_coach import service as head_coach_service
 from app.features.tactics import router as tactics_router
 from app.features.tactics import seed as tactics_seed
+from app.features.tactics import service as tactics_service
 from app.features.tournament import router as tournament_router
 from app.features.tournament import seed as tournament_seed
 from app.features.tracker import router as tracker_router
@@ -30,7 +37,7 @@ FEATURE_ROUTERS = [
     tactics_router.router,
 ]
 
-# Idempotent seed callables run on startup.
+# Idempotent seed callables run on startup (order matters — see above).
 SEED_FUNCS = [
     tracker_seed.seed_categories,
     training_seed.migrate,
@@ -39,7 +46,18 @@ SEED_FUNCS = [
     tactics_seed.migrate,
 ]
 
+# Run after the seeds, once per process start.
+STARTUP_FUNCS = [
+    head_coach_service.recover_stuck_jobs,
+    tactics_service.recover_stuck_plans,
+]
+
 
 def run_seeds(db: Session) -> None:
     for fn in SEED_FUNCS:
+        fn(db)
+
+
+def run_startup(db: Session) -> None:
+    for fn in STARTUP_FUNCS:
         fn(db)

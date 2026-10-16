@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.core import logbuffer, share, syncer
+from app.core import errors, logbuffer, share, syncer
 from app.core.backup import backup_database
 from app.core.db import SessionLocal, init_db
 from app.core.settings import APP_TITLE, FRONTEND_DIST, SHARE_MODE
@@ -35,12 +35,15 @@ async def lifespan(_app: FastAPI):
     db = SessionLocal()
     try:
         registry.run_seeds(db)
+        registry.run_startup(db)
     finally:
         db.close()
     yield
 
 
 app = FastAPI(title=APP_TITLE, lifespan=lifespan)
+# Typed service errors (NotFound / Conflict / BadRequest) → {"detail": …}.
+errors.install(app)
 
 # Allow the Vite dev server during development, and the local app (port
 # 8000) so its "Sync to coach" button can poll the shared copy's /api/config.

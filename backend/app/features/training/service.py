@@ -15,6 +15,7 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.errors import NotFound
 from app.features.training import program, schemas
 from app.features.training.models import (
     TrainingSession,
@@ -358,7 +359,7 @@ def complete_session(
     date is clamped to today.
     """
     if level not in program.LEVELS or day_index < 1:
-        raise ValueError(f"No such session ({level}, {day_index}).")
+        raise NotFound(f"No such session ({level}, {day_index}).")
     today = dt.date.today()
     when = done_on if (done_on is not None and done_on <= today) else today
     session = _materialise(db, level, day_index)

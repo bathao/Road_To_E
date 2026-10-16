@@ -79,10 +79,7 @@ def get_coach_packages(db: Session = Depends(get_db)):
 def start_next_coach_package(db: Session = Depends(get_db)):
     """Flag the over-run block's (size+1)-th session as the new package's start
     (the one-click button on the Coach Package card)."""
-    try:
-        return service.start_next_coach_package(db)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    return service.start_next_coach_package(db)
 
 
 @router.get(
@@ -108,10 +105,7 @@ def list_coaches(db: Session = Depends(get_db)):
 
 @router.post("/coaches", response_model=schemas.CoachOut)
 def create_coach(payload: schemas.CoachIn, db: Session = Depends(get_db)):
-    try:
-        return service.create_coach(db, payload)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    return service.create_coach(db, payload)
 
 
 # ---------------------------------------------------------------- activities
@@ -352,10 +346,7 @@ def set_match_note(
 ):
     """The journal's per-match note (writes tracker_match.note; blank
     clears). The Tactics h2h context reads these notes."""
-    try:
-        return service.set_match_note(db, match_id, payload.note)
-    except LookupError:
-        raise HTTPException(status_code=404, detail="match not found")
+    return service.set_match_note(db, match_id, payload.note)
 
 
 # ------------------------------------------------ tracking board (Journal tab)
@@ -375,18 +366,12 @@ def create_task(payload: schemas.TaskIn, db: Session = Depends(get_db)):
 def update_task(
     task_id: int, payload: schemas.TaskUpdate, db: Session = Depends(get_db)
 ):
-    try:
-        return service.update_task(db, task_id, payload)
-    except LookupError:
-        raise HTTPException(status_code=404, detail="task not found")
+    return service.update_task(db, task_id, payload)
 
 
 @router.delete("/tasks/{task_id}", response_model=schemas.TasksOut)
 def delete_task(task_id: int, db: Session = Depends(get_db)):
-    try:
-        return service.delete_task(db, task_id)
-    except LookupError:
-        raise HTTPException(status_code=404, detail="task not found")
+    return service.delete_task(db, task_id)
 
 
 @router.post("/tasks/{task_id}/check", response_model=schemas.TasksOut)
@@ -394,10 +379,7 @@ def set_task_check(
     task_id: int, payload: schemas.TaskCheckIn, db: Session = Depends(get_db)
 ):
     """Tick / un-tick one day of a daily task (idempotent both ways)."""
-    try:
-        return service.set_task_check(db, task_id, payload)
-    except LookupError:
-        raise HTTPException(status_code=404, detail="task not found")
+    return service.set_task_check(db, task_id, payload)
 
 
 # ------------------------------------------------ remember board (Journal tab)
@@ -417,27 +399,18 @@ def create_memo(payload: schemas.MemoIn, db: Session = Depends(get_db)):
 def update_memo(
     memo_id: int, payload: schemas.MemoUpdate, db: Session = Depends(get_db)
 ):
-    try:
-        return service.update_memo(db, memo_id, payload)
-    except LookupError:
-        raise HTTPException(status_code=404, detail="memo not found")
+    return service.update_memo(db, memo_id, payload)
 
 
 @router.delete("/memos/{memo_id}", response_model=schemas.MemosOut)
 def delete_memo(memo_id: int, db: Session = Depends(get_db)):
-    try:
-        return service.delete_memo(db, memo_id)
-    except LookupError:
-        raise HTTPException(status_code=404, detail="memo not found")
+    return service.delete_memo(db, memo_id)
 
 
 @router.put("/memos/order", response_model=schemas.MemosOut)
 def reorder_memos(payload: schemas.MemoReorderIn, db: Session = Depends(get_db)):
     """Set the priority order — the body lists EVERY current memo id."""
-    try:
-        return service.reorder_memos(db, payload)
-    except ValueError as e:
-        raise HTTPException(status_code=409, detail=str(e))
+    return service.reorder_memos(db, payload)
 
 
 @router.get("/session-note-tags", response_model=list[schemas.SessionNoteTagOut])
@@ -458,10 +431,7 @@ def list_active_advice(db: Session = Depends(get_db)):
 
 @router.post("/session-notes", response_model=schemas.SessionNoteOut)
 def create_session_note(payload: schemas.SessionNoteIn, db: Session = Depends(get_db)):
-    try:
-        n = service.create_session_note(db, payload)
-    except ValueError as e:  # empty text / day has no coach session
-        raise HTTPException(status_code=400, detail=str(e))
+    n = service.create_session_note(db, payload)
     return service.session_note_to_out(n)
 
 
@@ -469,12 +439,7 @@ def create_session_note(payload: schemas.SessionNoteIn, db: Session = Depends(ge
 def update_session_note(
     note_id: int, payload: schemas.SessionNoteUpdate, db: Session = Depends(get_db)
 ):
-    try:
-        n = service.update_session_note(db, note_id, payload)
-    except LookupError:
-        raise HTTPException(status_code=404, detail="session note not found")
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    n = service.update_session_note(db, note_id, payload)
     return service.session_note_to_out(n)
 
 
@@ -509,10 +474,7 @@ def create_player(payload: schemas.PlayerIn, db: Session = Depends(get_db)):
 
 @router.put("/players/{player_id}", response_model=schemas.PlayerOut)
 def update_player(player_id: int, payload: schemas.PlayerIn, db: Session = Depends(get_db)):
-    try:
-        updated = service.update_player(db, player_id, payload)
-    except ValueError as e:  # rename collides with an existing player
-        raise HTTPException(status_code=400, detail=str(e))
+    updated = service.update_player(db, player_id, payload)
     if updated is None:
         raise HTTPException(status_code=404, detail="Player not found")
     return updated

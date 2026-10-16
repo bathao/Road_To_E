@@ -21,6 +21,8 @@ import json
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.errors import BadRequest, NotFound
+
 from app.features.tactics import schemas
 from app.features.tactics.models import TacticPoint, TacticServe, TacticSet
 from app.features.tracker.models import Match
@@ -46,7 +48,7 @@ def add_serve(db: Session, payload: schemas.ServeIn) -> TacticServe:
 def update_serve(db: Session, serve_id: int, payload: schemas.ServeIn) -> TacticServe:
     row = db.get(TacticServe, serve_id)
     if row is None:
-        raise LookupError("serve")
+        raise NotFound("Serve not found")
     for k, v in payload.model_dump().items():
         setattr(row, k, v)
     db.commit()
@@ -67,7 +69,7 @@ def delete_serve(db: Session, serve_id: int) -> None:
 def _singles_match(db: Session, match_id: int) -> Match:
     m = db.get(Match, match_id)
     if m is None or m.is_nonplaying or m.discipline != "singles" or m.opponent_id is None:
-        raise LookupError("match")
+        raise NotFound("Singles match not found")
     return m
 
 
@@ -79,23 +81,23 @@ def _winner_of(server: str, shots: list[schemas.ShotIn], end_kind: str) -> str:
 def _validate_point(payload: schemas.PointIn) -> None:
     shots = payload.shots
     if not shots[0].serve or shots[0].h != payload.server:
-        raise ValueError("The first shot must be the server's serve.")
+        raise BadRequest("The first shot must be the server's serve.")
     if shots[0].spin is None or shots[0].length is None:
-        raise ValueError("A serve needs at least spin and length.")
+        raise BadRequest("A serve needs at least spin and length.")
     for i, sh in enumerate(shots):
         # A landing spot is required unless the shot missed (the last shot
         # of an error point).
         missed = i == len(shots) - 1 and payload.end_kind == "error"
         if sh.place is None and not missed:
-            raise ValueError("Every shot that stayed in play needs a landing spot.")
+            raise BadRequest("Every shot that stayed in play needs a landing spot.")
     for i, sh in enumerate(shots):
         if i > 0:
             if sh.serve:
-                raise ValueError("Only the first shot of a point is a serve.")
+                raise BadRequest("Only the first shot of a point is a serve.")
             if sh.stroke is None:
-                raise ValueError("Every shot after the serve needs a stroke.")
+                raise BadRequest("Every shot after the serve needs a stroke.")
             if sh.h == shots[i - 1].h:
-                raise ValueError("Hitters must alternate.")
+                raise BadRequest("Hitters must alternate.")
 
 
 def _point_out(row: TacticPoint) -> schemas.PointOut:
@@ -217,7 +219,7 @@ def add_point(db: Session, match_id: int, payload: schemas.PointIn) -> schemas.P
 def update_point_note(db: Session, point_id: int, payload: schemas.PointNoteIn) -> schemas.PointOut:
     row = db.get(TacticPoint, point_id)
     if row is None:
-        raise LookupError("point")
+        raise NotFound("Point not found")
     row.note = (payload.note or "").strip() or None
     db.commit()
     db.refresh(row)

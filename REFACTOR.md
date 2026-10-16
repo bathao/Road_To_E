@@ -12,8 +12,14 @@ Suspected bug 1 (GET writes training rows) is lazy materialisation by
 design — pinned by a test, not changed. Suspected bug 2 (daily-item swap
 undone by `_ensure_daily`) was real and is fixed in `program.alternatives_for`.
 Left for the user: `git rm -r backend/scripts/imports backend/scripts/migrations`
-(blocked by the tool's permission guard). Next: a few days of normal use,
-then Phase 2. Line numbers below are pre-cleanup and drift slightly.
+(blocked by the tool's permission guard).
+
+**Phase 2 done the same day** (user asked to continue): `app/shared/`
+(`ollama`, `jobs.run_llm_job` + `recover_stuck`, `persona`, `format_vi`,
+`time`), `app/core/errors.py` (NotFound/Conflict/BadRequest + one handler —
+all router re-mapping removed), `tracker/constants.py`, `registry.STARTUP_FUNCS`.
+Prompts verified byte-identical. Next: Phase 3. Line numbers below are
+pre-cleanup and drift.
 
 Sizes: backend 13.3k lines of Python (50 files, 33 test files / 5.3k lines),
 frontend 14.7k lines of TS/TSX (99 files) + 6.2k lines of global CSS.

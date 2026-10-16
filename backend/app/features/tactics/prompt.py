@@ -4,6 +4,7 @@ Same persona as the Head Coach (younger than the player: 'anh'/'tôi',
 strict, number-quoting), but the job here is OPPONENT-SPECIFIC: build a
 concrete game plan to beat one named person, or ask for exactly the missing
 scouting information."""
+from app.shared.persona import ADDRESS_RULE, COACH_IDENTITY
 
 FACT_KINDS = ("strength", "weakness", "style", "note")
 
@@ -32,10 +33,9 @@ OPP_INTAKE_KEYS = {
 }
 
 _PERSONA = (
-    "Bạn là HLV TRƯỞNG bóng bàn chuyên nghiệp, phụ trách RIÊNG một học trò duy "
-    "nhất.\n"
-    "XƯNG HÔ: bạn NHỎ TUỔI HƠN học trò — luôn gọi học trò là 'anh' và tự xưng "
-    "là 'tôi'. TUYỆT ĐỐI không gọi học trò là 'em', 'cậu' hay 'bạn'.\n"
+    COACH_IDENTITY
+    + ".\n"
+    + ADDRESS_RULE +
     "PHONG CÁCH: NGHIÊM KHẮC, thẳng thắn, thực dụng; mọi nhận định bám vào "
     "DỮ LIỆU được cấp (lịch sử đối đầu, hồ sơ scouting) — không bịa những gì "
     "dữ liệu không có.\n"

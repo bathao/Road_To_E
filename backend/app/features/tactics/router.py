@@ -1,7 +1,10 @@
-"""HTTP API for the Tactics tab (prefix /api/tactics)."""
+"""HTTP API for the Tactics tab (prefix /api/tactics).
+
+Services raise app.core.errors (NotFound → 404, BadRequest → 400,
+Conflict → 409); nothing is re-mapped here."""
 from __future__ import annotations
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -32,12 +35,7 @@ def add_fact(payload: schemas.FactIn, db: Session = Depends(get_db)):
 
 @router.put("/facts/{fact_id}", response_model=schemas.FactOut)
 def update_fact(fact_id: int, payload: schemas.FactUpdate, db: Session = Depends(get_db)):
-    try:
-        return service.update_fact(db, fact_id, payload)
-    except LookupError:
-        raise HTTPException(status_code=404, detail="Fact not found")
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+    return service.update_fact(db, fact_id, payload)
 
 
 @router.delete("/facts/{fact_id}", response_model=schemas.OkOut)
@@ -52,10 +50,7 @@ def interview(payload: schemas.InterviewIn, db: Session = Depends(get_db)):
     """The coach reads everything known about this matchup and asks ONLY for
     what's missing (max 5 questions). Synchronous — the local LLM call takes
     a moment; the button shows a spinner."""
-    try:
-        return service.run_interview(db, payload.player_id)
-    except LookupError:
-        raise HTTPException(status_code=404, detail="Player not found")
+    return service.run_interview(db, payload.player_id)
 
 
 @router.post("/interview/answers", response_model=schemas.FactsOut)
@@ -80,12 +75,7 @@ def generate_plan(
     """Start generating a game plan on a background task (slow: local LLM).
     Returns status=`generating`; poll GET /plan/{player_id}. 409 while one
     is already running for this opponent."""
-    try:
-        out = service.start_plan(db, player_id)
-    except LookupError:
-        raise HTTPException(status_code=404, detail="Player not found")
-    except ValueError as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
+    out = service.start_plan(db, player_id)
     background.add_task(service.run_plan_job, out.id)
     return out
 
@@ -114,10 +104,7 @@ def add_serve(payload: schemas.ServeIn, db: Session = Depends(get_db)):
 
 @router.put("/serves/{serve_id}", response_model=schemas.ServeOut)
 def update_serve(serve_id: int, payload: schemas.ServeIn, db: Session = Depends(get_db)):
-    try:
-        return matchlog.update_serve(db, serve_id, payload)
-    except LookupError:
-        raise HTTPException(status_code=404, detail="Serve not found")
+    return matchlog.update_serve(db, serve_id, payload)
 
 
 @router.delete("/serves/{serve_id}", response_model=schemas.OkOut)
@@ -136,37 +123,23 @@ def matchlog_status(player_id: int, db: Session = Depends(get_db)):
 def get_matchlog(match_id: int, db: Session = Depends(get_db)):
     """Typed set scores + every charted point of one singles match, plus the
     opponent's serves seen so far (across all charted matches vs them)."""
-    try:
-        return matchlog.get_matchlog(db, match_id)
-    except LookupError:
-        raise HTTPException(status_code=404, detail="Singles match not found")
+    return matchlog.get_matchlog(db, match_id)
 
 
 @router.put("/matchlog/{match_id}/sets", response_model=list[schemas.SetOut])
 def put_sets(match_id: int, payload: schemas.SetsIn, db: Session = Depends(get_db)):
-    try:
-        return matchlog.put_sets(db, match_id, payload)
-    except LookupError:
-        raise HTTPException(status_code=404, detail="Singles match not found")
+    return matchlog.put_sets(db, match_id, payload)
 
 
 @router.post("/matchlog/{match_id}/points", response_model=schemas.PointOut)
 def add_point(match_id: int, payload: schemas.PointIn, db: Session = Depends(get_db)):
     """Append one rally to a set (point_no = next in that set)."""
-    try:
-        return matchlog.add_point(db, match_id, payload)
-    except LookupError:
-        raise HTTPException(status_code=404, detail="Singles match not found")
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+    return matchlog.add_point(db, match_id, payload)
 
 
 @router.put("/matchlog/points/{point_id}/note", response_model=schemas.PointOut)
 def update_point_note(point_id: int, payload: schemas.PointNoteIn, db: Session = Depends(get_db)):
-    try:
-        return matchlog.update_point_note(db, point_id, payload)
-    except LookupError:
-        raise HTTPException(status_code=404, detail="Point not found")
+    return matchlog.update_point_note(db, point_id, payload)
 
 
 @router.delete("/matchlog/points/{point_id}", response_model=schemas.OkOut)
@@ -178,10 +151,7 @@ def delete_point(point_id: int, db: Session = Depends(get_db)):
 
 @router.get("/matchlog/{match_id}/stats", response_model=schemas.StatsOut)
 def match_stats(match_id: int, db: Session = Depends(get_db)):
-    try:
-        return matchlog.match_stats(db, match_id)
-    except LookupError:
-        raise HTTPException(status_code=404, detail="Singles match not found")
+    return matchlog.match_stats(db, match_id)
 
 
 @router.get("/stats/{player_id}", response_model=schemas.StatsOut)

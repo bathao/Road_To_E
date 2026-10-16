@@ -23,10 +23,7 @@ def generate(background: BackgroundTasks, db: Session = Depends(get_db)):
     Returns immediately with status=`generating`; poll GET /status until it is
     `done` (then refetch /assessment) or `error` (error_msg explains, e.g.
     Ollama not running). 409 while one is already running."""
-    try:
-        out = service.start_generate(db)
-    except ValueError as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
+    out = service.start_generate(db)  # Conflict (409) while one is running
     background.add_task(service.run_generate_job, out.id)
     return out
 
@@ -62,10 +59,7 @@ def generate_recap(
     """Generate a recap of the window ending today (week = last 7 days,
     month = last 30 days, results up to now). Returns status=`generating`;
     poll GET /recaps until it leaves `generating`."""
-    try:
-        out = service.start_recap(db, payload.period_type)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+    out = service.start_recap(db, payload.period_type)  # 409 in flight / 400 no data
     background.add_task(service.run_recap_job, out.id)
     return out
 
@@ -86,10 +80,7 @@ def send_chat(
 ):
     """Send a message to the coach. Returns immediately with the pending
     coach row appended; poll GET /chat until `pending` is false."""
-    try:
-        out = service.start_chat(db, payload.text)
-    except ValueError as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
+    out = service.start_chat(db, payload.text)  # Conflict (409) while a reply is pending
     background.add_task(service.run_chat_job)
     return out
 

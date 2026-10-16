@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session, selectinload
 
 from app.features.tracker import schemas
+from app.features.tracker.constants import DISCIPLINES, NEXT_ROUND, ROUND_DEPTH, ROUND_NAME
 from app.features.tracker.models import Category, Match, Player, Setting
 
 # ------------------------------------------------------------- constants
@@ -88,12 +89,8 @@ def placement_bonus(discipline: str, placement: str | None) -> int:
 # Tournaments are entered AFTER they finish (user 2026-07-31), so winning
 # the deepest entered knockout round with no later round = MISSING DATA,
 # not an ongoing event → no placement + a derive_warnings() entry.
-_ROUND_DEPTH = {"group": 0, "r64": 1, "r32": 2, "r16": 3, "r8": 4, "qf": 5, "sf": 6, "f": 7}
-_NEXT_ROUND = {"r64": "r32", "r32": "r16", "r16": "r8", "r8": "qf", "qf": "sf", "sf": "f"}
-_ROUND_NAME = {
-    "r64": "1/64", "r32": "1/32", "r16": "1/16", "r8": "1/8",
-    "qf": "Quarter-final", "sf": "Semi-final", "f": "Final",
-}
+# Round vocabulary (depth, successor, long name): tracker/constants.py.
+_ROUND_DEPTH, _NEXT_ROUND, _ROUND_NAME = ROUND_DEPTH, NEXT_ROUND, ROUND_NAME
 
 
 def deepest_decided(db: Session) -> dict[int, Match]:
@@ -432,7 +429,7 @@ def replay(db: Session) -> ReplayResult:
         .filter(
             Match.date >= anchor_date,
             Match.is_nonplaying == False,  # noqa: E712
-            Match.discipline.in_(("singles", "doubles", "one_v_two", "two_v_one")),
+            Match.discipline.in_(DISCIPLINES),
             Match.opponent_id.isnot(None),
             Match.category_id.in_(list(kind_mult_by_cat)),
         )

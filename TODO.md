@@ -37,11 +37,17 @@ scannable. Last full sync: 2026-10-10.
 - [ ] **Delete `backend/scripts/imports/*` + `backend/scripts/migrations/*`**
   by hand (`git rm -r …`) — the tool's permission guard refused it; they
   clear tracker rows for a date window and are already in git history.
-- [ ] **Phase 2** (after a few days of normal use): backend shared LLM/job
-  layer (`app/shared/`), typed `NotFound`/`Conflict`, `tracker/constants.py`,
-  explicit `on_startup` hooks. Then **Phase 3** (split tracker/head_coach/
-  program into packages — the goldens guard it) and **Phase 4** (frontend
-  shared types/hooks, component splits; 39 lint warnings to burn down).
+- [x] Phase 2 (2026-10-16) — `app/shared/` (ollama, jobs, persona,
+  format_vi, time), typed errors + one handler, `tracker/constants.py`,
+  `registry.STARTUP_FUNCS`.
+- [ ] **Phase 3** — split tracker/head_coach service and training/program
+  into packages behind re-exporting facades (the goldens guard it); move
+  router business logic (`upsert_activity`, `create/update_match`) into
+  the service; dedupe W/L tallies, date ranges, coach-session lookups.
+- [ ] **Phase 4** — frontend: shared domain types + `MatchRowList` /
+  `RangePicker` in `shared/`, `usePolling` / `useRangePreset` / `errMsg` /
+  `ResultBadge`, alias types to `schema.d.ts`, split the big components;
+  39 lint warnings to burn down.
 
 ## Open — feature ideas (no blocker, just not built)
 

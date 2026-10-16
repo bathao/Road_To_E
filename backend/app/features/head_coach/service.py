@@ -11,14 +11,12 @@ from __future__ import annotations
 import datetime as dt
 import json
 import logging
-import time
 
-import httpx
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.core.db import SessionLocal
-from app.core.settings import HEAD_COACH_MODEL, OLLAMA_BASE_URL, TEXT_MODEL
+from app.core.errors import BadRequest, Conflict
+from app.core.settings import HEAD_COACH_MODEL
 from app.features.head_coach import schemas
 from app.features.head_coach.models import (
     CoachChatMessage,
@@ -40,8 +38,24 @@ from app.features.tracker import service as tracker_service
 from app.features.tracker.models import DayNote, SessionNote
 from app.features.training import service as training_service
 from app.features.training.models import TrainingSession
+from app.shared import format_vi
+from app.shared.jobs import recover_stuck, run_llm_job
+from app.shared.ollama import call_with_empty_retry, loaded_models, ollama_chat, resolve_model
+from app.shared.time import as_utc
 
 log = logging.getLogger(__name__)
+
+# Shared plumbing under the names this module (and its tests) use. Tests
+# monkeypatch ``resolve_model`` / ``_ollama_chat`` on this module, so the
+# job code must keep referencing these module globals.
+_ollama_chat = ollama_chat
+_call_with_empty_retry = call_with_empty_retry
+_tz = as_utc
+_LEVEL_VI = format_vi.LEVEL_VI
+_HANDICAP_VI = format_vi.HANDICAP_VI
+_dm = format_vi.dm
+_day_label_vi = format_vi.day_label_vi
+_hdc_vi = format_vi.hdc_vi
 
 # Window used for the volume / training-load stats fed to the coach.
 _STATS_WINDOW_DAYS = 90
@@ -61,37 +75,9 @@ _H2H_PROGRESSION = 6
 # Biggest per-opponent ELO drains/sources (each side) fed to the prompts.
 _ELO_OPP_TOP = 4
 
-# Relative levels are derived from POINTS vs the athlete's dynamic ELO
-# (hand-picked labels retired 2026-07-27); "unrated" = no points entered yet.
-_LEVEL_VI = {
-    "below": "dưới cơ",
-    "equal": "ngang cơ",
-    "above": "trên cơ",
-    "unrated": "chưa có điểm",
-}
-_HANDICAP_VI = {
-    "even": "đánh đồng",
-    "receive": "học trò ĐƯỢC CHẤP",
-    "give": "học trò CHẤP đối thủ",
-}
-
-
 # ---------------------------------------------------------------- gather inputs
 def _ms(m) -> dict:
     return {"played": m.total, "wins": m.wins, "losses": m.losses, "win_rate": m.win_rate}
-
-
-def _dm(iso: str) -> str:
-    """"2026-07-21" → "21/07" — compact date in the prompt's weekly ELO lines."""
-    return f"{iso[8:10]}/{iso[5:7]}"
-
-
-_WEEKDAY_VI = ("Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật")
-
-
-def _day_label_vi(d: dt.date) -> str:
-    """"Thứ 6 15/08" — the exact PlanDay.day label the model must copy."""
-    return f"{_WEEKDAY_VI[d.weekday()]} {d.day:02d}/{d.month:02d}"
 
 
 def _week_ahead_lines(tournaments: list[dict], today: dt.date) -> str:
@@ -119,15 +105,6 @@ def _week_ahead_lines(tournaments: list[dict], today: dt.date) -> str:
         suffix = " (HÔM NAY)" if i == 0 else ""
         lines.append(f"  - {_day_label_vi(day)}{suffix}: {note}")
     return "\n".join(lines)
-
-
-def _hdc_vi(handicap: int, pattern: str | None) -> str:
-    """Compact handicap tag for one h2h match line. Sign convention follows
-    Match.handicap: +N = the player GIVES N/set, -N = receives."""
-    if not handicap:
-        return "đồng"
-    spec = pattern or str(abs(handicap))
-    return f"chấp {spec}" if handicap > 0 else f"được chấp {spec}"
 
 
 def _h2h_progression(lines, limit: int = _H2H_PROGRESSION) -> str:
@@ -215,7 +192,7 @@ def _session_note_dict(n: SessionNote, with_kind: bool = False) -> dict:
     return out
 
 
-def _coach_note_dicts(db: Session) -> list[dict]:
+def coach_note_dicts(db: Session) -> list[dict]:
     """The coach's notebook as prompt dicts — oldest first, so later notes
     read as refinements. Shared by the verdict and recap bundles."""
     return [
@@ -442,7 +419,7 @@ def gather_bundle(db: Session) -> schemas.SourceSummary:
         coach_advice=coach_advice,
         session_recaps=session_recaps,
         lessons=lessons,
-        coach_notes=_coach_note_dicts(db),
+        coach_notes=coach_note_dicts(db),
         # Registered upcoming competitions — the week plan aims at these.
         tournaments=tournament_service.upcoming_for_coach(db),
         generated_for_range=(
@@ -664,47 +641,6 @@ def _bundle_to_text(b: schemas.SourceSummary) -> str:
 
 
 # ---------------------------------------------------------------- synthesise
-def resolve_model() -> str:
-    """HEAD_COACH_MODEL when it's actually pulled in Ollama; else fall back to
-    the shared TEXT_MODEL (logged). If the probe itself fails, return the
-    configured model and let the chat call surface the real error."""
-    if HEAD_COACH_MODEL == TEXT_MODEL:
-        return HEAD_COACH_MODEL
-    try:
-        resp = httpx.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=5.0)
-        resp.raise_for_status()
-        names = {m["name"] for m in resp.json().get("models", [])}
-    except Exception:  # noqa: BLE001 — probe failure ≠ model missing
-        return HEAD_COACH_MODEL
-    if HEAD_COACH_MODEL in names or f"{HEAD_COACH_MODEL}:latest" in names:
-        return HEAD_COACH_MODEL
-    log.warning(
-        "head coach model %r is not pulled in Ollama; falling back to %r "
-        "(run: ollama pull %s)", HEAD_COACH_MODEL, TEXT_MODEL, HEAD_COACH_MODEL,
-    )
-    return TEXT_MODEL
-
-
-def _ollama_chat(
-    model: str, messages: list[dict], schema: dict, temperature: float, tag: str
-) -> dict:
-    """One non-streaming structured-output call against the local Ollama chat
-    API — the single place that owns the payload shape / timeout / num_ctx."""
-    payload = {
-        "model": model,
-        "messages": messages,
-        "stream": False,
-        "format": schema,
-        "options": {"temperature": temperature, "num_ctx": 16384},
-    }
-    t0 = time.monotonic()
-    resp = httpx.post(f"{OLLAMA_BASE_URL}/api/chat", json=payload, timeout=600.0)
-    resp.raise_for_status()
-    log.info("%s: model=%s took=%.1fs", tag, model, time.monotonic() - t0)
-    content = resp.json().get("message", {}).get("content", "{}")
-    return json.loads(content) if content else {}
-
-
 def _call_model(context_text: str, player_name: str, model: str) -> dict:
     user_text = (
         f"Dưới đây là TOÀN BỘ số liệu hiện có về học trò {player_name}. Hãy đọc kỹ, "
@@ -751,17 +687,6 @@ def _call_model(context_text: str, player_name: str, model: str) -> dict:
     )
 
 
-def _call_with_empty_retry(call, key: str, tag: str, model: str) -> dict:
-    """Run a structured-output call; retry ONCE when the payload's `key` field
-    comes back blank. The first call right after the model loads can return an
-    empty object (seen in smoke tests); once warm it answers fine."""
-    data = call()
-    if not (data.get(key) or "").strip():
-        log.warning("%s: empty %r from %s, retrying once", tag, key, model)
-        data = call()
-    return data
-
-
 def recover_stuck_jobs(db: Session) -> None:
     """Mark rows orphaned by a crash/restart as errors (run at startup).
 
@@ -769,31 +694,10 @@ def recover_stuck_jobs(db: Session) -> None:
     the GUI's Generate button disabled forever, and a chat reply left
     `pending` blocks the chat input AND every new POST /chat (409) — with no
     job alive to ever finish them. Flip them to a visible error instead."""
-    msg = "Server restarted trong lúc đang chạy — bấm chạy lại."
-    stuck_rows = (
-        db.query(HeadCoachAssessment)
-        .filter(HeadCoachAssessment.status == "generating")
-        .all()
-    )
-    stuck_chats = (
-        db.query(CoachChatMessage)
-        .filter(CoachChatMessage.status == "pending")
-        .all()
-    )
-    stuck_recaps = (
-        db.query(HeadCoachRecap)
-        .filter(HeadCoachRecap.status == "generating")
-        .all()
-    )
-    for row in stuck_rows + stuck_chats + stuck_recaps:
-        row.status = "error"
-        row.error_msg = msg
-    if stuck_rows or stuck_chats or stuck_recaps:
-        log.warning(
-            "head coach: recovered %d stuck assessment(s) + %d stuck chat row(s)"
-            " + %d stuck recap(s)",
-            len(stuck_rows), len(stuck_chats), len(stuck_recaps),
-        )
+    n = recover_stuck(db, HeadCoachAssessment, in_flight="generating", label="assessment(s)")
+    n += recover_stuck(db, CoachChatMessage, in_flight="pending", label="chat row(s)")
+    n += recover_stuck(db, HeadCoachRecap, in_flight="generating", label="recap(s)")
+    if n:
         db.commit()
 
 
@@ -811,7 +715,7 @@ def start_generate(db: Session) -> schemas.AssessmentOut:
         .first()
     )
     if running is not None:
-        raise ValueError("Đang tạo nhận định — chờ xong rồi bấm lại.")
+        raise Conflict("Đang tạo nhận định — chờ xong rồi bấm lại.")
     row = HeadCoachAssessment(model=HEAD_COACH_MODEL, status="generating")
     db.add(row)
     db.commit()
@@ -823,56 +727,39 @@ def run_generate_job(assessment_id: int, db_or_none: Session | None = None) -> N
     """Background job: gather the bundle, call the model, fill the snapshot.
     Accepts an injected session so tests can run it synchronously (same
     contract as run_chat_job / run_recap_job)."""
-    db = db_or_none or SessionLocal()
-    try:
-        row = db.get(HeadCoachAssessment, assessment_id)
-        if row is None or row.status != "generating":
-            return
-        try:
-            bundle = gather_bundle(db)
-            use_model = resolve_model()
-            row.model = use_model  # record the model actually used
 
-            def call() -> dict:
-                out = _call_model(
-                    _bundle_to_text(bundle),
-                    player_name=bundle.player or "vận động viên",
-                    model=use_model,
-                )
-                return out if isinstance(out, dict) else {}
+    def work(db: Session, row: HeadCoachAssessment) -> None:
+        bundle = gather_bundle(db)
+        use_model = resolve_model()
+        row.model = use_model  # record the model actually used
 
-            data = _call_with_empty_retry(
-                call, "overall_assessment", "head coach", use_model
+        def call() -> dict:
+            return _call_model(
+                _bundle_to_text(bundle),
+                player_name=bundle.player or "vận động viên",
+                model=use_model,
             )
-            if not (data.get("overall_assessment") or "").strip():
-                raise ValueError("Model trả về bản đánh giá rỗng.")
 
-            # Persistence stays inside the try: a failure here (busy DB,
-            # bad payload) must mark the row `error`, never leave it stuck
-            # in `generating` with no job alive to finish it.
-            row.overall_assessment = data.get("overall_assessment", "")
-            row.top_priorities_json = json.dumps(data.get("top_priorities", []), ensure_ascii=False)
-            row.directives_json = json.dumps(
-                _sanitize_directives(data.get("directives", [])), ensure_ascii=False
-            )
-            row.week_plan_json = json.dumps(data.get("week_plan", []), ensure_ascii=False)
-            row.watch_items_json = json.dumps(data.get("watch_items", []), ensure_ascii=False)
-            row.sources_json = bundle.model_dump_json()
-            row.status = "done"
-            row.error_msg = None
-            db.commit()
-        except Exception as exc:  # noqa: BLE001 — surfaced to the GUI via status
-            log.exception("head coach generate(%d) failed", assessment_id)
-            db.rollback()
-            row = db.get(HeadCoachAssessment, assessment_id)
-            if row is not None:
-                row.status = "error"
-                row.error_msg = str(exc)[:1000]
-                db.commit()
-            return
-    finally:
-        if db_or_none is None:
-            db.close()
+        data = _call_with_empty_retry(call, "overall_assessment", "head coach", use_model)
+        if not (data.get("overall_assessment") or "").strip():
+            raise ValueError("Model trả về bản đánh giá rỗng.")
+        row.overall_assessment = data.get("overall_assessment", "")
+        row.top_priorities_json = json.dumps(data.get("top_priorities", []), ensure_ascii=False)
+        row.directives_json = json.dumps(
+            _sanitize_directives(data.get("directives", [])), ensure_ascii=False
+        )
+        row.week_plan_json = json.dumps(data.get("week_plan", []), ensure_ascii=False)
+        row.watch_items_json = json.dumps(data.get("watch_items", []), ensure_ascii=False)
+        row.sources_json = bundle.model_dump_json()
+        row.status = "done"
+        row.error_msg = None
+
+    run_llm_job(
+        db_or_none,
+        fetch=lambda db: db.get(HeadCoachAssessment, assessment_id),
+        work=work,
+        tag=f"head coach generate({assessment_id})",
+    )
 
 
 def _to_out(row: HeadCoachAssessment) -> schemas.AssessmentOut:
@@ -1185,7 +1072,7 @@ def gather_recap_bundle(
         ),
         "session_notes": session_notes,
         "day_notes": day_notes,
-        "coach_notes": _coach_note_dicts(db),
+        "coach_notes": coach_note_dicts(db),
         # Open Tracking-board tasks as of the period's end — the recap can
         # note kept/broken daily streaks alongside the period's numbers.
         "tasks": _task_dicts(db, end),
@@ -1427,7 +1314,7 @@ def start_recap(
     same day reuses that day's row (regenerate) — no duplicate rows."""
     today = today or dt.date.today()
     if period_type not in _RECAP_PERIODS:
-        raise ValueError("period_type must be 'week' or 'month'")
+        raise BadRequest("period_type must be 'week' or 'month'")
     days = _RECAP_WINDOW_DAYS[period_type]
     start = today - dt.timedelta(days=days - 1)
     in_flight = (
@@ -1439,9 +1326,9 @@ def start_recap(
         .first()
     )
     if in_flight is not None:
-        raise ValueError("A recap is already being generated — wait for it to finish")
+        raise Conflict("Đang tạo tổng kết — chờ xong rồi bấm lại.")
     if not tracker_service.has_data_between(db, start, today):
-        raise ValueError(f"No logged data in the last {days} days — nothing to recap")
+        raise BadRequest(f"Chưa có dữ liệu nào trong {days} ngày qua — không có gì để tổng kết.")
 
     row = (
         db.query(HeadCoachRecap)
@@ -1467,70 +1354,56 @@ def start_recap(
 def run_recap_job(recap_id: int, db_or_none: Session | None = None) -> None:
     """Background job: compute the period's stats, call the model, persist.
     Accepts an injected session so tests can run it synchronously."""
-    db = db_or_none or SessionLocal()
-    try:
-        row = db.get(HeadCoachRecap, recap_id)
-        if row is None or row.status != "generating":
-            return
-        try:
-            rep = tracker_rating.replay(db)
-            cur_snap, full_stats, elo = _period_stats(
-                db, row.period_start, row.period_end, rep
+
+    def work(db: Session, row: HeadCoachRecap) -> None:
+        rep = tracker_rating.replay(db)
+        cur_snap, full_stats, elo = _period_stats(
+            db, row.period_start, row.period_end, rep
+        )
+        # The comparison window: the same number of days right before.
+        days = _RECAP_WINDOW_DAYS[row.period_type]
+        prev_end = row.period_start - dt.timedelta(days=1)
+        prev_start = prev_end - dt.timedelta(days=days - 1)
+        earliest = tracker_service.earliest_data_date(db)
+        prev_snap = None
+        if earliest is not None and prev_end >= earliest:
+            prev_snap, _, _ = _period_stats(db, prev_start, prev_end, rep)
+        stats = schemas.RecapStats(current=cur_snap, previous=prev_snap)
+
+        bundle = gather_recap_bundle(
+            db, row.period_type, row.period_start, row.period_end,
+            rep, stats, full_stats, elo,
+        )
+        use_model = resolve_model()
+        row.model = use_model
+
+        def call() -> dict:
+            return _call_recap_model(
+                _recap_bundle_to_text(bundle),
+                player_name=bundle.get("player") or "vận động viên",
+                period_type=row.period_type,
+                model=use_model,
             )
-            # The comparison window: the same number of days right before.
-            days = _RECAP_WINDOW_DAYS[row.period_type]
-            prev_end = row.period_start - dt.timedelta(days=1)
-            prev_start = prev_end - dt.timedelta(days=days - 1)
-            earliest = tracker_service.earliest_data_date(db)
-            prev_snap = None
-            if earliest is not None and prev_end >= earliest:
-                prev_snap, _, _ = _period_stats(db, prev_start, prev_end, rep)
-            stats = schemas.RecapStats(current=cur_snap, previous=prev_snap)
 
-            bundle = gather_recap_bundle(
-                db, row.period_type, row.period_start, row.period_end,
-                rep, stats, full_stats, elo,
-            )
-            use_model = resolve_model()
-            row.model = use_model
+        data = _call_with_empty_retry(call, "overall", "coach recap", use_model)
+        if not (data.get("overall") or "").strip():
+            raise ValueError("Model trả về bản tổng kết rỗng.")
+        row.headline = (data.get("headline") or "").strip()
+        row.overall = data.get("overall", "")
+        row.went_well_json = json.dumps(data.get("went_well", []), ensure_ascii=False)
+        row.concerns_json = json.dumps(data.get("concerns", []), ensure_ascii=False)
+        row.focus_next_json = json.dumps(data.get("focus_next", []), ensure_ascii=False)
+        row.stats_json = stats.model_dump_json()
+        row.sources_json = json.dumps(bundle, ensure_ascii=False)
+        row.status = "done"
+        row.error_msg = None
 
-            def call() -> dict:
-                out = _call_recap_model(
-                    _recap_bundle_to_text(bundle),
-                    player_name=bundle.get("player") or "vận động viên",
-                    period_type=row.period_type,
-                    model=use_model,
-                )
-                return out if isinstance(out, dict) else {}
-
-            data = _call_with_empty_retry(call, "overall", "coach recap", use_model)
-            if not (data.get("overall") or "").strip():
-                raise ValueError("Model trả về bản tổng kết rỗng.")
-
-            # Persistence stays inside the try (same reasoning as the verdict
-            # job): a failure must mark the row `error`, never leave it stuck.
-            row.headline = (data.get("headline") or "").strip()
-            row.overall = data.get("overall", "")
-            row.went_well_json = json.dumps(data.get("went_well", []), ensure_ascii=False)
-            row.concerns_json = json.dumps(data.get("concerns", []), ensure_ascii=False)
-            row.focus_next_json = json.dumps(data.get("focus_next", []), ensure_ascii=False)
-            row.stats_json = stats.model_dump_json()
-            row.sources_json = json.dumps(bundle, ensure_ascii=False)
-            row.status = "done"
-            row.error_msg = None
-            db.commit()
-        except Exception as exc:  # noqa: BLE001 — surfaced to the GUI via status
-            log.exception("coach recap(%d) failed", recap_id)
-            db.rollback()
-            row = db.get(HeadCoachRecap, recap_id)
-            if row is not None:
-                row.status = "error"
-                row.error_msg = str(exc)[:1000]
-                db.commit()
-            return
-    finally:
-        if db_or_none is None:
-            db.close()
+    run_llm_job(
+        db_or_none,
+        fetch=lambda db: db.get(HeadCoachRecap, recap_id),
+        work=work,
+        tag=f"coach recap({recap_id})",
+    )
 
 
 # ------------------------------------------------------------------ coach chat
@@ -1542,13 +1415,6 @@ _CHAT_HISTORY_CHAR_BUDGET = 8000
 # Guardrails on the auto-written notebook (per reply).
 _MAX_NOTES_PER_REPLY = 3
 _MAX_NOTE_CHARS = 300
-
-
-def _tz(created: dt.datetime | None) -> dt.datetime | None:
-    """Re-attach UTC to a naive SQLite timestamp (same fix as _to_out)."""
-    if created is not None and created.tzinfo is None:
-        return created.replace(tzinfo=dt.timezone.utc)
-    return created
 
 
 def _msg_out(row: CoachChatMessage) -> schemas.ChatMessageOut:
@@ -1579,7 +1445,7 @@ def start_chat(db: Session, text: str) -> schemas.ChatHistoryOut:
         db.query(CoachChatMessage).filter(CoachChatMessage.status == "pending").first()
     )
     if pending is not None:
-        raise ValueError("HLV đang trả lời câu trước — chờ xong rồi gửi tiếp.")
+        raise Conflict("HLV đang trả lời câu trước — chờ xong rồi gửi tiếp.")
     db.add(CoachChatMessage(role="user", content=text.strip(), status="done"))
     db.add(CoachChatMessage(role="coach", content="", status="pending"))
     db.commit()
@@ -1649,79 +1515,57 @@ def _save_new_notes(db: Session, raw_notes) -> None:
         saved += 1
 
 
+def _pending_reply(db: Session) -> CoachChatMessage | None:
+    return (
+        db.query(CoachChatMessage)
+        .filter(CoachChatMessage.status == "pending", CoachChatMessage.role == "coach")
+        .order_by(CoachChatMessage.id.asc())
+        .first()
+    )
+
+
 def run_chat_job(db_or_none: Session | None = None) -> None:
     """Background job: answer the oldest pending coach message.
 
     Injects the live bundle (with notebook) + the verbatim history from the
     DB, calls the model, saves the reply and auto-writes any new notes."""
-    db = db_or_none or SessionLocal()
-    try:
-        row = (
+
+    def work(db: Session, row: CoachChatMessage) -> None:
+        all_rows = (
             db.query(CoachChatMessage)
-            .filter(CoachChatMessage.status == "pending", CoachChatMessage.role == "coach")
+            .filter(CoachChatMessage.id < row.id)
             .order_by(CoachChatMessage.id.asc())
-            .first()
+            .all()
         )
-        if row is None:
-            return
-        try:
-            all_rows = (
-                db.query(CoachChatMessage)
-                .filter(CoachChatMessage.id < row.id)
-                .order_by(CoachChatMessage.id.asc())
-                .all()
+        # The newest user message is the question; everything before it
+        # is history.
+        question_row = all_rows[-1] if all_rows else None
+        if question_row is None or question_row.role != "user":
+            raise ValueError("no user question found for the pending reply")
+        bundle = gather_bundle(db)
+        use_model = resolve_model()
+        row.model = use_model
+
+        def call() -> dict:
+            return _call_chat_model(
+                _bundle_to_text(bundle),
+                history=_history_for_prompt(all_rows[:-1]),
+                question=question_row.content,
+                model=use_model,
             )
-            # The newest user message is the question; everything before it
-            # is history.
-            question_row = all_rows[-1] if all_rows else None
-            if question_row is None or question_row.role != "user":
-                raise ValueError("no user question found for the pending reply")
-            bundle = gather_bundle(db)
-            use_model = resolve_model()
-            row.model = use_model
 
-            def call() -> dict:
-                # Coerce non-dict JSON to {} so `data` is always a dict.
-                out = _call_chat_model(
-                    _bundle_to_text(bundle),
-                    history=_history_for_prompt(all_rows[:-1]),
-                    question=question_row.content,
-                    model=use_model,
-                )
-                return out if isinstance(out, dict) else {}
+        data = _call_with_empty_retry(call, "reply", "coach chat", use_model)
+        row.content = (data.get("reply") or "").strip()
+        if not row.content:
+            row.status = "error"
+            row.error_msg = "Model trả về câu trả lời rỗng."
+        else:
+            row.status = "done"
+            row.error_msg = None
+            _save_new_notes(db, data.get("new_notes"))
 
-            data = _call_with_empty_retry(call, "reply", "coach chat", use_model)
-
-            # Persistence stays inside the try (same rule as the verdict and
-            # recap jobs): a commit failure must mark the row `error` — a
-            # reply left `pending` forever blocks the chat input AND every
-            # new POST /chat (409) until a server restart.
-            row.content = (data.get("reply") or "").strip()
-            if not row.content:
-                row.status = "error"
-                row.error_msg = "Model trả về câu trả lời rỗng."
-            else:
-                row.status = "done"
-                row.error_msg = None
-                _save_new_notes(db, data.get("new_notes"))
-            db.commit()
-        except Exception as exc:  # noqa: BLE001 — surfaced to the GUI via status
-            log.exception("coach chat reply failed")
-            db.rollback()
-            row = (
-                db.query(CoachChatMessage)
-                .filter(CoachChatMessage.status == "pending", CoachChatMessage.role == "coach")
-                .order_by(CoachChatMessage.id.asc())
-                .first()
-            )
-            if row is not None:
-                row.status = "error"
-                row.error_msg = str(exc)[:1000]
-                db.commit()
-            return
-    finally:
-        if db_or_none is None:
-            db.close()
+    run_llm_job(db_or_none, fetch=_pending_reply, work=work, tag="coach chat reply",
+                in_flight="pending")
 
 
 # --------------------------------------------------------------- coach notebook
@@ -1761,10 +1605,9 @@ def debug_info() -> schemas.DebugOut:
 
     out = schemas.DebugOut(logs=logbuffer.tail())
     try:
-        resp = httpx.get(f"{OLLAMA_BASE_URL}/api/ps", timeout=5.0)
-        resp.raise_for_status()
+        models = loaded_models()
         out.ollama_ok = True
-        for m in resp.json().get("models", []):
+        for m in models:
             out.loaded_models.append(
                 schemas.OllamaModelPs(
                     name=m.get("name", ""),
