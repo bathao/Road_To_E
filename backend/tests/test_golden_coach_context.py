@@ -26,6 +26,9 @@ from app.features.head_coach.models import CoachNote, HeadCoachRecap
 from app.features.tournament import schemas as t_schemas
 from app.features.tournament import service as t_service
 from app.features.tracker import rating, schemas, service
+from app.features.tracker.service import boards as tracker_boards
+from app.features.tracker.service import grid as tracker_grid
+from app.features.tracker.service import players as tracker_players
 from app.features.tracker.models import Activity, DayNote, Player, SessionNote, Setting
 from app.features.training import service as training_service
 
@@ -44,7 +47,9 @@ class _FrozenDate(dt.date):
 # ``isinstance(value, datetime.date)`` check on real date objects.)
 _CLOCK_MODULES = (
     hc_service,
-    service,
+    tracker_grid,
+    tracker_boards,
+    tracker_players,
     training_service,
     t_service,
     rating,

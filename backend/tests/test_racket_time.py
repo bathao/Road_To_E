@@ -4,7 +4,7 @@ from __future__ import annotations
 import datetime as dt
 
 from app.features.tracker import service
-from app.features.tracker.models import Activity, Match
+from app.features.tracker.models import Category, Activity, Match
 
 from conftest import category_id
 
@@ -33,7 +33,7 @@ def _setup_day(db) -> None:
 
 def test_racket_minutes_by_day(db):
     _setup_day(db)
-    cats = db.query(service.Category).all()
+    cats = db.query(Category).all()
     training, playing = service.racket_minutes_by_day(
         cats,
         db.query(Activity).all(),
