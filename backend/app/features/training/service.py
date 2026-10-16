@@ -114,12 +114,10 @@ def _materialise(db: Session, level: str, day_index: int) -> TrainingSession:
     return row
 
 
-def open_session(db: Session) -> tuple[TrainingSession, bool]:
-    """The current open session. Advances/unlocks levels as needed.
-
-    Returns (session, level_complete) where level_complete is True only when the
-    very last level's program is finished and there is nothing further to open.
-    """
+def open_session(db: Session) -> TrainingSession:
+    """The current open session. Advances/unlocks levels as needed; the last
+    level never dead-ends (it repeats in maintenance cycles), so there is
+    always a session to open."""
     state = ensure_state(db)
     level = state.current_level
     done = _done_count(db, level)
@@ -129,7 +127,7 @@ def open_session(db: Session) -> tuple[TrainingSession, bool]:
         if nxt is None:
             # Last level finished — DON'T dead-end. Keep opening the next session
             # (maintenance cycles with progressive overload, see program.py).
-            return _materialise(db, level, done + 1), False
+            return _materialise(db, level, done + 1)
         unlocked = _unlocked_set(state) | {nxt}
         state.unlocked_levels = ",".join(l for l in program.LEVELS if l in unlocked)
         state.current_level = nxt
@@ -137,7 +135,7 @@ def open_session(db: Session) -> tuple[TrainingSession, bool]:
         db.commit()
         level, done = nxt, 0
 
-    return _materialise(db, level, done + 1), False
+    return _materialise(db, level, done + 1)
 
 
 # ---------------------------------------------------------------- serialisation
@@ -247,7 +245,7 @@ def _ensure_daily(db: Session, session: TrainingSession) -> None:
 
 
 def get_today(db: Session) -> schemas.SessionOut:
-    session, _ = open_session(db)
+    session = open_session(db)
     _ensure_daily(db, session)
     return to_session_out(session)
 
@@ -339,8 +337,7 @@ def _autoregulate(db: Session, pain: str | None, rpe: str | None) -> None:
         delta = -1
     elif rpe == "easy":  # only push up when it was easy AND pain-free
         delta = 1
-    elif rpe == "hard":
-        delta = 0  # hard but no pain = good stimulus; hold, don't add
+    # rpe == "hard" with no pain = good stimulus: hold, don't add (delta 0).
     state.intensity_bias = max(-2, min((state.intensity_bias or 0) + delta, 3))
     db.commit()
 

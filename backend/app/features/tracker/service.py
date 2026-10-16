@@ -1,4 +1,12 @@
-"""Business logic for the tracker tab: formatting, week aggregation, export."""
+"""Business logic for the Daily Tracker tab (one module, several concerns).
+
+Grid: range loading, cell formatting, week aggregation, Overall colours,
+Excel/CSV export. Pool: players and coaches (10-session packages). Matches:
+events, handicap patterns, per-match ELO annotation. Journal: session notes,
+day notes, match notes. Boards: tasks and memos. Analytics: stats,
+breakdowns, match statistics, rating breakdowns, head-to-head. The split
+into a ``service/`` package is planned in REFACTOR.md §3.1.
+"""
 from __future__ import annotations
 
 import csv
@@ -957,7 +965,7 @@ def _annotate_elo(db: Session, matches: list[Match]) -> list[schemas.MatchOut]:
     elo_deltas = {s.match_id: s.delta for s in elo_steps if s.match_id is not None}
     anchor_date = rating.get_my_anchor_date(db)
     outs = [match_to_out(m, round(my_final)) for m in matches]
-    for out, m in zip(outs, matches):
+    for out, m in zip(outs, matches, strict=True):
         if m.id in elo_deltas:
             out.elo_delta = round(elo_deltas[m.id], 1)
             out.elo_status = rating.STATUS_COUNTED
@@ -1574,7 +1582,7 @@ def compute_coach_packages(db: Session) -> schemas.CoachPackagesResponse:
                     used=1,
                     size=size,
                     remaining=max(0, size - 1),
-                    over=max(0, 1 - size),
+                    over=0,
                     is_current=False,
                     status="ok",
                 )
@@ -1589,7 +1597,6 @@ def compute_coach_packages(db: Session) -> schemas.CoachPackagesResponse:
     # Status for every package (history included), not just the current one —
     # a past block that ran over should read "over" in the history list too.
     for p in packages:
-        p.is_current = False
         if p.over > 0:
             p.status = "over"
         elif p.remaining == 0:
@@ -2687,9 +2694,9 @@ def export_xlsx(db: Session, date_from: dt.date, date_to: dt.date) -> bytes:
             iso = d.isoformat()
             cell = ws.cell(row=i, column=j)
             if c.key == "overall":
-                rating = rating_by_date.get(iso)
-                if rating and rating in _RATING_HEX:
-                    cell.fill = PatternFill("solid", fgColor=_RATING_HEX[rating])
+                overall_color = rating_by_date.get(iso)
+                if overall_color and overall_color in _RATING_HEX:
+                    cell.fill = PatternFill("solid", fgColor=_RATING_HEX[overall_color])
             else:
                 cell.value = text.get((c.id, iso), "")
                 cell.alignment = wrap

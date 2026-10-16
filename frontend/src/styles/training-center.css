@@ -220,13 +220,6 @@
   flex-shrink: 0;
 }
 
-.tc-ex-thumb-ph {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28px;
-}
-
 .tc-ex-body {
   flex: 1;
   min-width: 0;
@@ -613,13 +606,6 @@
   border-radius: 12px;
   object-fit: cover;
   background: #eef1f5;
-}
-
-.tc-wp-thumb-ph {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 48px;
 }
 
 .tc-wp-sub {

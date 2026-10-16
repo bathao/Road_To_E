@@ -106,8 +106,9 @@ class CoachStartAllowedResponse(BaseModel):
 # ---------- Player (opponent / partner pool) ----------
 class PlayerIn(BaseModel):
     name: str
-    # None = caller doesn't manage the legacy label: creates derive it from
-    # points (vs the user's own rating), updates leave it untouched.
+    # Accepted for old clients, never written: the column is frozen legacy
+    # (service.create_or_get_player / update_player); the GUI derives the
+    # level from points.
     level: Literal["below", "equal", "above"] | None = None
     note: str | None = None
     plays_pips: bool = False  # opponent uses pimpled rubber ("đánh gai")
@@ -386,7 +387,7 @@ class SessionNoteUpdate(BaseModel):
 
     tags: list[str] | None = None
     text: str | None = None
-    is_done: bool | None = None  # advice lifecycle; ignored for recaps
+    is_done: bool | None = None  # retired advice lifecycle (models.SessionNote); no GUI sends it
 
 
 class SessionNoteOut(BaseModel):
@@ -529,7 +530,7 @@ class SessionNoteTagOut(BaseModel):
 class CellData(BaseModel):
     """Pre-rendered display for one (category, date) cell."""
     display: str = ""
-    color: str | None = None  # for the Overall row
+    color: str | None = None  # Overall row: green|yellow|red; Physical row: yellow
 
 
 # ---------- Stats / Analysis ----------

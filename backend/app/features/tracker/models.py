@@ -94,8 +94,9 @@ class Event(Base):
 class Player(Base):
     """A person the user plays — opponent or doubles partner (one shared pool).
 
-    ``level`` is relative to the user (below | equal | above) and lives on the
-    profile (editable), not snapshotted per match.
+    ``level`` (below | equal | above) is a frozen legacy column: since
+    2026-07-27 the relative level is derived from ``points`` vs the user's
+    rating (service.level_from_points) and payloads no longer write it.
     """
 
     __tablename__ = "tracker_player"

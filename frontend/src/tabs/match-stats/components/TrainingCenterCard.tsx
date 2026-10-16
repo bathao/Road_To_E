@@ -1,5 +1,5 @@
-// Snapshot of the off-table physical program (Training Center tab). Moved
-// from the retired Profile tab 2026-07-30; rangeless — always the latest.
+// Snapshot of the off-table physical program (Training Center tab);
+// rangeless — always the latest.
 import { DAY_ICON } from "../../training-center/constants";
 import type { Report as TrainingReport } from "../../training-center/types";
 

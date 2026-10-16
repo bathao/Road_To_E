@@ -71,35 +71,6 @@ class OkOut(BaseModel):
     ok: bool = True
 
 
-# ------------------------------------------------------------------ reflections
-class ReflectionIn(BaseModel):
-    """One post-match analysis note by the student about one opponent —
-    free-form and subjective (the prompts cross-check it against the data)."""
-
-    player_id: int
-    text: str = Field(min_length=1, max_length=8000)
-
-    @field_validator("text")
-    @classmethod
-    def _text_not_blank(cls, v: str) -> str:
-        v = v.strip()
-        if not v:
-            raise ValueError("Reflection text cannot be empty.")
-        return v
-
-
-class ReflectionUpdate(BaseModel):
-    text: str = Field(min_length=1, max_length=8000)
-
-
-class ReflectionOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    id: int
-    player_id: int
-    text: str
-    created_at: dt.datetime | None = None
-
-
 # ------------------------------------------------------------------- interview
 class InterviewQuestion(BaseModel):
     subject: Literal["me", "opponent"]

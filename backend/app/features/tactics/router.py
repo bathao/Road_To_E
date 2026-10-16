@@ -46,48 +46,6 @@ def delete_fact(fact_id: int, db: Session = Depends(get_db)):
     return schemas.OkOut()
 
 
-# ------------------------------------------------------------------ reflections
-@router.get("/reflections/{player_id}", response_model=list[schemas.ReflectionOut])
-def list_reflections(player_id: int, db: Session = Depends(get_db)):
-    """The student's own post-match analysis notes on this opponent, newest
-    first. Subjective by design — the prompts cross-check them."""
-    return service.list_reflections(db, player_id)
-
-
-@router.post("/reflections", response_model=schemas.ReflectionOut)
-def add_reflection(
-    payload: schemas.ReflectionIn,
-    background: BackgroundTasks,
-    db: Session = Depends(get_db),
-):
-    """Save the note, then (background, best-effort) let the coach extract
-    anything it reveals about the STUDENT into the global me-file."""
-    try:
-        row = service.add_reflection(db, payload)
-    except LookupError:
-        raise HTTPException(status_code=404, detail="Player not found")
-    background.add_task(service.run_me_extraction_job, row.id)
-    return row
-
-
-@router.put("/reflections/{reflection_id}", response_model=schemas.ReflectionOut)
-def update_reflection(
-    reflection_id: int, payload: schemas.ReflectionUpdate, db: Session = Depends(get_db)
-):
-    try:
-        return service.update_reflection(db, reflection_id, payload)
-    except LookupError:
-        raise HTTPException(status_code=404, detail="Reflection not found")
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-
-
-@router.delete("/reflections/{reflection_id}", response_model=schemas.OkOut)
-def delete_reflection(reflection_id: int, db: Session = Depends(get_db)):
-    service.delete_reflection(db, reflection_id)
-    return schemas.OkOut()
-
-
 # ------------------------------------------------------------------- interview
 @router.post("/interview", response_model=schemas.InterviewOut)
 def interview(payload: schemas.InterviewIn, db: Session = Depends(get_db)):

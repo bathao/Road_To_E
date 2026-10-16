@@ -5,7 +5,7 @@ from __future__ import annotations
 import datetime as dt
 
 from conftest import category_id
-from app.features.tactics import matchlog, schemas, seed as tactics_seed
+from app.features.tactics import matchlog, seed as tactics_seed
 from app.features.tactics.models import TacticServe
 from app.features.tracker.models import Match, Player
 

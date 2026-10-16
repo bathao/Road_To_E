@@ -9,7 +9,7 @@ import pytest
 
 from conftest import category_id
 from app.features.tactics import schemas, service
-from app.features.tactics.models import TacticPlan
+from app.features.tactics.models import TacticPlan, TacticReflection
 from app.features.tracker.models import Match, Player
 
 D = dt.date(2026, 8, 1)
@@ -182,91 +182,9 @@ def test_interview_answers_become_facts(db):
     ]
 
 
-def test_reflections_crud_newest_first(db):
-    """The student's post-match analysis notes: per-opponent, newest first,
-    blank guards, unknown-player 404."""
-    rival = _player(db, "Lợi Phạm")
-    other = _player(db, "Tuấn Gỗ")
-
-    r1 = service.add_reflection(db, schemas.ReflectionIn(
-        player_id=rival.id, text="Giao dài là hắn lùi ra xa, mình bị động."))
-    service.add_reflection(db, schemas.ReflectionIn(
-        player_id=rival.id, text="Hôm nay thử giao ngắn: hắn lúng túng."))
-    service.add_reflection(db, schemas.ReflectionIn(
-        player_id=other.id, text="Người khác — không được lẫn sang."))
-
-    out = service.list_reflections(db, rival.id)
-    assert [r.text for r in out] == [
-        "Hôm nay thử giao ngắn: hắn lúng túng.",
-        "Giao dài là hắn lùi ra xa, mình bị động.",
-    ]  # newest first
-
-    service.update_reflection(db, r1.id, schemas.ReflectionUpdate(
-        text="Giao dài là hắn lùi xa."))
-    assert service.list_reflections(db, rival.id)[-1].text == "Giao dài là hắn lùi xa."
-    with pytest.raises(ValueError):
-        service.update_reflection(db, r1.id, schemas.ReflectionUpdate(text="   "))
-    with pytest.raises(LookupError):
-        service.update_reflection(db, 999, schemas.ReflectionUpdate(text="x"))
-    with pytest.raises(LookupError):
-        service.add_reflection(db, schemas.ReflectionIn(player_id=999, text="x"))
-
-    service.delete_reflection(db, r1.id)
-    assert len(service.list_reflections(db, rival.id)) == 1
-
-
-def test_me_extraction_files_global_facts(db, monkeypatch):
-    """After a reflection is saved, the coach's background pass files what it
-    reveals about the STUDENT into the me-file (source='coach'): duplicates
-    vs existing me-facts are skipped, blanks dropped, cap 5 per note, and a
-    dead LLM never hurts the saved note."""
-    rival = _player(db, "Lợi Phạm")
-    service.add_fact(db, schemas.FactIn(player_id=None, kind="strength",
-                                        text="Giật phải tốt"))
-    note = service.add_reflection(db, schemas.ReflectionIn(
-        player_id=rival.id,
-        text="Giao ngắn của tôi rất hiệu quả, nhưng hắn toàn ép trái tôi."))
-
-    seen: dict = {}
-
-    def fake_chat(model, messages, schema, **kw):
-        seen["user"] = messages[1]["content"]
-        return {"facts": [
-            {"kind": "strength", "text": "Giao ngắn hiệu quả"},
-            {"kind": "strength", "text": "giật phải tốt"},  # dup (case-folded)
-            {"kind": "note", "text": "   "},  # blank → dropped
-        ]}
-
-    monkeypatch.setattr(service, "resolve_model", lambda: "test-model")
-    monkeypatch.setattr(service, "_ollama_chat", fake_chat)
-    service.run_me_extraction_job(note.id, db)
-
-    # The prompt saw the existing me-file and the note itself.
-    assert "Giật phải tốt" in seen["user"]
-    assert "Giao ngắn của tôi rất hiệu quả" in seen["user"]
-    me = service.list_facts(db, rival.id).me
-    assert [(f.text, f.source) for f in me] == [
-        ("Giật phải tốt", "user"),
-        ("Giao ngắn hiệu quả", "coach"),
-    ]
-    # Nothing ever lands on the opponent side from extraction.
-    assert all(f.player_id is None for f in me)
-
-    # LLM failure = silent no-op (the note is already saved).
-    def boom(*a, **k):
-        raise RuntimeError("ollama down")
-
-    monkeypatch.setattr(service, "_ollama_chat", boom)
-    note2 = service.add_reflection(db, schemas.ReflectionIn(
-        player_id=rival.id, text="Ghi chú thứ hai."))
-    service.run_me_extraction_job(note2.id, db)
-    assert len(service.list_reflections(db, rival.id)) == 2
-    assert len(service.list_facts(db, rival.id).me) == 2  # unchanged
-
-
 def test_build_context_includes_reflections(db):
-    """Reflections ride both prompts as their own CHỦ QUAN section (newest
-    first) — and the plan prompt carries the cross-check rule."""
+    """Stored reflections ride both prompts as their own CHỦ QUAN section
+    (newest first) — and the plan prompt carries the cross-check rule."""
     from app.features.tactics.prompt import INTERVIEW_SYSTEM_PROMPT, PLAN_SYSTEM_PROMPT
 
     rival = _player(db, "Lợi Phạm")
@@ -274,8 +192,12 @@ def test_build_context_includes_reflections(db):
     assert "PHÂN TÍCH CỦA HỌC TRÒ SAU CÁC TRẬN VỚI LỢI PHẠM" in ctx
     assert "(chưa có)" in ctx
 
-    service.add_reflection(db, schemas.ReflectionIn(player_id=rival.id, text="Cũ."))
-    service.add_reflection(db, schemas.ReflectionIn(player_id=rival.id, text="Mới."))
+    # Rows written by the retired "My analysis" GUI (API removed 2026-10-16).
+    db.add_all([
+        TacticReflection(player_id=rival.id, text="Cũ."),
+        TacticReflection(player_id=rival.id, text="Mới."),
+    ])
+    db.commit()
     ctx = service.build_context(db, db.get(Player, rival.id))
     assert ctx.index("Mới.") < ctx.index("Cũ.")  # newest first
     assert "ĐỐI CHIẾU" in PLAN_SYSTEM_PROMPT  # cross-check rule

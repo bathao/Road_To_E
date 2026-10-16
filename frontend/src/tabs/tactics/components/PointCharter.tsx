@@ -360,7 +360,10 @@ export default function PointCharter({
   const setsWon = { me: 0, opp: 0 };
   for (let i = 0; i < setCount; i++) {
     const s = setScore(i);
-    if (s.me != null && s.opp != null && setOver(s.me, s.opp)) (s.me > s.opp ? setsWon.me++ : setsWon.opp++);
+    if (s.me != null && s.opp != null && setOver(s.me, s.opp)) {
+      if (s.me > s.opp) setsWon.me++;
+      else setsWon.opp++;
+    }
   }
 
   // What the live row says the user is about to add.

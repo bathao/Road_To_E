@@ -7,7 +7,7 @@ import datetime as dt
 import pytest
 
 from app.features.training import program, service
-from app.features.training.models import TrainingState
+from app.features.training.models import TrainingSession, TrainingState
 
 
 # ---------------------------------------------------------------- autoregulate
@@ -59,7 +59,7 @@ def test_complete_session_done_on_backdating_and_future_clamp(db):
 
 # ---------------------------------------------------------------- substitute
 def test_substitute_item_accepts_offered_alt_rejects_arbitrary(db):
-    session, _ = service.open_session(db)  # foundation day 1 (legs)
+    session = service.open_session(db)  # foundation day 1 (legs)
     items = sorted(session.items, key=lambda it: it.sort_order)
     item = items[0]
     in_session = {it.exercise_key for it in session.items}
@@ -98,14 +98,14 @@ def test_alternatives_never_offer_warmup_or_cooldown_moves():
 # ---------------------------------------------------------------- report
 def test_report_counts_sessions_and_muscle_volume(db):
     # Session 1 (foundation day 1): tick two items, complete today.
-    s1, _ = service.open_session(db)
+    s1 = service.open_session(db)
     items1 = sorted(s1.items, key=lambda it: it.sort_order)
     service.tick_item(db, s1.id, items1[0].id, True)
     service.tick_item(db, s1.id, items1[1].id, True)
     service.complete_session(db, "foundation", 1, None)
 
     # Session 2 (foundation day 2): tick one item, complete today.
-    s2, _ = service.open_session(db)
+    s2 = service.open_session(db)
     assert (s2.level, s2.day_index) == ("foundation", 2)
     items2 = sorted(s2.items, key=lambda it: it.sort_order)
     service.tick_item(db, s2.id, items2[0].id, True)
@@ -135,7 +135,7 @@ def test_physical_day_map_respects_cutover(db):
     # Done BEFORE the cutover -> excluded (legacy checklist owns that day).
     service.complete_session(db, "foundation", 1, None, done_on=yesterday)
     # Done ON the cutover, all items ticked -> included and yellow.
-    s2, _ = service.open_session(db)
+    s2 = service.open_session(db)
     for it in s2.items:
         service.tick_item(db, s2.id, it.id, True)
     service.complete_session(db, "foundation", 2, None, done_on=today)
@@ -146,3 +146,65 @@ def test_physical_day_map_respects_cutover(db):
     assert info["done"] == info["total"] > 0
     assert info["is_yellow"] is True
     assert info["day_index"] == 2
+
+
+# ------------------------------------------------- lazy materialisation (GETs)
+def test_reads_materialise_only_the_open_session(client, db):
+    """Sessions are created lazily on the first read that needs them (module
+    docstring) — a deliberate write-on-GET. What must hold: only the OPEN
+    session ever gets a row, every read path agrees on it, and repeated
+    reads neither add rows nor re-append the daily items."""
+    first = service.get_today(db)
+    n_items = len(first.items)
+    service.get_today(db)
+    service.report(db)
+    service.level_overview(db)
+    service.program_grid(db)
+    for path in ("/api/training/today", "/api/training/report",
+                 "/api/training/levels", "/api/training/program"):
+        assert client.get(path).status_code == 200, path
+    db.expire_all()
+    rows = db.query(TrainingSession).all()
+    assert [(r.level, r.day_index, r.status) for r in rows] == [("foundation", 1, "unlocked")]
+    assert len(rows[0].items) == n_items
+
+
+# ---------------------------------------------------- daily items vs swapping
+def test_daily_items_cannot_be_swapped_away(db):
+    """The daily staples and the day's dumbbell picks are appended to every
+    session by _ensure_daily; a swap on one of them would be silently undone
+    (the staple re-appears next to its substitute on the next GET /today).
+    So they offer no alternatives and refuse a substitution — the escape
+    hatch for a staple that hurts is `skip`."""
+    today = service.get_today(db)
+    daily = set(program.DAILY_KEYS) | set(program.DUMBBELL_KEYS)
+    staples = [it for it in today.items if it.exercise_key in daily]
+    assert staples, "expected the daily items on the open session"
+    for it in staples:
+        assert it.alternatives == [], it.exercise_key
+        ex = program.EXERCISES[it.exercise_key]
+        same_type = next(
+            e.key for e in program.EXERCISES.values()
+            if e.day_type == ex.day_type and e.key != ex.key
+        )
+        assert service.substitute_item(db, today.id, it.id, same_type) is None
+
+    # Nothing re-appears on the next read.
+    again = service.get_today(db)
+    assert sorted(it.exercise_key for it in again.items) == sorted(
+        it.exercise_key for it in today.items
+    )
+
+
+def test_alternatives_never_offer_daily_or_dumbbell_moves():
+    """A programme exercise's swap list is made of programme exercises: the
+    staples are already in every session and the dumbbell pool rotates on
+    its own schedule."""
+    daily = set(program.DAILY_KEYS) | set(program.DUMBBELL_KEYS)
+    skip = daily | set(program.WARMUP_KEYS) | set(program.COOLDOWN_KEYS)
+    for key in program.EXERCISES:
+        if key in skip:
+            continue
+        offered = {a.key for a in program.alternatives_for(key, set())}
+        assert offered, f"{key} has no knee-safe alternative left"
+        assert not offered & daily, f"{key} offered {offered & daily}"

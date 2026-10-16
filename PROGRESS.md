@@ -1,6 +1,81 @@
 # Progress Log — Road To E (formerly "Table Tennis Coach", renamed 2026-07-25)
 
-## Current status (2026-10-15) — **Profile tab: the Head-to-head lookup is a type-to-search combo** (user: "đổi phần Head-to-Head (Pick an opponent) thành dạng có thể vừa chọn dropdown, vừa gõ search được, giống vài chỗ khác trong project này") — the Tactics tab's OpponentPicker was generalised into `shared/ui/SearchPicker` and both tabs use it; frontend only (tsc clean, dist rebuilt, verified headless on :8000 — no restart needed)
+## Current status (2026-10-16) — **Refactor Phase 0 + 1 (REFACTOR.md): safety net in place, low-risk cleanup done** (user: "làm các việc trong file md hôm qua mới ghi vô đi") — 194 backend tests (was 187), ESLint + vitest on the frontend, dead reflections API gone, one real bug fixed; **needs a start.bat restart** (backend code + frontend rebuild)
+
+> **Phase 0 — safety net (nothing user-visible):**
+>   - **Golden tests** `tests/test_golden_grid.py` pin GET /weeks, the CSV
+>     and the XLSX export for one busy week (2026-06-01..07: ★ package
+>     start, per-session coach + stutter guard, legacy checklist AND a
+>     Training-Center mirror day, every match kind incl. 1v2/2v1, event,
+>     tournament round, Travel, day notes, red/yellow/green Overall).
+>     `tests/test_golden_coach_context.py` pins the exact Vietnamese
+>     context text the verdict job and the week/month recap jobs send to
+>     the model, with the clock frozen to 2026-08-01 (per-module `dt`
+>     shim — patching `datetime.date` globally breaks SQLAlchemy). Golden
+>     files live in `tests/golden/`; `UPDATE_GOLDEN=1 pytest` refreshes
+>     them on purpose (`conftest.assert_golden`).
+>   - **Frontend tooling:** `eslint.config.js` (JS + TS recommended,
+>     `react-hooks/rules-of-hooks` error, `exhaustive-deps` warn,
+>     `no-non-null-assertion` warn), `vitest.config.ts` + a first unit test
+>     (`shared/fold.test.ts`), scripts `npm run lint` / `npm test`. Lint:
+>     0 errors, 39 warnings (27 `!` in match-stats/index.tsx — Phase 4).
+>     The 9 previously inert `eslint-disable` comments are live; one was
+>     unused (MatchEditor:350) and is gone. One real lint error fixed:
+>     a ternary used as a statement in PointCharter (`setsWon` tally).
+>   - **Suspected bugs, tested:** (1) "GET /today writes training rows" —
+>     by design (lazy materialisation, module docstring); the new test
+>     pins the invariant that matters: every read path creates ONLY the
+>     open session's row and repeated reads add nothing. The shared copy
+>     only ever calls `/session-by-date` (pure read), so SHARE_MODE is not
+>     affected. (2) **Daily-item swap — real bug, fixed:** `alternatives_for`
+>     offered swaps for the daily staples/dumbbell picks; a swapped-away
+>     staple was silently re-appended by `_ensure_daily` on the next read
+>     (staple + substitute side by side). Daily work now has no swap list
+>     and `substitute_item` refuses it (the escape hatch for a staple that
+>     hurts is **skip**); programme exercises never get a daily/dumbbell
+>     move offered either. Tests in `test_training_service.py`.
+>
+> **Phase 1 — cleanup:**
+>   - **Tactics reflections API removed** (GUI dropped 2026-10-10):
+>     `/api/tactics/reflections*` routes, `add/update/delete_reflection`,
+>     the `run_me_extraction_job` LLM pass + its EXTRACT prompt/schema,
+>     `ReflectionIn/Update/Out`, the 4 frontend methods + `Reflection`
+>     type + `.tac-reflect*` CSS, 3 unused match-log api methods
+>     (`updateServe`, `deleteServe`, `updateNote`) and 6 orphan `.ml-*`
+>     CSS classes + 2 `.tc-*-thumb-ph`. **Kept:** the `tactic_reflection`
+>     table and rows — `list_reflections` still feeds the stored notes into
+>     both tactic prompts (test adapted). `schema.d.ts` regenerated.
+>   - **No-ops / smells:** `_ensure_activity_unique_index` now checks
+>     `PRAGMA index_list` first, so `migrate` no longer commits on every
+>     startup (test added); `open_session` returns the session (the bool
+>     was always False); `rpe == "hard"` branch → comment; package math
+>     `over=max(0, 1-size)` → 0 and the redundant `is_current=False` loop;
+>     `export_xlsx` local `rating` shadowed the module → `overall_color`;
+>     `zip(strict=True)` in `_annotate_elo`; 2 unused test imports;
+>     `OVERLOAD_BUMP_SEC/REPS` named next to the daily ones; seeds import
+>     `recover_stuck_*` at the top (the "service pulls in httpx" note was
+>     stale — httpx is a pinned requirement).
+>   - **Stale comments** rewritten: tracker/service docstring (lists its
+>     concerns + points at the planned split), Player `level` (frozen
+>     legacy), `PlayerIn.level`, `SessionNoteUpdate.is_done`, `CellData.color`,
+>     seed "see service ELO_KIND_MULT", `MatchRowList` "sole consumer",
+>     match-stats api/index/registry/TrainingCenterCard/TrainingDisciplineCard
+>     history narratives.
+>   - **NOT done — needs the user:** deleting `backend/scripts/imports/*`
+>     and `backend/scripts/migrations/*` (one-off importers that CLEAR
+>     tracker rows for a date window) was blocked by the tool's permission
+>     guard twice. Run `git rm -r backend/scripts/imports backend/scripts/migrations`
+>     by hand if still wanted (history keeps them).
+>
+> **Verified:** 194 pytest pass (187 + 10 new − 2 reflection tests − 1
+> merged); `tsc -b` clean; `npm run lint` 0 errors; `npm test` 2 pass;
+> `npm run build` OK; uvicorn started on :8000 with the real DB — health,
+> GET /weeks (Oct week), /training/today (explosive day 5: 0 alternatives
+> on the 5 daily items, 5/5 on programme items), coach packages (#5: 7
+> used / 3 left / ok), CSV export, SPA 200, `/api/tactics/reflections/1`
+> → 404. Next per REFACTOR.md: use the app a few days, then Phase 2.
+
+## Previous status (2026-10-15) — **Profile tab: the Head-to-head lookup is a type-to-search combo** (user: "đổi phần Head-to-Head (Pick an opponent) thành dạng có thể vừa chọn dropdown, vừa gõ search được, giống vài chỗ khác trong project này") — the Tactics tab's OpponentPicker was generalised into `shared/ui/SearchPicker` and both tabs use it; frontend only (tsc clean, dist rebuilt, verified headless on :8000 — no restart needed)
 
 > **Head-to-head picker (user 2026-10-15, screenshot of "— Pick an
 > opponent (129) —"):** 129 opponents in a plain `<select>` meant

@@ -104,3 +104,29 @@ def category_id(db: Session, key: str) -> int:
     cat = db.query(Category).filter(Category.key == key).first()
     assert cat is not None, f"category {key!r} not seeded"
     return cat.id
+
+
+# ---------------------------------------------------------------- golden files
+GOLDEN_DIR = Path(__file__).resolve().parent / "golden"
+
+
+def assert_golden(name: str, actual: str) -> None:
+    """Compare *actual* with tests/golden/<name>; newlines are normalised.
+
+    Characterization tests use this to pin rendered output (grid cells, CSV
+    export, the coach's context text) before refactors. A missing file is
+    written and the test FAILS so the new golden gets reviewed; to refresh
+    an existing one on purpose run pytest with ``UPDATE_GOLDEN=1``.
+    """
+    import os
+
+    path = GOLDEN_DIR / name
+    actual = actual.replace("\r\n", "\n")
+    update = os.environ.get("UPDATE_GOLDEN") == "1"
+    if update or not path.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(actual, encoding="utf-8", newline="\n")
+        if not update:
+            pytest.fail(f"golden file {path.name} was missing — written, review it and re-run")
+    expected = path.read_text(encoding="utf-8").replace("\r\n", "\n")
+    assert actual == expected, f"output differs from golden {path.name}"

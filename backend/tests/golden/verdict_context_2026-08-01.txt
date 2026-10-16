@@ -1,0 +1,80 @@
+Vận động viên: the player.
+
+=== KHỐI LƯỢNG TẬP & CẦM VỢT (90 ngày gần nhất) ===
+Số ngày có hoạt động: 11; ngày thể lực: 1.
+Giờ tập có chủ đích: 335 phút (Train with Coach: 180p; Training with Partner: 135p; Serve: 20p).
+TỔNG THỜI GIAN CẦM VỢT: 475 phút (tập 315p + thi đấu ~160p ước từ số set).
+
+=== KẾT QUẢ THI ĐẤU (90 ngày gần nhất) ===
+Đơn: 7 trận (T4/B3, thắng 57%)
+Đôi: 1 trận (T1/B0, thắng 100%) [MẪU NHỎ]
+1v2 (học trò đánh 1 MÌNH vs 2 người): 0 trận (T0/B0, thắng —)
+2v1 (học trò + đồng đội vs 1 người): 0 trận (T0/B0, thắng —)
+Gặp đối thủ đánh gai: 1 trận (T0/B1, thắng 0%) [MẪU NHỎ]
+Tổng các trận: 8 trận (T5/B3, thắng 62%)
+ĐIỂM ELO ĐỘNG của học trò: 964 (neo 950 từ 2026-07-01, đã tính 6 trận) · còn 237 điểm nữa tới hạng E
+Diễn biến ELO theo TUẦN (cũ → mới): 29/06–05/07: 0.0 (0 trận, cuối tuần 950) · 06/07–12/07: 0.0 (0 trận, cuối tuần 950) · 13/07–19/07: 0.0 (0 trận, cuối tuần 950) · 20/07–26/07: +6.0 (1 trận, cuối tuần 956) · 27/07–01/08: +8.3 (5 trận, cuối tuần 964)
+
+=== PHÂN TÍCH TRẬN SÂU (cửa sổ 2026-06-01 → 2026-08-01, trận có tên đối thủ) ===
+Tách theo hạng đối thủ và CHẤP (điểm chấp mỗi ván; trận có chấp phải diễn giải khác trận đánh đồng):
+  - Đối thủ dưới cơ · đánh đồng: 1 trận (T1/B0, thắng 100%) [MẪU NHỎ]
+  - Đối thủ dưới cơ · học trò CHẤP đối thủ: 1 trận (T1/B0, thắng 100%) [MẪU NHỎ]
+  - Đối thủ ngang cơ · đánh đồng: 4 trận (T3/B1, thắng 75%) [MẪU NHỎ]
+  - Đối thủ trên cơ · học trò ĐƯỢC CHẤP: 1 trận (T0/B1, thắng 0%) [MẪU NHỎ]
+THEO LOẠI TRẬN: đánh chơi (tập) 2 trận (T1/B1, thắng 50%) [MẪU NHỎ] · đánh độ nhẹ 4 trận (T3/B1, thắng 75%) [MẪU NHỎ] · đánh giải (tournament) 1 trận (T1/B0, thắng 100%) [MẪU NHỎ]
+Xu hướng theo tháng:
+  - Jun: 1 trận (T1/B0, thắng 100%) [MẪU NHỎ]
+  - Jul: 5 trận (T3/B2, thắng 60%)
+  - Aug: 1 trận (T1/B0, thắng 100%) [MẪU NHỎ]
+Đối đầu nhiều nhất (head-to-head, đơn):
+  - Anna (ngang cơ): 3 trận (T2/B1); gần nhất: L 2026-07-31
+    diễn biến (cũ → mới): 20/07 W 3-1 (đồng) → 29/07 W 3-2 (đồng) → 31/07 L 2-3 (đồng)
+  - Cường (dưới cơ): 2 trận (T2/B0); gần nhất: W 2026-08-01
+    diễn biến (cũ → mới): 20/06 W 3-1 (đồng) → 01/08 W 3-0 (chấp 2)
+  - Bình (trên cơ): 1 trận (T0/B1); gần nhất: L 2026-07-27
+    diễn biến (cũ → mới): 27/07 L 1-3 (được chấp 2-0-2)
+ELO THEO ĐỐI THỦ trong cửa sổ (net; trận đôi/đồng đội tính cho mọi đối thủ có mặt):
+  - Nguồn ELO (lấy điểm nhiều nhất từ): Cường +10.1 (2 trận) · Anna +10.0 (4 trận)
+  - Ngốn ELO (mất điểm nhiều nhất vì): Bình -1.5 (1 trận)
+
+=== THỂ LỰC (Training Center) ===
+Cấp độ: Foundation; tổng buổi đã xong: 2; 7 ngày: 2 buổi; 30 ngày: 2 buổi; chuỗi hiện tại: 1 ngày; số ngày từ buổi gần nhất: 0; điều chỉnh cường độ: -1.
+Khối lượng theo nhóm cơ: Entire core×1; Lower abs + quads (isometric)×1; Obliques (standing)×1; Upper abs×1; Quadriceps (isometric)×1; Quadriceps×1
+
+=== GIẢI ĐẤU SẮP TỚI (học trò đã đăng ký) ===
+  - SG Cup tại Quận 1: còn 2 ngày (bắt đầu 2026-08-03). Giới hạn trình: E F G. Nội dung: đơn; đôi (đánh cặp với Đồng Đội).
+  - League tháng 8: còn 4 ngày (bắt đầu 2026-08-05). Thể thức: LEAGUE — đánh vòng tròn 3–5 trận rồi kết thúc, không có vòng loại trực tiếp, kết quả chỉ tính thắng–thua. Giới hạn điểm: ≤1300 điểm BBTV. Nội dung: đơn. Ghi chú: 5 trận vòng tròn
+
+=== 7 NGÀY TỚI (khung kế hoạch tuần — 'day' phải dùng NGUYÊN VĂN nhãn ngày dưới đây) ===
+  - Thứ 7 01/08 (HÔM NAY): (không có giải)
+  - Chủ nhật 02/08: (không có giải)
+  - Thứ 2 03/08: giải SG Cup — ngày 1/2
+  - Thứ 3 04/08: giải SG Cup — ngày 2/2
+  - Thứ 4 05/08: giải League tháng 8
+  - Thứ 5 06/08: (không có giải)
+  - Thứ 6 07/08: (không có giải)
+
+=== NHIỆM VỤ ĐANG THEO (bảng Tracking — nguồn: HLV trực tiếp / AI / tự giao; nhiệm vụ hằng ngày có chuỗi ngày — khen chuỗi tốt, nhắc nhiệm vụ bị bỏ bê) ===
+  - [HLV giao · chưa bắt đầu] Nhảy dây 100 cái — NHIỆM VỤ HẰNG NGÀY: chuỗi 2 ngày, lần cuối cách đây 1 ngày
+  - [tự giao · chưa bắt đầu] Đọc sách chiến thuật (chương 3)
+
+=== ĐIỀU HỌC TRÒ TỰ NHẮC MÌNH MỖI NGÀY (bảng Remember — theo thứ tự ưu tiên; tự đặt ra, đối chiếu số liệu xem có đang làm theo không) ===
+  - Giữ bình tĩnh khi bị dẫn điểm
+  - Giao bóng đa dạng ngay từ set 1
+
+=== HLV TRỰC TIẾP ĐANG DẶN (học trò ghi lại; chưa hoàn thành — cần tập tiếp) ===
+  - 2026-07-28 [FH Topspin]: Giữ thấp trọng tâm khi giật phải
+
+=== RECAP CÁC BUỔI TẬP VỚI HLV TRỰC TIẾP (mới nhất trước) ===
+  - 2026-07-28: Buổi tập tốt, chân nhanh hơn
+  - 2026-07-28 [FH Topspin]: Bài tập: FH topspin vs block 3×10 phút
+
+=== KINH NGHIỆM HỌC TRÒ TỰ RÚT RA (nhật ký — mới nhất trước; chủ quan, đối chiếu với số liệu khi dùng) ===
+  - 2026-07-31: Giao ngắn hiệu quả hơn giao dài với Anna
+
+=== GHI CHÚ HẰNG NGÀY CỦA HỌC TRÒ (mới nhất trước) ===
+  - 2026-07-30: Chân phải hơi mỏi sau buổi tập.
+  - 2026-07-25: Ngủ ít, đánh thiếu tập trung.
+
+=== SỔ TAY HLV (mục tiêu/mốc thời gian/ràng buộc đã chốt với học trò) ===
+  - 2026-07-20: Mục tiêu: hạng E trước 2027.

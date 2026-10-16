@@ -3,6 +3,7 @@ initial serve repertoire."""
 from sqlalchemy.orm import Session
 
 from app.core.sqlite_migrate import add_missing_columns
+from app.features.tactics.service import recover_stuck_plans
 from app.features.tactics.models import TacticServe
 from app.features.tracker.models import Setting
 
@@ -43,9 +44,6 @@ def seed_serves(db: Session) -> bool:
 
 
 def migrate(db: Session) -> None:
-    # Local import: service pulls in httpx etc. (same pattern as head_coach).
-    from app.features.tactics.service import recover_stuck_plans
-
     if add_missing_columns(db, "tactic_fact", _FACT_COLUMNS):
         db.commit()
     seed_serves(db)

@@ -91,9 +91,8 @@ export default function MatchStats() {
     [range.fromIso, range.toIso, unit]
   );
 
-  // Bottom section (merged from the retired Profile tab 2026-07-30):
-  // training discipline follows the range picker; the Training Center
-  // report is rangeless (always the latest).
+  // Bottom section: training discipline follows the range picker; the
+  // Training Center report is rangeless (always the latest).
   const { data: training } = useLoad<TrackerStats>(
     () => matchStatsApi.trainingStats(range.fromIso, range.toIso),
     [range.fromIso, range.toIso]
@@ -442,9 +441,8 @@ export default function MatchStats() {
         </section>
       )}
 
-      {/* ELO curve row. (The "Results & form" W/L-bars chart was removed
-          2026-08-01 on user request — ELO already tells the story; the
-          "win rate by opponent level" bars went the same way 2026-07-29.) */}
+      {/* ELO curve row — the one chart on this tab (W/L bars were dropped
+          on purpose: ELO already tells the story). */}
       {showCards && elo && (
         <div className="stats-cols">
           {/* The ELO cards render even when the filtered match list is empty
@@ -567,8 +565,8 @@ export default function MatchStats() {
         </div>
       )}
 
-      {/* 3) Training row (merged from the retired Profile tab): discipline
-          follows the range picker above; Training Center is rangeless. */}
+      {/* 3) Training row: discipline follows the range picker above;
+          Training Center is rangeless. */}
       <div className="stats-cols">
         <TrainingDisciplineCard training={training ?? null} />
         <TrainingCenterCard report={trainingReport ?? null} />

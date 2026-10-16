@@ -1,0 +1,505 @@
+{
+ "activities": [
+  {
+   "category_id": 1,
+   "coach_id": 1,
+   "date": "2026-06-01",
+   "duration_minutes": 60,
+   "id": 1,
+   "is_package_start": true,
+   "note": null
+  },
+  {
+   "category_id": 2,
+   "coach_id": null,
+   "date": "2026-06-01",
+   "duration_minutes": 45,
+   "id": 4,
+   "is_package_start": false,
+   "note": null
+  },
+  {
+   "category_id": 1,
+   "coach_id": 2,
+   "date": "2026-06-02",
+   "duration_minutes": 90,
+   "id": 2,
+   "is_package_start": false,
+   "note": "Phi Vũ"
+  },
+  {
+   "category_id": 1,
+   "coach_id": 2,
+   "date": "2026-06-03",
+   "duration_minutes": 60,
+   "id": 3,
+   "is_package_start": false,
+   "note": "footwork"
+  },
+  {
+   "category_id": 3,
+   "coach_id": null,
+   "date": "2026-06-04",
+   "duration_minutes": 20,
+   "id": 5,
+   "is_package_start": false,
+   "note": null
+  }
+ ],
+ "categories": [
+  {
+   "color_group": "green",
+   "id": 1,
+   "key": "train_with_coach",
+   "label": "Train with Coach",
+   "sort_order": 0,
+   "type": "duration"
+  },
+  {
+   "color_group": "green",
+   "id": 2,
+   "key": "training_with_partner",
+   "label": "Training with Partner",
+   "sort_order": 1,
+   "type": "duration"
+  },
+  {
+   "color_group": "green",
+   "id": 3,
+   "key": "serve",
+   "label": "Serve",
+   "sort_order": 2,
+   "type": "duration"
+  },
+  {
+   "color_group": "yellow",
+   "id": 4,
+   "key": "physical_training",
+   "label": "Physical Training",
+   "sort_order": 3,
+   "type": "checklist"
+  },
+  {
+   "color_group": "none",
+   "id": 5,
+   "key": "practice_match",
+   "label": "Practice Match",
+   "sort_order": 4,
+   "type": "match"
+  },
+  {
+   "color_group": "none",
+   "id": 6,
+   "key": "official_match",
+   "label": "Official Match",
+   "sort_order": 5,
+   "type": "match"
+  },
+  {
+   "color_group": "none",
+   "id": 7,
+   "key": "tournament_match",
+   "label": "Tournament Match",
+   "sort_order": 6,
+   "type": "match"
+  },
+  {
+   "color_group": "none",
+   "id": 8,
+   "key": "racket_time",
+   "label": "Racket Time",
+   "sort_order": 7,
+   "type": "computed"
+  },
+  {
+   "color_group": "none",
+   "id": 9,
+   "key": "notes",
+   "label": "Notes",
+   "sort_order": 8,
+   "type": "note"
+  },
+  {
+   "color_group": "none",
+   "id": 10,
+   "key": "overall",
+   "label": "Overall",
+   "sort_order": 9,
+   "type": "rating"
+  }
+ ],
+ "cells": {
+  "10|2026-06-01": {
+   "color": "green",
+   "display": ""
+  },
+  "10|2026-06-02": {
+   "color": "green",
+   "display": ""
+  },
+  "10|2026-06-03": {
+   "color": "green",
+   "display": ""
+  },
+  "10|2026-06-04": {
+   "color": "yellow",
+   "display": ""
+  },
+  "10|2026-06-05": {
+   "color": "yellow",
+   "display": ""
+  },
+  "10|2026-06-06": {
+   "color": "yellow",
+   "display": ""
+  },
+  "10|2026-06-07": {
+   "color": "red",
+   "display": ""
+  },
+  "1|2026-06-01": {
+   "color": null,
+   "display": "1 hour ★"
+  },
+  "1|2026-06-02": {
+   "color": null,
+   "display": "1 hour 30 mins · Phi Vũ"
+  },
+  "1|2026-06-03": {
+   "color": null,
+   "display": "1 hour · Phi Vũ (footwork)"
+  },
+  "2|2026-06-01": {
+   "color": null,
+   "display": "45 mins"
+  },
+  "3|2026-06-04": {
+   "color": null,
+   "display": "20 mins"
+  },
+  "4|2026-06-01": {
+   "color": "yellow",
+   "display": "Wall Sit · Sit-ups · Plank · Squats · Stretching"
+  },
+  "4|2026-06-02": {
+   "color": null,
+   "display": "Plank"
+  },
+  "4|2026-06-05": {
+   "color": null,
+   "display": "💪 2/5 · Quads (priority) — strong thighs take load off the knee"
+  },
+  "4|2026-06-06": {
+   "color": "yellow",
+   "display": "💪 4/4 · Core: rotation & anti-rotation"
+  },
+  "5|2026-06-01": {
+   "color": null,
+   "display": "W(3-1)\nL(1-3)"
+  },
+  "5|2026-06-06": {
+   "color": null,
+   "display": "Travel"
+  },
+  "6|2026-06-03": {
+   "color": null,
+   "display": "D: W(3-2)"
+  },
+  "6|2026-06-05": {
+   "color": null,
+   "display": "Thứ sáu CLB\n1v2: W(2-0)\n2v1: L(1-3)"
+  },
+  "7|2026-06-04": {
+   "color": null,
+   "display": "Gia Định Open\nQF: L(2-3)"
+  },
+  "8|2026-06-01": {
+   "color": null,
+   "display": "2 hour 25 mins"
+  },
+  "8|2026-06-02": {
+   "color": null,
+   "display": "1 hour 30 mins"
+  },
+  "8|2026-06-03": {
+   "color": null,
+   "display": "1 hour 25 mins"
+  },
+  "8|2026-06-04": {
+   "color": null,
+   "display": "25 mins"
+  },
+  "8|2026-06-05": {
+   "color": null,
+   "display": "30 mins"
+  },
+  "9|2026-06-01": {
+   "color": null,
+   "display": "📝 Knee felt fine today;…"
+  },
+  "9|2026-06-07": {
+   "color": null,
+   "display": "📝 Rest day"
+  }
+ },
+ "day_notes": {
+  "2026-06-01": "Knee felt fine today; long rallies in the evening, need to keep the elbow lower on the backhand.",
+  "2026-06-07": "Rest day"
+ },
+ "days": [
+  "2026-06-01",
+  "2026-06-02",
+  "2026-06-03",
+  "2026-06-04",
+  "2026-06-05",
+  "2026-06-06",
+  "2026-06-07"
+ ],
+ "matches": [
+  {
+   "best_of": 5,
+   "category_id": 5,
+   "date": "2026-06-01",
+   "discipline": "singles",
+   "elo_delta": null,
+   "elo_status": "before_anchor",
+   "event_id": null,
+   "event_name": null,
+   "handicap": 0,
+   "handicap_pattern": null,
+   "id": 1,
+   "is_nonplaying": false,
+   "my_sets": 3,
+   "nonplaying_label": null,
+   "note": null,
+   "opp_sets": 1,
+   "opponent2_id": null,
+   "opponent2_level": null,
+   "opponent2_name": null,
+   "opponent2_plays_pips": false,
+   "opponent_id": 1,
+   "opponent_level": "equal",
+   "opponent_name": "Anna",
+   "opponent_plays_pips": false,
+   "order_index": 0,
+   "partner_id": null,
+   "partner_level": null,
+   "partner_name": null,
+   "round": null,
+   "tournament_entry_id": null,
+   "tournament_name": null
+  },
+  {
+   "best_of": 5,
+   "category_id": 6,
+   "date": "2026-06-03",
+   "discipline": "doubles",
+   "elo_delta": null,
+   "elo_status": "before_anchor",
+   "event_id": null,
+   "event_name": null,
+   "handicap": 0,
+   "handicap_pattern": null,
+   "id": 3,
+   "is_nonplaying": false,
+   "my_sets": 3,
+   "nonplaying_label": null,
+   "note": null,
+   "opp_sets": 2,
+   "opponent2_id": 3,
+   "opponent2_level": "below",
+   "opponent2_name": "Cường",
+   "opponent2_plays_pips": false,
+   "opponent_id": 1,
+   "opponent_level": "equal",
+   "opponent_name": "Anna",
+   "opponent_plays_pips": false,
+   "order_index": 0,
+   "partner_id": 4,
+   "partner_level": "equal",
+   "partner_name": "Đồng Đội",
+   "round": null,
+   "tournament_entry_id": null,
+   "tournament_name": null
+  },
+  {
+   "best_of": 5,
+   "category_id": 7,
+   "date": "2026-06-04",
+   "discipline": "singles",
+   "elo_delta": null,
+   "elo_status": "before_anchor",
+   "event_id": 1,
+   "event_name": "Gia Định Open",
+   "handicap": 0,
+   "handicap_pattern": null,
+   "id": 4,
+   "is_nonplaying": false,
+   "my_sets": 2,
+   "nonplaying_label": null,
+   "note": null,
+   "opp_sets": 3,
+   "opponent2_id": null,
+   "opponent2_level": null,
+   "opponent2_name": null,
+   "opponent2_plays_pips": false,
+   "opponent_id": 3,
+   "opponent_level": "below",
+   "opponent_name": "Cường",
+   "opponent_plays_pips": false,
+   "order_index": 0,
+   "partner_id": null,
+   "partner_level": null,
+   "partner_name": null,
+   "round": "qf",
+   "tournament_entry_id": 1,
+   "tournament_name": "Gia Định Open"
+  },
+  {
+   "best_of": 3,
+   "category_id": 6,
+   "date": "2026-06-05",
+   "discipline": "one_v_two",
+   "elo_delta": null,
+   "elo_status": "before_anchor",
+   "event_id": null,
+   "event_name": null,
+   "handicap": 2,
+   "handicap_pattern": null,
+   "id": 5,
+   "is_nonplaying": false,
+   "my_sets": 2,
+   "nonplaying_label": null,
+   "note": null,
+   "opp_sets": 0,
+   "opponent2_id": 3,
+   "opponent2_level": "below",
+   "opponent2_name": "Cường",
+   "opponent2_plays_pips": false,
+   "opponent_id": 1,
+   "opponent_level": "equal",
+   "opponent_name": "Anna",
+   "opponent_plays_pips": false,
+   "order_index": 0,
+   "partner_id": null,
+   "partner_level": null,
+   "partner_name": null,
+   "round": null,
+   "tournament_entry_id": null,
+   "tournament_name": null
+  },
+  {
+   "best_of": 5,
+   "category_id": 5,
+   "date": "2026-06-06",
+   "discipline": "singles",
+   "elo_delta": null,
+   "elo_status": "nonplaying",
+   "event_id": null,
+   "event_name": null,
+   "handicap": 0,
+   "handicap_pattern": null,
+   "id": 7,
+   "is_nonplaying": true,
+   "my_sets": 0,
+   "nonplaying_label": "Travel",
+   "note": null,
+   "opp_sets": 0,
+   "opponent2_id": null,
+   "opponent2_level": null,
+   "opponent2_name": null,
+   "opponent2_plays_pips": false,
+   "opponent_id": null,
+   "opponent_level": null,
+   "opponent_name": null,
+   "opponent_plays_pips": false,
+   "order_index": 0,
+   "partner_id": null,
+   "partner_level": null,
+   "partner_name": null,
+   "round": null,
+   "tournament_entry_id": null,
+   "tournament_name": null
+  },
+  {
+   "best_of": 5,
+   "category_id": 5,
+   "date": "2026-06-01",
+   "discipline": "singles",
+   "elo_delta": null,
+   "elo_status": "before_anchor",
+   "event_id": null,
+   "event_name": null,
+   "handicap": -1,
+   "handicap_pattern": "2-0-2",
+   "id": 2,
+   "is_nonplaying": false,
+   "my_sets": 1,
+   "nonplaying_label": null,
+   "note": null,
+   "opp_sets": 3,
+   "opponent2_id": null,
+   "opponent2_level": null,
+   "opponent2_name": null,
+   "opponent2_plays_pips": false,
+   "opponent_id": 2,
+   "opponent_level": "above",
+   "opponent_name": "Bình",
+   "opponent_plays_pips": true,
+   "order_index": 1,
+   "partner_id": null,
+   "partner_level": null,
+   "partner_name": null,
+   "round": null,
+   "tournament_entry_id": null,
+   "tournament_name": null
+  },
+  {
+   "best_of": 5,
+   "category_id": 6,
+   "date": "2026-06-05",
+   "discipline": "two_v_one",
+   "elo_delta": null,
+   "elo_status": "before_anchor",
+   "event_id": 2,
+   "event_name": "Thứ sáu CLB",
+   "handicap": 0,
+   "handicap_pattern": null,
+   "id": 6,
+   "is_nonplaying": false,
+   "my_sets": 1,
+   "nonplaying_label": null,
+   "note": null,
+   "opp_sets": 3,
+   "opponent2_id": null,
+   "opponent2_level": null,
+   "opponent2_name": null,
+   "opponent2_plays_pips": false,
+   "opponent_id": 2,
+   "opponent_level": "above",
+   "opponent_name": "Bình",
+   "opponent_plays_pips": true,
+   "order_index": 1,
+   "partner_id": 4,
+   "partner_level": "equal",
+   "partner_name": "Đồng Đội",
+   "round": null,
+   "tournament_entry_id": null,
+   "tournament_name": null
+  }
+ ],
+ "physical_checks": {
+  "2026-06-01": [
+   "wall_sit",
+   "sit_ups",
+   "plank",
+   "squats",
+   "stretching"
+  ],
+  "2026-06-02": [
+   "plank"
+  ]
+ },
+ "physical_cutover": "2026-06-04",
+ "start": "2026-06-01"
+}

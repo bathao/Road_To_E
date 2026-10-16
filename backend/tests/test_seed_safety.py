@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 
+from app.features.tracker import seed as tracker_seed
 from app.features.tracker.seed import DEFAULT_CATEGORIES, seed_categories
 from app.features.tracker.models import Activity, Category
 
@@ -34,3 +35,12 @@ def test_seed_keeps_orphan_category_and_its_data(db):
     keys = [c.key for c in db.query(Category).all()]
     for key, *_ in DEFAULT_CATEGORIES:
         assert keys.count(key) == 1
+
+
+def test_tracker_migrate_is_a_no_op_on_the_second_run(db):
+    """The db fixture already ran migrate() once (via seed_categories). A
+    second pass must find nothing to do — in particular the activity unique
+    index must report "already there" instead of "created" every startup."""
+    assert tracker_seed._ensure_activity_unique_index(db) is False
+    tracker_seed.migrate(db)
+    assert tracker_seed._ensure_activity_unique_index(db) is False

@@ -347,7 +347,6 @@ export default function MatchEditor({
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opponent, discipline, editingMatch]);
 
   const { wins, losses } = validScores(bestOf);

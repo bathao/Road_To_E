@@ -1,7 +1,6 @@
 // One match per line — date, format tag, "with <partner> vs <opponents>",
-// result + score, handicap, match kind, event, ±ELO chip. Sole consumer is
-// the Database tab's per-player modal (its other user, the Analysis
-// drill-down modal, was removed 2026-08-02 with the win-rate cards).
+// result + score, handicap, match kind, event, ±ELO chip. Used by the
+// Database tab's per-player modal and the Tactics tab's head-to-head list.
 import { useMemo } from "react";
 import { useLoad } from "../../../shared/useApi";
 import { prettyDate } from "../../../shared/dates";

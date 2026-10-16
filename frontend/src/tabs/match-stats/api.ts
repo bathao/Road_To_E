@@ -10,8 +10,8 @@ import type {
 } from "./types";
 
 export const matchStatsApi = {
-  // No unit param: it only shaped the trend buckets, which the tab stopped
-  // rendering (chart removed 2026-08-01) and the endpoint stopped computing.
+  // No trend unit: the endpoint's trend buckets are read in-process by the
+  // coach only, never by this tab.
   get: (
     fromIso: string,
     toIso: string,

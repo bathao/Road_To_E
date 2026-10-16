@@ -6,7 +6,7 @@ import datetime as dt
 from conftest import category_id
 from app.features.tournament import schemas as t_schemas
 from app.features.tournament import service as t_service
-from app.features.tracker import schemas, service
+from app.features.tracker import service
 from app.features.tracker.models import Match, Player
 
 

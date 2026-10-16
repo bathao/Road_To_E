@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
+    "lint": "eslint .",
+    "test": "vitest run",
     "gen:api": "..\\backend\\.venv\\Scripts\\python ..\\backend\\scripts\\dump_openapi.py openapi.json && openapi-typescript openapi.json -o src/shared/api/schema.d.ts"
   },
   "dependencies": {
@@ -14,11 +16,17 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^10.12.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.13.0",
     "openapi-typescript": "^7.13.0",
     "typescript": "^5.6.3",
-    "vite": "^5.4.11"
+    "typescript-eslint": "^8.71.2",
+    "vite": "^5.4.11",
+    "vitest": "^3.2.7"
   }
 }

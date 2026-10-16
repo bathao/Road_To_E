@@ -858,6 +858,8 @@ def cycle_of(day_index: int) -> int:
 
 
 OVERLOAD_BUMP_CAP = OVERLOAD_MAX_CYCLES + 2  # autoregulation can push a bit past
+OVERLOAD_BUMP_SEC = 5   # +5s per step for timed holds
+OVERLOAD_BUMP_REPS = 2  # +2 reps per step for rep work
 
 
 def scaled_target(ex: Exercise, cycle: int, bias: int = 0) -> dict:
@@ -865,8 +867,9 @@ def scaled_target(ex: Exercise, cycle: int, bias: int = 0) -> dict:
 
     Base overload = min(cycle, OVERLOAD_MAX_CYCLES). `bias` is the autoregulation
     adjustment from recent pain/RPE feedback (easy → +, hard/pain → −). The
-    effective bump is clamped to [0, OVERLOAD_BUMP_CAP]: +5s per step for timed
-    holds, +2 reps per step for rep work. Sets never change; knee-safe by design.
+    effective bump is clamped to [0, OVERLOAD_BUMP_CAP]; each step adds
+    OVERLOAD_BUMP_SEC to timed holds or OVERLOAD_BUMP_REPS to rep work. Sets
+    never change; knee-safe by design.
     """
     base = min(max(cycle, 0), OVERLOAD_MAX_CYCLES)
     bump = max(0, min(base + bias, OVERLOAD_BUMP_CAP))
@@ -874,9 +877,9 @@ def scaled_target(ex: Exercise, cycle: int, bias: int = 0) -> dict:
         return dict(ex.target)
     t = dict(ex.target)
     if ex.kind == "timed" and "sec" in t:
-        t["sec"] = t["sec"] + 5 * bump
+        t["sec"] = t["sec"] + OVERLOAD_BUMP_SEC * bump
     elif "reps" in t:
-        t["reps"] = t["reps"] + 2 * bump
+        t["reps"] = t["reps"] + OVERLOAD_BUMP_REPS * bump
     return t
 
 
@@ -923,11 +926,19 @@ def daily_target(ex: Exercise, global_day: int, bias: int = 0) -> dict:
     return t
 
 
+# Daily work is never part of a swap, in either direction: the staples are
+# appended to EVERY session by the service (a swapped-away staple would simply
+# re-appear next to its substitute on the next read), and the dumbbell pool
+# rotates on its own schedule. A staple that hurts is skipped, not swapped.
+_DAILY_WORK_KEYS = frozenset(DAILY_KEYS) | frozenset(DUMBBELL_KEYS)
+
+
 def alternatives_for(key: str, exclude: set[str]) -> list[Exercise]:
-    """Knee-safe substitutes for an exercise: same day-type, not already in the
-    session. Used by the "swap if it hurts" substitution."""
+    """Knee-safe substitutes for a PROGRAMME exercise: same day-type, not
+    already in the session, never warm-up/cool-down or daily work. Empty for
+    daily items themselves. Used by the "swap if it hurts" substitution."""
     ex = EXERCISES.get(key)
-    if ex is None:
+    if ex is None or key in _DAILY_WORK_KEYS:
         return []
     out = [
         e for e in _EX
@@ -936,6 +947,6 @@ def alternatives_for(key: str, exclude: set[str]) -> list[Exercise]:
         # share day_type "balance", so without this they'd crowd the top of
         # a balance-day substitution list.
         and e.key not in WARMUP_KEYS and e.key not in COOLDOWN_KEYS
-        and e.key not in NO_SWAP_KEYS
+        and e.key not in NO_SWAP_KEYS and e.key not in _DAILY_WORK_KEYS
     ]
     return out[:3]

@@ -27,9 +27,8 @@ export const TABS: TabDef[] = [
     enabled: true,
   },
   {
-    // The old standalone Profile tab was merged in here 2026-07-30: general
-    // info on top, match stats in the middle, training cards at the bottom.
-    // The folder keeps its match-stats name; only the label/icon changed.
+    // Profile: general info on top, match stats in the middle, training
+    // cards at the bottom. The folder keeps its older match-stats name.
     id: "match-stats",
     label: "Profile",
     icon: "🪪",

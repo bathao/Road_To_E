@@ -378,60 +378,6 @@
   margin-top: 8px;
 }
 
-/* ---- my analysis (post-match reflections) ---- */
-.tac-reflect-add {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.tac-reflect-input {
-  flex: 1;
-  resize: vertical;
-  font: inherit;
-  font-size: 14px;
-  line-height: 1.4;
-}
-
-.tac-reflect-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.tac-reflect {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  padding: 6px 0;
-  border-bottom: 1px dashed var(--border);
-  font-size: 14px;
-}
-
-.tac-reflect-date {
-  color: var(--muted);
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-.tac-reflect-text {
-  flex: 1;
-  line-height: 1.45;
-  white-space: pre-wrap;
-}
-
-.tac-reflect-edit {
-  flex: 1;
-  display: flex;
-  gap: 6px;
-  align-items: flex-end;
-}
-
-.tac-reflect-btns {
-  white-space: nowrap;
-}
-
 /* ---- game plan ---- */
 .tac-plan-headline {
   font-size: 1.15rem;
@@ -549,8 +495,6 @@
 .ml-setbox button.open { border: none; background: none; font-size: 11px; color: var(--accent); padding: 0; cursor: pointer; }
 .ml-summary { font-size: 13px; color: var(--muted); align-self: center; }
 
-.ml-board { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 14px; }
-@media (max-width: 1000px) { .ml-board { grid-template-columns: 1fr; } }
 .ml-card { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; background: var(--surface); }
 .ml-card-h { margin: 0 0 8px; font-size: 14px; display: flex; justify-content: space-between; }
 .ml-card-h .cnt { color: var(--muted); font-weight: 500; font-size: 12px; }
@@ -566,8 +510,6 @@
 .ml-score .big { font-size: 34px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 1px; text-align: center; }
 .ml-score .big small { font-size: 12px; font-weight: 500; color: var(--muted); display: block; letter-spacing: 0; }
 
-.ml-rally { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; min-height: 34px; margin-top: 12px; }
-.ml-rs-wrap { display: inline-flex; align-items: center; gap: 6px; }
 .ml-arrow { color: var(--muted); }
 .ml-rs { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 8px; font-size: 13px; border: 1px solid transparent; }
 .ml-rs.me { background: #e4eeff; border-color: #b9cdf5; }
@@ -581,8 +523,6 @@
 .ml-rs.end.err { background: #fbe5e5; color: #d14343; }
 
 .ml-stage { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
-.ml-stage-title { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-.ml-stage-title h3 { margin: 0; font-size: 15px; }
 .ml-row { display: grid; grid-template-columns: 110px 1fr; gap: 8px; align-items: start; }
 @media (max-width: 600px) { .ml-row { grid-template-columns: 1fr; } }
 .ml-row .ml-lab { padding-top: 8px; }
@@ -616,11 +556,6 @@
 .ml-table th.num, .ml-table td.num { text-align: right; }
 .ml-table td { padding: 5px 6px; border-bottom: 1px solid var(--border); vertical-align: top; font-variant-numeric: tabular-nums; }
 .ml-table tbody tr:last-child td { border-bottom: none; }
-.ml-pt-sc { white-space: nowrap; font-weight: 600; }
-.ml-pt-sc.me { color: #2d6fd6; }
-.ml-pt-sc.opp { color: #d97a2b; }
-.ml-pt-rally { color: var(--muted); }
-.ml-pt-rally b { color: var(--text); font-weight: 600; }
 .ml-pt-note { display: block; color: var(--text); font-style: italic; }
 .ml-srvdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
 .ml-srvdot.me { background: #2d6fd6; }

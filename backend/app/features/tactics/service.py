@@ -21,9 +21,6 @@ from app.features.head_coach.service import (
 from app.features.tactics import matchlog, schemas
 from app.features.tactics.models import TacticFact, TacticPlan, TacticReflection
 from app.features.tactics.prompt import (
-    EXTRACT_RESPONSE_SCHEMA,
-    EXTRACT_SYSTEM_PROMPT,
-    FACT_KINDS,
     INTERVIEW_RESPONSE_SCHEMA,
     INTERVIEW_SYSTEM_PROMPT,
     ME_INTAKE_KEYS,
@@ -189,116 +186,16 @@ def save_answers(db: Session, payload: schemas.AnswersIn) -> schemas.FactsOut:
 
 
 # ------------------------------------------------------------------ reflections
-def list_reflections(db: Session, player_id: int) -> list[schemas.ReflectionOut]:
-    """Newest first — recent impressions override older ones, in the GUI and
-    in the prompt alike."""
-    rows = (
+def list_reflections(db: Session, player_id: int) -> list[TacticReflection]:
+    """The student's own post-match notes on this opponent, newest first.
+    The GUI that wrote them ("My analysis") was dropped 2026-10-10 and the
+    API with it (2026-10-16); the stored rows still ride the prompts."""
+    return (
         db.query(TacticReflection)
         .filter(TacticReflection.player_id == player_id)
         .order_by(TacticReflection.id.desc())
         .all()
     )
-    return [schemas.ReflectionOut.model_validate(r) for r in rows]
-
-
-def add_reflection(db: Session, payload: schemas.ReflectionIn) -> TacticReflection:
-    if db.get(Player, payload.player_id) is None:
-        raise LookupError("Player not found")
-    row = TacticReflection(player_id=payload.player_id, text=payload.text)
-    db.add(row)
-    db.commit()
-    db.refresh(row)
-    return row
-
-
-def update_reflection(
-    db: Session, reflection_id: int, payload: schemas.ReflectionUpdate
-) -> TacticReflection:
-    row = db.get(TacticReflection, reflection_id)
-    if row is None:
-        raise LookupError("Reflection not found")
-    text = payload.text.strip()
-    if not text:
-        raise ValueError("Reflection text cannot be empty.")
-    row.text = text
-    db.commit()
-    db.refresh(row)
-    return row
-
-
-def delete_reflection(db: Session, reflection_id: int) -> None:
-    row = db.get(TacticReflection, reflection_id)
-    if row is not None:
-        db.delete(row)
-        db.commit()
-
-
-# Auto-extraction never floods the me-file from one note.
-_EXTRACT_MAX_FACTS = 5
-
-
-def run_me_extraction_job(reflection_id: int, db_or_none: Session | None = None) -> None:
-    """Background pass after a reflection is saved: the coach reads the note
-    and files what it reveals about the STUDENT into the global me-file
-    (source='coach' — the GUI marks these so the user can prune). Guards:
-    only player_id NULL rows are ever written, exact-duplicate texts are
-    skipped, and ANY failure is swallowed (the reflection itself was already
-    saved — extraction is best-effort)."""
-    db = db_or_none or SessionLocal()
-    try:
-        row = db.get(TacticReflection, reflection_id)
-        if row is None:
-            return
-        opponent = db.get(Player, row.player_id)
-        me_facts = (
-            db.query(TacticFact)
-            .filter(TacticFact.player_id.is_(None))
-            .order_by(TacticFact.id)
-            .all()
-        )
-        user_text = (
-            f"=== HỒ SƠ HỌC TRÒ ĐÃ CÓ (KHÔNG lặp lại) ===\n"
-            f"{_fact_lines(me_facts)}\n\n"
-            f"=== GHI CHÚ MỚI CỦA HỌC TRÒ (về các trận với "
-            f"{opponent.name if opponent else 'đối thủ'}) ===\n"
-            f"{row.text}\n\n"
-            f"Lọc ra những điều ghi chú tiết lộ về CHÍNH HỌC TRÒ theo LUẬT "
-            f"trong system prompt (rỗng nếu không có gì mới)."
-        )
-        data = _ollama_chat(
-            resolve_model(),
-            [
-                {"role": "system", "content": EXTRACT_SYSTEM_PROMPT},
-                {"role": "user", "content": user_text},
-            ],
-            EXTRACT_RESPONSE_SCHEMA,
-            temperature=0.2,
-            tag="tactics me-extraction",
-        )
-        existing = {f.text.strip().lower() for f in me_facts}
-        added = 0
-        for item in data.get("facts", [])[:_EXTRACT_MAX_FACTS]:
-            text = str(item.get("text", "")).strip()
-            if not text or text.lower() in existing:
-                continue
-            kind = item.get("kind")
-            db.add(TacticFact(
-                player_id=None,
-                kind=kind if kind in FACT_KINDS else "note",
-                text=text,
-                source="coach",
-            ))
-            existing.add(text.lower())
-            added += 1
-        if added:
-            db.commit()
-            log.info("tactics me-extraction(%d): saved %d fact(s)", reflection_id, added)
-    except Exception:  # noqa: BLE001 — best-effort; the note itself is safe
-        db.rollback()
-        log.warning("tactics me-extraction(%d) failed", reflection_id, exc_info=True)
-    finally:
-        if db_or_none is None:
-            db.close()
 
 
 # ------------------------------------------------------------- prompt context

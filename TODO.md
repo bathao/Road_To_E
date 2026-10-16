@@ -28,6 +28,21 @@ scannable. Last full sync: 2026-10-10.
   knockout/team events; enough to backtest t once the Oct tournaments
   (EFF FriendShip 11/10, Gia Định 24/10) are in.
 
+## Open — code health (plan `REFACTOR.md`; Phase 0 + 1 done 2026-10-16)
+
+- [x] Phase 0 — golden tests for the grid/export and the coach context,
+  ESLint + vitest, the two suspected bugs tested (GET-writes = by design,
+  pinned; daily-item swap = real bug, fixed). Phase 1 — reflections API /
+  CSS / dead methods removed, no-ops and stale comments fixed.
+- [ ] **Delete `backend/scripts/imports/*` + `backend/scripts/migrations/*`**
+  by hand (`git rm -r …`) — the tool's permission guard refused it; they
+  clear tracker rows for a date window and are already in git history.
+- [ ] **Phase 2** (after a few days of normal use): backend shared LLM/job
+  layer (`app/shared/`), typed `NotFound`/`Conflict`, `tracker/constants.py`,
+  explicit `on_startup` hooks. Then **Phase 3** (split tracker/head_coach/
+  program into packages — the goldens guard it) and **Phase 4** (frontend
+  shared types/hooks, component splits; 39 lint warnings to burn down).
+
 ## Open — feature ideas (no blocker, just not built)
 
 - [ ] **Per-EVENT points tier for tournaments** (spotted 2026-08-20,

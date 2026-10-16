@@ -102,47 +102,6 @@ INTERVIEW_RESPONSE_SCHEMA = {
     "required": ["questions"],
 }
 
-# After every saved reflection, a background pass reads it and files anything
-# the student revealed about THEMSELVES into the global me-file (user
-# 2026-08-17: "coach tự đọc, tự phân tích, lọc ra, lưu lại thành thông tin
-# chung"). Auto-saved facts carry source='coach' so the GUI marks them and the
-# user can prune.
-EXTRACT_SYSTEM_PROMPT = (
-    _PERSONA
-    + "\nNHIỆM VỤ: đọc MỘT ghi chú phân tích của học trò sau các trận với một "
-    "đối thủ, và LỌC RA những điều ghi chú đó tiết lộ về CHÍNH HỌC TRÒ — "
-    "điểm mạnh/điểm yếu/lối đánh/thói quen CỦA HỌC TRÒ — đáng lưu vào hồ sơ "
-    "dùng chung cho MỌI đối thủ.\n"
-    "LUẬT:\n"
-    "- CHỈ lấy thông tin về học trò và có giá trị LÂU DÀI qua mọi đối thủ "
-    "(kỹ thuật, lối đánh, thể lực, tâm lý bản thân). Điều gắn chặt với đối "
-    "thủ cụ thể của ghi chú ('hắn', 'đối thủ này', kèo trận đó) → KHÔNG lấy.\n"
-    "- KHÔNG lặp lại điều ĐÃ CÓ trong hồ sơ học trò được cấp (kể cả diễn "
-    "đạt khác cách).\n"
-    "- Mỗi mục đúng 1 câu ngắn, bám sát lời học trò (không suy diễn thêm), "
-    "gắn kind strength/weakness/style/note.\n"
-    "- Không chắc chắn thì BỎ. Danh sách RỖNG là kết quả bình thường và "
-    "thường gặp.\n"
-)
-
-EXTRACT_RESPONSE_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "facts": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "kind": {"type": "string", "enum": list(FACT_KINDS)},
-                    "text": {"type": "string"},
-                },
-                "required": ["kind", "text"],
-            },
-        },
-    },
-    "required": ["facts"],
-}
-
 PLAN_SYSTEM_PROMPT = (
     _PERSONA
     + "\nNHIỆM VỤ: viết GIÁO ÁN THI ĐẤU TRẬN ĐƠN cụ thể để học trò thắng MỘT "

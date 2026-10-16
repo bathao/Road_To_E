@@ -203,7 +203,15 @@ def _ensure_activity_unique_index(db: Session) -> bool:
 
     NEVER deletes or merges rows: if duplicates already exist the index cannot
     be created — log a warning and leave the data exactly as it is.
+
+    Returns True only when the index was actually created, so ``migrate``
+    does not commit on every startup once it exists.
     """
+    existing = {
+        row[1] for row in db.execute(text("PRAGMA index_list(tracker_activity)"))
+    }
+    if "uq_tracker_activity_date_category" in existing:
+        return False
     try:
         db.execute(
             text(
@@ -234,7 +242,7 @@ DEFAULT_CATEGORIES = [
     ("practice_match", "Practice Match", "match", "none"),
     ("official_match", "Official Match", "match", "none"),
     # Tournament play (đánh giải) — kept separate from official (đánh độ nhẹ)
-    # so the ELO rating can weight it higher (t = 1.5, see service ELO_KIND_MULT).
+    # so the ELO rating can weight it higher (rating.ELO_KIND_MULT).
     ("tournament_match", "Tournament Match", "match", "none"),
     # Auto-computed row (like Overall): coach + partner minutes + match sets
     # × service.RACKET_MINUTES_PER_SET. Read-only in the grid.

@@ -7,7 +7,6 @@ import type {
   FactsOut,
   InterviewOut,
   Opponent,
-  Reflection,
   TacticPlan,
 } from "./types";
 
@@ -29,18 +28,6 @@ export const tacticsApi = {
     api.put<Fact>(`/tactics/facts/${id}`, { text }),
 
   deleteFact: (id: number) => api.del<{ ok: boolean }>(`/tactics/facts/${id}`),
-
-  getReflections: (playerId: number) =>
-    api.get<Reflection[]>(`/tactics/reflections/${playerId}`),
-
-  addReflection: (playerId: number, text: string) =>
-    api.post<Reflection>("/tactics/reflections", { player_id: playerId, text }),
-
-  updateReflection: (id: number, text: string) =>
-    api.put<Reflection>(`/tactics/reflections/${id}`, { text }),
-
-  deleteReflection: (id: number) =>
-    api.del<{ ok: boolean }>(`/tactics/reflections/${id}`),
 
   // Synchronous LLM call — slow-ish; the button shows a spinner meanwhile.
   interview: (playerId: number) =>
@@ -76,8 +63,6 @@ import type {
 export const matchlogApi = {
   getServes: () => api.get<Serve[]>("/tactics/serves"),
   addServe: (s: ServeIn) => api.post<Serve>("/tactics/serves", s),
-  updateServe: (id: number, s: ServeIn) => api.put<Serve>(`/tactics/serves/${id}`, s),
-  deleteServe: (id: number) => api.del<{ ok: boolean }>(`/tactics/serves/${id}`),
 
   status: (playerId: number) =>
     api.get<MatchLogStatus[]>(`/tactics/matchlog/status/${playerId}`),
@@ -86,8 +71,6 @@ export const matchlogApi = {
     api.put<SetScore[]>(`/tactics/matchlog/${matchId}/sets`, { sets }),
   addPoint: (matchId: number, p: PointIn) =>
     api.post<Point>(`/tactics/matchlog/${matchId}/points`, p),
-  updateNote: (pointId: number, note: string | null) =>
-    api.put<Point>(`/tactics/matchlog/points/${pointId}/note`, { note }),
   deletePoint: (pointId: number) =>
     api.del<{ ok: boolean }>(`/tactics/matchlog/points/${pointId}`),
 
